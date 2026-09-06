@@ -13,6 +13,7 @@ import { WeekView } from './ui/WeekView';
 import { FocusView } from './ui/FocusView';
 import { SettingsView } from './ui/SettingsView';
 import { InstrumentationView } from './ui/InstrumentationView';
+import { NotesView } from './ui/NotesView';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
@@ -68,6 +69,9 @@ export default function App() {
   const renameReminder = (id: string, title: string) => { repository.updateReminder(id, { title }); refreshData(); log('edit', title); };
   const deleteTask = (id: string) => { repository.deleteTask(id); refreshData(); log('delete', id); };
   const deleteReminder = (id: string) => { repository.deleteReminder(id); refreshData(); log('delete', id); };
+  const createNote = (title: string, content: string) => { repository.createNote({ title, content, folder: 'Bento', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); refreshData(); log('create', title); };
+  const updateNote = (id: string, changes: Partial<import('./domain/models').Note>) => { repository.updateNote(id, changes); refreshData(); log('edit', id); };
+  const deleteNote = (id: string) => { repository.deleteNote(id); refreshData(); log('delete', id); };
   const editTaskDeadline = (id: string) => { const task = data.tasks.find((item) => item.id === id); if (!task) return; const value = window.prompt('Deadline (AAAA-MM-DD HH:MM), vazio remove', task.deadline ? task.deadline.replace('T', ' ') : ''); if (value === null) return; const trimmed = value.trim(); if (trimmed && !/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$/.test(trimmed)) { window.alert('Formato inválido.'); return; } repository.updateTask(id, { deadline: trimmed ? trimmed.replace(' ', 'T') : undefined }); refreshData(); log('edit', task.title, 'deadline-updated'); };
   const editReminderSchedule = (id: string) => {
     const reminder = data.reminders.find((item) => item.id === id); if (!reminder) return;
@@ -105,6 +109,7 @@ export default function App() {
     const props = { onEvent: log, onNavigate: navigate };
     switch (route) {
       case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} onCreateTask={createTask} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
+      case 'notes': return <NotesView data={data} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
       case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={createReminder} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} />;

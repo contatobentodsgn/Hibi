@@ -28,6 +28,7 @@ export interface Reminder {
   schedule: { at: string; recurrence?: RecurrenceRule };
   status?: EntityStatus;
 }
+export interface Note { id: string; title: string; content: string; folder?: string; createdAt: string; updatedAt: string; }
 
 export interface ScheduleBlock {
   id: string;
@@ -50,6 +51,7 @@ export interface TelemetryEvent {
 }
 
 export interface StudyData {
+  notes: Note[];
   tasks: Task[];
   reminders: Reminder[];
   blocks: ScheduleBlock[];

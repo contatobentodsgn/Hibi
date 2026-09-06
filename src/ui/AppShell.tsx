@@ -1,10 +1,10 @@
 import React from 'react';
 
-export type NavKey = 'home' | 'tasks' | 'reminders' | 'day' | 'week' | 'focus' | 'settings' | 'instrumentation';
+export type NavKey = 'home' | 'tasks' | 'notes' | 'reminders' | 'day' | 'week' | 'focus' | 'settings' | 'instrumentation';
 type Props = { active: NavKey; taskCount: number; reminderCount: number; onNavigate: (key: NavKey) => void; onOpenCommands: () => void; children: React.ReactNode };
 
 const items: { key: NavKey; label: string; icon: string }[] = [
-  { key: 'tasks', label: 'Tasks', icon: '☷' }, { key: 'reminders', label: 'Reminders', icon: '♢' },
+  { key: 'tasks', label: 'Tasks', icon: '☷' }, { key: 'notes', label: 'Notes', icon: '▤' }, { key: 'reminders', label: 'Reminders', icon: '♢' },
   { key: 'day', label: 'Day', icon: '□' }, { key: 'week', label: 'Week', icon: '▦' },
   { key: 'focus', label: 'Focus', icon: '◉' }, { key: 'settings', label: 'Settings', icon: '⚙' },
   { key: 'instrumentation', label: 'Events', icon: '⌁' },

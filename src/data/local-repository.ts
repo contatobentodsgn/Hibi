@@ -1,4 +1,4 @@
-import type { Reminder, ScheduleBlock, StudyData, Task } from '../domain/models';
+import type { Note, Reminder, ScheduleBlock, StudyData, Task } from '../domain/models';
 
 type NewTask = Omit<Task, 'id'>;
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -16,13 +16,17 @@ export class LocalRepository {
     const repository = new LocalRepository(seed);
     const parsed = JSON.parse(json) as StudyData;
     if (!parsed || !Array.isArray(parsed.tasks) || !Array.isArray(parsed.reminders) || !Array.isArray(parsed.blocks) || !Array.isArray(parsed.telemetry)) throw new Error('Invalid study data');
-    repository.data = clone(parsed);
+    repository.data = { ...clone(parsed), notes: Array.isArray(parsed.notes) ? parsed.notes : [] };
     return repository;
   }
 
   snapshot(): StudyData { return clone(this.data); }
   listTasks(): Task[] { return clone(this.data.tasks); }
   listReminders(): Reminder[] { return clone(this.data.reminders); }
+  listNotes(): Note[] { return clone(this.data.notes); }
+  createNote(input: Omit<Note, 'id'>): Note { const note = { ...input, id: `note-${Date.now()}-${this.data.notes.length}` }; this.data.notes.push(note); return clone(note); }
+  updateNote(id: string, changes: Partial<Omit<Note, 'id'>>): Note { const note = this.data.notes.find((item) => item.id === id); if (!note) throw new Error(`Note not found: ${id}`); Object.assign(note, changes); return clone(note); }
+  deleteNote(id: string): void { this.data.notes = this.data.notes.filter((note) => note.id !== id); }
   listBlocks(): ScheduleBlock[] { return clone(this.data.blocks); }
   getTask(id: string): Task | undefined { return this.data.tasks.find((task) => task.id === id); }
   createTask(input: NewTask): Task {
