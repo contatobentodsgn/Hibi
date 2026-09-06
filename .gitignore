@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.vite/
+*.log
+.DS_Store
+coverage/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+study-data/
+event-logs/
