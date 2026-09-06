@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { durationMinutes, toDateKey } from '../domain/schedule';
 import type { ScheduleBlock, StudyData } from '../domain/models';
 type Props = { data: StudyData; onEvent: (action: string, detail: string, result?: string) => void; onCreateBlock: (input: Omit<ScheduleBlock, 'id'>) => void; onDeleteBlock?: (id: string) => void };
@@ -9,6 +9,10 @@ const icsDate = (value: string) => `${value.slice(0,4)}-${value.slice(4,6)}-${va
 export function WeekView({ data, onEvent, onCreateBlock, onDeleteBlock }: Props) {
   const [layer, setLayer] = useState<'all' | 'schedule' | 'important' | 'wellbeing'>('all');
   const [weekStart, setWeekStart] = useState(START);
+  useEffect(() => {
+    const firstDate = data.blocks.map((block) => toDateKey(block.start)).filter(Boolean).sort()[0];
+    if (firstDate && weekStart === START && firstDate !== START) setWeekStart(firstDate);
+  }, [data.blocks, weekStart]);
   const matchesLayer = (block: ScheduleBlock) => layer === 'all' || layer === 'schedule' || (layer === 'important' ? block.isHard === true : block.category === 'break');
   const days = daysFrom(weekStart);
   const add = (date: string, hour: number) => onCreateBlock({ title: 'Quick study block', start: `${date}T${String(hour).padStart(2,'0')}:00:00${OFFSET}`, end: `${date}T${String(hour + 1).padStart(2,'0')}:00:00${OFFSET}`, category: 'work' });
