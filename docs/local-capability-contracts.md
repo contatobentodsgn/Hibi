@@ -6,7 +6,7 @@ This is the reconstructed contract surface for the Hibi study replica. It descri
 
 | Capability | Local contract | Explicit boundary |
 | --- | --- | --- |
-| Persistence | `StudyData` is owned by one in-memory `LocalRepository`; the renderer restores/saves JSON in `localStorage` under `hibi-study-data`. UI events use `hibi-events`. | No server, account, sync, or encrypted-store contract is present. |
+| Persistence | `StudyData` is owned by one in-memory `LocalRepository`; the browser/Electron renderer restores/saves JSON in `localStorage` under `hibi-study-data`. UI events use `hibi-events`. | No server, account, sync, or encrypted-store contract is present. |
 | Reminders | Reminders contain a title, category, status, one initial `schedule.at`, and optional daily/weekly recurrence. Paused reminders are excluded from notification entries. | Recurrence is local date/time logic; there is no external reminder provider. |
 | Calendar | Calendar surfaces read/write local `ScheduleBlock` records (`start`, `end`, category, optional task link, hard flag). Recurrence expansion and conflict validation are domain functions. | “Calendar connected” means local blocks; external calendar sync is not configured. |
 | Notifications | Active task deadlines and reminders become sanitized notification entries. The renderer sends the list through optional preload IPC; Electron owns timers and native notification delivery. | OS permission/support can suppress delivery; no remote push service exists. |
@@ -18,7 +18,7 @@ This is the reconstructed contract surface for the Hibi study replica. It descri
 ### Persistence
 
 - Canonical shape: `StudyData` contains `notes`, `tasks`, `reminders`, `habits`, `goals`, `blocks`, and `telemetry` arrays ([models.ts](../src/domain/models.ts)).
-- `LocalRepository` clones input/output values, exposes CRUD for local entities, rejects malformed required arrays on JSON restore, defaults missing legacy `notes`/`habits`/`goals` to empty arrays, and can reset to its seed ([local-repository.ts](../src/data/local-repository.ts)).
+- `LocalRepository` clones input/output values, exposes CRUD for local entities, rejects malformed required arrays on JSON restore, defaults missing legacy `notes`/`habits`/`goals` to empty arrays, and can reset to its seed ([local-repository.ts](../src/data/local-repository.ts)). These behaviors are covered by [local-repository.test.ts](../src/data/__tests__/local-repository.test.ts).
 - `App` restores from `localStorage`, falls back to seed data on parse/validation failure, and serializes the repository snapshot after state changes ([App.tsx](../src/App.tsx)).
 - IDs are generated locally as `<entity>-<Date.now()>-<collection length>`; callers should not assume UUID semantics ([local-repository.ts](../src/data/local-repository.ts)).
 
@@ -31,13 +31,13 @@ This is the reconstructed contract surface for the Hibi study replica. It descri
 ### Notifications
 
 - `buildNotificationEntries` emits one entry per active deadline/reminder, with stable IDs prefixed `deadline:` or `reminder:` and bodies derived from the entity kind/category ([notifications.ts](../src/domain/notifications.ts)).
-- The renderer calls the optional `window.hibiDesktop.syncNotifications` API whenever the snapshot changes ([App.tsx](../src/App.tsx), [global.d.ts](../src/global.d.ts)).
-- Preload exposes only `syncNotifications` and a test action for notifications; main-process IPC synchronizes the scheduler ([preload.cjs](../electron/preload.cjs), [main.cjs](../electron/main.cjs)).
-- The scheduler sanitizes payloads, clears stale timers on sync, respects daily/weekly recurrence and end dates, and uses Electron `Notification` when a timer fires ([notifications.cjs](../electron/notifications.cjs)).
+- The renderer calls the optional `window.hibiDesktop.syncNotifications` API whenever the snapshot changes; the browser-only build can run without that preload API ([App.tsx](../src/App.tsx), [global.d.ts](../src/global.d.ts)).
+- Preload exposes notification synchronization and testing alongside app info and launch-at-login controls; the main-process scheduler sanitizes payloads, clears stale timers on sync, respects daily/weekly recurrence and end dates, and uses Electron `Notification` when a timer fires ([preload.cjs](../electron/preload.cjs), [main.cjs](../electron/main.cjs), [notifications.cjs](../electron/notifications.cjs)). These behaviors are covered by [notifications.test.cjs](../electron/notifications.test.cjs).
 
 ### AI and hardware
 
 - Capability declarations mark tasks, reminders, calendar, focus, and notes as local/available; external AI and hardware as unavailable ([capabilities.ts](../src/domain/capabilities.ts)).
+- The separate adapter-status registry reports local persistence and native notifications as available, launch-at-login as unavailable in its offline-safe status list, and external AI/hardware as unavailable ([adapter-status.ts](../src/domain/adapter-status.ts)).
 - The Taby view is a local query surface over the supplied data and states that it does not access internet, external AI, microphone, camera, or other hardware ([TabyView.tsx](../src/ui/TabyView.tsx)).
 - The hardware availability view reports no compatible hardware integration, while settings report Brain/hardware unavailable offline ([AvailabilityView.tsx](../src/ui/AvailabilityView.tsx), [SettingsView.tsx](../src/ui/SettingsView.tsx)).
 
@@ -48,4 +48,4 @@ This is the reconstructed contract surface for the Hibi study replica. It descri
 
 ## Non-contracts
 
-The current source does not establish contracts for cloud persistence, authentication, account sync, ICS import/export implementation, external calendar APIs, remote notifications, external AI, microphone/camera capture, notch hardware control, or executing extracted native/runtime assets. Treat UI labels or historical parity notes about those areas as availability statements, not implemented interfaces ([parity-audit.md](./parity-audit.md), [hey-taby-replica-design.md](./hey-taby-replica-design.md)).
+The current source does not establish contracts for cloud persistence, authentication, account sync, ICS import/export implementation, external calendar APIs, remote notifications, external AI, microphone/camera capture, notch hardware control, or executing extracted native/runtime assets. Treat UI labels or historical parity notes about those areas as availability statements, not implemented interfaces ([parity-audit.md](./parity-audit.md), [hey-taby-replica-design.md](./hey-taby-replica-design.md)). The settings label `ICS import/export` as available, but no import/export implementation is present in the current source.

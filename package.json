@@ -9,6 +9,7 @@
     "desktop": "node scripts/start-desktop.mjs",
     "desktop:production": "npm run build && HIBI_PRODUCTION=1 electron electron/main.cjs",
     "build": "tsc --noEmit && vite build",
+    "check:companion-assets": "node scripts/check-companion-assets.mjs",
     "safety:renderer": "node scripts/renderer-safety-check.mjs",
     "parity:check": "node scripts/parity-check.mjs",
     "audit": "npm run parity:check && npm run build && npm test && npm run test:e2e",
