@@ -121,3 +121,17 @@ test('filtros do Day exibem blocos fixos e pausas', async ({ page }) => {
   await page.getByRole('button', { name: 'Important', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Delete Almoço' })).toBeVisible();
 });
+
+test('updates e hardware são acessíveis pela paleta', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /commands/ }).click();
+  await page.getByRole('textbox', { name: 'Type a command' }).fill('/hardware');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Hardware' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open Events' }).click();
+  await expect(page.getByRole('heading', { name: 'Instrumentation' })).toBeVisible();
+  await page.getByRole('button', { name: /commands/ }).click();
+  await page.getByRole('textbox', { name: 'Type a command' }).fill('/updates');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { name: 'Updates' })).toBeVisible();
+});
