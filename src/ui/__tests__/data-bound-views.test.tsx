@@ -10,6 +10,7 @@ import { HabitsView } from '../HabitsView';
 import { GoalsView } from '../GoalsView';
 import { AppShell } from '../AppShell';
 import { CommandPalette } from '../CommandPalette';
+import { FocusView } from '../FocusView';
 
 const data = createSeedData();
 const onEvent = () => undefined;
@@ -86,5 +87,12 @@ describe('study views', () => {
     expect(shell).toContain('aria-label="Goals"');
     expect(palette).toContain('Track habits');
     expect(palette).toContain('Review goals');
+  });
+
+  it('exposes selectable focus and break durations', () => {
+    const markup = renderToStaticMarkup(<FocusView onEvent={onEvent} />);
+    expect(markup).toContain('25m focus');
+    expect(markup).toContain('5m break');
+    expect(markup).toContain('15m break');
   });
 });
