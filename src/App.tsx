@@ -129,6 +129,7 @@ export default function App() {
     if (!window.confirm('Reset all local study data?')) return;
     repository.reset();
     refreshData();
+    log('reset', 'Reset study data', 'pass');
   };
 
   const testNativeNotification = async () => {
