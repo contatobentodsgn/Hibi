@@ -24,10 +24,9 @@ import { FeedbackView } from './ui/FeedbackView';
 import { AvailabilityView } from './ui/AvailabilityView';
 import { firstWeeklyOccurrence } from './domain/recurrence';
 import { TaskCreateModal, type NewTaskForm } from './ui/TaskCreateModal';
+import { ReminderCreateModal, type NewReminderForm } from './ui/ReminderCreateModal';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
-
-const weekdayNumber: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
 
 const initialEvents: EventRecord[] = [
   { id: 1, at: '09:02:14', route: 'week', action: 'navigation', detail: 'Opened weekly schedule' },
@@ -44,6 +43,7 @@ export default function App() {
   const [route, setRoute] = useState<NavKey>('home');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
+  const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
   const [events, setEvents] = useState<EventRecord[]>(() => { try { const saved = window.localStorage.getItem('hibi-events'); return saved ? JSON.parse(saved) as EventRecord[] : initialEvents; } catch { return initialEvents; } });
   const clearEvents = () => setEvents([]);
 
@@ -79,31 +79,15 @@ export default function App() {
   };
   const deleteBlock = (id: string) => { const block = data.blocks.find((item) => item.id === id); if (!block) return; if (!window.confirm(`Excluir ${block.title}?`)) return; repository.deleteBlock(id); refreshData(); log('delete', block.title); };
   const createTask = ({ title, durationMinutes, folder }: NewTaskForm) => { repository.createTask({ title, durationMinutes, category: 'work', folder, status: 'open' }); refreshData(); log('create', title); setTaskCreateOpen(false); };
-  const createReminder = (title: string) => {
-    const value = window.prompt('Data/hora (AAAA-MM-DD HH:MM), daily HH:MM ou weekly Tue 09:00 Wed 20:00');
-    if (!value?.trim()) return;
-    const daily = value.match(/^daily\s+(\d{2}:\d{2})$/i);
-    if (daily) {
-      const startDate = planStartDate();
-      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `${startDate}T${daily[1]}:00-03:00`, recurrence: { frequency: 'daily', time: daily[1], startDate } } });
-    } else {
-    const weekly = value.match(/^weekly\s+(.+)$/i);
-    if (weekly) {
-      const parts = weekly[1].match(/(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+(\d{2}:\d{2})/gi) ?? [];
-      const map = weekdayNumber;
-      if (!parts.length) { window.alert('Formato de recorrência inválido.'); return; }
-      const weekdays = parts.map((part) => map[part.slice(0, 3).toLowerCase()]);
-      const timesByWeekday: Record<number, string> = {}; parts.forEach((part) => { timesByWeekday[map[part.slice(0, 3).toLowerCase()]] = part.slice(4); });
-      const startDate = planStartDate();
-      const first = firstWeeklyOccurrence(startDate, parts)!;
-      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `${first.date}T${first.time}:00-03:00`, recurrence: { frequency: 'weekly', weekdays, timesByWeekday, startDate } } });
-    } else {
-      const match = value.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/);
-      if (!match) { window.alert('Formato inválido.'); return; }
-      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `${match[1]}T${match[2]}:00-03:00` } });
+  const createReminder = ({ title, category, date, frequency, time, weekdays }: NewReminderForm) => {
+    if (frequency === 'one-time') repository.createReminder({ title, category, status: 'open', schedule: { at: `${date}T${time}:00-03:00` } });
+    if (frequency === 'daily') repository.createReminder({ title, category, status: 'open', schedule: { at: `${date}T${time}:00-03:00`, recurrence: { frequency: 'daily', time, startDate: date } } });
+    if (frequency === 'weekly') {
+      const parts = weekdays.map((day) => `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]} ${time}`);
+      const first = firstWeeklyOccurrence(date, parts)!;
+      repository.createReminder({ title, category, status: 'open', schedule: { at: `${first.date}T${first.time}:00-03:00`, recurrence: { frequency: 'weekly', weekdays, timesByWeekday: Object.fromEntries(weekdays.map((day) => [day, time])), startDate: date } } });
     }
-    }
-    refreshData(); log('create', title);
+    refreshData(); log('create', title); setReminderCreateOpen(false);
   };
   const renameTask = (id: string, title: string) => { repository.updateTask(id, { title }); refreshData(); log('edit', title); };
   const renameReminder = (id: string, title: string) => { repository.updateReminder(id, { title }); refreshData(); log('edit', title); };
@@ -174,7 +158,7 @@ export default function App() {
     switch (route) {
       case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} onCreateTask={() => undefined} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
       case 'notes': return <NotesView data={data} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
-      case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={createReminder} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
+      case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={() => setReminderCreateOpen(true)} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
       case 'review': return <ReviewView data={data} onNavigate={navigate} />;
@@ -194,9 +178,10 @@ export default function App() {
 
   return (
     <AppShell active={route} taskCount={data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused').length} reminderCount={data.reminders.filter((reminder) => reminder.status !== 'paused').length} habitCount={data.habits.filter((habit) => habit.status !== 'completed' && habit.status !== 'paused').length} goalCount={data.goals.filter((goal) => goal.status !== 'completed' && goal.status !== 'paused').length} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
-      <div onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } }}>{content}</div>
+      <div onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } if (route === 'reminders' && button?.textContent?.trim() === '+ New reminder') { event.preventDefault(); event.stopPropagation(); setReminderCreateOpen(true); } }}>{content}</div>
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} />}
       {taskCreateOpen && <TaskCreateModal onClose={() => setTaskCreateOpen(false)} onSubmit={createTask} />}
+      {reminderCreateOpen && <ReminderCreateModal defaultDate={planStartDate()} onClose={() => setReminderCreateOpen(false)} onSubmit={createReminder} />}
     </AppShell>
   );
 }

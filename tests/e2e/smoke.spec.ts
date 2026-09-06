@@ -88,14 +88,29 @@ test('filtros de lembretes alteram a lista', async ({ page }) => {
 test('criação de lembrete diário preserva a recorrência', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Reminders', exact: true }).click();
-  let promptCount = 0;
-  page.on('dialog', async (dialog) => {
-    promptCount += 1;
-    await dialog.accept(promptCount === 1 ? 'Revisar agenda' : 'daily 08:30');
-  });
   await page.getByRole('button', { name: '+ New reminder' }).click();
+  const form = page.getByRole('dialog', { name: 'Create reminder' });
+  await form.getByRole('textbox', { name: 'Title' }).fill('Revisar agenda');
+  await form.getByRole('combobox', { name: 'Schedule type' }).selectOption('daily');
+  await form.getByRole('textbox', { name: 'Time' }).fill('08:30');
+  await form.getByRole('button', { name: 'Create reminder' }).click();
   await expect(page.getByText('Revisar agenda')).toBeVisible();
   await expect(page.getByText('Every day · 08:30')).toBeVisible();
+});
+
+test('criação semanal preseleciona o dia do início e permite escolher categoria', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Reminders', exact: true }).click();
+  await page.getByRole('button', { name: '+ New reminder' }).click();
+  const form = page.getByRole('dialog', { name: 'Create reminder' });
+  await form.getByRole('textbox', { name: 'Title' }).fill('Caminhar');
+  await form.getByRole('radio', { name: 'Wellbeing' }).check();
+  await form.getByRole('combobox', { name: 'Schedule type' }).selectOption('weekly');
+  await expect(form.getByRole('checkbox', { name: 'Mon' })).toBeChecked();
+  await form.getByRole('textbox', { name: 'Time' }).fill('19:00');
+  await form.getByRole('button', { name: 'Create reminder' }).click();
+  await expect(page.getByText('Caminhar')).toBeVisible();
+  await expect(page.getByText('Mon 19:00')).toBeVisible();
 });
 
 test('edição de lembrete semanal mantém dias e horários configurados', async ({ page }) => {
