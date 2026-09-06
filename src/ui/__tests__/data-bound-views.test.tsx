@@ -27,6 +27,27 @@ describe('study views', () => {
     expect(markup).toContain('8 open');
   });
 
+  it('renders accessible task creation and editing controls without prompt actions', () => {
+    const markup = renderToStaticMarkup(
+      <TasksView
+        data={data}
+        onEvent={onEvent}
+        onTaskStatusChange={onEvent}
+        onCreateTask={() => undefined}
+        onRenameTask={() => undefined}
+        onDeleteTask={() => undefined}
+        onEditTaskDeadline={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('aria-label="New task title"');
+    expect(markup).toContain('Add task');
+    expect(markup).toContain('aria-label="Rename Kabrito Post 01"');
+    expect(markup).toContain('aria-label="Set deadline for Kabrito Post 01"');
+    expect(markup).toContain('aria-label="Delete Kabrito Post 01"');
+    expect(markup).not.toContain('window.prompt');
+  });
+
   it('renders reminders from the study snapshot', () => {
     const markup = renderToStaticMarkup(
       <RemindersView data={data} onEvent={onEvent} onReminderStatusChange={onEvent} />,
