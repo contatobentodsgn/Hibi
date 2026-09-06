@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { LocalRepository } from './data/local-repository';
 import { createSeedData } from './data/seed-data';
 import type { EntityStatus, ScheduleBlock, StudyData } from './domain/models';
+import { validateScheduleBlock } from './domain/conflicts';
 import { AppShell, NavKey } from './ui/AppShell';
 import { CommandPalette } from './ui/CommandPalette';
 import { HomeView } from './ui/HomeView';
@@ -54,6 +55,8 @@ export default function App() {
   };
 
   const createBlock = (input: Omit<ScheduleBlock, 'id'>) => {
+    const validation = validateScheduleBlock({ ...input, id: `preview-${Date.now()}` }, repository.listBlocks());
+    if (!validation.valid) { window.alert(validation.errors.join('\n')); log('validation', input.title, 'blocked'); return; }
     repository.createBlock(input);
     refreshData();
     log('create', input.title);
@@ -62,6 +65,8 @@ export default function App() {
   const createReminder = (title: string) => { repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: new Date().toISOString() } }); refreshData(); log('create', title); };
   const renameTask = (id: string, title: string) => { repository.updateTask(id, { title }); refreshData(); log('edit', title); };
   const renameReminder = (id: string, title: string) => { repository.updateReminder(id, { title }); refreshData(); log('edit', title); };
+  const deleteTask = (id: string) => { repository.deleteTask(id); refreshData(); log('delete', id); };
+  const deleteReminder = (id: string) => { repository.deleteReminder(id); refreshData(); log('delete', id); };
 
   const resetStudyData = () => {
     repository.reset();
@@ -79,8 +84,8 @@ export default function App() {
   const content = useMemo(() => {
     const props = { onEvent: log, onNavigate: navigate };
     switch (route) {
-      case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} onCreateTask={createTask} onRenameTask={renameTask} />;
-      case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={createReminder} onRenameReminder={renameReminder} />;
+      case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} onCreateTask={createTask} onRenameTask={renameTask} onDeleteTask={deleteTask} />;
+      case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={createReminder} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} />;
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} />;
       case 'focus': return <FocusView {...props} />;
