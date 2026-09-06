@@ -5,7 +5,7 @@ type Props = { active: NavKey; taskCount: number; reminderCount: number; habitCo
 
 const items: { key: NavKey; label: string; icon: string }[] = [
   { key: 'tasks', label: 'Tasks', icon: '☷' }, { key: 'notes', label: 'Notes', icon: '▤' }, { key: 'reminders', label: 'Reminders', icon: '♢' }, { key: 'habits', label: 'Habits', icon: '↻' }, { key: 'goals', label: 'Goals', icon: '◎' }, { key: 'review', label: 'Review', icon: '✓' },
-  { key: 'review', label: 'Review', icon: '✓' }, { key: 'taby', label: 'Taby', icon: '✦' }, { key: 'day', label: 'Day', icon: '□' }, { key: 'week', label: 'Week', icon: '▦' },
+  { key: 'taby', label: 'Taby', icon: '✦' }, { key: 'day', label: 'Day', icon: '□' }, { key: 'week', label: 'Week', icon: '▦' },
   { key: 'focus', label: 'Focus', icon: '◉' }, { key: 'settings', label: 'Settings', icon: '⚙' },
   { key: 'instrumentation', label: 'Events', icon: '⌁' },
 ];
