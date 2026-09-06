@@ -67,6 +67,24 @@ export default function App() {
   const renameReminder = (id: string, title: string) => { repository.updateReminder(id, { title }); refreshData(); log('edit', title); };
   const deleteTask = (id: string) => { repository.deleteTask(id); refreshData(); log('delete', id); };
   const deleteReminder = (id: string) => { repository.deleteReminder(id); refreshData(); log('delete', id); };
+  const editReminderSchedule = (id: string) => {
+    const reminder = data.reminders.find((item) => item.id === id); if (!reminder) return;
+    const value = window.prompt('Data/hora (AAAA-MM-DD HH:MM). Para recorrência, use: weekly Tue 09:00 Wed 20:00', `${reminder.schedule.at.slice(0, 10)} ${reminder.schedule.at.slice(11, 16)}`);
+    if (!value?.trim()) return;
+    const weekly = value.match(/^weekly\s+(.+)$/i);
+    if (weekly) {
+      const parts = weekly[1].match(/(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+(\d{2}:\d{2})/gi) ?? [];
+      const map: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+      const weekdays = parts.map((part) => map[part.slice(0, 3).toLowerCase()]);
+      const timesByWeekday: Record<number, string> = {}; parts.forEach((part) => { timesByWeekday[map[part.slice(0, 3).toLowerCase()]] = part.slice(4); });
+      if (!parts.length) { window.alert('Formato de recorrência inválido.'); return; }
+      repository.updateReminder(id, { schedule: { at: reminder.schedule.at, recurrence: { frequency: 'weekly', weekdays, timesByWeekday, startDate: reminder.schedule.at.slice(0, 10) } } });
+    } else {
+      const match = value.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/); if (!match) { window.alert('Formato inválido.'); return; }
+      repository.updateReminder(id, { schedule: { at: `${match[1]}T${match[2]}:00-03:00` } });
+    }
+    refreshData(); log('edit', reminder.title, 'schedule-updated');
+  };
 
   const resetStudyData = () => {
     repository.reset();
@@ -85,7 +103,7 @@ export default function App() {
     const props = { onEvent: log, onNavigate: navigate };
     switch (route) {
       case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} onCreateTask={createTask} onRenameTask={renameTask} onDeleteTask={deleteTask} />;
-      case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={createReminder} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} />;
+      case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={createReminder} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} />;
       case 'focus': return <FocusView {...props} />;
