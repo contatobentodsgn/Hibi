@@ -1,4 +1,25 @@
 import React from 'react';
-type Props = { onEvent: (action: string, detail: string, result?: string) => void };
-const blocks = [{ time: '09:00', title: 'Post 1 — Kabrito digital', tone: 'orange' }, { time: '10:00', title: 'Post 2 — Kabrito digital', tone: 'orange' }, { time: '11:00', title: 'Post 3 — Kabrito digital', tone: 'orange' }, { time: '12:00', title: 'Lunch', tone: 'green' }, { time: '14:00', title: 'Post 4 — Kabrito digital', tone: 'orange' }, { time: '15:00', title: 'Post 5 — Kabrito digital', tone: 'orange' }, { time: '16:00', title: 'Post 6 — Kabrito digital', tone: 'orange' }, { time: '17:00', title: 'Walking', tone: 'blue' }];
-export function DayView({ onEvent }: Props) { return <div className="view calendar-view"><div className="view-heading"><div><p className="eyebrow">MONDAY · 03 AUGUST 2026</p><h1>Day</h1><p className="muted">8 blocks · 1 review checkpoint</p></div><div className="heading-actions"><button className="outline" onClick={() => onEvent('validation', 'Checked day conflicts', 'pass')}>✓ Check plan</button><button className="primary" onClick={() => onEvent('create', 'Quick add at 13:00')}>+ Add</button></div></div><div className="calendar-toolbar"><button className="filter active">Schedule</button><button className="filter">Important</button><button className="filter">Wellbeing</button><span className="spacer" /><button className="filter">24h</button></div><div className="day-grid">{Array.from({ length: 11 }, (_, index) => { const hour = index + 8; const block = blocks.find((item) => item.time === `${String(hour).padStart(2, '0')}:00`); return <div className="hour-row" key={hour}><span>{String(hour).padStart(2, '0')}:00</span><div className="hour-slot">{block && <div className={`schedule-card ${block.tone}`}><strong>{block.title}</strong><small>{block.time} · 1h</small></div>}</div></div>; })}</div></div>; }
+import { durationMinutes, toDateKey } from '../domain/schedule';
+import type { ScheduleBlock, StudyData } from '../domain/models';
+
+type Props = {
+  data: StudyData;
+  onEvent: (action: string, detail: string, result?: string) => void;
+  onCreateBlock: (input: Omit<ScheduleBlock, 'id'>) => void;
+};
+
+const DAY_DATE = '2026-09-07';
+const dayLabel = 'MONDAY · 07 SEPTEMBER 2026';
+const toneFor = (category: ScheduleBlock['category']) => category === 'break' ? 'green' : category === 'learning' ? 'blue' : 'orange';
+const at = (hour: number) => `${DAY_DATE}T${String(hour).padStart(2, '0')}:00:00-03:00`;
+
+export function DayView({ data, onEvent, onCreateBlock }: Props) {
+  const blocks = data.blocks.filter((block) => toDateKey(block.start) === DAY_DATE);
+  const addBlock = () => onCreateBlock({ title: 'Quick study block', start: at(8), end: at(9), category: 'work' });
+  return <div className="view calendar-view"><div className="view-heading"><div><p className="eyebrow">{dayLabel}</p><h1>Day</h1><p className="muted">{blocks.length} blocks · 1 review checkpoint</p></div><div className="heading-actions"><button className="outline" onClick={() => onEvent('validation', 'Checked day conflicts', 'pass')}>✓ Check plan</button><button className="primary" onClick={() => { addBlock(); onEvent('create', 'Quick add at 08:00'); }}>+ Add</button></div></div><div className="calendar-toolbar"><button className="filter active">Schedule</button><button className="filter">Important</button><button className="filter">Wellbeing</button><span className="spacer" /><button className="filter">24h</button></div><div className="day-grid">{Array.from({ length: 15 }, (_, index) => { const hour = index + 8; const block = blocks.find((item) => Number(item.start.slice(11, 13)) === hour); return <div className="hour-row" key={hour}><span>{String(hour).padStart(2, '0')}:00</span><div className="hour-slot">{block && <div className={`schedule-card ${toneFor(block.category)}`}><strong>{block.title}</strong><small>{block.start.slice(11, 16)} · {formatDuration(block)}</small></div>}</div></div>; })}</div></div>;
+}
+
+function formatDuration(block: ScheduleBlock): string {
+  const minutes = durationMinutes(block);
+  return minutes % 60 === 0 ? `${minutes / 60}h` : `${minutes}m`;
+}

@@ -1,4 +1,7 @@
 import React, { useMemo, useState } from 'react';
+import { LocalRepository } from './data/local-repository';
+import { createSeedData } from './data/seed-data';
+import type { EntityStatus, ScheduleBlock, StudyData } from './domain/models';
 import { AppShell, NavKey } from './ui/AppShell';
 import { CommandPalette } from './ui/CommandPalette';
 import { HomeView } from './ui/HomeView';
@@ -19,12 +22,43 @@ const initialEvents: EventRecord[] = [
 ];
 
 export default function App() {
+  const [repository] = useState(() => new LocalRepository(createSeedData()));
+  const [data, setData] = useState<StudyData>(() => repository.snapshot());
   const [route, setRoute] = useState<NavKey>('home');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [events, setEvents] = useState<EventRecord[]>(initialEvents);
 
   const log = (action: string, detail: string, result?: string) => {
     setEvents((current) => [{ id: Date.now(), at: new Date().toLocaleTimeString('pt-BR'), route, action, detail, result }, ...current]);
+  };
+
+  const refreshData = () => setData(repository.snapshot());
+
+  const changeTaskStatus = (id: string, status: EntityStatus) => {
+    const task = repository.getTask(id);
+    if (!task) return;
+    repository.updateTask(id, { status });
+    refreshData();
+    log(status === 'completed' ? 'complete' : 'reopen', task.title, status);
+  };
+
+  const changeReminderStatus = (id: string, status: EntityStatus) => {
+    const reminder = data.reminders.find((item) => item.id === id);
+    if (!reminder) return;
+    repository.updateReminder(id, { status });
+    refreshData();
+    log(status === 'paused' ? 'pause' : 'resume', reminder.title, status);
+  };
+
+  const createBlock = (input: Omit<ScheduleBlock, 'id'>) => {
+    repository.createBlock(input);
+    refreshData();
+    log('create', input.title);
+  };
+
+  const resetStudyData = () => {
+    repository.reset();
+    refreshData();
   };
 
   const navigate = (next: NavKey, source = 'navigation') => {
@@ -35,19 +69,19 @@ export default function App() {
   const content = useMemo(() => {
     const props = { onEvent: log, onNavigate: navigate };
     switch (route) {
-      case 'tasks': return <TasksView {...props} />;
-      case 'reminders': return <RemindersView {...props} />;
-      case 'day': return <DayView {...props} />;
-      case 'week': return <WeekView {...props} />;
+      case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} />;
+      case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} />;
+      case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} />;
+      case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} />;
       case 'focus': return <FocusView {...props} />;
-      case 'settings': return <SettingsView {...props} />;
+      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} />;
       case 'instrumentation': return <InstrumentationView events={events} onEvent={log} />;
       default: return <HomeView {...props} />;
     }
-  }, [route, events]);
+  }, [route, events, data]);
 
   return (
-    <AppShell active={route} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
+    <AppShell active={route} taskCount={data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused').length} reminderCount={data.reminders.filter((reminder) => reminder.status !== 'paused').length} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
       {content}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} />}
     </AppShell>

@@ -52,7 +52,7 @@ describe('study views', () => {
   });
 
   it('exposes the study data reset action', () => {
-    const markup = renderToStaticMarkup(<SettingsView onEvent={onEvent} onReset={onEvent} />);
+    const markup = renderToStaticMarkup(<SettingsView data={data} onEvent={onEvent} onReset={onEvent} />);
 
     expect(markup).toContain('Reset study data');
   });

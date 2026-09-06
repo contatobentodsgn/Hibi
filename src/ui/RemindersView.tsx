@@ -1,7 +1,30 @@
 import React from 'react';
-type Props = { onEvent: (action: string, detail: string, result?: string) => void };
-const reminders = [{ title: 'vaga/inglês — Horizontes', detail: 'Tue 09:00 · Wed 20:00', type: 'Important', tone: 'orange' }, { title: 'Água', detail: 'Every 40 min · wellbeing', type: 'Wellbeing', tone: 'green' }, { title: 'Postura', detail: 'Every 30 min · wellbeing', type: 'Wellbeing', tone: 'green' }];
-export function RemindersView({ onEvent }: Props) { return <div className="view"><div className="view-heading"><div><p className="eyebrow">ATTENTION LAYER</p><h1>Reminders</h1><p className="muted">3 active · grouped by priority</p></div><button className="primary" onClick={() => onEvent('create', 'New reminder')}>+ New reminder</button></div>
-  <div className="notice"><span className="notice-icon">!</span><div><strong>Two repeating reminders are close together.</strong><p>Review the schedule before spacing them out. Important reminders stay fixed.</p></div><button className="outline" onClick={() => onEvent('validation', 'Reminder spacing review', 'needs-review')}>Review spacing</button></div>
-  <div className="filter-row"><button className="filter active">All 3</button><button className="filter">Important 1</button><button className="filter">Wellbeing 2</button></div><section className="list-card">{reminders.map((reminder) => <div className="reminder-row" key={reminder.title}><span className={`reminder-mark ${reminder.tone}`} /><div><strong>{reminder.title}</strong><span>{reminder.detail}</span></div><span className={`pill ${reminder.tone}`}>{reminder.type}</span><button className="icon-button" aria-label={`Edit ${reminder.title}`} onClick={() => onEvent('edit', reminder.title)}>✎</button><button className="icon-button" aria-label={`Pause ${reminder.title}`}>Ⅱ</button></div>)}</section>
-</div>; }
+import type { EntityStatus, Reminder, StudyData } from '../domain/models';
+
+type Props = {
+  data: StudyData;
+  onEvent: (action: string, detail: string, result?: string) => void;
+  onReminderStatusChange: (id: string, status: EntityStatus) => void;
+};
+
+const weekdayLabels: Record<number, string> = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' };
+
+function reminderDetail(reminder: Reminder): string {
+  const recurrence = reminder.schedule.recurrence;
+  if (!recurrence) return `${reminder.schedule.at.slice(11, 16)} · one-time`;
+  if (recurrence.frequency === 'daily') return `Every day · ${recurrence.time ?? reminder.schedule.at.slice(11, 16)}`;
+  return (recurrence.weekdays ?? []).map((day) => `${weekdayLabels[day]} ${recurrence.timesByWeekday?.[day] ?? recurrence.time ?? reminder.schedule.at.slice(11, 16)}`).join(' · ');
+}
+
+export function RemindersView({ data, onEvent, onReminderStatusChange }: Props) {
+  const activeReminders = data.reminders.filter((reminder) => reminder.status !== 'paused');
+  return <div className="view"><div className="view-heading"><div><p className="eyebrow">ATTENTION LAYER</p><h1>Reminders</h1><p className="muted">{activeReminders.length} active · grouped by priority</p></div><button className="primary" onClick={() => onEvent('create', 'New reminder')}>+ New reminder</button></div>
+  {activeReminders.length > 1 && <div className="notice"><span className="notice-icon">!</span><div><strong>Two repeating reminders are close together.</strong><p>Review the schedule before spacing them out. Important reminders stay fixed.</p></div><button className="outline" onClick={() => onEvent('validation', 'Reminder spacing review', 'needs-review')}>Review spacing</button></div>}
+  <div className="filter-row"><button className="filter active">All {data.reminders.length}</button><button className="filter">Important {data.reminders.filter((reminder) => reminder.category === 'important').length}</button><button className="filter">Wellbeing {data.reminders.filter((reminder) => reminder.category === 'wellbeing').length}</button></div><section className="list-card">{data.reminders.map((reminder) => {
+    const paused = reminder.status === 'paused';
+    const tone = reminder.category === 'important' ? 'orange' : 'green';
+    const type = reminder.category === 'important' ? 'Important' : 'Wellbeing';
+    return <div className="reminder-row" key={reminder.id}><span className={`reminder-mark ${tone}`} /><div><strong>{reminder.title}</strong><span>{reminderDetail(reminder)}{paused ? ' · paused' : ''}</span></div><span className={`pill ${tone}`}>{type}</span><button className="icon-button" aria-label={`Edit ${reminder.title}`} onClick={() => onEvent('edit', reminder.title)}>✎</button><button className="icon-button" aria-label={`${paused ? 'Resume' : 'Pause'} ${reminder.title}`} onClick={() => { onReminderStatusChange(reminder.id, paused ? 'open' : 'paused'); onEvent(paused ? 'resume' : 'pause', reminder.title); }}>{paused ? '▶' : 'Ⅱ'}</button></div>;
+  })}</section>
+</div>;
+}

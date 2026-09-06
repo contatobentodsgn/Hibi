@@ -1,8 +1,30 @@
-import React, { useState } from 'react';
-type Props = { onEvent: (action: string, detail: string, result?: string) => void };
-const tasks = ['Post 1 — Kabrito digital', 'Post 2 — Kabrito digital', 'Post 3 — Kabrito digital', 'Post 4 — Kabrito digital', 'Post 5 — Kabrito digital', 'Post 6 — Kabrito digital', 'Post 7 — Kabrito digital'];
-export function TasksView({ onEvent }: Props) { const [done, setDone] = useState<string[]>([]); return <View title="Tasks" meta="7 open · local study data" action="+ New task">
-  <div className="filter-row"><button className="filter active">Open 7</button><button className="filter">All</button><button className="filter">Folder · Bento</button><button className="filter sort">Deadline ↕</button></div>
-  <section className="list-card">{tasks.map((task, index) => <div className="task-row" key={task}><button className={`check ${done.includes(task) ? 'checked' : ''}`} aria-label={`Complete ${task}`} onClick={() => { setDone((current) => current.includes(task) ? current.filter((name) => name !== task) : [...current, task]); onEvent('complete', task); }}>{done.includes(task) ? '✓' : ''}</button><div><strong>{task}</strong><span>{index < 3 ? `${9 + index}:00 · Monday 03 Aug` : `${14 + index - 3}:00 · Monday 03 Aug`}</span></div><span className="tag orange">Bento</span><button className="more" aria-label={`Edit ${task}`}>···</button></div>)}</section>
-</View>; }
-function View({ title, meta, action, children }: { title: string; meta: string; action: string; children: React.ReactNode }) { return <div className="view"><div className="view-heading"><div><p className="eyebrow">STUDY REPLICA / WORKSPACE</p><h1>{title}</h1><p className="muted">{meta}</p></div><button className="primary">{action}</button></div>{children}</div>; }
+import React from 'react';
+import type { EntityStatus, StudyData } from '../domain/models';
+
+type Props = {
+  data: StudyData;
+  onEvent: (action: string, detail: string, result?: string) => void;
+  onTaskStatusChange: (id: string, status: EntityStatus) => void;
+};
+
+export function TasksView({ data, onEvent, onTaskStatusChange }: Props) {
+  const openTasks = data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused');
+
+  return <View title="Tasks" meta={`${openTasks.length} open · local study data`} action="+ New task">
+    <div className="filter-row"><button className="filter active">Open {openTasks.length}</button><button className="filter">All {data.tasks.length}</button><button className="filter">Folder · Bento</button><button className="filter sort">Deadline ↕</button></div>
+    <section className="list-card">{data.tasks.map((task) => {
+      const completed = task.status === 'completed';
+      const paused = task.status === 'paused';
+      return <div className="task-row" key={task.id}>
+        <button className={`check ${completed ? 'checked' : ''}`} aria-label={`${completed ? 'Reopen' : 'Complete'} ${task.title}`} onClick={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }}>{completed ? '✓' : ''}</button>
+        <div><strong>{task.title}</strong><span>{task.durationMinutes} min · {task.folder ?? 'Unfiled'} · {paused ? 'paused' : task.category}</span></div>
+        {task.folder && <span className="tag orange">{task.folder}</span>}
+        <button className="more" aria-label={`Edit ${task.title}`} onClick={() => onEvent('edit', task.title)}>···</button>
+      </div>;
+    })}</section>
+  </View>;
+}
+
+function View({ title, meta, action, children }: { title: string; meta: string; action: string; children: React.ReactNode }) {
+  return <div className="view"><div className="view-heading"><div><p className="eyebrow">STUDY REPLICA / WORKSPACE</p><h1>{title}</h1><p className="muted">{meta}</p></div><button className="primary">{action}</button></div>{children}</div>;
+}
