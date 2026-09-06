@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { durationMinutes, toDateKey } from '../domain/schedule';
 import type { ScheduleBlock, StudyData } from '../domain/models';
 
@@ -17,6 +17,10 @@ const at = (hour: number) => `${DAY_DATE}T${String(hour).padStart(2, '0')}:00:00
 export function DayView({ data, onEvent, onCreateBlock, onDeleteBlock }: Props) {
   const [layer, setLayer] = useState<'schedule' | 'important' | 'wellbeing'>('schedule');
   const [dayDate, setDayDate] = useState(DAY_DATE);
+  useEffect(() => {
+    const firstDate = data.blocks.map((block) => toDateKey(block.start)).filter(Boolean).sort()[0];
+    if (firstDate && dayDate === DAY_DATE && firstDate !== DAY_DATE) setDayDate(firstDate);
+  }, [data.blocks, dayDate]);
   const dayLabel = dayDate === DAY_DATE ? 'MONDAY · 07 SEPTEMBER 2026' : new Date(`${dayDate}T12:00:00${OFFSET}`).toLocaleDateString('en-US', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase().replace(',', ' ·');
   const blocks = data.blocks.filter((block) => toDateKey(block.start) === dayDate && (layer === 'schedule' || (layer === 'important' ? block.isHard === true : block.category === 'break')));
   const addBlock = () => onCreateBlock({ title: 'Quick study block', start: `${dayDate}T08:00:00${OFFSET}`, end: `${dayDate}T09:00:00${OFFSET}`, category: 'work' });
