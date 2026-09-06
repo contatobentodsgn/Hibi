@@ -22,19 +22,11 @@ import { TabyView } from './ui/TabyView';
 import { HelpView } from './ui/HelpView';
 import { FeedbackView } from './ui/FeedbackView';
 import { AvailabilityView } from './ui/AvailabilityView';
+import { firstWeeklyOccurrence } from './domain/recurrence';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
 const weekdayNumber: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
-const firstWeeklyOccurrence = (startDate: string, parts: string[]) => {
-  const candidates = parts.map((part) => {
-    const day = weekdayNumber[part.slice(0, 3).toLowerCase()];
-    const date = new Date(`${startDate}T12:00:00-03:00`);
-    date.setDate(date.getDate() + ((day - date.getDay() + 7) % 7));
-    return { date: date.toISOString().slice(0, 10), time: part.slice(4), day };
-  }).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
-  return candidates[0];
-};
 
 const initialEvents: EventRecord[] = [
   { id: 1, at: '09:02:14', route: 'week', action: 'navigation', detail: 'Opened weekly schedule' },
