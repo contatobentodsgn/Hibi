@@ -74,3 +74,13 @@ test('navegação diária e semanal atualiza o período', async ({ page }) => {
   await page.getByRole('button', { name: 'Next week' }).click();
   await expect(page.getByText('Mon 14 — Sun 20')).toBeVisible();
 });
+
+test('filtros de lembretes alteram a lista', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Reminders', exact: true }).click();
+  await expect(page.getByText('vaga/inglês - Horizontes')).toBeVisible();
+  await page.getByRole('button', { name: /Wellbeing 0/ }).click();
+  await expect(page.getByText('No reminders match this filter.')).toBeVisible();
+  await page.getByRole('button', { name: /All 1/ }).click();
+  await expect(page.getByText('vaga/inglês - Horizontes')).toBeVisible();
+});
