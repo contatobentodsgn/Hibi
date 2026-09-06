@@ -31,6 +31,7 @@ export default function App() {
   const [route, setRoute] = useState<NavKey>('home');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [events, setEvents] = useState<EventRecord[]>(initialEvents);
+  const clearEvents = () => setEvents([]);
 
   const log = (action: string, detail: string, result?: string) => {
     setEvents((current) => [{ id: Date.now(), at: new Date().toLocaleTimeString('pt-BR'), route, action, detail, result }, ...current]);
@@ -109,7 +110,7 @@ export default function App() {
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} />;
       case 'focus': return <FocusView {...props} />;
       case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} />;
-      case 'instrumentation': return <InstrumentationView events={events} onEvent={log} />;
+      case 'instrumentation': return <InstrumentationView events={events} onEvent={log} onClear={clearEvents} />;
       default: return <HomeView {...props} />;
     }
   }, [route, events, data]);
