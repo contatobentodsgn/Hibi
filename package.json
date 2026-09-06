@@ -10,7 +10,7 @@
     "desktop:production": "npm run build && HIBI_PRODUCTION=1 electron electron/main.cjs",
     "build": "tsc --noEmit && vite build",
     "parity:check": "node scripts/parity-check.mjs",
-    "audit": "npm run parity:check && npm run build && npm test",
+    "audit": "npm run parity:check && npm run build && npm test && npm run test:e2e",
     "test": "vitest run src --exclude 'src/**/._*' && node --test electron/notifications.test.cjs",
     "test:e2e": "playwright test"
   },
