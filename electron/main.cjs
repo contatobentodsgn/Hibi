@@ -19,6 +19,7 @@ function createWindow() {
 app.whenReady().then(() => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
+  ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
   ipcMain.handle("hibi:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });
   ipcMain.handle("hibi:notifications:sync", (_event, entries) => { notificationScheduler.sync(entries); });
   ipcMain.handle("hibi:notifications:test", () => {
