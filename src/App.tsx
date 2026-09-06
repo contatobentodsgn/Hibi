@@ -175,7 +175,7 @@ export default function App() {
       case 'focus': return <FocusView {...props} />;
       case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onTestNotification={testNativeNotification} />;
       case 'instrumentation': return <InstrumentationView events={events} onEvent={log} onClear={clearEvents} />;
-      default: return <HomeView {...props} />;
+      default: return <HomeView {...props} onOpenCommands={() => setPaletteOpen(true)} />;
     }
   }, [route, events, data]);
 
