@@ -5,6 +5,7 @@ const commands: { key: string; label: string; group: string; route?: NavKey }[] 
   { key: '/day', label: 'Open today schedule', group: 'Navigate', route: 'day' }, { key: '/week', label: 'Open weekly schedule', group: 'Navigate', route: 'week' },
   { key: '/tasks', label: 'Browse tasks', group: 'Navigate', route: 'tasks' }, { key: '/reminders', label: 'Browse reminders', group: 'Navigate', route: 'reminders' }, { key: '/habits', label: 'Track habits', group: 'Navigate', route: 'habits' }, { key: '/goals', label: 'Review goals', group: 'Navigate', route: 'goals' },
   { key: '/notes', label: 'Browse notes', group: 'Navigate', route: 'notes' },
+  { key: '/review', label: 'Review workspace', group: 'Navigate', route: 'review' },
   { key: '/focus', label: 'Start a focus session', group: 'Work', route: 'focus' }, { key: '/settings', label: 'Open settings', group: 'System', route: 'settings' },
   { key: '/events', label: 'Inspect instrumentation', group: 'System', route: 'instrumentation' },
 ];

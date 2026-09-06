@@ -17,6 +17,7 @@ import { NotesView } from './ui/NotesView';
 import { buildNotificationEntries } from './domain/notifications';
 import { HabitsView } from './ui/HabitsView';
 import { GoalsView } from './ui/GoalsView';
+import { ReviewView } from './ui/ReviewView';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
@@ -133,6 +134,7 @@ export default function App() {
       case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={createReminder} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
+      case 'review': return <ReviewView data={data} onNavigate={navigate} />;
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} />;
       case 'focus': return <FocusView {...props} />;
