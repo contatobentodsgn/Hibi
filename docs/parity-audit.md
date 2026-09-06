@@ -6,22 +6,22 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 
 | Área | Hibi | Observação |
 |---|---|---|
-| Home | Parcial | Painel e atalhos existem; conteúdo ainda é demonstrativo em alguns cards. |
-| Tasks | Funcional | CRUD básico, status, pasta Bento e deadline. |
-| Day/Week | Funcional | Blocos, quick add, horários e bloqueio de conflitos. |
-| Reminders | Funcional | CRUD básico, pausa, recorrência semanal e horário. |
-| Focus | Funcional | Timer local de 25 minutos. |
-| Settings | Parcial | Preferências locais, reset e inicialização no login. |
-| Instrumentation | Funcional | Filtro, exportação JSON e limpeza. |
-| Notes | Ausente | Precisa de modelo, editor, busca e pastas. |
-| Habits | Ausente | Precisa de recorrência, histórico e sequência. |
-| Goals | Ausente | Precisa de metas, progresso e revisão. |
-| Review | Ausente | Precisa de análise de tarefas, lembretes, notas e atividade. |
-| Taby/AI | Ausente | O original possui chats e Brain local; não há integração equivalente. |
+| Home | Parcial | Painel e atalhos existem; alguns cards ainda são conteúdo de demonstração. |
+| Tasks | Funcional | CRUD local, status, pasta Bento e deadline. |
+| Day/Week | Funcional | Blocos, quick add, exportação ICS, horários e bloqueio de conflitos. |
+| Reminders | Funcional | CRUD local, pausa, recorrência semanal, horários e notificações macOS. |
+| Focus | Funcional | Timer local de 25 minutos com pausa e conclusão. |
+| Settings | Parcial | Preferências locais, reset, login automático e teste de notificação. |
+| Instrumentation | Funcional | Filtro, exportação JSON, limpeza e registro de ações. |
+| Notes | Funcional | Criar, editar, buscar, excluir e pasta padrão Bento. |
+| Habits | Funcional | Recorrência, histórico de conclusão, edição e exclusão. |
+| Goals | Funcional | Metas, progresso limitado ao alvo, conclusão, edição e exclusão. |
+| Review | Funcional | Resumo de tarefas, hábitos, metas, notas e blocos com atalhos. |
+| Taby/AI | Parcial | Assistente offline com consultas básicas; não é o Brain/LLM original. |
 | Hardware/notch | Ausente | Não há integração com dispositivo/notch. |
 | Feedback/updates | Ausente | Não há fluxo de feedback nem atualização do produto. |
-| Notificações nativas | Parcial | Há configuração de login, mas não há notificações macOS agendadas. |
-| Animações | Parcial | Há transições CSS; não há registro completo de animações do original. |
+| Notificações nativas | Funcional | Scheduler macOS para lembretes/deadlines, recorrência e teste. |
+| Animações | Parcial | Transições CSS acessíveis; não há os assets/estados proprietários completos. |
 | Integrações externas | Ausente | O app permanece local e sem conectores externos. |
 
 ## Conclusão
