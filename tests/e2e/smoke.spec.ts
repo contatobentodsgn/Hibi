@@ -112,3 +112,12 @@ test('Focus aplica a duração escolhida antes de iniciar', async ({ page }) => 
   await page.getByRole('button', { name: 'Start focus' }).click();
   await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
 });
+
+test('filtros do Day exibem blocos fixos e pausas', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Day', exact: true }).click();
+  await page.getByRole('button', { name: 'Wellbeing', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Delete Almoço' })).toBeVisible();
+  await page.getByRole('button', { name: 'Important', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Delete Almoço' })).toBeVisible();
+});
