@@ -16,3 +16,15 @@ test('todas as seções principais são navegáveis', async ({ page }) => {
     await expect(page.locator('main')).toBeVisible();
   }
 });
+
+test('paleta de comandos permite navegação por teclado', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /commands/ }).click();
+  const palette = page.getByRole('dialog', { name: 'Command palette' });
+  await expect(palette).toBeVisible();
+  const input = palette.locator('input');
+  await input.fill('/week');
+  await expect(palette.getByRole('button', { name: /Open weekly schedule/ })).toHaveAttribute('data-selected', 'true');
+  await input.press('Enter');
+  await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
+});
