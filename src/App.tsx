@@ -60,6 +60,8 @@ export default function App() {
   };
   const createTask = (title: string) => { repository.createTask({ title, durationMinutes: 60, category: 'work', folder: 'Bento', status: 'open' }); refreshData(); log('create', title); };
   const createReminder = (title: string) => { repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: new Date().toISOString() } }); refreshData(); log('create', title); };
+  const renameTask = (id: string, title: string) => { repository.updateTask(id, { title }); refreshData(); log('edit', title); };
+  const renameReminder = (id: string, title: string) => { repository.updateReminder(id, { title }); refreshData(); log('edit', title); };
 
   const resetStudyData = () => {
     repository.reset();
@@ -77,8 +79,8 @@ export default function App() {
   const content = useMemo(() => {
     const props = { onEvent: log, onNavigate: navigate };
     switch (route) {
-      case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} onCreateTask={createTask} />;
-      case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={createReminder} />;
+      case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} onCreateTask={createTask} onRenameTask={renameTask} />;
+      case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={createReminder} onRenameReminder={renameReminder} />;
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} />;
       case 'focus': return <FocusView {...props} />;

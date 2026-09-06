@@ -6,9 +6,10 @@ type Props = {
   onEvent: (action: string, detail: string, result?: string) => void;
   onTaskStatusChange: (id: string, status: EntityStatus) => void;
   onCreateTask?: (title: string) => void;
+  onRenameTask?: (id: string, title: string) => void;
 };
 
-export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask }: Props) {
+export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onRenameTask }: Props) {
   const openTasks = data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused');
 
   return <View title="Tasks" meta={`${openTasks.length} open · local study data`} action="+ New task" onAction={() => { const title = window.prompt('Nome da tarefa'); if (title?.trim()) onCreateTask?.(title.trim()); }}>
@@ -20,7 +21,7 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask }: P
         <button className={`check ${completed ? 'checked' : ''}`} aria-label={`${completed ? 'Reopen' : 'Complete'} ${task.title}`} onClick={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }}>{completed ? '✓' : ''}</button>
         <div><strong>{task.title}</strong><span>{task.durationMinutes} min · {task.folder ?? 'Unfiled'} · {paused ? 'paused' : task.category}</span></div>
         {task.folder && <span className="tag orange">{task.folder}</span>}
-        <button className="more" aria-label={`Edit ${task.title}`} onClick={() => onEvent('edit', task.title)}>···</button>
+        <button className="more" aria-label={`Edit ${task.title}`} onClick={() => { const title = window.prompt('Novo nome da tarefa', task.title); if (title?.trim() && title.trim() !== task.title) onRenameTask?.(task.id, title.trim()); }}>···</button>
       </div>;
     })}</section>
   </View>;
