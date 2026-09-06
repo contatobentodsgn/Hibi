@@ -37,7 +37,7 @@ This is the reconstructed contract surface for the Hibi study replica. It descri
 ### AI and hardware
 
 - Capability declarations mark tasks, reminders, calendar, focus, and notes as local/available; external AI and hardware as unavailable ([capabilities.ts](../src/domain/capabilities.ts)).
-- The separate adapter-status registry reports local persistence and native notifications as available, launch-at-login as unavailable in its offline-safe status list, and external AI/hardware as unavailable ([adapter-status.ts](../src/domain/adapter-status.ts)).
+- The separate adapter-status registry reports local persistence, native notifications, and launch-at-login as available, while external AI/hardware remain unavailable ([adapter-status.ts](../src/domain/adapter-status.ts)).
 - The Taby view is a local query surface over the supplied data and states that it does not access internet, external AI, microphone, camera, or other hardware ([TabyView.tsx](../src/ui/TabyView.tsx)).
 - The hardware availability view reports no compatible hardware integration, while settings report Brain/hardware unavailable offline ([AvailabilityView.tsx](../src/ui/AvailabilityView.tsx), [SettingsView.tsx](../src/ui/SettingsView.tsx)).
 
