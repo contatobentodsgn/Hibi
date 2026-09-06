@@ -10,7 +10,7 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 |---|---|---|
 | Home | Funcional localmente | Painel, contagens, próximos itens e atalhos são derivados do snapshot local; a agenda seed continua fixa para o estudo. |
 | Tasks | Funcional | CRUD local, status, pasta Bento e deadline. |
-| Day/Week | Parcial | Blocos, quick add, horários e bloqueio de conflitos; importação/exportação ICS ainda não implementada. |
+| Day/Week | Funcional local | Blocos, quick add, horários, bloqueio de conflitos e importação/exportação ICS local; sem sincronização externa. |
 | Reminders | Funcional | CRUD local, pausa, recorrência semanal, horários e notificações macOS. |
 | Focus | Funcional | Timer local de 25 minutos com pausa e conclusão. |
 | Settings | Funcional localmente | Abas General/Focus/Notifications/Data/About, preferências locais, reset, login automático e teste de notificação. Integrações externas continuam fora do escopo local. |
@@ -34,6 +34,6 @@ O Hibi não é atualmente uma réplica 1:1. O núcleo de planejamento local est�
 
 1. Reproduzir os fluxos proprietários ausentes: Brain/IA, hardware/notch e integrações externas, somente quando houver contratos, assets e permissões disponíveis.
 2. Expandir o registro de animações para estados de foco, conclusão, revisão e notificações, mantendo `prefers-reduced-motion`.
-3. Adicionar testes E2E para criação/edição de lembretes, importação ICS e persistência após reinício; a lógica do scheduler nativo já possui cobertura unitária Node.
+3. Adicionar teste E2E de importação ICS e persistência após reinício; a lógica do scheduler nativo já possui cobertura unitária Node.
 4. Corrigir pendências de UX de alto risco: sincronizar o estado real de “Launch at login” e confirmar ações destrutivas de configurações.
 5. Auditar acessibilidade e navegação por teclado em todas as telas.
