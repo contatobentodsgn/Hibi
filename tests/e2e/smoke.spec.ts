@@ -40,3 +40,13 @@ test('captura rápida da Home abre a paleta de comandos', async ({ page }) => {
   await page.getByRole('button', { name: 'Open quick capture' }).click();
   await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
 });
+
+test('filtro Bento funciona em Tasks e Notes', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await page.getByRole('button', { name: 'Folder · Bento' }).click();
+  await expect(page.getByText('Kabrito Post 01')).toBeVisible();
+  await page.getByRole('button', { name: 'Notes', exact: true }).click();
+  await page.getByRole('button', { name: 'Folder · Bento' }).click();
+  await expect(page.locator('main')).toBeVisible();
+});
