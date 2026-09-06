@@ -10,6 +10,12 @@ let notificationScheduler;
 let aiRuntime;
 let notchWindow;
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
+const notchAdapter = nativeNotchBridge.createNotchAdapter({
+  mode: process.env.HIBI_NOTCH_ADAPTER,
+  isPackaged: app.isPackaged,
+  allowExperimental: process.env.HIBI_ALLOW_EXPERIMENTAL_NOTCH === '1',
+  platform: process.platform,
+});
 
 function isAllowedNavigation(rawUrl) {
   try {
@@ -40,7 +46,7 @@ function createWindow() {
 app.whenReady().then(() => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification });
   aiRuntime = createMainAiRuntime();
-  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen: require('electron').screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: nativeNotchBridge, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }) });
+  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen: require('electron').screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }) });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
   ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
   ipcMain.handle("hibi:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });
@@ -56,9 +62,12 @@ app.whenReady().then(() => {
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
   ipcMain.handle('hibi:notch:capabilities', () => ({
-    bridgeLoaded: nativeNotchBridge.available?.() === true,
-    nativePromotion: nativeNotchBridge.promotionAvailable?.() === true,
-    screens: nativeNotchBridge.screenGeometry?.() ?? [],
+    adapter: notchAdapter.id,
+    experimental: notchAdapter.experimental,
+    reason: notchAdapter.reason,
+    bridgeLoaded: notchAdapter.available?.() === true,
+    nativePromotion: notchAdapter.promotionAvailable?.() === true,
+    screens: notchAdapter.screenGeometry?.() ?? [],
   }));
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
