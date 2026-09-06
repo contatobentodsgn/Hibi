@@ -11,3 +11,4 @@ test-results/
 !.env.example
 study-data/
 event-logs/
+._*
