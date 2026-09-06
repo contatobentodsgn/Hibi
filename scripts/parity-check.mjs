@@ -13,11 +13,13 @@ const checks = [
   ['navigation: reminders', files.shell.includes("'reminders'"), 'AppShell reminders route'],
   ['navigation: calendar', files.shell.includes("'week'") && files.shell.includes("'day'"), 'AppShell day/week routes'],
   ['navigation: focus', files.shell.includes("'focus'"), 'AppShell focus route'],
+  ['navigation: notes/habits/goals/review', files.app.includes("case 'notes'") && files.app.includes("case 'habits'") && files.app.includes("case 'goals'") && files.app.includes("case 'review'"), 'data workspace routes'],
   ['commands: slash palette', files.commands.includes("'/tasks'") && files.commands.includes("'/reminders'"), 'core slash commands'],
   ['desktop: notifications bridge', files.preload.includes('syncNotifications') && files.main.includes('hibi:notifications:sync'), 'native notification IPC'],
   ['desktop: launch at login', files.preload.includes('setOpenAtLogin') && files.main.includes('setLoginItemSettings'), 'login item IPC'],
   ['desktop: production bundle', files.main.includes('HIBI_PRODUCTION') && files.main.includes('loadFile'), 'offline production launch'],
   ['app: local persistence', files.app.includes('hibi-study-data') && files.app.includes('repository.exportJson'), 'local repository persistence'],
+  ['app: reminder scheduling', files.app.includes('editReminderSchedule') && files.app.includes('createReminder'), 'reminder create/edit actions'],
 ];
 
 const failed = checks.filter(([, ok]) => !ok);
