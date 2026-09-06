@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavKey } from './AppShell';
 type Props = { onClose: () => void; onNavigate: (key: NavKey) => void; onEvent: (action: string, detail: string) => void };
 const commands: { key: string; label: string; group: string; route?: NavKey }[] = [
@@ -18,9 +18,10 @@ const commands: { key: string; label: string; group: string; route?: NavKey }[] 
 export function CommandPalette({ onClose, onNavigate, onEvent }: Props) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const paletteRef = useRef<HTMLElement>(null);
   const matches = commands.filter((item) => `${item.key} ${item.label}`.toLowerCase().includes(query.toLowerCase()));
   useEffect(() => { setSelectedIndex(0); }, [query]);
-  useEffect(() => { const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [onClose]);
+  useEffect(() => { const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); if (event.key !== 'Tab') return; const root = paletteRef.current; if (!root) return; const focusable = Array.from(root.querySelectorAll<HTMLElement>('input,button')).filter((item) => !(item as HTMLButtonElement).disabled); if (!focusable.length) return; const first = focusable[0]!; const last = focusable[focusable.length - 1]!; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); } }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [onClose]);
   const openCommand = (index: number) => { const item = matches[index]; if (!item) return; onEvent('command', item.key); if (item.route) onNavigate(item.route); };
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (!matches.length) return;
@@ -28,7 +29,7 @@ export function CommandPalette({ onClose, onNavigate, onEvent }: Props) {
     if (event.key === 'ArrowUp') { event.preventDefault(); setSelectedIndex((index) => (index - 1 + matches.length) % matches.length); }
     if (event.key === 'Enter') { event.preventDefault(); openCommand(selectedIndex); }
   };
-  return <div className="overlay" onMouseDown={onClose}><section className="palette" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-label="Command palette">
+  return <div className="overlay" onMouseDown={onClose}><section ref={paletteRef} className="palette" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Command palette">
     <div className="palette-search"><span>/</span><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleKeyDown} placeholder="Type a command" aria-activedescendant={matches[selectedIndex] ? `command-${matches[selectedIndex].key.slice(1)}` : undefined} /></div>
     {matches.map((item, index) => <button className="command-row" id={`command-${item.key.slice(1)}`} data-selected={index === selectedIndex} key={item.key} onMouseEnter={() => setSelectedIndex(index)} onClick={() => openCommand(index)}><kbd>{item.key}</kbd><span>{item.label}</span><small>{item.group}</small></button>)}
     {!matches.length && <p className="empty">No command found. Try /week or /focus.</p>}
