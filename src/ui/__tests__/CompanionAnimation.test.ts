@@ -6,6 +6,8 @@ describe('companion animation states', () => {
     expect(companionAnimationForState('working')).toEqual({
       kind: 'video',
       url: '/companion-assets/animations/notch/working_loop.mp4',
+      id: 'animations.notch.workingLoop',
+      label: 'Working Loop',
     });
     expect(companionAnimationForState('idle')).toMatchObject({ url: expect.stringContaining('idle_01_loop.mp4') });
     expect(companionAnimationForState('completed')).toMatchObject({ url: expect.stringContaining('task_completed.mp4') });
