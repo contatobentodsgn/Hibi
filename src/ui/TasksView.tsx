@@ -8,9 +8,10 @@ type Props = {
   onCreateTask?: (title: string) => void;
   onRenameTask?: (id: string, title: string) => void;
   onDeleteTask?: (id: string) => void;
+  onEditTaskDeadline?: (id: string) => void;
 };
 
-export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onRenameTask, onDeleteTask }: Props) {
+export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onRenameTask, onDeleteTask, onEditTaskDeadline }: Props) {
   const openTasks = data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused');
 
   return <View title="Tasks" meta={`${openTasks.length} open · local study data`} action="+ New task" onAction={() => { const title = window.prompt('Nome da tarefa'); if (title?.trim()) onCreateTask?.(title.trim()); }}>
@@ -22,7 +23,7 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
         <button className={`check ${completed ? 'checked' : ''}`} aria-label={`${completed ? 'Reopen' : 'Complete'} ${task.title}`} onClick={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }}>{completed ? '✓' : ''}</button>
         <div><strong>{task.title}</strong><span>{task.durationMinutes} min · {task.folder ?? 'Unfiled'} · {task.deadline ? `deadline ${task.deadline.replace('T', ' ')}` : 'sem deadline'} · {paused ? 'paused' : task.category}</span></div>
         {task.folder && <span className="tag orange">{task.folder}</span>}
-        <button className="more" aria-label={`Edit ${task.title}`} onClick={() => { const action = window.prompt('N para renomear ou X para excluir', 'N'); if (action?.toUpperCase() === 'X') { if (window.confirm(`Excluir ${task.title}?`)) onDeleteTask?.(task.id); } else { const title = window.prompt('Novo nome da tarefa', task.title); if (title?.trim() && title.trim() !== task.title) onRenameTask?.(task.id, title.trim()); } }}>···</button>
+        <button className="more" aria-label={`Edit ${task.title}`} onClick={() => { const action = window.prompt('N renomear, D deadline ou X excluir', 'N')?.toUpperCase(); if (action === 'X') { if (window.confirm(`Excluir ${task.title}?`)) onDeleteTask?.(task.id); } else if (action === 'D') onEditTaskDeadline?.(task.id); else { const title = window.prompt('Novo nome da tarefa', task.title); if (title?.trim() && title.trim() !== task.title) onRenameTask?.(task.id, title.trim()); } }}>···</button>
       </div>;
     })}</section>
   </View>;
