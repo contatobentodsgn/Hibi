@@ -19,6 +19,7 @@ import { HabitsView } from './ui/HabitsView';
 import { GoalsView } from './ui/GoalsView';
 import { ReviewView } from './ui/ReviewView';
 import { TabyView } from './ui/TabyView';
+import { HelpView } from './ui/HelpView';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
@@ -137,6 +138,7 @@ export default function App() {
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
       case 'review': return <ReviewView data={data} onNavigate={navigate} />;
       case 'taby': return <TabyView data={data} onEvent={log} />;
+      case 'help': return <HelpView onNavigate={navigate} />;
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} />;
       case 'focus': return <FocusView {...props} />;
