@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, Notification } = require("electron");
 const path = require("node:path");
-const { createNotificationScheduler } = require("./notifications.cjs");
+const { createNotificationScheduler, sanitizeEntries } = require("./notifications.cjs");
 
 let mainWindow;
 let notificationScheduler;
@@ -37,7 +37,7 @@ app.whenReady().then(() => {
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
   ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
   ipcMain.handle("hibi:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });
-  ipcMain.handle("hibi:notifications:sync", (_event, entries) => { notificationScheduler.sync(entries); });
+  ipcMain.handle("hibi:notifications:sync", (_event, entries) => { notificationScheduler.sync(sanitizeEntries(entries)); });
   ipcMain.handle("hibi:notifications:test", () => {
     if (!Notification.isSupported()) return false;
     const notification = new Notification({ title: "Hibi", body: "Native notifications are working." });

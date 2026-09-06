@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createNotificationScheduler, nextOccurrence } = require('./notifications.cjs');
+const { createNotificationScheduler, nextOccurrence, sanitizeEntries } = require('./notifications.cjs');
 
 function createHarness(start) {
   let now = Date.parse(start);
@@ -96,4 +96,24 @@ test('keeps far-future one-time notifications alive across timer chunks', () => 
 
   assert.equal(harness.shown.length, 0);
   assert.equal(harness.timers.size, 1);
+});
+
+test('keeps valid reminders while dropping entries with overlong fields', () => {
+  const valid = { id: 'reminder:valid', kind: 'reminder', title: 'Valid', body: 'Keep me', at: '2026-09-07T09:00:00-03:00' };
+  const entries = [
+    valid,
+    { ...valid, id: 'x'.repeat(129) },
+    { ...valid, title: 'x'.repeat(501) },
+    { ...valid, body: 'x'.repeat(501) },
+  ];
+
+  assert.deepEqual(sanitizeEntries(entries), [{ ...valid, recurrence: null }]);
+});
+
+test('limits the notification batch without discarding valid entries within the bound', () => {
+  const valid = { id: 'reminder:valid', kind: 'reminder', title: 'Valid', body: 'Keep me', at: '2026-09-07T09:00:00-03:00' };
+  const entries = Array.from({ length: 1001 }, (_, index) => ({ ...valid, id: `reminder:${index}` }));
+
+  assert.equal(sanitizeEntries(entries).length, 1000);
+  assert.equal(sanitizeEntries(entries).at(-1).id, 'reminder:999');
 });

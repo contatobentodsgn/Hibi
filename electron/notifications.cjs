@@ -1,4 +1,8 @@
 const MAX_TIMEOUT_MS = 2_147_000_000;
+const MAX_ENTRIES = 1000;
+const MAX_ID_LENGTH = 128;
+const MAX_TITLE_LENGTH = 500;
+const MAX_BODY_LENGTH = 500;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const LOCAL_OFFSET = '-03:00';
@@ -85,9 +89,9 @@ function nextOccurrence(entry, afterMs) {
 
 function sanitizeEntries(entries) {
   if (!Array.isArray(entries)) return [];
-  return entries.flatMap((entry) => {
+  return entries.slice(0, MAX_ENTRIES).flatMap((entry) => {
     if (!entry || typeof entry !== 'object') return [];
-    if (typeof entry.id !== 'string' || !entry.id || typeof entry.title !== 'string' || !entry.title.trim() || typeof entry.body !== 'string' || !entry.body.trim()) return [];
+    if (typeof entry.id !== 'string' || !entry.id || entry.id.length > MAX_ID_LENGTH || typeof entry.title !== 'string' || !entry.title.trim() || entry.title.length > MAX_TITLE_LENGTH || typeof entry.body !== 'string' || !entry.body.trim() || entry.body.length > MAX_BODY_LENGTH) return [];
     if (entry.kind !== 'deadline' && entry.kind !== 'reminder') return [];
     if (parseDate(entry.at) === null) return [];
     const recurrence = validRecurrence(entry.recurrence);
@@ -139,4 +143,4 @@ function createNotificationScheduler({ NotificationClass, now = Date.now, setTim
   };
 }
 
-module.exports = { MAX_TIMEOUT_MS, createNotificationScheduler, nextOccurrence, sanitizeEntries };
+module.exports = { MAX_TIMEOUT_MS, MAX_ENTRIES, MAX_ID_LENGTH, MAX_TITLE_LENGTH, MAX_BODY_LENGTH, createNotificationScheduler, nextOccurrence, sanitizeEntries };
