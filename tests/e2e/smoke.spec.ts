@@ -102,3 +102,13 @@ test('filtros do calendário usam as categorias reais dos blocos', async ({ page
   await page.getByRole('button', { name: 'Important', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Delete Aula de inglês' }).first()).toBeVisible();
 });
+
+test('Focus aplica a duração escolhida antes de iniciar', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Focus', exact: true }).click();
+  await page.getByRole('button', { name: '5m break', exact: true }).click();
+  await expect(page.getByText('Pick a task — 5m on the clock.')).toBeVisible();
+  await expect(page.getByText('05:00')).toBeVisible();
+  await page.getByRole('button', { name: 'Start focus' }).click();
+  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+});
