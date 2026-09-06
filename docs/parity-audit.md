@@ -30,9 +30,8 @@ O Hibi não é atualmente uma réplica 1:1. O núcleo de planejamento local est�
 
 ## Próximo ciclo recomendado
 
-1. Implementar Notes e folders compartilhando a persistência local.
-2. Implementar Review usando os dados reais já existentes.
-3. Implementar notificações macOS agendadas para lembretes e deadlines.
-4. Adicionar Goals e Habits.
-5. Auditar animações e acessibilidade por tela.
-6. Definir explicitamente quais integrações externas serão suportadas, com consentimento e configuração local.
+1. Reproduzir os fluxos proprietários ausentes: Brain/IA, hardware/notch e integrações externas, somente quando houver contratos e permissões disponíveis.
+2. Expandir o registro de animações para estados de foco, conclusão, revisão e notificações, mantendo `prefers-reduced-motion`.
+3. Adicionar testes E2E para criação/edição de lembretes, notificações nativas, importação ICS e persistência após reinício.
+4. Corrigir pendências de UX de alto risco: sincronizar o estado real de “Launch at login” e confirmar ações destrutivas de configurações.
+5. Auditar acessibilidade e navegação por teclado em todas as telas.
