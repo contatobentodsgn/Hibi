@@ -2,6 +2,10 @@ import { readFile } from 'node:fs/promises';
 
 const files = {
   app: await readFile('src/App.tsx', 'utf8'),
+  home: await readFile('src/ui/HomeView.tsx', 'utf8'),
+  day: await readFile('src/ui/DayView.tsx', 'utf8'),
+  week: await readFile('src/ui/WeekView.tsx', 'utf8'),
+  taby: await readFile('src/ui/TabyView.tsx', 'utf8'),
   shell: await readFile('src/ui/AppShell.tsx', 'utf8'),
   commands: await readFile('src/ui/CommandPalette.tsx', 'utf8'),
   preload: await readFile('electron/preload.cjs', 'utf8'),
@@ -20,6 +24,7 @@ const checks = [
   ['desktop: production bundle', files.main.includes('HIBI_PRODUCTION') && files.main.includes('loadFile'), 'offline production launch'],
   ['app: local persistence', files.app.includes('hibi-study-data') && files.app.includes('repository.exportJson'), 'local repository persistence'],
   ['app: reminder scheduling', files.app.includes('editReminderSchedule') && files.app.includes('createReminder'), 'reminder create/edit actions'],
+  ['dates: workspace-aware views', files.home.includes('referenceDate(data)') && files.day.includes('firstDate') && files.week.includes('firstDate') && files.taby.includes('referenceDate(data)'), 'views derive schedule dates'],
 ];
 
 const failed = checks.filter(([, ok]) => !ok);
