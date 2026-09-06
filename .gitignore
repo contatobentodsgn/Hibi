@@ -12,4 +12,6 @@ test-results/
 study-data/
 event-logs/
 .worktrees/
+native/notch/build/
+native/notch/node_modules/
 ._*

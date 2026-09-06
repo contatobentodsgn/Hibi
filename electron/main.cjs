@@ -55,6 +55,11 @@ app.whenReady().then(() => {
   ipcMain.handle('hibi:ai:cancel', () => { aiRuntime.cancel(); return true; });
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
+  ipcMain.handle('hibi:notch:capabilities', () => ({
+    bridgeLoaded: nativeNotchBridge.available?.() === true,
+    nativePromotion: nativeNotchBridge.promotionAvailable?.() === true,
+    screens: nativeNotchBridge.screenGeometry?.() ?? [],
+  }));
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

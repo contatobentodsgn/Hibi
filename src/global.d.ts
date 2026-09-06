@@ -12,6 +12,7 @@ declare global {
       cancelAiTurn?: () => Promise<boolean>;
       showNotch?: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly unknown[]; interaction: 'passthrough' | 'capture' }) => Promise<{ degraded: boolean; requestId: string }>;
       hideNotch?: (requestId: string) => Promise<boolean>;
+      getNotchCapabilities?: () => Promise<{ bridgeLoaded: boolean; nativePromotion: boolean; screens: readonly { index: number; frame: { x: number; y: number; width: number; height: number }; safeAreaTop: number; hasCameraHousing: boolean }[] }>;
       onCompanionPresentation?: (callback: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' }) => void) => () => void;
     };
   }
