@@ -9,6 +9,7 @@
     "desktop": "node scripts/start-desktop.mjs",
     "desktop:production": "npm run build && HIBI_PRODUCTION=1 electron electron/main.cjs",
     "build": "tsc --noEmit && vite build",
+    "parity:check": "node scripts/parity-check.mjs",
     "test": "vitest run src --exclude 'src/**/._*' && node --test electron/notifications.test.cjs",
     "test:e2e": "playwright test"
   },
