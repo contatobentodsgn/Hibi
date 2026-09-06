@@ -25,6 +25,17 @@ import { AvailabilityView } from './ui/AvailabilityView';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
+const weekdayNumber: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+const firstWeeklyOccurrence = (startDate: string, parts: string[]) => {
+  const candidates = parts.map((part) => {
+    const day = weekdayNumber[part.slice(0, 3).toLowerCase()];
+    const date = new Date(`${startDate}T12:00:00-03:00`);
+    date.setDate(date.getDate() + ((day - date.getDay() + 7) % 7));
+    return { date: date.toISOString().slice(0, 10), time: part.slice(4), day };
+  }).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+  return candidates[0];
+};
+
 const initialEvents: EventRecord[] = [
   { id: 1, at: '09:02:14', route: 'week', action: 'navigation', detail: 'Opened weekly schedule' },
   { id: 2, at: '09:03:01', route: 'week', action: 'validation', detail: 'Checked 8 schedule blocks', result: 'pass' },
@@ -83,12 +94,12 @@ export default function App() {
     const weekly = value.match(/^weekly\s+(.+)$/i);
     if (weekly) {
       const parts = weekly[1].match(/(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+(\d{2}:\d{2})/gi) ?? [];
-      const map: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+      const map = weekdayNumber;
       if (!parts.length) { window.alert('Formato de recorrência inválido.'); return; }
       const weekdays = parts.map((part) => map[part.slice(0, 3).toLowerCase()]);
       const timesByWeekday: Record<number, string> = {}; parts.forEach((part) => { timesByWeekday[map[part.slice(0, 3).toLowerCase()]] = part.slice(4); });
-      const first = parts[0]!;
-      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `2026-09-07T${first.slice(4)}:00-03:00`, recurrence: { frequency: 'weekly', weekdays, timesByWeekday, startDate: '2026-09-07' } } });
+      const first = firstWeeklyOccurrence('2026-09-07', parts)!;
+      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `${first.date}T${first.time}:00-03:00`, recurrence: { frequency: 'weekly', weekdays, timesByWeekday, startDate: '2026-09-07' } } });
     } else {
       const match = value.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/);
       if (!match) { window.alert('Formato inválido.'); return; }
@@ -121,11 +132,12 @@ export default function App() {
     const weekly = value.match(/^weekly\s+(.+)$/i);
     if (weekly) {
       const parts = weekly[1].match(/(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+(\d{2}:\d{2})/gi) ?? [];
-      const map: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+      const map = weekdayNumber;
       const weekdays = parts.map((part) => map[part.slice(0, 3).toLowerCase()]);
       const timesByWeekday: Record<number, string> = {}; parts.forEach((part) => { timesByWeekday[map[part.slice(0, 3).toLowerCase()]] = part.slice(4); });
       if (!parts.length) { window.alert('Formato de recorrência inválido.'); return; }
-      repository.updateReminder(id, { schedule: { at: reminder.schedule.at, recurrence: { frequency: 'weekly', weekdays, timesByWeekday, startDate: reminder.schedule.at.slice(0, 10) } } });
+      const first = firstWeeklyOccurrence(reminder.schedule.at.slice(0, 10), parts)!;
+      repository.updateReminder(id, { schedule: { at: `${first.date}T${first.time}:00-03:00`, recurrence: { frequency: 'weekly', weekdays, timesByWeekday, startDate: reminder.schedule.at.slice(0, 10) } } });
     } else {
       const match = value.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/); if (!match) { window.alert('Formato inválido.'); return; }
       repository.updateReminder(id, { schedule: { at: `${match[1]}T${match[2]}:00-03:00` } });
