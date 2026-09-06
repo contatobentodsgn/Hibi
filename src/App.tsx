@@ -25,6 +25,7 @@ import { AvailabilityView } from './ui/AvailabilityView';
 import { firstWeeklyOccurrence } from './domain/recurrence';
 import { TaskCreateModal, type NewTaskForm } from './ui/TaskCreateModal';
 import { ReminderCreateModal, type NewReminderForm } from './ui/ReminderCreateModal';
+import { DeadlineEditModal } from './ui/DeadlineEditModal';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
@@ -44,6 +45,7 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
+  const [deadlineEditTaskId, setDeadlineEditTaskId] = useState<string | null>(null);
   const [events, setEvents] = useState<EventRecord[]>(() => { try { const saved = window.localStorage.getItem('hibi-events'); return saved ? JSON.parse(saved) as EventRecord[] : initialEvents; } catch { return initialEvents; } });
   const clearEvents = () => setEvents([]);
 
@@ -105,7 +107,8 @@ export default function App() {
   const updateGoal = (id: string, changes: Partial<Omit<Goal, 'id'>>) => { repository.updateGoal(id, changes); refreshData(); log('edit', id); };
   const deleteGoal = (id: string) => { repository.deleteGoal(id); refreshData(); log('delete', id); };
   const setGoalProgress = (id: string, current: number) => { repository.setGoalProgress(id, current); refreshData(); log('progress', id, String(current)); };
-  const editTaskDeadline = (id: string) => { const task = data.tasks.find((item) => item.id === id); if (!task) return; const value = window.prompt('Deadline (AAAA-MM-DD HH:MM), vazio remove', task.deadline ? task.deadline.replace('T', ' ') : ''); if (value === null) return; const trimmed = value.trim(); if (trimmed && !/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$/.test(trimmed)) { window.alert('Formato inválido.'); return; } repository.updateTask(id, { deadline: trimmed ? trimmed.replace(' ', 'T') : undefined }); refreshData(); log('edit', task.title, 'deadline-updated'); };
+  const editTaskDeadline = (id: string) => { if (data.tasks.some((task) => task.id === id)) setDeadlineEditTaskId(id); };
+  const saveTaskDeadline = (id: string, deadline?: string) => { const task = data.tasks.find((item) => item.id === id); if (!task) return; repository.updateTask(id, { deadline }); refreshData(); log('edit', task.title, 'deadline-updated'); setDeadlineEditTaskId(null); };
   const editReminderSchedule = (id: string, edited: EditedReminderSchedule) => {
     const reminder = data.reminders.find((item) => item.id === id); if (!reminder) return;
     if (edited.frequency === 'one-time') repository.updateReminder(id, { schedule: { at: `${edited.date}T${edited.time}:00-03:00` } });
@@ -182,6 +185,7 @@ export default function App() {
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} />}
       {taskCreateOpen && <TaskCreateModal onClose={() => setTaskCreateOpen(false)} onSubmit={createTask} />}
       {reminderCreateOpen && <ReminderCreateModal defaultDate={planStartDate()} onClose={() => setReminderCreateOpen(false)} onSubmit={createReminder} />}
+      {deadlineEditTaskId && (() => { const task = data.tasks.find((item) => item.id === deadlineEditTaskId); return task ? <DeadlineEditModal taskTitle={task.title} deadline={task.deadline} onClose={() => setDeadlineEditTaskId(null)} onSubmit={(deadline) => saveTaskDeadline(task.id, deadline)} /> : null; })()}
     </AppShell>
   );
 }

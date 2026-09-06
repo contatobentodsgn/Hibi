@@ -145,6 +145,22 @@ test('filtros e ordenação de Tasks são interativos', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Deadline/ })).toHaveClass(/active/);
 });
 
+test('edita deadline de uma task por formulário acessível e permite remover', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await page.getByRole('button', { name: 'Deadline for Kabrito Post 01' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit task deadline' });
+  await expect(dialog).toBeVisible();
+  const deadline = dialog.getByRole('textbox', { name: 'Deadline' });
+  await deadline.fill('2026-09-10 14:30');
+  await dialog.getByRole('button', { name: 'Save deadline' }).click();
+  await expect(page.getByText(/deadline 2026-09-10 14:30/)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Deadline for Kabrito Post 01' }).click();
+  await page.getByRole('dialog', { name: 'Edit task deadline' }).getByRole('button', { name: 'Remove deadline' }).click();
+  await expect(page.getByText(/Kabrito Post 01/).locator('..').getByText('sem deadline')).toBeVisible();
+});
+
 test('filtros do calendário usam as categorias reais dos blocos', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Week', exact: true }).click();

@@ -12,4 +12,13 @@ describe('RemindersView recurrence editor', () => {
     expect(markup).toContain('aria-label="Edit vaga/inglês - Horizontes"');
     expect(markup).not.toContain('window.prompt');
   });
+
+  it('exposes the new reminder control as a modal trigger', () => {
+    const markup = renderToStaticMarkup(
+      <RemindersView data={createSeedData()} onEvent={() => undefined} onReminderStatusChange={() => undefined} onCreateReminder={() => undefined} />,
+    );
+
+    expect(markup).toContain('aria-haspopup="dialog"');
+    expect(markup).toContain('aria-controls="reminder-create-title"');
+  });
 });
