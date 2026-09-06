@@ -1,0 +1,31 @@
+<!--
+  macOS menu-bar template icon. Per Apple HIG + NSStatusItem docs, status
+  bar images must be template images: AppKit reads only the alpha channel
+  and picks the right tint (black on light bars, white on dark bars,
+  highlighted on click). The RGB values below are black by convention so
+  the file previews sensibly in Finder, but only alpha is what AppKit
+  renders.
+
+  Geometry from taby-favicon-square.svg (the canonical brand mark).
+  viewBox is cropped to the face frame's bounding box plus a half-stroke
+  of breathing room — this lets the face fill the full menu-bar height
+  rather than leaving empty padding above/below.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="1 5 26 18" fill="none">
+  <path
+    d="M22 5.96973H6C3.79086 5.96973 2 7.76059 2 9.96973V18.0297C2 20.2389 3.79086 22.0297 6 22.0297H22C24.2091 22.0297 26 20.2389 26 18.0297V9.96973C26 7.76059 24.2091 5.96973 22 5.96973Z"
+    stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+  />
+  <path
+    d="M11.97 16.1504C13.34 16.8904 14.68 16.9304 16.01 16.1504"
+    stroke="#000" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"
+  />
+  <path
+    d="M21.3101 15.9903C21.3101 15.9903 21.3101 16.0003 21.3101 16.0103C21.1001 16.4303 20.6601 16.6903 20.1901 16.6903H19.3301C19.1401 16.6903 18.9601 16.6203 18.8101 16.5303C18.4501 16.3103 18.2301 15.9103 18.2101 15.4803C18.1501 14.5203 18.1501 13.5603 18.2201 12.5803C18.2501 12.1803 18.4401 11.8003 18.7601 11.5603C18.9701 11.4003 19.2501 11.2803 19.6301 11.2803H20.0701C20.7601 11.2803 21.3601 11.8003 21.4101 12.4903C21.4101 12.5203 21.4101 12.5503 21.4101 12.5903V15.5503C21.4101 15.7003 21.3801 15.8603 21.3101 16.0003V15.9903Z"
+    fill="#000"
+  />
+  <path
+    d="M9.74001 15.9903C9.74001 15.9903 9.74001 16.0003 9.74001 16.0103C9.53001 16.4303 9.09001 16.6903 8.62001 16.6903H7.76001C7.57001 16.6903 7.39001 16.6203 7.24001 16.5303C6.88001 16.3103 6.66001 15.9103 6.64001 15.4803C6.58001 14.5203 6.58001 13.5603 6.65001 12.5803C6.68001 12.1803 6.87001 11.8003 7.19001 11.5603C7.40001 11.4003 7.68001 11.2803 8.06001 11.2803H8.50001C9.19001 11.2803 9.79001 11.8003 9.84001 12.4903C9.84001 12.5203 9.84001 12.5503 9.84001 12.5903V15.5503C9.84001 15.7003 9.81001 15.8603 9.74001 16.0003V15.9903Z"
+    fill="#000"
+  />
+</svg>
