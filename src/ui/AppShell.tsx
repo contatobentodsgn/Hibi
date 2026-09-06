@@ -15,8 +15,8 @@ export function AppShell({ active, taskCount, reminderCount, habitCount = 0, goa
     <header className="topbar">
       <button className="brand" onClick={() => onNavigate('home')} aria-label="Open Hibi home"><span className="brand-mark">h</span><span>HIBI <small>STUDY REPLICA</small></span></button>
       <nav className="top-nav" aria-label="Primary navigation">
-        <button className="home-link" onClick={() => onNavigate('home')} data-active={active === 'home'}>Home</button>
-        {items.map((item) => <button key={item.key} className="nav-icon" title={item.label} aria-label={item.label} data-active={active === item.key} onClick={() => onNavigate(item.key)}><span>{item.icon}</span><small>{item.key === 'tasks' ? taskCount : item.key === 'reminders' ? reminderCount : item.key === 'habits' ? habitCount : item.key === 'goals' ? goalCount : ''}</small></button>)}
+        <button className="home-link" onClick={() => onNavigate('home')} data-active={active === 'home'} aria-current={active === 'home' ? 'page' : undefined}>Home</button>
+        {items.map((item) => <button key={item.key} className="nav-icon" title={item.label} aria-label={item.label} aria-current={active === item.key ? 'page' : undefined} data-active={active === item.key} onClick={() => onNavigate(item.key)}><span>{item.icon}</span><small>{item.key === 'tasks' ? taskCount : item.key === 'reminders' ? reminderCount : item.key === 'habits' ? habitCount : item.key === 'goals' ? goalCount : ''}</small></button>)}
       </nav>
       <button className="command-hint" onClick={onOpenCommands}><kbd>/</kbd><span>commands</span><kbd>⌘K</kbd></button>
     </header>

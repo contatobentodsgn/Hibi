@@ -85,6 +85,7 @@ describe('study views', () => {
 
     expect(shell).toContain('aria-label="Habits"');
     expect(shell).toContain('aria-label="Goals"');
+    expect(shell).toContain('aria-current="page"');
     expect(palette).toContain('Track habits');
     expect(palette).toContain('Review goals');
   });
