@@ -135,3 +135,15 @@ test('updates e hardware são acessíveis pela paleta', async ({ page }) => {
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Updates' })).toBeVisible();
 });
+
+test('assistente local responde sobre a agenda', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Taby', exact: true }).click();
+  const input = page.getByPlaceholder('Ask about your workspace');
+  await input.fill('qual a agenda de hoje?');
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(page.getByText(/Hoje há 10 blocos/)).toBeVisible();
+  await input.fill('qual o próximo compromisso?');
+  await input.press('Enter');
+  await expect(page.getByText(/Seu próximo bloco é/)).toBeVisible();
+});
