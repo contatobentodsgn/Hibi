@@ -19,6 +19,7 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
   const [newTitle, setNewTitle] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const openTasks = data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused');
   const visibleTasks = [...data.tasks].filter((task) => (scope === 'all' || (task.status !== 'completed' && task.status !== 'paused')) && (!folder || (task.folder ?? 'Unfiled') === folder)).sort((a, b) => deadlineSort ? (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999') : 0);
   const submitNewTask = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const title = newTitle.trim(); if (!title) return; onCreateTask?.(title); setNewTitle(''); setCreating(false); };
@@ -35,10 +36,15 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
         <button className={`check ${completed ? 'checked' : ''}`} aria-label={`${completed ? 'Reopen' : 'Complete'} ${task.title}`} onClick={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }}>{completed ? '✓' : ''}</button>
         {editingId === task.id ? <form onSubmit={(event) => submitRename(event, task.id, task.title)}><label htmlFor={`rename-${task.id}`}>Task title</label><input id={`rename-${task.id}`} aria-label={`Rename ${task.title}`} value={editTitle} onChange={(event) => setEditTitle(event.target.value)} autoFocus /><button className="primary" type="submit">Save</button><button className="outline" type="button" onClick={() => setEditingId(null)}>Cancel</button></form> : <div><strong>{task.title}</strong><span>{task.durationMinutes} min · {task.folder ?? 'Unfiled'} · {task.deadline ? `deadline ${task.deadline.replace('T', ' ')}` : 'sem deadline'} · {paused ? 'paused' : task.category}</span></div>}
         {task.folder && <span className="tag orange">{task.folder}</span>}
-        {editingId !== task.id && <div className="heading-actions"><button className="more" aria-label={`Rename ${task.title}`} onClick={() => startEditing(task.id, task.title)}>Rename</button><button className="more" aria-label={`Set deadline for ${task.title}`} onClick={() => onEditTaskDeadline?.(task.id)}>Deadline</button><button className="more" aria-label={`Delete ${task.title}`} onClick={() => onDeleteTask?.(task.id)}>Delete</button></div>}
+        {editingId !== task.id && <div className="heading-actions"><button className="more" aria-label={`Rename ${task.title}`} onClick={() => startEditing(task.id, task.title)}>Rename</button><button className="more" aria-label={`Set deadline for ${task.title}`} onClick={() => onEditTaskDeadline?.(task.id)}>Deadline</button><button className="more" aria-label={`Delete ${task.title}`} onClick={() => setPendingDelete({ id: task.id, title: task.title })}>Delete</button></div>}
       </div>;
     })}{!visibleTasks.length && <p className="empty">No tasks match these filters.</p>}</section>
+    {pendingDelete && <DeleteConfirmation title={pendingDelete.title} onCancel={() => setPendingDelete(null)} onConfirm={() => { onDeleteTask?.(pendingDelete.id); setPendingDelete(null); }} />}
   </View>;
+}
+
+function DeleteConfirmation({ title, onCancel, onConfirm }: { title: string; onCancel: () => void; onConfirm: () => void }) {
+  return <div className="overlay"><section className="palette" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title"><h2 id="delete-confirm-title">Delete {title}?</h2><p>This action cannot be undone.</p><button className="outline" type="button" onClick={onCancel} autoFocus>Cancel</button><button className="primary" type="button" onClick={onConfirm}>Confirm delete</button></section></div>;
 }
 
 function View({ title, meta, action, onAction, children }: { title: string; meta: string; action: string; onAction?: () => void; children: React.ReactNode }) {

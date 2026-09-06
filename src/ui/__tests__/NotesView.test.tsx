@@ -13,4 +13,12 @@ describe('NotesView note editor', () => {
     expect(markup).toContain('for="new-note-title"');
     expect(markup).not.toContain('window.prompt');
   });
+
+  it('defines an explicit accessible delete confirmation flow', async () => {
+    const source = await (await import('node:fs/promises')).readFile(new URL('../NotesView.tsx', import.meta.url), 'utf8');
+    expect(source).not.toContain('window.confirm');
+    expect(source).toContain('role="dialog"');
+    expect(source).toContain('Confirm delete');
+    expect(source).toContain('Cancel');
+  });
 });

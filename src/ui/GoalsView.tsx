@@ -20,6 +20,7 @@
    const [editGoal, setEditGoal] = useState<GoalDraft>(emptyDraft);
    const [progressId, setProgressId] = useState<string | null>(null);
    const [progressValue, setProgressValue] = useState('');
+   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
 
    const submitNewGoal = (event: React.FormEvent<HTMLFormElement>) => {
      event.preventDefault();
@@ -72,10 +73,13 @@
              <label htmlFor={`edit-goal-unit-${goal.id}`}>Unit</label><input id={`edit-goal-unit-${goal.id}`} value={editGoal.unit} onChange={(event) => setEditGoal({ ...editGoal, unit: event.target.value })} />
              <div className="heading-actions"><button className="primary" type="submit">Save</button><button className="outline" type="button" onClick={() => setEditingId(null)}>Cancel</button></div>
            </form> : <div className="goal-copy"><div className="goal-title"><strong>{goal.title}</strong>{completed && <span className="pill green">Complete</span>}</div><span>{goal.current} / {goal.target}{goal.unit ? ` ${goal.unit}` : ''}</span><div className="entity-progress"><span style={{ width: `${percent}%` }} /></div></div>}
-           {editingId !== goal.id && <><button className="outline compact-action" aria-label={`Set progress for ${goal.title}`} onClick={() => { setProgressId(goal.id); setProgressValue(String(goal.current)); }}>Set progress</button><button className="primary compact-action" aria-label={`Advance ${goal.title}`} onClick={() => onProgress(goal.id, goal.current + 1)} disabled={completed}>+1</button><button className="icon-button" aria-label={`Edit ${goal.title}`} onClick={() => startEditing(goal)}>✎</button><button className="icon-button" aria-label={`Delete ${goal.title}`} onClick={() => onDelete(goal.id)}>×</button></>}
+            {editingId !== goal.id && <><button className="outline compact-action" aria-label={`Set progress for ${goal.title}`} onClick={() => { setProgressId(goal.id); setProgressValue(String(goal.current)); }}>Set progress</button><button className="primary compact-action" aria-label={`Advance ${goal.title}`} onClick={() => onProgress(goal.id, goal.current + 1)} disabled={completed}>+1</button><button className="icon-button" aria-label={`Edit ${goal.title}`} onClick={() => startEditing(goal)}>✎</button><button className="icon-button" aria-label={`Delete ${goal.title}`} onClick={() => setPendingDelete({ id: goal.id, title: goal.title })}>×</button></>}
          </div>
          {progressId === goal.id && <form className="quick-input" aria-label={`Set progress for ${goal.title}`} onSubmit={(event) => submitProgress(event, goal)}><label htmlFor={`progress-${goal.id}`}>Current progress</label><input id={`progress-${goal.id}`} type="number" min="0" step="any" max={goal.target} value={progressValue} onChange={(event) => setProgressValue(event.target.value)} required /><button className="primary" type="submit">Save</button><button className="outline" type="button" onClick={() => setProgressId(null)}>Cancel</button></form>}
        </React.Fragment>;
      })}{!data.goals.length && <div className="empty-state"><strong>No goals yet</strong><span>Choose an outcome worth moving toward and track it here.</span></div>}</section>
-   </div>;
-}
+      {pendingDelete && <DeleteConfirmation title={pendingDelete.title} onCancel={() => setPendingDelete(null)} onConfirm={() => { onDelete(pendingDelete.id); setPendingDelete(null); }} />}
+    </div>;
+ }
+
+ function DeleteConfirmation({ title, onCancel, onConfirm }: { title: string; onCancel: () => void; onConfirm: () => void }) { return <div className="overlay"><section className="palette" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title"><h2 id="delete-confirm-title">Delete {title}?</h2><p>This action cannot be undone.</p><button className="outline" type="button" onClick={onCancel} autoFocus>Cancel</button><button className="primary" type="button" onClick={onConfirm}>Confirm delete</button></section></div>; }

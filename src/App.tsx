@@ -46,6 +46,7 @@ export default function App() {
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
   const [deadlineEditTaskId, setDeadlineEditTaskId] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState('');
   const [events, setEvents] = useState<EventRecord[]>(() => { try { const saved = window.localStorage.getItem('hibi-events'); return saved ? JSON.parse(saved) as EventRecord[] : initialEvents; } catch { return initialEvents; } });
   const clearEvents = () => setEvents([]);
 
@@ -74,7 +75,8 @@ export default function App() {
 
   const createBlock = (input: Omit<ScheduleBlock, 'id'>) => {
     const validation = validateScheduleBlock({ ...input, id: `preview-${Date.now()}` }, repository.listBlocks());
-    if (!validation.valid) { window.alert(validation.errors.join('\n')); log('validation', input.title, 'blocked'); return; }
+    if (!validation.valid) { setValidationError(validation.errors.join('\n')); log('validation', input.title, 'blocked'); return; }
+    setValidationError('');
     repository.createBlock(input);
     refreshData();
     log('create', input.title);
@@ -181,6 +183,7 @@ export default function App() {
 
   return (
     <AppShell active={route} taskCount={data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused').length} reminderCount={data.reminders.filter((reminder) => reminder.status !== 'paused').length} habitCount={data.habits.filter((habit) => habit.status !== 'completed' && habit.status !== 'paused').length} goalCount={data.goals.filter((goal) => goal.status !== 'completed' && goal.status !== 'paused').length} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
+      {validationError && <div role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '0 0 16px', padding: '13px 16px', border: '1px solid #e2a992', borderRadius: 12, background: '#fff0eb', color: '#984418' }}><span aria-hidden="true" style={{ fontWeight: 900 }}>!</span><div style={{ flex: 1, whiteSpace: 'pre-line' }}>{validationError}</div><button type="button" className="outline" onClick={() => setValidationError('')} aria-label="Dismiss validation error" style={{ padding: '7px 10px' }}>Dismiss</button></div>}
       <div onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } if (route === 'reminders' && button?.textContent?.trim() === '+ New reminder') { event.preventDefault(); event.stopPropagation(); setReminderCreateOpen(true); } }}>{content}</div>
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} />}
       {taskCreateOpen && <TaskCreateModal onClose={() => setTaskCreateOpen(false)} onSubmit={createTask} />}

@@ -51,6 +51,7 @@ export function HabitsView({ data, onCreate, onToggleCompletion, onUpdate, onDel
   const [editTitle, setEditTitle] = useState('');
   const [editFrequency, setEditFrequency] = useState<Habit['frequency']>('daily');
   const [editTarget, setEditTarget] = useState('3');
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const submitNewHabit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const title = newTitle.trim();
@@ -93,8 +94,11 @@ export function HabitsView({ data, onCreate, onToggleCompletion, onUpdate, onDel
         <button className={`check ${completedToday ? 'checked' : ''}`} aria-label={`${completedToday ? 'Undo' : 'Complete'} ${habit.title} today`} onClick={() => onToggleCompletion(habit.id, TODAY, !completedToday)}>{completedToday ? '✓' : ''}</button>
         {editingId === habit.id ? <form className="habit-copy" aria-label={`Edit ${habit.title}`} onSubmit={(event) => submitEdit(event, habit)}><label htmlFor={`edit-habit-${habit.id}`}>Habit name</label><input id={`edit-habit-${habit.id}`} aria-label={`Edit ${habit.title} name`} value={editTitle} onChange={(event) => setEditTitle(event.target.value)} required /><label htmlFor={`edit-frequency-${habit.id}`}>Frequency</label><select id={`edit-frequency-${habit.id}`} value={editFrequency} onChange={(event) => setEditFrequency(event.target.value as Habit['frequency'])}><option value="daily">Daily</option><option value="weekly">Weekly</option></select>{editFrequency === 'weekly' && <label htmlFor={`edit-target-${habit.id}`}>Times per week<input id={`edit-target-${habit.id}`} type="number" min="1" step="1" value={editTarget} onChange={(event) => setEditTarget(event.target.value)} required /></label>}<div><button className="primary" type="submit">Save</button><button className="outline" type="button" onClick={() => setEditingId(null)}>Cancel</button></div></form> : <div className="habit-copy"><strong>{habit.title}</strong><span>{habit.frequency === 'daily' ? 'Daily' : `${habit.targetPerWeek} times per week`} · {progress.completed}/{progress.target} this period · {streakFor(habit)} day streak</span><div className="entity-progress"><span style={{ width: `${percent}%` }} /></div></div>}
         {editingId !== habit.id && <button className="icon-button" aria-label={`Edit ${habit.title}`} onClick={() => startEditing(habit)}>✎</button>}
-        <button className="icon-button" aria-label={`Delete ${habit.title}`} onClick={() => { if (window.confirm(`Excluir ${habit.title}?`)) onDelete(habit.id); }}>×</button>
+         <button className="icon-button" aria-label={`Delete ${habit.title}`} onClick={() => setPendingDelete({ id: habit.id, title: habit.title })}>×</button>
       </div>;
     })}{!data.habits.length && <div className="empty-state"><strong>No habits yet</strong><span>Create one small repeatable action to start building your rhythm.</span></div>}</section>
+    {pendingDelete && <DeleteConfirmation title={pendingDelete.title} onCancel={() => setPendingDelete(null)} onConfirm={() => { onDelete(pendingDelete.id); setPendingDelete(null); }} />}
   </div>;
 }
+
+function DeleteConfirmation({ title, onCancel, onConfirm }: { title: string; onCancel: () => void; onConfirm: () => void }) { return <div className="overlay"><section className="palette" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title"><h2 id="delete-confirm-title">Delete {title}?</h2><p>This action cannot be undone.</p><button className="outline" type="button" onClick={onCancel} autoFocus>Cancel</button><button className="primary" type="button" onClick={onConfirm}>Confirm delete</button></section></div>; }

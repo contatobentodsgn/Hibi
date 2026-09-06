@@ -21,4 +21,12 @@ describe('RemindersView recurrence editor', () => {
     expect(markup).toContain('aria-haspopup="dialog"');
     expect(markup).toContain('aria-controls="reminder-create-title"');
   });
+
+  it('defines an explicit accessible delete confirmation flow', async () => {
+    const source = await (await import('node:fs/promises')).readFile(new URL('../RemindersView.tsx', import.meta.url), 'utf8');
+    expect(source).not.toContain('window.confirm');
+    expect(source).toContain('role="dialog"');
+    expect(source).toContain('Confirm delete');
+    expect(source).toContain('Cancel');
+  });
 });
