@@ -110,6 +110,9 @@ describe('study views', () => {
     expect(markup).toContain('Habits');
     expect(markup).toContain('No habits yet');
     expect(markup).toContain('New habit');
+    expect(markup).toContain('aria-label="Create habit"');
+    expect(markup).toContain('aria-label="New habit title"');
+    expect(markup).not.toContain('window.prompt');
   });
 
   it('renders the empty goals workspace with a create action', () => {
@@ -118,6 +121,17 @@ describe('study views', () => {
     expect(markup).toContain('Goals');
     expect(markup).toContain('No goals yet');
     expect(markup).toContain('New goal');
+  });
+
+  it('renders accessible goal creation, progress, and editing forms', () => {
+    const goalData = { ...data, goals: [{ id: 'goal-1', title: 'Read books', target: 10, current: 2, unit: 'books' }] };
+    const markup = renderToStaticMarkup(<GoalsView data={goalData} onCreate={onEvent} onProgress={onEvent} onUpdate={onEvent} onDelete={onEvent} />);
+
+    expect(markup).toContain('aria-label="Create goal"');
+    expect(markup).toContain('aria-label="Set progress for Read books"');
+    expect(markup).toContain('aria-label="Edit Read books"');
+    expect(markup).toContain('name="target"');
+    expect(markup).not.toContain('window.prompt');
   });
 
   it('exposes habits and goals through primary navigation and commands', () => {
