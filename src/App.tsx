@@ -72,7 +72,25 @@ export default function App() {
   };
   const deleteBlock = (id: string) => { const block = data.blocks.find((item) => item.id === id); if (!block) return; if (!window.confirm(`Excluir ${block.title}?`)) return; repository.deleteBlock(id); refreshData(); log('delete', block.title); };
   const createTask = (title: string) => { const deadline = window.prompt('Deadline (AAAA-MM-DD HH:MM), ou deixe vazio'); repository.createTask({ title, durationMinutes: 60, category: 'work', folder: 'Bento', status: 'open', deadline: deadline?.trim() || undefined }); refreshData(); log('create', title); };
-  const createReminder = (title: string) => { repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: new Date().toISOString() } }); refreshData(); log('create', title); };
+  const createReminder = (title: string) => {
+    const value = window.prompt('Data/hora (AAAA-MM-DD HH:MM) ou recorrência (weekly Tue 09:00 Wed 20:00)');
+    if (!value?.trim()) return;
+    const weekly = value.match(/^weekly\s+(.+)$/i);
+    if (weekly) {
+      const parts = weekly[1].match(/(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+(\d{2}:\d{2})/gi) ?? [];
+      const map: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+      if (!parts.length) { window.alert('Formato de recorrência inválido.'); return; }
+      const weekdays = parts.map((part) => map[part.slice(0, 3).toLowerCase()]);
+      const timesByWeekday: Record<number, string> = {}; parts.forEach((part) => { timesByWeekday[map[part.slice(0, 3).toLowerCase()]] = part.slice(4); });
+      const first = parts[0]!;
+      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `2026-09-07T${first.slice(4)}:00-03:00`, recurrence: { frequency: 'weekly', weekdays, timesByWeekday, startDate: '2026-09-07' } } });
+    } else {
+      const match = value.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/);
+      if (!match) { window.alert('Formato inválido.'); return; }
+      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `${match[1]}T${match[2]}:00-03:00` } });
+    }
+    refreshData(); log('create', title);
+  };
   const renameTask = (id: string, title: string) => { repository.updateTask(id, { title }); refreshData(); log('edit', title); };
   const renameReminder = (id: string, title: string) => { repository.updateReminder(id, { title }); refreshData(); log('edit', title); };
   const deleteTask = (id: string) => { repository.deleteTask(id); refreshData(); log('delete', id); };
