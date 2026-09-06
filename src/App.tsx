@@ -23,6 +23,7 @@ import { HelpView } from './ui/HelpView';
 import { FeedbackView } from './ui/FeedbackView';
 import { AvailabilityView } from './ui/AvailabilityView';
 import { firstWeeklyOccurrence } from './domain/recurrence';
+import { TaskCreateModal, type NewTaskForm } from './ui/TaskCreateModal';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
@@ -42,6 +43,7 @@ export default function App() {
   const [data, setData] = useState<StudyData>(() => repository.snapshot());
   const [route, setRoute] = useState<NavKey>('home');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [events, setEvents] = useState<EventRecord[]>(() => { try { const saved = window.localStorage.getItem('hibi-events'); return saved ? JSON.parse(saved) as EventRecord[] : initialEvents; } catch { return initialEvents; } });
   const clearEvents = () => setEvents([]);
 
@@ -76,7 +78,7 @@ export default function App() {
     log('create', input.title);
   };
   const deleteBlock = (id: string) => { const block = data.blocks.find((item) => item.id === id); if (!block) return; if (!window.confirm(`Excluir ${block.title}?`)) return; repository.deleteBlock(id); refreshData(); log('delete', block.title); };
-  const createTask = (title: string) => { const deadline = window.prompt('Deadline (AAAA-MM-DD HH:MM), ou deixe vazio'); repository.createTask({ title, durationMinutes: 60, category: 'work', folder: 'Bento', status: 'open', deadline: deadline?.trim() || undefined }); refreshData(); log('create', title); };
+  const createTask = ({ title, durationMinutes, folder }: NewTaskForm) => { repository.createTask({ title, durationMinutes, category: 'work', folder, status: 'open' }); refreshData(); log('create', title); setTaskCreateOpen(false); };
   const createReminder = (title: string) => {
     const value = window.prompt('Data/hora (AAAA-MM-DD HH:MM), daily HH:MM ou weekly Tue 09:00 Wed 20:00');
     if (!value?.trim()) return;
@@ -176,7 +178,7 @@ export default function App() {
   const content = useMemo(() => {
     const props = { onEvent: log, onNavigate: navigate };
     switch (route) {
-      case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} onCreateTask={createTask} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
+      case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} onCreateTask={() => undefined} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
       case 'notes': return <NotesView data={data} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
       case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={createReminder} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
@@ -198,8 +200,9 @@ export default function App() {
 
   return (
     <AppShell active={route} taskCount={data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused').length} reminderCount={data.reminders.filter((reminder) => reminder.status !== 'paused').length} habitCount={data.habits.filter((habit) => habit.status !== 'completed' && habit.status !== 'paused').length} goalCount={data.goals.filter((goal) => goal.status !== 'completed' && goal.status !== 'paused').length} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
-      {content}
+      <div onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } }}>{content}</div>
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} />}
+      {taskCreateOpen && <TaskCreateModal onClose={() => setTaskCreateOpen(false)} onSubmit={createTask} />}
     </AppShell>
   );
 }
