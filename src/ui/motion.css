@@ -1,0 +1,8 @@
+@media (prefers-reduced-motion: no-preference) {
+  .panel, .list-card, .settings-card, .week-grid, .day-grid { animation: hibi-enter 360ms ease-out both; }
+  .task-row, .reminder-row, .habit-row, .goal-row, .command-row { transition: background-color 160ms ease, transform 160ms ease; }
+  .task-row:hover, .reminder-row:hover, .habit-row:hover, .goal-row:hover { background: #faf8f4; transform: translateX(2px); }
+  .primary, .outline, .filter, .icon-button { transition: transform 140ms ease, opacity 140ms ease; }
+  .primary:hover, .outline:hover, .filter:hover { transform: translateY(-1px); }
+  @keyframes hibi-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+}
