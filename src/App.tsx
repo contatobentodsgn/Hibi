@@ -73,8 +73,12 @@ export default function App() {
   const deleteBlock = (id: string) => { const block = data.blocks.find((item) => item.id === id); if (!block) return; if (!window.confirm(`Excluir ${block.title}?`)) return; repository.deleteBlock(id); refreshData(); log('delete', block.title); };
   const createTask = (title: string) => { const deadline = window.prompt('Deadline (AAAA-MM-DD HH:MM), ou deixe vazio'); repository.createTask({ title, durationMinutes: 60, category: 'work', folder: 'Bento', status: 'open', deadline: deadline?.trim() || undefined }); refreshData(); log('create', title); };
   const createReminder = (title: string) => {
-    const value = window.prompt('Data/hora (AAAA-MM-DD HH:MM) ou recorrência (weekly Tue 09:00 Wed 20:00)');
+    const value = window.prompt('Data/hora (AAAA-MM-DD HH:MM), daily HH:MM ou weekly Tue 09:00 Wed 20:00');
     if (!value?.trim()) return;
+    const daily = value.match(/^daily\s+(\d{2}:\d{2})$/i);
+    if (daily) {
+      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `2026-09-07T${daily[1]}:00-03:00`, recurrence: { frequency: 'daily', time: daily[1], startDate: '2026-09-07' } } });
+    } else {
     const weekly = value.match(/^weekly\s+(.+)$/i);
     if (weekly) {
       const parts = weekly[1].match(/(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+(\d{2}:\d{2})/gi) ?? [];
@@ -88,6 +92,7 @@ export default function App() {
       const match = value.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/);
       if (!match) { window.alert('Formato inválido.'); return; }
       repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `${match[1]}T${match[2]}:00-03:00` } });
+    }
     }
     refreshData(); log('create', title);
   };
