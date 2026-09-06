@@ -8,7 +8,7 @@
     "dev": "vite",
     "desktop": "node scripts/start-desktop.mjs",
     "build": "tsc --noEmit && vite build",
-    "test": "vitest run src",
+    "test": "vitest run src --exclude 'src/**/._*' && node --test electron/notifications.test.cjs",
     "test:e2e": "playwright test"
   },
   "dependencies": { "react": "^19.2.0", "react-dom": "^19.2.0" },

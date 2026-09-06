@@ -28,5 +28,5 @@ export function createSeedData(): StudyData {
     id: 'horizontes', title: 'vaga/inglês - Horizontes', category: 'important', status: 'open',
     schedule: { at: at('2026-09-08', '09:00'), recurrence: { frequency: 'weekly', weekdays: [2, 3], timesByWeekday: { 2: '09:00', 3: '20:00' }, startDate: '2026-09-07' } },
   };
-  return { tasks, reminders: [reminder], notes: [], blocks: weekdays.flatMap(addBlocks), telemetry: [] };
+  return { tasks, reminders: [reminder], habits: [], goals: [], notes: [], blocks: weekdays.flatMap(addBlocks), telemetry: [] };
 }

@@ -1,22 +1,22 @@
 import React from 'react';
 
-export type NavKey = 'home' | 'tasks' | 'notes' | 'reminders' | 'day' | 'week' | 'focus' | 'settings' | 'instrumentation';
-type Props = { active: NavKey; taskCount: number; reminderCount: number; onNavigate: (key: NavKey) => void; onOpenCommands: () => void; children: React.ReactNode };
+export type NavKey = 'home' | 'tasks' | 'notes' | 'reminders' | 'habits' | 'goals' | 'day' | 'week' | 'focus' | 'settings' | 'instrumentation';
+type Props = { active: NavKey; taskCount: number; reminderCount: number; habitCount?: number; goalCount?: number; onNavigate: (key: NavKey) => void; onOpenCommands: () => void; children: React.ReactNode };
 
 const items: { key: NavKey; label: string; icon: string }[] = [
-  { key: 'tasks', label: 'Tasks', icon: '☷' }, { key: 'notes', label: 'Notes', icon: '▤' }, { key: 'reminders', label: 'Reminders', icon: '♢' },
+  { key: 'tasks', label: 'Tasks', icon: '☷' }, { key: 'notes', label: 'Notes', icon: '▤' }, { key: 'reminders', label: 'Reminders', icon: '♢' }, { key: 'habits', label: 'Habits', icon: '↻' }, { key: 'goals', label: 'Goals', icon: '◎' },
   { key: 'day', label: 'Day', icon: '□' }, { key: 'week', label: 'Week', icon: '▦' },
   { key: 'focus', label: 'Focus', icon: '◉' }, { key: 'settings', label: 'Settings', icon: '⚙' },
   { key: 'instrumentation', label: 'Events', icon: '⌁' },
 ];
 
-export function AppShell({ active, taskCount, reminderCount, onNavigate, onOpenCommands, children }: Props) {
+export function AppShell({ active, taskCount, reminderCount, habitCount = 0, goalCount = 0, onNavigate, onOpenCommands, children }: Props) {
   return <div className="app-frame">
     <header className="topbar">
       <button className="brand" onClick={() => onNavigate('home')} aria-label="Open Hibi home"><span className="brand-mark">h</span><span>HIBI <small>STUDY REPLICA</small></span></button>
       <nav className="top-nav" aria-label="Primary navigation">
         <button className="home-link" onClick={() => onNavigate('home')} data-active={active === 'home'}>Home</button>
-        {items.map((item) => <button key={item.key} className="nav-icon" title={item.label} aria-label={item.label} data-active={active === item.key} onClick={() => onNavigate(item.key)}><span>{item.icon}</span><small>{item.key === 'tasks' ? taskCount : item.key === 'reminders' ? reminderCount : ''}</small></button>)}
+        {items.map((item) => <button key={item.key} className="nav-icon" title={item.label} aria-label={item.label} data-active={active === item.key} onClick={() => onNavigate(item.key)}><span>{item.icon}</span><small>{item.key === 'tasks' ? taskCount : item.key === 'reminders' ? reminderCount : item.key === 'habits' ? habitCount : item.key === 'goals' ? goalCount : ''}</small></button>)}
       </nav>
       <button className="command-hint" onClick={onOpenCommands}><kbd>/</kbd><span>commands</span><kbd>⌘K</kbd></button>
     </header>

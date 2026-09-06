@@ -30,6 +30,27 @@ export interface Reminder {
 }
 export interface Note { id: string; title: string; content: string; folder?: string; createdAt: string; updatedAt: string; }
 
+export interface Habit {
+  id: string;
+  title: string;
+  description?: string;
+  frequency: 'daily' | 'weekly';
+  targetPerWeek: number;
+  completedDates: string[];
+  status?: EntityStatus;
+}
+
+export interface Goal {
+  id: string;
+  title: string;
+  description?: string;
+  target: number;
+  current: number;
+  unit?: string;
+  deadline?: string;
+  status?: EntityStatus;
+}
+
 export interface ScheduleBlock {
   id: string;
   title: string;
@@ -54,6 +75,8 @@ export interface StudyData {
   notes: Note[];
   tasks: Task[];
   reminders: Reminder[];
+  habits: Habit[];
+  goals: Goal[];
   blocks: ScheduleBlock[];
   telemetry: TelemetryEvent[];
 }

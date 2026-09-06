@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { LocalRepository } from './data/local-repository';
 import { createSeedData } from './data/seed-data';
-import type { EntityStatus, ScheduleBlock, StudyData } from './domain/models';
+import type { EntityStatus, Goal, Habit, ScheduleBlock, StudyData } from './domain/models';
 import { validateScheduleBlock } from './domain/conflicts';
 import { AppShell, NavKey } from './ui/AppShell';
 import { CommandPalette } from './ui/CommandPalette';
@@ -14,6 +14,9 @@ import { FocusView } from './ui/FocusView';
 import { SettingsView } from './ui/SettingsView';
 import { InstrumentationView } from './ui/InstrumentationView';
 import { NotesView } from './ui/NotesView';
+import { buildNotificationEntries } from './domain/notifications';
+import { HabitsView } from './ui/HabitsView';
+import { GoalsView } from './ui/GoalsView';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
@@ -72,6 +75,14 @@ export default function App() {
   const createNote = (title: string, content: string) => { repository.createNote({ title, content, folder: 'Bento', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); refreshData(); log('create', title); };
   const updateNote = (id: string, changes: Partial<import('./domain/models').Note>) => { repository.updateNote(id, changes); refreshData(); log('edit', id); };
   const deleteNote = (id: string) => { repository.deleteNote(id); refreshData(); log('delete', id); };
+  const createHabit = (title: string, frequency: Habit['frequency'] = 'daily', targetPerWeek = 7) => { repository.createHabit({ title, frequency, targetPerWeek, completedDates: [], status: 'open' }); refreshData(); log('create', title); };
+  const updateHabit = (id: string, changes: Partial<Omit<Habit, 'id'>>) => { repository.updateHabit(id, changes); refreshData(); log('edit', id); };
+  const deleteHabit = (id: string) => { repository.deleteHabit(id); refreshData(); log('delete', id); };
+  const toggleHabitCompletion = (id: string, date: string, completed: boolean) => { repository.setHabitCompletion(id, date, completed); refreshData(); log(completed ? 'complete' : 'reopen', id, date); };
+  const createGoal = (title: string, target: number, unit?: string) => { repository.createGoal({ title, target, current: 0, unit, status: 'open' }); refreshData(); log('create', title); };
+  const updateGoal = (id: string, changes: Partial<Omit<Goal, 'id'>>) => { repository.updateGoal(id, changes); refreshData(); log('edit', id); };
+  const deleteGoal = (id: string) => { repository.deleteGoal(id); refreshData(); log('delete', id); };
+  const setGoalProgress = (id: string, current: number) => { repository.setGoalProgress(id, current); refreshData(); log('progress', id, String(current)); };
   const editTaskDeadline = (id: string) => { const task = data.tasks.find((item) => item.id === id); if (!task) return; const value = window.prompt('Deadline (AAAA-MM-DD HH:MM), vazio remove', task.deadline ? task.deadline.replace('T', ' ') : ''); if (value === null) return; const trimmed = value.trim(); if (trimmed && !/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$/.test(trimmed)) { window.alert('Formato inválido.'); return; } repository.updateTask(id, { deadline: trimmed ? trimmed.replace(' ', 'T') : undefined }); refreshData(); log('edit', task.title, 'deadline-updated'); };
   const editReminderSchedule = (id: string) => {
     const reminder = data.reminders.find((item) => item.id === id); if (!reminder) return;
@@ -97,7 +108,16 @@ export default function App() {
     refreshData();
   };
 
+  const testNativeNotification = async () => {
+    const shown = await window.hibiDesktop?.showTestNotification?.();
+    return shown ?? false;
+  };
+
   React.useEffect(() => { window.localStorage.setItem('hibi-study-data', repository.exportJson()); }, [repository, data]);
+  React.useEffect(() => {
+    const syncNotifications = window.hibiDesktop?.syncNotifications;
+    if (syncNotifications) void syncNotifications(buildNotificationEntries(data)).catch(() => undefined);
+  }, [data]);
   React.useEffect(() => { const handler = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setPaletteOpen(true); } }; window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler); }, []);
 
   const navigate = (next: NavKey, source = 'navigation') => {
@@ -111,17 +131,19 @@ export default function App() {
       case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} onCreateTask={createTask} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
       case 'notes': return <NotesView data={data} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
       case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={createReminder} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
+      case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
+      case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} />;
       case 'focus': return <FocusView {...props} />;
-      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} />;
+      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onTestNotification={testNativeNotification} />;
       case 'instrumentation': return <InstrumentationView events={events} onEvent={log} onClear={clearEvents} />;
       default: return <HomeView {...props} />;
     }
   }, [route, events, data]);
 
   return (
-    <AppShell active={route} taskCount={data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused').length} reminderCount={data.reminders.filter((reminder) => reminder.status !== 'paused').length} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
+    <AppShell active={route} taskCount={data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused').length} reminderCount={data.reminders.filter((reminder) => reminder.status !== 'paused').length} habitCount={data.habits.filter((habit) => habit.status !== 'completed' && habit.status !== 'paused').length} goalCount={data.goals.filter((goal) => goal.status !== 'completed' && goal.status !== 'paused').length} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
       {content}
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} />}
     </AppShell>

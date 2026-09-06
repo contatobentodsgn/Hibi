@@ -1,6 +1,8 @@
-import type { Note, Reminder, ScheduleBlock, StudyData, Task } from '../domain/models';
+import type { Goal, Habit, Note, Reminder, ScheduleBlock, StudyData, Task } from '../domain/models';
 
 type NewTask = Omit<Task, 'id'>;
+type NewHabit = Omit<Habit, 'id'>;
+type NewGoal = Omit<Goal, 'id'>;
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 export class LocalRepository {
@@ -16,7 +18,12 @@ export class LocalRepository {
     const repository = new LocalRepository(seed);
     const parsed = JSON.parse(json) as StudyData;
     if (!parsed || !Array.isArray(parsed.tasks) || !Array.isArray(parsed.reminders) || !Array.isArray(parsed.blocks) || !Array.isArray(parsed.telemetry)) throw new Error('Invalid study data');
-    repository.data = { ...clone(parsed), notes: Array.isArray(parsed.notes) ? parsed.notes : [] };
+    repository.data = {
+      ...clone(parsed),
+      notes: Array.isArray(parsed.notes) ? parsed.notes : [],
+      habits: Array.isArray(parsed.habits) ? parsed.habits : [],
+      goals: Array.isArray(parsed.goals) ? parsed.goals : [],
+    };
     return repository;
   }
 
@@ -24,6 +31,49 @@ export class LocalRepository {
   listTasks(): Task[] { return clone(this.data.tasks); }
   listReminders(): Reminder[] { return clone(this.data.reminders); }
   listNotes(): Note[] { return clone(this.data.notes); }
+  listHabits(): Habit[] { return clone(this.data.habits); }
+  getHabit(id: string): Habit | undefined { return this.data.habits.find((habit) => habit.id === id); }
+  createHabit(input: NewHabit): Habit {
+    const habit = { ...input, id: `habit-${Date.now()}-${this.data.habits.length}` };
+    this.data.habits.push(habit);
+    return clone(habit);
+  }
+  updateHabit(id: string, changes: Partial<NewHabit>): Habit {
+    const habit = this.getHabit(id);
+    if (!habit) throw new Error(`Habit not found: ${id}`);
+    Object.assign(habit, changes);
+    return clone(habit);
+  }
+  deleteHabit(id: string): void { this.data.habits = this.data.habits.filter((habit) => habit.id !== id); }
+  setHabitCompletion(id: string, date: string, completed: boolean): Habit {
+    const habit = this.getHabit(id);
+    if (!habit) throw new Error(`Habit not found: ${id}`);
+    const dates = new Set(habit.completedDates);
+    if (completed) dates.add(date); else dates.delete(date);
+    habit.completedDates = [...dates].sort();
+    return clone(habit);
+  }
+  listGoals(): Goal[] { return clone(this.data.goals); }
+  getGoal(id: string): Goal | undefined { return this.data.goals.find((goal) => goal.id === id); }
+  createGoal(input: NewGoal): Goal {
+    const goal = { ...input, id: `goal-${Date.now()}-${this.data.goals.length}` };
+    this.data.goals.push(goal);
+    return clone(goal);
+  }
+  updateGoal(id: string, changes: Partial<NewGoal>): Goal {
+    const goal = this.getGoal(id);
+    if (!goal) throw new Error(`Goal not found: ${id}`);
+    Object.assign(goal, changes);
+    return clone(goal);
+  }
+  deleteGoal(id: string): void { this.data.goals = this.data.goals.filter((goal) => goal.id !== id); }
+  setGoalProgress(id: string, current: number): Goal {
+    const goal = this.getGoal(id);
+    if (!goal) throw new Error(`Goal not found: ${id}`);
+    goal.current = Math.max(0, Math.min(goal.target, current));
+    goal.status = goal.current >= goal.target ? 'completed' : 'open';
+    return clone(goal);
+  }
   createNote(input: Omit<Note, 'id'>): Note { const note = { ...input, id: `note-${Date.now()}-${this.data.notes.length}` }; this.data.notes.push(note); return clone(note); }
   updateNote(id: string, changes: Partial<Omit<Note, 'id'>>): Note { const note = this.data.notes.find((item) => item.id === id); if (!note) throw new Error(`Note not found: ${id}`); Object.assign(note, changes); return clone(note); }
   deleteNote(id: string): void { this.data.notes = this.data.notes.filter((note) => note.id !== id); }
