@@ -50,6 +50,7 @@ export default function App() {
   };
 
   const refreshData = () => setData(repository.snapshot());
+  const planStartDate = () => repository.listBlocks().map((block) => block.start.slice(0, 10)).filter(Boolean).sort()[0] ?? new Date().toISOString().slice(0, 10);
 
   const changeTaskStatus = (id: string, status: EntityStatus) => {
     const task = repository.getTask(id);
@@ -81,7 +82,8 @@ export default function App() {
     if (!value?.trim()) return;
     const daily = value.match(/^daily\s+(\d{2}:\d{2})$/i);
     if (daily) {
-      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `2026-09-07T${daily[1]}:00-03:00`, recurrence: { frequency: 'daily', time: daily[1], startDate: '2026-09-07' } } });
+      const startDate = planStartDate();
+      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `${startDate}T${daily[1]}:00-03:00`, recurrence: { frequency: 'daily', time: daily[1], startDate } } });
     } else {
     const weekly = value.match(/^weekly\s+(.+)$/i);
     if (weekly) {
@@ -90,8 +92,9 @@ export default function App() {
       if (!parts.length) { window.alert('Formato de recorrência inválido.'); return; }
       const weekdays = parts.map((part) => map[part.slice(0, 3).toLowerCase()]);
       const timesByWeekday: Record<number, string> = {}; parts.forEach((part) => { timesByWeekday[map[part.slice(0, 3).toLowerCase()]] = part.slice(4); });
-      const first = firstWeeklyOccurrence('2026-09-07', parts)!;
-      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `${first.date}T${first.time}:00-03:00`, recurrence: { frequency: 'weekly', weekdays, timesByWeekday, startDate: '2026-09-07' } } });
+      const startDate = planStartDate();
+      const first = firstWeeklyOccurrence(startDate, parts)!;
+      repository.createReminder({ title, category: 'important', status: 'open', schedule: { at: `${first.date}T${first.time}:00-03:00`, recurrence: { frequency: 'weekly', weekdays, timesByWeekday, startDate } } });
     } else {
       const match = value.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/);
       if (!match) { window.alert('Formato inválido.'); return; }
