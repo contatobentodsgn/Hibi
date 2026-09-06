@@ -10,7 +10,7 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 |---|---|---|
 | Home | Funcional localmente | Painel, contagens, próximos itens e atalhos são derivados do snapshot local; a agenda seed continua fixa para o estudo. |
 | Tasks | Funcional | CRUD local, status, pasta Bento e deadline. |
-| Day/Week | Funcional | Blocos, quick add, exportação ICS, horários e bloqueio de conflitos. |
+| Day/Week | Parcial | Blocos, quick add, horários e bloqueio de conflitos; importação/exportação ICS ainda não implementada. |
 | Reminders | Funcional | CRUD local, pausa, recorrência semanal, horários e notificações macOS. |
 | Focus | Funcional | Timer local de 25 minutos com pausa e conclusão. |
 | Settings | Funcional localmente | Abas General/Focus/Notifications/Data/About, preferências locais, reset, login automático e teste de notificação. Integrações externas continuam fora do escopo local. |

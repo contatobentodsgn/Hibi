@@ -6,7 +6,7 @@ describe('adapter status snapshot', () => {
     expect(getCurrentAdapterStatuses()).toEqual([
       { id: 'local-persistence', label: 'Local persistence', status: 'available', scope: 'local' },
       { id: 'native-notifications', label: 'Native notifications', status: 'available', scope: 'local' },
-      { id: 'launch-at-login', label: 'Launch at login', status: 'unavailable', scope: 'local' },
+      { id: 'launch-at-login', label: 'Launch at login', status: 'available', scope: 'local' },
       { id: 'external-ai', label: 'External AI', status: 'unavailable', scope: 'external' },
       { id: 'hardware', label: 'Hardware', status: 'unavailable', scope: 'hardware' },
     ]);
