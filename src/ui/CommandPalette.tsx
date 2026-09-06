@@ -14,11 +14,20 @@ const commands: { key: string; label: string; group: string; route?: NavKey }[] 
 ];
 export function CommandPalette({ onClose, onNavigate, onEvent }: Props) {
   const [query, setQuery] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const matches = commands.filter((item) => `${item.key} ${item.label}`.toLowerCase().includes(query.toLowerCase()));
+  useEffect(() => { setSelectedIndex(0); }, [query]);
   useEffect(() => { const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [onClose]);
+  const openCommand = (index: number) => { const item = matches[index]; if (!item) return; onEvent('command', item.key); if (item.route) onNavigate(item.route); };
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!matches.length) return;
+    if (event.key === 'ArrowDown') { event.preventDefault(); setSelectedIndex((index) => (index + 1) % matches.length); }
+    if (event.key === 'ArrowUp') { event.preventDefault(); setSelectedIndex((index) => (index - 1 + matches.length) % matches.length); }
+    if (event.key === 'Enter') { event.preventDefault(); openCommand(selectedIndex); }
+  };
   return <div className="overlay" onMouseDown={onClose}><section className="palette" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-label="Command palette">
-    <div className="palette-search"><span>/</span><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Type a command" /></div>
-    {matches.map((item) => <button className="command-row" key={item.key} onClick={() => { onEvent('command', item.key); if (item.route) onNavigate(item.route); }}><kbd>{item.key}</kbd><span>{item.label}</span><small>{item.group}</small></button>)}
+    <div className="palette-search"><span>/</span><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleKeyDown} placeholder="Type a command" aria-activedescendant={matches[selectedIndex] ? `command-${matches[selectedIndex].key.slice(1)}` : undefined} /></div>
+    {matches.map((item, index) => <button className="command-row" id={`command-${item.key.slice(1)}`} data-selected={index === selectedIndex} key={item.key} onMouseEnter={() => setSelectedIndex(index)} onClick={() => openCommand(index)}><kbd>{item.key}</kbd><span>{item.label}</span><small>{item.group}</small></button>)}
     {!matches.length && <p className="empty">No command found. Try /week or /focus.</p>}
     <div className="palette-footer"><span>↑↓ select</span><span>↵ open</span><span>esc close</span></div>
   </section></div>;
