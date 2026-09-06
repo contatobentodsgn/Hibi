@@ -13,11 +13,13 @@ type Props = {
 
 export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onRenameTask, onDeleteTask, onEditTaskDeadline }: Props) {
   const [folder, setFolder] = useState<string | null>(null);
+  const [scope, setScope] = useState<'open' | 'all'>('open');
+  const [deadlineSort, setDeadlineSort] = useState(false);
   const openTasks = data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused');
-  const visibleTasks = data.tasks.filter((task) => !folder || (task.folder ?? 'Unfiled') === folder);
+  const visibleTasks = [...data.tasks].filter((task) => (scope === 'all' || (task.status !== 'completed' && task.status !== 'paused')) && (!folder || (task.folder ?? 'Unfiled') === folder)).sort((a, b) => deadlineSort ? (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999') : 0);
 
   return <View title="Tasks" meta={`${openTasks.length} open · local study data`} action="+ New task" onAction={() => { const title = window.prompt('Nome da tarefa'); if (title?.trim()) onCreateTask?.(title.trim()); }}>
-    <div className="filter-row"><button className="filter active">Open {openTasks.length}</button><button className="filter">All {data.tasks.length}</button><button className={`filter ${folder === 'Bento' ? 'active' : ''}`} onClick={() => setFolder(folder === 'Bento' ? null : 'Bento')}>Folder · Bento</button><button className="filter sort">Deadline ↕</button></div>
+    <div className="filter-row"><button className={`filter ${scope === 'open' ? 'active' : ''}`} onClick={() => { setScope('open'); onEvent('filter', 'Tasks · Open'); }}>Open {openTasks.length}</button><button className={`filter ${scope === 'all' ? 'active' : ''}`} onClick={() => { setScope('all'); onEvent('filter', 'Tasks · All'); }}>All {data.tasks.length}</button><button className={`filter ${folder === 'Bento' ? 'active' : ''}`} onClick={() => setFolder(folder === 'Bento' ? null : 'Bento')}>Folder · Bento</button><button className={`filter sort ${deadlineSort ? 'active' : ''}`} onClick={() => { setDeadlineSort(!deadlineSort); onEvent('sort', 'Tasks · Deadline'); }}>Deadline ↕</button></div>
     <section className="list-card">{visibleTasks.map((task) => {
       const completed = task.status === 'completed';
       const paused = task.status === 'paused';
@@ -27,7 +29,7 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
         {task.folder && <span className="tag orange">{task.folder}</span>}
         <button className="more" aria-label={`Edit ${task.title}`} onClick={() => { const action = window.prompt('N renomear, D deadline ou X excluir', 'N')?.toUpperCase(); if (action === 'X') { if (window.confirm(`Excluir ${task.title}?`)) onDeleteTask?.(task.id); } else if (action === 'D') onEditTaskDeadline?.(task.id); else { const title = window.prompt('Novo nome da tarefa', task.title); if (title?.trim() && title.trim() !== task.title) onRenameTask?.(task.id, title.trim()); } }}>···</button>
       </div>;
-    })}</section>
+    })}{!visibleTasks.length && <p className="empty">No tasks match these filters.</p>}</section>
   </View>;
 }
 

@@ -84,3 +84,12 @@ test('filtros de lembretes alteram a lista', async ({ page }) => {
   await page.getByRole('button', { name: /All 1/ }).click();
   await expect(page.getByText('vaga/inglês - Horizontes')).toBeVisible();
 });
+
+test('filtros e ordenação de Tasks são interativos', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await page.getByRole('button', { name: /All 8/ }).click();
+  await expect(page.getByRole('button', { name: /All 8/ })).toHaveClass(/active/);
+  await page.getByRole('button', { name: /Deadline/ }).click();
+  await expect(page.getByRole('button', { name: /Deadline/ })).toHaveClass(/active/);
+});
