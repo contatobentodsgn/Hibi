@@ -4,7 +4,7 @@ const { createNotificationScheduler } = require("./notifications.cjs");
 
 let mainWindow;
 let notificationScheduler;
-const isDev = !app.isPackaged;
+const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
 
 function createWindow() {
   mainWindow = new BrowserWindow({
