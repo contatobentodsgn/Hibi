@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createNotificationScheduler } = require('./notifications.cjs');
+const { createNotificationScheduler, nextOccurrence } = require('./notifications.cjs');
 
 function createHarness(start) {
   let now = Date.parse(start);
@@ -64,6 +64,11 @@ test('reschedules the next configured weekday after a recurring reminder fires',
 
   assert.equal(harness.shown.length, 1);
   assert.equal([...harness.timers.values()][0].delay, 35 * 60 * 60 * 1000);
+});
+
+test('accepts date-only recurrence values with the configured local offset', () => {
+  const entry = { id: 'reminder:offset', kind: 'reminder', title: 'Offset', body: 'Offset', at: '2026-09-08T09:00:00-03:00', recurrence: { frequency: 'weekly', weekdays: [2], timesByWeekday: { 2: '09:00' }, startDate: '2026-09-07' } };
+  assert.equal(Number.isFinite(nextOccurrence(entry, Date.parse('2026-09-07T08:00:00-03:00'))), true);
 });
 
 test('schedules the next day when a daily reminder time already passed', () => {

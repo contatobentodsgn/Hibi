@@ -1,6 +1,7 @@
 const MAX_TIMEOUT_MS = 2_147_000_000;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const LOCAL_OFFSET = '-03:00';
 
 function parseDate(value) {
   const timestamp = Date.parse(value);
@@ -8,7 +9,7 @@ function parseDate(value) {
 }
 
 function isDate(value) {
-  return typeof value === 'string' && DATE_PATTERN.test(value) && parseDate(`${value}T00:00:00`) !== null;
+  return typeof value === 'string' && DATE_PATTERN.test(value) && parseDate(`${value}T00:00:00${LOCAL_OFFSET}`) !== null;
 }
 
 function isTime(value) {
@@ -60,7 +61,7 @@ function nextOccurrence(entry, afterMs) {
   if (!recurrence) return firstAt > afterMs ? firstAt : null;
 
   const afterDate = startOfDay(new Date(afterMs));
-  const startDate = new Date(`${recurrence.startDate}T00:00:00`);
+  const startDate = new Date(`${recurrence.startDate}T00:00:00${LOCAL_OFFSET}`);
   const firstDate = afterDate > startDate ? afterDate : startDate;
   const maxDays = recurrence.frequency === 'daily' ? 370 : 14;
   const fallbackTime = isTime(entry.at.slice(11, 16)) ? entry.at.slice(11, 16) : '09:00';
