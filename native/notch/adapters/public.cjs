@@ -4,9 +4,9 @@ function createPublicNotchAdapter(bridge, reason = null) {
     experimental: false,
     reason,
     available: () => bridge.available?.() === true,
-    promotionAvailable: () => false,
+    promotionAvailable: () => bridge.promotionAvailable?.() === true,
     screenGeometry: () => bridge.screenGeometry?.() ?? [],
-    place: () => false,
+    place: (...args) => bridge.place?.(...args) === true,
     teardown: () => bridge.teardown?.(),
   });
 }
