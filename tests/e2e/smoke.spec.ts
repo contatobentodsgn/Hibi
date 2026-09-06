@@ -85,6 +85,19 @@ test('filtros de lembretes alteram a lista', async ({ page }) => {
   await expect(page.getByText('vaga/inglês - Horizontes')).toBeVisible();
 });
 
+test('criação de lembrete diário preserva a recorrência', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Reminders', exact: true }).click();
+  let promptCount = 0;
+  page.on('dialog', async (dialog) => {
+    promptCount += 1;
+    await dialog.accept(promptCount === 1 ? 'Revisar agenda' : 'daily 08:30');
+  });
+  await page.getByRole('button', { name: '+ New reminder' }).click();
+  await expect(page.getByText('Revisar agenda')).toBeVisible();
+  await expect(page.getByText('Every day · 08:30')).toBeVisible();
+});
+
 test('filtros e ordenação de Tasks são interativos', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Tasks', exact: true }).click();
