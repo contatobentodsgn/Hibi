@@ -11,6 +11,7 @@ import { GoalsView } from '../GoalsView';
 import { AppShell } from '../AppShell';
 import { CommandPalette } from '../CommandPalette';
 import { FocusView } from '../FocusView';
+import { HelpView } from '../HelpView';
 
 const data = createSeedData();
 const onEvent = () => undefined;
@@ -95,5 +96,11 @@ describe('study views', () => {
     expect(markup).toContain('25m focus');
     expect(markup).toContain('5m break');
     expect(markup).toContain('15m break');
+  });
+
+  it('lists the release and hardware surfaces in Help', () => {
+    const markup = renderToStaticMarkup(<HelpView onNavigate={onEvent} />);
+    expect(markup).toContain('/updates');
+    expect(markup).toContain('/hardware');
   });
 });
