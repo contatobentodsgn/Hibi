@@ -4,7 +4,7 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 
 ## Situação atual
 
-Última verificação: 06/09/2026. Evidências executadas no repositório: `npm run build`, `npm test` (6 arquivos Vitest, 22 testes, mais 4 testes nativos) e `npm run test:e2e` (4 fluxos aprovados). Esses testes validam a implementação do Hibi; não equivalem, por si só, a paridade 1:1 com o produto de referência.
+Última verificação: 06/09/2026. Evidências executadas no repositório: `npm run build`, `npm test` (6 arquivos Vitest, 22 testes, mais 5 testes nativos) e `npm run test:e2e` (7 fluxos aprovados). Esses testes validam a implementação do Hibi; não equivalem, por si só, a paridade 1:1 com o produto de referência.
 
 | Área | Hibi | Observação |
 |---|---|---|
@@ -13,7 +13,7 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 | Day/Week | Funcional | Blocos, quick add, exportação ICS, horários e bloqueio de conflitos. |
 | Reminders | Funcional | CRUD local, pausa, recorrência semanal, horários e notificações macOS. |
 | Focus | Funcional | Timer local de 25 minutos com pausa e conclusão. |
-| Settings | Parcial | Preferências locais, reset, login automático e teste de notificação. |
+| Settings | Funcional localmente | Abas General/Focus/Notifications/Data/About, preferências locais, reset, login automático e teste de notificação. Integrações externas continuam fora do escopo local. |
 | Instrumentation | Funcional | Filtro, exportação JSON, limpeza e registro de ações. |
 | Notes | Funcional | Criar, editar, buscar, excluir e pasta padrão Bento. |
 | Habits | Funcional | Recorrência, histórico de conclusão, edição e exclusão. |
@@ -21,7 +21,7 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 | Review | Funcional | Resumo de tarefas, hábitos, metas, notas e blocos com atalhos. |
 | Taby/AI | Parcial | Assistente offline com consultas básicas; não é o Brain/LLM original. |
 | Hardware/notch | Ausente | Não há integração com dispositivo/notch. |
-| Feedback/updates | Ausente | Não há fluxo de feedback nem atualização do produto. |
+| Feedback/updates | Parcial | Feedback, bug e ideia são salvos localmente; não há serviço remoto de envio nem atualização do produto. |
 | Notificações nativas | Funcional | Scheduler macOS para lembretes/deadlines, recorrência e teste. |
 | Animações | Parcial | Transições CSS acessíveis; não há os assets/estados proprietários completos. |
 | Integrações externas | Ausente | O app permanece local e sem conectores externos. |
@@ -34,6 +34,6 @@ O Hibi não é atualmente uma réplica 1:1. O núcleo de planejamento local est�
 
 1. Reproduzir os fluxos proprietários ausentes: Brain/IA, hardware/notch e integrações externas, somente quando houver contratos e permissões disponíveis.
 2. Expandir o registro de animações para estados de foco, conclusão, revisão e notificações, mantendo `prefers-reduced-motion`.
-3. Adicionar testes E2E para criação/edição de lembretes, notificações nativas, importação ICS e persistência após reinício.
+3. Adicionar testes E2E para criação/edição de lembretes, importação ICS e persistência após reinício; a lógica do scheduler nativo já possui cobertura unitária Node.
 4. Corrigir pendências de UX de alto risco: sincronizar o estado real de “Launch at login” e confirmar ações destrutivas de configurações.
 5. Auditar acessibilidade e navegação por teclado em todas as telas.
