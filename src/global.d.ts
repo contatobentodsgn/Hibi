@@ -12,6 +12,7 @@ declare global {
       cancelAiTurn?: () => Promise<boolean>;
       showNotch?: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly unknown[]; interaction: 'passthrough' | 'capture' }) => Promise<{ degraded: boolean; requestId: string }>;
       hideNotch?: (requestId: string) => Promise<boolean>;
+      onCompanionPresentation?: (callback: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' }) => void) => () => void;
     };
   }
 }

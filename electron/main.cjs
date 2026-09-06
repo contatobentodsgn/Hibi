@@ -39,7 +39,7 @@ function createWindow() {
 app.whenReady().then(() => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification });
   aiRuntime = createMainAiRuntime();
-  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen: require('electron').screen, preloadPath: path.join(__dirname, 'preload.cjs'), load: (window) => isDev ? window.loadURL(new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173').toString()) : window.loadFile(path.join(__dirname, '../dist/index.html')) });
+  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen: require('electron').screen, preloadPath: path.join(__dirname, 'preload.cjs'), load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }) });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
   ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
   ipcMain.handle("hibi:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });
