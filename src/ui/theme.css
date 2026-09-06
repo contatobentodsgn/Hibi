@@ -2,3 +2,4 @@
  .command-row[data-selected=true]{background:#e7e3db}
 button.schedule-card,button.mini-card{border:0;text-align:left;font:inherit;cursor:pointer}
 button.quick-input{border:1px solid var(--line);width:100%;text-align:left;font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #e86517;outline-offset:3px}
