@@ -38,7 +38,7 @@ export default function App() {
   const [data, setData] = useState<StudyData>(() => repository.snapshot());
   const [route, setRoute] = useState<NavKey>('home');
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [events, setEvents] = useState<EventRecord[]>(initialEvents);
+  const [events, setEvents] = useState<EventRecord[]>(() => { try { const saved = window.localStorage.getItem('hibi-events'); return saved ? JSON.parse(saved) as EventRecord[] : initialEvents; } catch { return initialEvents; } });
   const clearEvents = () => setEvents([]);
 
   const log = (action: string, detail: string, result?: string) => {
@@ -139,6 +139,7 @@ export default function App() {
   };
 
   React.useEffect(() => { window.localStorage.setItem('hibi-study-data', repository.exportJson()); }, [repository, data]);
+  React.useEffect(() => { window.localStorage.setItem('hibi-events', JSON.stringify(events)); }, [events]);
   React.useEffect(() => {
     const syncNotifications = window.hibiDesktop?.syncNotifications;
     if (syncNotifications) void syncNotifications(buildNotificationEntries(data)).catch(() => undefined);
