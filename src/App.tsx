@@ -46,7 +46,7 @@ export default function App() {
   const clearEvents = () => setEvents([]);
 
   const log = (action: string, detail: string, result?: string) => {
-    setEvents((current) => [{ id: Date.now(), at: new Date().toLocaleTimeString('pt-BR'), route, action, detail, result }, ...current]);
+    setEvents((current) => [{ id: Math.max(0, ...current.map((event) => event.id)) + 1, at: new Date().toLocaleTimeString('pt-BR'), route, action, detail, result }, ...current]);
   };
 
   const refreshData = () => setData(repository.snapshot());
