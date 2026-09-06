@@ -66,6 +66,13 @@ test('reschedules the next configured weekday after a recurring reminder fires',
   assert.equal([...harness.timers.values()][0].delay, 35 * 60 * 60 * 1000);
 });
 
+test('schedules the next day when a daily reminder time already passed', () => {
+  const harness = createHarness('2026-09-07T10:00:00-03:00');
+  harness.scheduler.sync([{ id: 'reminder:daily', kind: 'reminder', title: 'Daily check-in', body: 'Daily', at: '2026-09-07T09:00:00-03:00', recurrence: { frequency: 'daily', time: '09:00', startDate: '2026-09-07' } }]);
+
+  assert.equal([...harness.timers.values()][0].delay, 23 * 60 * 60 * 1000);
+});
+
 test('sync clears timers from the previous snapshot', () => {
   const harness = createHarness('2026-09-06T12:00:00-03:00');
   harness.scheduler.sync([{ id: 'deadline:1', kind: 'deadline', title: 'Old', body: 'Old', at: '2026-09-06T13:00:00-03:00' }]);
