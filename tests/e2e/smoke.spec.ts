@@ -34,3 +34,9 @@ test('atalho barra abre comandos fora de campos de texto', async ({ page }) => {
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true })));
   await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
 });
+
+test('captura rápida da Home abre a paleta de comandos', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open quick capture' }).click();
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+});
