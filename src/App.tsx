@@ -22,7 +22,10 @@ const initialEvents: EventRecord[] = [
 ];
 
 export default function App() {
-  const [repository] = useState(() => new LocalRepository(createSeedData()));
+  const [repository] = useState(() => {
+    const seed = createSeedData();
+    try { const saved = window.localStorage.getItem('hibi-study-data'); return saved ? LocalRepository.fromJson(seed, saved) : new LocalRepository(seed); } catch { return new LocalRepository(seed); }
+  });
   const [data, setData] = useState<StudyData>(() => repository.snapshot());
   const [route, setRoute] = useState<NavKey>('home');
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -60,6 +63,9 @@ export default function App() {
     repository.reset();
     refreshData();
   };
+
+  React.useEffect(() => { window.localStorage.setItem('hibi-study-data', repository.exportJson()); }, [repository, data]);
+  React.useEffect(() => { const handler = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setPaletteOpen(true); } }; window.addEventListener('keydown', handler); return () => window.removeEventListener('keydown', handler); }, []);
 
   const navigate = (next: NavKey, source = 'navigation') => {
     setRoute(next);

@@ -12,6 +12,14 @@ export class LocalRepository {
     this.data = clone(seed);
   }
 
+  static fromJson(seed: StudyData, json: string): LocalRepository {
+    const repository = new LocalRepository(seed);
+    const parsed = JSON.parse(json) as StudyData;
+    if (!parsed || !Array.isArray(parsed.tasks) || !Array.isArray(parsed.reminders) || !Array.isArray(parsed.blocks) || !Array.isArray(parsed.telemetry)) throw new Error('Invalid study data');
+    repository.data = clone(parsed);
+    return repository;
+  }
+
   snapshot(): StudyData { return clone(this.data); }
   listTasks(): Task[] { return clone(this.data.tasks); }
   listReminders(): Reminder[] { return clone(this.data.reminders); }
