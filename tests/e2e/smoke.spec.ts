@@ -98,6 +98,16 @@ test('criação de lembrete diário preserva a recorrência', async ({ page }) =
   await expect(page.getByText('Every day · 08:30')).toBeVisible();
 });
 
+test('edição de lembrete semanal mantém dias e horários configurados', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Reminders', exact: true }).click();
+  page.on('dialog', async (dialog) => {
+    if (dialog.type() === 'prompt') await dialog.accept(dialog.message().startsWith('Novo nome') ? 'vaga/inglês - Horizontes' : 'weekly Tue 09:00 Wed 20:00');
+  });
+  await page.getByRole('button', { name: 'Edit vaga/inglês - Horizontes' }).click();
+  await expect(page.getByText('Tue 09:00 · Wed 20:00')).toBeVisible();
+});
+
 test('filtros e ordenação de Tasks são interativos', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Tasks', exact: true }).click();
