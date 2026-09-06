@@ -4,11 +4,11 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 
 ## Situação atual
 
-Última verificação: 06/09/2026. Evidências executadas no repositório: `npm run build`, `npm test` (6 arquivos Vitest, 22 testes, mais 5 testes nativos) e `npm run test:e2e` (7 fluxos aprovados). Esses testes validam a implementação do Hibi; não equivalem, por si só, a paridade 1:1 com o produto de referência.
+Última verificação: 06/09/2026. Evidências executadas no repositório: `npm run build`, `npm test` (6 arquivos Vitest, 24 testes, mais 5 testes nativos), `npm run test:e2e` (15 fluxos aprovados) e `npm audit --omit=dev` (0 vulnerabilidades de produção). Esses testes validam a implementação do Hibi; não equivalem, por si só, a paridade 1:1 com o produto de referência.
 
 | Área | Hibi | Observação |
 |---|---|---|
-| Home | Parcial | Painel e atalhos existem; alguns cards ainda são conteúdo de demonstração. |
+| Home | Funcional localmente | Painel, contagens, próximos itens e atalhos são derivados do snapshot local; a agenda seed continua fixa para o estudo. |
 | Tasks | Funcional | CRUD local, status, pasta Bento e deadline. |
 | Day/Week | Funcional | Blocos, quick add, exportação ICS, horários e bloqueio de conflitos. |
 | Reminders | Funcional | CRUD local, pausa, recorrência semanal, horários e notificações macOS. |
