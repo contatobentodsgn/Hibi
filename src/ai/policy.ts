@@ -46,12 +46,13 @@ export class AiToolPolicy {
     if (calls.length === 0) return { kind: 'execute' };
     if (calls.length > 2) return { kind: 'blocked', reason: 'At most two tool calls are allowed per turn.' };
 
-    let requiresApproval = calls.length > 1;
+    let requiresApproval = false;
     for (const call of calls) {
       const validation = this.registry.validate(call);
       if (validation) return { kind: 'blocked', reason: validation };
       const tool = this.registry.get(call.name)!;
-      requiresApproval ||= requiresConfirmation(tool.risk, tool.bulk === true, tool.externallyVisible === true);
+      requiresApproval ||= requiresConfirmation(tool.risk, tool.bulk === true, tool.externallyVisible === true)
+        || (calls.length > 1 && tool.risk !== 'read');
     }
     if (!requiresApproval) return { kind: 'execute' };
 
