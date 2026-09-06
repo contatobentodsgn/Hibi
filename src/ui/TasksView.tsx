@@ -5,12 +5,13 @@ type Props = {
   data: StudyData;
   onEvent: (action: string, detail: string, result?: string) => void;
   onTaskStatusChange: (id: string, status: EntityStatus) => void;
+  onCreateTask?: (title: string) => void;
 };
 
-export function TasksView({ data, onEvent, onTaskStatusChange }: Props) {
+export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask }: Props) {
   const openTasks = data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused');
 
-  return <View title="Tasks" meta={`${openTasks.length} open · local study data`} action="+ New task">
+  return <View title="Tasks" meta={`${openTasks.length} open · local study data`} action="+ New task" onAction={() => { const title = window.prompt('Nome da tarefa'); if (title?.trim()) onCreateTask?.(title.trim()); }}>
     <div className="filter-row"><button className="filter active">Open {openTasks.length}</button><button className="filter">All {data.tasks.length}</button><button className="filter">Folder · Bento</button><button className="filter sort">Deadline ↕</button></div>
     <section className="list-card">{data.tasks.map((task) => {
       const completed = task.status === 'completed';
@@ -25,6 +26,6 @@ export function TasksView({ data, onEvent, onTaskStatusChange }: Props) {
   </View>;
 }
 
-function View({ title, meta, action, children }: { title: string; meta: string; action: string; children: React.ReactNode }) {
-  return <div className="view"><div className="view-heading"><div><p className="eyebrow">STUDY REPLICA / WORKSPACE</p><h1>{title}</h1><p className="muted">{meta}</p></div><button className="primary">{action}</button></div>{children}</div>;
+function View({ title, meta, action, onAction, children }: { title: string; meta: string; action: string; onAction?: () => void; children: React.ReactNode }) {
+  return <div className="view"><div className="view-heading"><div><p className="eyebrow">STUDY REPLICA / WORKSPACE</p><h1>{title}</h1><p className="muted">{meta}</p></div><button className="primary" onClick={onAction}>{action}</button></div>{children}</div>;
 }
