@@ -128,6 +128,7 @@ export default function App() {
   };
 
   const resetStudyData = () => {
+    if (!window.confirm('Reset all local study data?')) return;
     repository.reset();
     refreshData();
   };
