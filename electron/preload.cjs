@@ -6,4 +6,8 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   setOpenAtLogin: (enabled) => ipcRenderer.invoke("hibi:login-item", enabled),
   syncNotifications: (entries) => ipcRenderer.invoke("hibi:notifications:sync", entries),
   showTestNotification: () => ipcRenderer.invoke("hibi:notifications:test")
+  ,runAiTurn: (turn) => ipcRenderer.invoke('hibi:ai:run', turn)
+  ,cancelAiTurn: () => ipcRenderer.invoke('hibi:ai:cancel')
+  ,showNotch: (presentation) => ipcRenderer.invoke('hibi:notch:show', presentation)
+  ,hideNotch: (requestId) => ipcRenderer.invoke('hibi:notch:hide', requestId)
 });

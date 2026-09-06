@@ -1,9 +1,13 @@
 const { app, BrowserWindow, ipcMain, Notification } = require("electron");
 const path = require("node:path");
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.cjs");
+const { createMainAiRuntime } = require("./ai-runtime.cjs");
+const { createNotchWindowManager } = require("./notch-window.cjs");
 
 let mainWindow;
 let notificationScheduler;
+let aiRuntime;
+let notchWindow;
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
 
 function isAllowedNavigation(rawUrl) {
@@ -34,6 +38,8 @@ function createWindow() {
 
 app.whenReady().then(() => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification });
+  aiRuntime = createMainAiRuntime();
+  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen: require('electron').screen, preloadPath: path.join(__dirname, 'preload.cjs'), load: (window) => isDev ? window.loadURL(new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173').toString()) : window.loadFile(path.join(__dirname, '../dist/index.html')) });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
   ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
   ipcMain.handle("hibi:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });
@@ -44,10 +50,14 @@ app.whenReady().then(() => {
     notification.show();
     return true;
   });
+  ipcMain.handle('hibi:ai:run', (_event, turn) => aiRuntime.run(turn));
+  ipcMain.handle('hibi:ai:cancel', () => { aiRuntime.cancel(); return true; });
+  ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
+  ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
-app.on("before-quit", () => notificationScheduler?.clear());
+app.on("before-quit", () => { notificationScheduler?.clear(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
 module.exports = { isAllowedNavigation };
