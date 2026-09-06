@@ -57,6 +57,25 @@ describe('study views', () => {
     expect(markup).toContain('THU');
   });
 
+  it('gives day event controls descriptive delete labels', () => {
+    const markup = renderToStaticMarkup(
+      <DayView data={data} onEvent={onEvent} onCreateBlock={onEvent} onDeleteBlock={onEvent} />,
+    );
+
+    expect(markup).toContain('aria-label="Delete Kabrito Post 01 at 09:00"');
+    expect(markup).not.toContain('aria-label="Delete Kabrito Post 01"');
+  });
+
+  it('gives week event controls descriptive delete labels and add slots button semantics', () => {
+    const markup = renderToStaticMarkup(
+      <WeekView data={data} onEvent={onEvent} onCreateBlock={onEvent} onDeleteBlock={onEvent} />,
+    );
+
+    expect(markup).toContain('aria-label="Delete Aula de inglês at 08:00 on 2026-09-10"');
+    expect(markup).toContain('role="button"');
+    expect(markup).toContain('tabindex="0"');
+  });
+
   it('exposes settings sections for study data and notifications', () => {
     const markup = renderToStaticMarkup(<SettingsView data={data} onEvent={onEvent} onReset={onEvent} />);
 
