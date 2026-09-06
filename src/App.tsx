@@ -21,6 +21,7 @@ import { ReviewView } from './ui/ReviewView';
 import { TabyView } from './ui/TabyView';
 import { HelpView } from './ui/HelpView';
 import { FeedbackView } from './ui/FeedbackView';
+import { AvailabilityView } from './ui/AvailabilityView';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
@@ -182,6 +183,8 @@ export default function App() {
       case 'focus': return <FocusView {...props} />;
       case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onTestNotification={testNativeNotification} />;
       case 'instrumentation': return <InstrumentationView events={events} onEvent={log} onClear={clearEvents} />;
+      case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
+      case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;
       default: return <HomeView {...props} data={data} onOpenCommands={() => setPaletteOpen(true)} />;
     }
   }, [route, events, data]);
