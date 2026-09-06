@@ -4,6 +4,8 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 
 ## Situação atual
 
+Última verificação: 06/09/2026. Evidências executadas no repositório: `npm run build`, `npm test` (6 arquivos Vitest, 22 testes, mais 4 testes nativos) e `npm run test:e2e` (4 fluxos aprovados). Esses testes validam a implementação do Hibi; não equivalem, por si só, a paridade 1:1 com o produto de referência.
+
 | Área | Hibi | Observação |
 |---|---|---|
 | Home | Parcial | Painel e atalhos existem; alguns cards ainda são conteúdo de demonstração. |
