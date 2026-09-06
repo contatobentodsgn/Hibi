@@ -9,7 +9,7 @@ const icsDate = (value: string) => `${value.slice(0,4)}-${value.slice(4,6)}-${va
 export function WeekView({ data, onEvent, onCreateBlock, onDeleteBlock }: Props) {
   const [layer, setLayer] = useState<'all' | 'schedule' | 'important' | 'wellbeing'>('all');
   const [weekStart, setWeekStart] = useState(START);
-  const matchesLayer = (block: ScheduleBlock) => layer === 'all' || layer === 'schedule' || (layer === 'important' ? block.category === 'important' : block.category === 'wellbeing');
+  const matchesLayer = (block: ScheduleBlock) => layer === 'all' || layer === 'schedule' || (layer === 'important' ? block.isHard === true : block.category === 'break');
   const days = daysFrom(weekStart);
   const add = (date: string, hour: number) => onCreateBlock({ title: 'Quick study block', start: `${date}T${String(hour).padStart(2,'0')}:00:00${OFFSET}`, end: `${date}T${String(hour + 1).padStart(2,'0')}:00:00${OFFSET}`, category: 'work' });
   const importIcs = async (file: File) => { let count = 0; for (const match of file.text ? [...(await file.text()).matchAll(/BEGIN:VEVENT([\s\S]*?)END:VEVENT/g)] : []) { const body = match[1]; const start = body.match(/DTSTART(?:;[^:]+)?:([0-9]{8}T[0-9]{6})/)?.[1]; const end = body.match(/DTEND(?:;[^:]+)?:([0-9]{8}T[0-9]{6})/)?.[1]; const title = body.match(/SUMMARY:(.*)/)?.[1]?.trim() || 'Imported event'; if (start && end) { onCreateBlock({ title, start: icsDate(start), end: icsDate(end), category: 'work' }); count++; } } onEvent('import', file.name, `${count} imported`); };

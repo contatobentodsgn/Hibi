@@ -93,3 +93,12 @@ test('filtros e ordenação de Tasks são interativos', async ({ page }) => {
   await page.getByRole('button', { name: /Deadline/ }).click();
   await expect(page.getByRole('button', { name: /Deadline/ })).toHaveClass(/active/);
 });
+
+test('filtros do calendário usam as categorias reais dos blocos', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await page.getByRole('button', { name: 'Wellbeing', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Delete Almoço' }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Important', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Delete Aula de inglês' }).first()).toBeVisible();
+});
