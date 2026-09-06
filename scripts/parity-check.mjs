@@ -10,6 +10,10 @@ const files = {
   commands: await readFile('src/ui/CommandPalette.tsx', 'utf8'),
   preload: await readFile('electron/preload.cjs', 'utf8'),
   main: await readFile('electron/main.cjs', 'utf8'),
+  aiContracts: await readFile('src/ai/contracts.ts', 'utf8'),
+  policy: await readFile('src/ai/policy.ts', 'utf8'),
+  companion: await readFile('src/companion/reducer.ts', 'utf8'),
+  geometry: await readFile('electron/notch-geometry.cjs', 'utf8'),
 };
 
 const checks = [
@@ -25,6 +29,10 @@ const checks = [
   ['app: local persistence', files.app.includes('hibi-study-data') && files.app.includes('repository.exportJson'), 'local repository persistence'],
   ['app: reminder scheduling', files.app.includes('editReminderSchedule') && files.app.includes('createReminder'), 'reminder create/edit actions'],
   ['dates: workspace-aware views', files.home.includes('referenceDate(data)') && files.day.includes('referenceDate(data)') && files.week.includes('referenceDate(data)') && files.taby.includes('referenceDate(data)'), 'views derive schedule dates'],
+  ['ai: provider-neutral contracts', files.aiContracts.includes('AiProvider') && files.aiContracts.includes('AiProviderProposal'), 'bounded AI provider contract'],
+  ['ai: confirmation policy', files.policy.includes('Confirmation') && files.policy.includes('SHA-256'), 'single-use confirmation binding'],
+  ['companion: deterministic state', files.companion.includes('reduceCompanion') && files.companion.includes('requestId'), 'stale event guard'],
+  ['notch: documented fallback', files.geometry.includes('BASE_WIDTH = 392') && files.main.includes('createNotchWindowManager'), 'Electron fallback placement'],
 ];
 
 const failed = checks.filter(([, ok]) => !ok);

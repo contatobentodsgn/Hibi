@@ -19,8 +19,8 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 | Habits | Funcional | Recorrência, histórico de conclusão, edição e exclusão. |
 | Goals | Funcional | Metas, progresso limitado ao alvo, conclusão, edição e exclusão. |
 | Review | Funcional | Resumo de tarefas, hábitos, metas, notas e blocos com atalhos. |
-| Taby/AI | Parcial | Assistente offline com consultas básicas; não é o Brain/LLM original. |
-| Hardware/notch | Diagnóstico disponível | Há uma tela `/hardware` que reporta a ausência de integração; o SDK/notch real continua ausente. |
+| Taby/AI | Funcional local / extensível | Runtime próprio com provedor heurístico, contrato para provedor OpenAI-compatível, contexto mínimo, política determinística e confirmação vinculada. Não reutiliza o Brain original. |
+| Hardware/notch | Fallback funcional / promoção opcional | Janela Electron transparente no topo do monitor, todos os Spaces, click-through e estados semânticos. O bridge AppKit próprio é opcional; sem addon compilado o status é degradado, não “hardware notch”. |
 | Feedback/updates | Parcial | Feedback, bug e ideia são salvos localmente; `/updates` informa a build offline, sem serviço remoto de envio nem atualização do produto. |
 | Notificações nativas | Funcional | Scheduler macOS para lembretes/deadlines, recorrência e teste. |
 | Animações | Parcial | Transições CSS acessíveis; o inventário original referencia dezenas de vídeos/estados proprietários que não estão disponíveis no Hibi. |
@@ -28,7 +28,11 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 
 ## Conclusão
 
-O Hibi não é atualmente uma réplica 1:1. O núcleo de planejamento local está operacional, mas a paridade total exigirá implementar as áreas ausentes e escolher substitutos seguros para integrações proprietárias do dispositivo, Brain e serviços externos.
+O Hibi não é uma réplica 1:1. O núcleo de planejamento local e a nova base de IA/companion estão operacionais com implementação própria; paridade visual e integrações proprietárias continuam fora do escopo.
+
+## Matriz manual macOS pendente
+
+Os testes automatizados cobrem geometria, fallback, IPC, política e reducer. Antes de habilitar a janela por padrão em uma release, validar manualmente em Mac com notch, Mac sem notch, monitor externo, Space em tela cheia, clique pass-through, card interativo, repouso/despertar e reconexão de display. Nesta árvore o bridge nativo não está compilado, portanto o estado esperado é `degraded`.
 
 ## Próximo ciclo recomendado
 

@@ -5,7 +5,7 @@
 
 ## Executive summary
 
-The current implementation is intentionally local-first. In the Electron desktop shell, the renderer runs with `contextIsolation: true` and `nodeIntegration: false`; the preload exposes a small, named API. The browser build has no preload bridge. Persistence is in browser `localStorage`, and the local assistant states that it makes no network calls. The repository also explicitly quarantines extracted Rive resources, debug audio, native helpers, and compiled runtime bundles.
+The current implementation is intentionally local-first. In the Electron desktop shell, the renderer runs with `contextIsolation: true` and `nodeIntegration: false`; the preload exposes a small, named API. Persistence is in browser `localStorage`. Optional model credentials remain solely in the main process; provider endpoints are restricted to HTTPS or loopback HTTP, requests time out after 30 seconds, responses are bounded to 1 MiB, and authorization values are redacted from errors. The repository also explicitly quarantines extracted Rive resources, debug audio, native helpers, and compiled runtime bundles.
 
 The largest release risks are therefore governance and future drift rather than an active remote service: extracted or proprietary material could be redistributed without permission, a future build could accidentally execute quarantined code, localhost development configuration could be mistaken for a production AI endpoint, or credentials could be introduced into source, logs, support bundles, or packaged artifacts. The controls below should remain release gates.
 
@@ -34,7 +34,7 @@ Before redistributing a build:
 1. Confirm asset and trademark permissions, including the Rive files, WASM, audio, icons, and extracted media.
 2. Inspect the packaged file list for compiled bundles, native binaries, debug recordings, credentials, and unexpected assets.
 3. Verify the production path uses a local packaged document, not a development or configurable localhost URL.
-4. Run an outbound-network check and confirm no external AI, analytics, update, calendar, or hardware service is contacted.
+4. Run an outbound-network check and confirm no external AI, analytics, update, calendar, or hardware service is contacted unless an explicitly configured, consented AI endpoint is active.
 5. Verify support exports contain no credentials and are clearly treated as sensitive personal data.
 6. Run the renderer safety check, quarantine tests, and notification tests; review any changes to preload, Electron main-process handlers, asset registration, or package dependencies ([renderer-safety-check.mjs](../scripts/renderer-safety-check.mjs), [companion-assets.test.ts](../src/assets/__tests__/companion-assets.test.ts), [notifications.test.cjs](../electron/notifications.test.cjs), [package.json](../package.json#L7-L16)).
 
