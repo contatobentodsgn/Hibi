@@ -20,7 +20,7 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
       const paused = task.status === 'paused';
       return <div className="task-row" key={task.id}>
         <button className={`check ${completed ? 'checked' : ''}`} aria-label={`${completed ? 'Reopen' : 'Complete'} ${task.title}`} onClick={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }}>{completed ? '✓' : ''}</button>
-        <div><strong>{task.title}</strong><span>{task.durationMinutes} min · {task.folder ?? 'Unfiled'} · {paused ? 'paused' : task.category}</span></div>
+        <div><strong>{task.title}</strong><span>{task.durationMinutes} min · {task.folder ?? 'Unfiled'} · {task.deadline ? `deadline ${task.deadline.replace('T', ' ')}` : 'sem deadline'} · {paused ? 'paused' : task.category}</span></div>
         {task.folder && <span className="tag orange">{task.folder}</span>}
         <button className="more" aria-label={`Edit ${task.title}`} onClick={() => { const action = window.prompt('N para renomear ou X para excluir', 'N'); if (action?.toUpperCase() === 'X') { if (window.confirm(`Excluir ${task.title}?`)) onDeleteTask?.(task.id); } else { const title = window.prompt('Novo nome da tarefa', task.title); if (title?.trim() && title.trim() !== task.title) onRenameTask?.(task.id, title.trim()); } }}>···</button>
       </div>;

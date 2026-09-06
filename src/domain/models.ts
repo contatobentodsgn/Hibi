@@ -18,6 +18,7 @@ export interface Task {
   category: Category;
   status?: EntityStatus;
   folder?: string;
+  deadline?: string;
 }
 
 export interface Reminder {
