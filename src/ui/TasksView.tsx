@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { EntityStatus, StudyData } from '../domain/models';
 
 type Props = {
@@ -12,11 +12,13 @@ type Props = {
 };
 
 export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onRenameTask, onDeleteTask, onEditTaskDeadline }: Props) {
+  const [folder, setFolder] = useState<string | null>(null);
   const openTasks = data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused');
+  const visibleTasks = data.tasks.filter((task) => !folder || (task.folder ?? 'Unfiled') === folder);
 
   return <View title="Tasks" meta={`${openTasks.length} open · local study data`} action="+ New task" onAction={() => { const title = window.prompt('Nome da tarefa'); if (title?.trim()) onCreateTask?.(title.trim()); }}>
-    <div className="filter-row"><button className="filter active">Open {openTasks.length}</button><button className="filter">All {data.tasks.length}</button><button className="filter">Folder · Bento</button><button className="filter sort">Deadline ↕</button></div>
-    <section className="list-card">{data.tasks.map((task) => {
+    <div className="filter-row"><button className="filter active">Open {openTasks.length}</button><button className="filter">All {data.tasks.length}</button><button className={`filter ${folder === 'Bento' ? 'active' : ''}`} onClick={() => setFolder(folder === 'Bento' ? null : 'Bento')}>Folder · Bento</button><button className="filter sort">Deadline ↕</button></div>
+    <section className="list-card">{visibleTasks.map((task) => {
       const completed = task.status === 'completed';
       const paused = task.status === 'paused';
       return <div className="task-row" key={task.id}>
