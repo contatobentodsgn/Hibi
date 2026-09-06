@@ -7,7 +7,7 @@ import { AppShell, NavKey } from './ui/AppShell';
 import { CommandPalette } from './ui/CommandPalette';
 import { HomeView } from './ui/HomeView';
 import { TasksView } from './ui/TasksView';
-import { RemindersView } from './ui/RemindersView';
+import { RemindersView, type EditedReminderSchedule } from './ui/RemindersView';
 import { DayView } from './ui/DayView';
 import { WeekView } from './ui/WeekView';
 import { FocusView } from './ui/FocusView';
@@ -122,22 +122,16 @@ export default function App() {
   const deleteGoal = (id: string) => { repository.deleteGoal(id); refreshData(); log('delete', id); };
   const setGoalProgress = (id: string, current: number) => { repository.setGoalProgress(id, current); refreshData(); log('progress', id, String(current)); };
   const editTaskDeadline = (id: string) => { const task = data.tasks.find((item) => item.id === id); if (!task) return; const value = window.prompt('Deadline (AAAA-MM-DD HH:MM), vazio remove', task.deadline ? task.deadline.replace('T', ' ') : ''); if (value === null) return; const trimmed = value.trim(); if (trimmed && !/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}$/.test(trimmed)) { window.alert('Formato inválido.'); return; } repository.updateTask(id, { deadline: trimmed ? trimmed.replace(' ', 'T') : undefined }); refreshData(); log('edit', task.title, 'deadline-updated'); };
-  const editReminderSchedule = (id: string) => {
+  const editReminderSchedule = (id: string, edited: EditedReminderSchedule) => {
     const reminder = data.reminders.find((item) => item.id === id); if (!reminder) return;
-    const value = window.prompt('Data/hora (AAAA-MM-DD HH:MM). Para recorrência, use: weekly Tue 09:00 Wed 20:00', `${reminder.schedule.at.slice(0, 10)} ${reminder.schedule.at.slice(11, 16)}`);
-    if (!value?.trim()) return;
-    const weekly = value.match(/^weekly\s+(.+)$/i);
-    if (weekly) {
-      const parts = weekly[1].match(/(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+(\d{2}:\d{2})/gi) ?? [];
-      const map = weekdayNumber;
-      const weekdays = parts.map((part) => map[part.slice(0, 3).toLowerCase()]);
-      const timesByWeekday: Record<number, string> = {}; parts.forEach((part) => { timesByWeekday[map[part.slice(0, 3).toLowerCase()]] = part.slice(4); });
-      if (!parts.length) { window.alert('Formato de recorrência inválido.'); return; }
-      const first = firstWeeklyOccurrence(reminder.schedule.at.slice(0, 10), parts)!;
-      repository.updateReminder(id, { schedule: { at: `${first.date}T${first.time}:00-03:00`, recurrence: { frequency: 'weekly', weekdays, timesByWeekday, startDate: reminder.schedule.at.slice(0, 10) } } });
-    } else {
-      const match = value.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})$/); if (!match) { window.alert('Formato inválido.'); return; }
-      repository.updateReminder(id, { schedule: { at: `${match[1]}T${match[2]}:00-03:00` } });
+    if (edited.frequency === 'one-time') repository.updateReminder(id, { schedule: { at: `${edited.date}T${edited.time}:00-03:00` } });
+    if (edited.frequency === 'daily') repository.updateReminder(id, { schedule: { at: `${edited.date}T${edited.time}:00-03:00`, recurrence: { frequency: 'daily', time: edited.time, startDate: edited.date } } });
+    if (edited.frequency === 'weekly') {
+      const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const parts = edited.weekdays.map((day) => `${labels[day]} ${edited.time}`);
+      const first = firstWeeklyOccurrence(edited.date, parts)!;
+      const timesByWeekday: Record<number, string> = Object.fromEntries(edited.weekdays.map((day) => [day, edited.time]));
+      repository.updateReminder(id, { schedule: { at: `${first.date}T${first.time}:00-03:00`, recurrence: { frequency: 'weekly', weekdays: edited.weekdays, timesByWeekday, startDate: edited.date } } });
     }
     refreshData(); log('edit', reminder.title, 'schedule-updated');
   };

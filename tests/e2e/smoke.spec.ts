@@ -101,11 +101,24 @@ test('criação de lembrete diário preserva a recorrência', async ({ page }) =
 test('edição de lembrete semanal mantém dias e horários configurados', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Reminders', exact: true }).click();
-  page.on('dialog', async (dialog) => {
-    if (dialog.type() === 'prompt') await dialog.accept(dialog.message().startsWith('Novo nome') ? 'vaga/inglês - Horizontes' : 'weekly Tue 09:00 Wed 20:00');
-  });
   await page.getByRole('button', { name: 'Edit vaga/inglês - Horizontes' }).click();
-  await expect(page.getByText('Tue 09:00 · Wed 20:00')).toBeVisible();
+  const form = page.getByRole('form', { name: 'Edit vaga/inglês - Horizontes' });
+  await form.getByRole('combobox', { name: 'Type' }).selectOption('weekly');
+  await form.getByRole('textbox', { name: 'Time' }).fill('20:00');
+  await form.getByRole('checkbox', { name: 'Tue' }).uncheck();
+  await form.getByRole('checkbox', { name: 'Wed' }).check();
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Wed 20:00')).toBeVisible();
+});
+
+test('edição de lembrete pelo formulário persiste o novo horário', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Reminders', exact: true }).click();
+  await page.getByRole('button', { name: 'Edit vaga/inglês - Horizontes' }).click();
+  const form = page.getByRole('form', { name: 'Edit vaga/inglês - Horizontes' });
+  await form.getByRole('textbox', { name: 'Time' }).fill('10:30');
+  await form.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText(/10:30/)).toBeVisible();
 });
 
 test('filtros e ordenação de Tasks são interativos', async ({ page }) => {
