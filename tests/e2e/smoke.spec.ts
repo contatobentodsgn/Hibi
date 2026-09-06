@@ -28,3 +28,9 @@ test('paleta de comandos permite navegação por teclado', async ({ page }) => {
   await input.press('Enter');
   await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
 });
+
+test('atalho barra abre comandos fora de campos de texto', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true })));
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+});
