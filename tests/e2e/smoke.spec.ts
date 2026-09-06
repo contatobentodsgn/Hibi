@@ -50,3 +50,15 @@ test('filtro Bento funciona em Tasks e Notes', async ({ page }) => {
   await page.getByRole('button', { name: 'Folder · Bento' }).click();
   await expect(page.locator('main')).toBeVisible();
 });
+
+test('abas de Settings alternam conteúdo funcional', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'General' })).toBeVisible();
+  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send test notification' })).toBeVisible();
+  await page.getByRole('button', { name: 'Data', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Data' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reset study data' })).toBeVisible();
+});
