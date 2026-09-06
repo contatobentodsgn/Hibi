@@ -1,0 +1,7 @@
+{
+  "name": "hibi-notch-bridge",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": { "build": "node-gyp rebuild" },
+  "devDependencies": { "node-gyp": "^11.0.0" }
+}

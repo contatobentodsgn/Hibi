@@ -1,0 +1,2 @@
+const test = require('node:test'); const assert = require('node:assert/strict'); const bridge = require('./index.cjs');
+test('reports a safe degraded contract when no compiled bridge is present', () => { assert.equal(typeof bridge.available, 'function'); assert.equal(typeof bridge.place, 'function'); assert.equal(typeof bridge.teardown, 'function'); if (!bridge.available()) assert.equal(bridge.place(), false); });

@@ -1,0 +1,1 @@
+{ "targets": [{ "target_name": "hibi_notch", "sources": ["src/notch.mm"], "conditions": [["OS=='mac'", { "xcode_settings": { "OTHER_CPLUSPLUSFLAGS": ["-std=c++17"], "MACOSX_DEPLOYMENT_TARGET": "13.0" }, "link_settings": { "libraries": ["-framework Cocoa"] } }]] }] }
