@@ -68,7 +68,7 @@ test('navegação diária e semanal atualiza o período', async ({ page }) => {
   await page.getByRole('button', { name: 'Day', exact: true }).click();
   await expect(page.getByText('MONDAY · 07 SEPTEMBER 2026')).toBeVisible();
   await page.getByRole('button', { name: 'Next day' }).click();
-  await expect(page.getByText('TUESDAY · SEPTEMBER 08, 2026')).toBeVisible();
+  await expect(page.getByText('TUESDAY · 08 SEPTEMBER 2026')).toBeVisible();
   await page.getByRole('button', { name: 'Week', exact: true }).click();
   await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
   await page.getByRole('button', { name: 'Next week' }).click();

@@ -24,7 +24,7 @@ const checks = [
   ['desktop: production bundle', files.main.includes('HIBI_PRODUCTION') && files.main.includes('loadFile'), 'offline production launch'],
   ['app: local persistence', files.app.includes('hibi-study-data') && files.app.includes('repository.exportJson'), 'local repository persistence'],
   ['app: reminder scheduling', files.app.includes('editReminderSchedule') && files.app.includes('createReminder'), 'reminder create/edit actions'],
-  ['dates: workspace-aware views', files.home.includes('referenceDate(data)') && files.day.includes('firstDate') && files.week.includes('firstDate') && files.taby.includes('referenceDate(data)'), 'views derive schedule dates'],
+  ['dates: workspace-aware views', files.home.includes('referenceDate(data)') && files.day.includes('referenceDate(data)') && files.week.includes('referenceDate(data)') && files.taby.includes('referenceDate(data)'), 'views derive schedule dates'],
 ];
 
 const failed = checks.filter(([, ok]) => !ok);

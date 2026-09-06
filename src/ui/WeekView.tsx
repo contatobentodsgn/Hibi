@@ -1,18 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { referenceDate } from '../domain/date-context';
 import { durationMinutes, toDateKey } from '../domain/schedule';
 import type { ScheduleBlock, StudyData } from '../domain/models';
 type Props = { data: StudyData; onEvent: (action: string, detail: string, result?: string) => void; onCreateBlock: (input: Omit<ScheduleBlock, 'id'>) => void; onDeleteBlock?: (id: string) => void };
-const START = '2026-09-07'; const OFFSET = '-03:00'; const names = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+const OFFSET = '-03:00'; const names = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 const daysFrom = (key: string) => Array.from({ length: 7 }, (_, i) => { const d = new Date(`${key}T12:00:00${OFFSET}`); d.setDate(d.getDate() + i); return d.toISOString().slice(0, 10); });
 const shiftDate = (key: string, amount: number) => { const d = new Date(`${key}T12:00:00${OFFSET}`); d.setDate(d.getDate() + amount); return d.toISOString().slice(0, 10); };
 const icsDate = (value: string) => `${value.slice(0,4)}-${value.slice(4,6)}-${value.slice(6,8)}T${value.slice(9,11)}:${value.slice(11,13)}:00${OFFSET}`;
 export function WeekView({ data, onEvent, onCreateBlock, onDeleteBlock }: Props) {
   const [layer, setLayer] = useState<'all' | 'schedule' | 'important' | 'wellbeing'>('all');
-  const [weekStart, setWeekStart] = useState(START);
-  useEffect(() => {
-    const firstDate = data.blocks.map((block) => toDateKey(block.start)).filter(Boolean).sort()[0];
-    if (firstDate && weekStart === START && firstDate !== START) setWeekStart(firstDate);
-  }, [data.blocks, weekStart]);
+  const [weekStart, setWeekStart] = useState(() => referenceDate(data));
   const matchesLayer = (block: ScheduleBlock) => layer === 'all' || layer === 'schedule' || (layer === 'important' ? block.isHard === true : block.category === 'break');
   const days = daysFrom(weekStart);
   const add = (date: string, hour: number) => onCreateBlock({ title: 'Quick study block', start: `${date}T${String(hour).padStart(2,'0')}:00:00${OFFSET}`, end: `${date}T${String(hour + 1).padStart(2,'0')}:00:00${OFFSET}`, category: 'work' });
