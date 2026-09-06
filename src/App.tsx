@@ -20,6 +20,7 @@ import { GoalsView } from './ui/GoalsView';
 import { ReviewView } from './ui/ReviewView';
 import { TabyView } from './ui/TabyView';
 import { HelpView } from './ui/HelpView';
+import { FeedbackView } from './ui/FeedbackView';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
@@ -78,6 +79,7 @@ export default function App() {
   const createNote = (title: string, content: string) => { repository.createNote({ title, content, folder: 'Bento', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); refreshData(); log('create', title); };
   const updateNote = (id: string, changes: Partial<import('./domain/models').Note>) => { repository.updateNote(id, changes); refreshData(); log('edit', id); };
   const deleteNote = (id: string) => { repository.deleteNote(id); refreshData(); log('delete', id); };
+  const submitFeedback = (kind: string, text: string) => { repository.createNote({ title: `[${kind}] Feedback`, content: text, folder: 'Bento', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); refreshData(); log('feedback', kind, 'saved-local'); };
   const createHabit = (title: string, frequency: Habit['frequency'] = 'daily', targetPerWeek = 7) => { repository.createHabit({ title, frequency, targetPerWeek, completedDates: [], status: 'open' }); refreshData(); log('create', title); };
   const updateHabit = (id: string, changes: Partial<Omit<Habit, 'id'>>) => { repository.updateHabit(id, changes); refreshData(); log('edit', id); };
   const deleteHabit = (id: string) => { repository.deleteHabit(id); refreshData(); log('delete', id); };
@@ -139,6 +141,7 @@ export default function App() {
       case 'review': return <ReviewView data={data} onNavigate={navigate} />;
       case 'taby': return <TabyView data={data} onEvent={log} />;
       case 'help': return <HelpView onNavigate={navigate} />;
+      case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} />;
       case 'focus': return <FocusView {...props} />;

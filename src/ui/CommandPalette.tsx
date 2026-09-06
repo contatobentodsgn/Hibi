@@ -8,6 +8,7 @@ const commands: { key: string; label: string; group: string; route?: NavKey }[] 
   { key: '/review', label: 'Review workspace', group: 'Navigate', route: 'review' },
   { key: '/taby', label: 'Open local assistant', group: 'Navigate', route: 'taby' },
   { key: '/help', label: 'Show all available commands', group: 'System', route: 'help' },
+  { key: '/feedback', label: 'Save feedback locally', group: 'System', route: 'feedback' },
   { key: '/focus', label: 'Start a focus session', group: 'Work', route: 'focus' }, { key: '/settings', label: 'Open settings', group: 'System', route: 'settings' },
   { key: '/events', label: 'Inspect instrumentation', group: 'System', route: 'instrumentation' },
 ];
