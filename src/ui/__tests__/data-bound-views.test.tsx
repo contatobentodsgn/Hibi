@@ -55,10 +55,11 @@ describe('study views', () => {
     expect(markup).toContain('THU');
   });
 
-  it('exposes the study data reset action', () => {
+  it('exposes settings sections for study data and notifications', () => {
     const markup = renderToStaticMarkup(<SettingsView data={data} onEvent={onEvent} onReset={onEvent} />);
 
-    expect(markup).toContain('Reset study data');
+    expect(markup).toContain('>Notifications</button>');
+    expect(markup).toContain('>Data</button>');
   });
 
   it('renders the empty habits workspace with a create action', () => {

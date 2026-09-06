@@ -4,11 +4,11 @@ import { createSeedData } from '../../data/seed-data';
 import { SettingsView } from '../SettingsView';
 
 describe('Settings notifications action', () => {
-  it('renders a native notification test action', () => {
+  it('exposes a dedicated notifications settings section', () => {
     const markup = renderToStaticMarkup(
       <SettingsView data={createSeedData()} onEvent={() => undefined} onReset={() => undefined} onTestNotification={() => Promise.resolve(true)} />,
     );
 
-    expect(markup).toContain('Send test notification');
+    expect(markup).toContain('>Notifications</button>');
   });
 });
