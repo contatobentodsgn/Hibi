@@ -31,7 +31,13 @@ Napi::Value Place(const Napi::CallbackInfo& info) {
   }
   auto handle = info[0].As<Napi::Buffer<uint8_t>>();
   if (handle.Length() < sizeof(void*)) return Napi::Boolean::New(info.Env(), false);
-  NSWindow *__unsafe_unretained window = *reinterpret_cast<NSWindow *__unsafe_unretained *>(handle.Data());
+  // Electron documents its macOS native handle as NSView*. Resolve its owning
+  // NSWindow before applying window-level AppKit configuration.
+  id __unsafe_unretained nativeObject = *reinterpret_cast<id __unsafe_unretained *>(handle.Data());
+  if (!nativeObject) return Napi::Boolean::New(info.Env(), false);
+  NSWindow *window = nil;
+  if ([nativeObject isKindOfClass:NSView.class]) window = [(NSView *)nativeObject window];
+  else if ([nativeObject isKindOfClass:NSWindow.class]) window = (NSWindow *)nativeObject;
   if (!window) return Napi::Boolean::New(info.Env(), false);
 
   CGFloat x = info[1].As<Napi::Number>().DoubleValue();
