@@ -15,9 +15,11 @@ export function parseLocalAction(message: string, now = new Date()): LocalAction
   if (task) return { kind: 'create-task', title: task[1].trim(), durationMinutes: 60 };
   const note = text.match(/^(?:crie|criar|adicione|adicionar)\s+(?:uma?\s+)?nota\s*:?[\s-]*(.+)$/i);
   if (note) return { kind: 'create-note', title: note[1].trim(), content: note[1].trim() };
+  const block = text.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?bloco\s*:?[\s-]*(.+?)\s+(?:das?\s+)?(\d{1,2}:\d{2})\s+(?:às?|a)\s+(\d{1,2}:\d{2})$/i);
+  if (block) { const date = now.toISOString().slice(0, 10); return { kind: 'create-block', title: block[1].trim(), start: `${date}T${block[2]}:00-03:00`, end: `${date}T${block[3]}:00-03:00`, category: 'work' }; }
   const reminder = text.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?lembrete\s*:?[\s-]*(.+?)(?:\s+às?\s+(\d{1,2}:\d{2}))?$/i);
   if (reminder) { const time = reminder[2] ?? now.toTimeString().slice(0, 5); const date = now.toISOString().slice(0, 10); return { kind: 'create-reminder', title: reminder[1].trim(), at: `${date}T${time}:00-03:00` }; }
-  if (lower.includes('bloco') || lower.includes('agenda')) return null;
+  if (lower.includes('agenda')) return null;
   return null;
 }
 

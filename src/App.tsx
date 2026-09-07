@@ -105,6 +105,7 @@ export default function App() {
   const executeAssistantAction = (action: LocalAction) => {
     if (action.kind === 'create-task') repository.createTask({ title: action.title, durationMinutes: action.durationMinutes, category: 'work', folder: 'Bento', status: 'open' });
     if (action.kind === 'create-reminder') repository.createReminder({ title: action.title, category: 'important', status: 'open', schedule: { at: action.at } });
+    if (action.kind === 'create-block') createBlock({ title: action.title, start: action.start, end: action.end, category: action.category });
     if (action.kind === 'create-note') repository.createNote({ title: action.title, content: action.content, folder: 'Bento', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     if (action.kind === 'start-focus') { setRoute('focus'); log('assistant-action', 'Started focus'); return; }
     refreshData(); log('assistant-action', action.kind, 'executed');

@@ -14,4 +14,9 @@ describe('local assistant actions', () => {
   });
 
   it('parses focus requests', () => expect(parseLocalAction('iniciar foco')).toEqual({ kind: 'start-focus' }));
+
+  it('parses a same-day calendar block', () => {
+    const action = parseLocalAction('crie um bloco: revisar pauta das 14:00 às 15:00', new Date('2026-09-06T10:00:00-03:00'));
+    expect(action).toMatchObject({ kind: 'create-block', title: 'revisar pauta', category: 'work' });
+  });
 });
