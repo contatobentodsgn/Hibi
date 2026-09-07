@@ -4,3 +4,13 @@ const display = { id: 1, bounds: { x: 0, y: 0, width: 1440, height: 900 } }; con
 const presentation = { requestId: 'a', kind: 'result', text: 'Done', actions: [], interaction: 'passthrough' };
 test('sets all-spaces fallback and click-through for passive presentations', () => { let loaded = false; const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => { loaded = true; }, platform: 'darwin' }); const response = manager.show(presentation); assert.equal(loaded, true); assert.equal(response.degraded, true); assert.equal(manager.activeRequestId, 'a'); });
 test('guards delayed hide requests and tears down safely', () => { const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {} }); manager.show(presentation); assert.equal(manager.hide('old'), false); assert.equal(manager.hide('a'), true); manager.destroy(); });
+test('resolves only an action belonging to the active presentation', () => {
+  const received = [];
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, onAction: (action) => received.push(action) });
+  manager.show({ requestId: 'confirm-1', kind: 'confirmation', text: 'Create task?', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }], interaction: 'capture' });
+  assert.equal(manager.resolveAction('other', 'confirm'), false);
+  assert.equal(manager.resolveAction('confirm-1', 'unknown'), false);
+  assert.equal(manager.resolveAction('confirm-1', 'confirm'), true);
+  assert.deepEqual(received, [{ requestId: 'confirm-1', actionId: 'confirm' }]);
+  assert.equal(manager.activeRequestId, null);
+});

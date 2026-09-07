@@ -6,9 +6,10 @@ const validPresentation = (value) => value && typeof value === 'object'
   && (value.text === null || typeof value.text === 'string')
   && Array.isArray(value.actions) && value.actions.length <= 4;
 
-function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, platform = process.platform }) {
+function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, onAction, platform = process.platform }) {
   let window = null;
   let activeRequestId = null;
+  let activeActions = new Set();
   let preferredDisplayId = null;
   const getWindow = () => window && !window.isDestroyed() ? window : null;
   const selectedDisplay = () => selectDisplay(screen, preferredDisplayId);
@@ -28,20 +29,27 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     window.setAlwaysOnTop?.(true, 'pop-up-menu');
     window.setVisibleOnAllWorkspaces?.(true, { visibleOnFullScreen: true });
     window.setIgnoreMouseEvents?.(true, { forward: true });
-    window.on?.('closed', () => { window = null; activeRequestId = null; });
+    window.on?.('closed', () => { window = null; activeRequestId = null; activeActions = new Set(); });
     load(window);
     return window;
   };
   return {
     show(presentation) {
       if (!validPresentation(presentation)) throw new Error('Invalid companion presentation.');
-      const target = ensure(); activeRequestId = presentation.requestId; position();
+      const target = ensure(); activeRequestId = presentation.requestId; activeActions = new Set(presentation.actions.map((action) => action.id)); position();
       target.setIgnoreMouseEvents?.(presentation.interaction === 'capture' ? false : true, presentation.interaction === 'capture' ? undefined : { forward: true });
       target.webContents.send('hibi:companion:presentation', presentation);
       target.showInactive?.();
       return { degraded: !(nativeBridge?.promotionAvailable?.() && platform === 'darwin'), requestId: activeRequestId };
     },
-    hide(requestId) { const target = getWindow(); if (!target || requestId !== activeRequestId) return false; target.hide(); activeRequestId = null; return true; },
+    hide(requestId) { const target = getWindow(); if (!target || requestId !== activeRequestId) return false; target.hide(); activeRequestId = null; activeActions = new Set(); return true; },
+    resolveAction(requestId, actionId) {
+      const target = getWindow();
+      if (!target || requestId !== activeRequestId || !activeActions.has(actionId)) return false;
+      onAction?.({ requestId, actionId });
+      target.hide(); activeRequestId = null; activeActions = new Set();
+      return true;
+    },
     setPreferredDisplay(displayId) { preferredDisplayId = Number.isInteger(displayId) ? displayId : null; position(); },
     reposition: position,
     destroy() { const target = getWindow(); nativeBridge?.teardown?.(); if (target) target.destroy(); window = null; activeRequestId = null; },

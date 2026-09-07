@@ -27,6 +27,11 @@ function isAllowedNavigation(rawUrl) {
   }
 }
 
+function isValidNotchAction(requestId, actionId) {
+  return typeof requestId === 'string' && requestId.length > 0 && requestId.length <= 128
+    && (actionId === 'confirm' || actionId === 'cancel');
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 820, minWidth: 960, minHeight: 620,
@@ -46,7 +51,7 @@ function createWindow() {
 app.whenReady().then(() => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification });
   aiRuntime = createMainAiRuntime();
-  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen: require('electron').screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }) });
+  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen: require('electron').screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => mainWindow?.webContents.send('hibi:companion:action', action) });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
   ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
   ipcMain.handle("hibi:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });
@@ -61,6 +66,7 @@ app.whenReady().then(() => {
   ipcMain.handle('hibi:ai:cancel', () => { aiRuntime.cancel(); return true; });
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
+  ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));
   ipcMain.handle('hibi:notch:capabilities', () => ({
     adapter: notchAdapter.id,
     experimental: notchAdapter.experimental,
@@ -75,4 +81,4 @@ app.whenReady().then(() => {
 app.on("before-quit", () => { notificationScheduler?.clear(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
-module.exports = { isAllowedNavigation };
+module.exports = { isAllowedNavigation, isValidNotchAction };

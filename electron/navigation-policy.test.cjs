@@ -15,7 +15,7 @@ Module._load = function (request, parent, isMain) {
   if (request === "./notifications.cjs") return { createNotificationScheduler() { return { clear() {} }; } };
   return originalLoad.call(this, request, parent, isMain);
 };
-const { isAllowedNavigation } = require("./main.cjs");
+const { isAllowedNavigation, isValidNotchAction } = require("./main.cjs");
 Module._load = originalLoad;
 
 test("allows only local development and packaged file navigation", () => {
@@ -27,4 +27,12 @@ test("allows only local development and packaged file navigation", () => {
   assert.equal(isAllowedNavigation("http://192.168.1.20:5173/"), false);
   assert.equal(isAllowedNavigation("data:text/html,<h1>nope</h1>"), false);
   assert.equal(isAllowedNavigation("not a URL"), false);
+});
+
+test('allows only bounded confirmation action payloads', () => {
+  assert.equal(isValidNotchAction('confirm-1', 'confirm'), true);
+  assert.equal(isValidNotchAction('confirm-1', 'cancel'), true);
+  assert.equal(isValidNotchAction('', 'confirm'), false);
+  assert.equal(isValidNotchAction('x'.repeat(129), 'confirm'), false);
+  assert.equal(isValidNotchAction('confirm-1', 'delete'), false);
 });

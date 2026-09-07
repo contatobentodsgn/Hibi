@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { createSeedData } from '../../data/seed-data';
-import { TabyView } from '../TabyView';
+import { confirmationPresentationFor, TabyView } from '../TabyView';
 
 describe('TabyView capability boundaries', () => {
   it('shows local capability statuses and unavailable surfaces', () => {
@@ -16,5 +16,12 @@ describe('TabyView capability boundaries', () => {
     expect(markup).toContain('External AI');
     expect(markup).toContain('Hardware');
     expect(markup).toContain('No network calls.');
+  });
+
+  it('builds a capture presentation with only confirm and cancel actions', () => {
+    expect(confirmationPresentationFor('request-1', 'Criar tarefa?')).toEqual({
+      requestId: 'request-1', kind: 'confirmation', text: 'Criar tarefa?', interaction: 'capture',
+      actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }],
+    });
   });
 });
