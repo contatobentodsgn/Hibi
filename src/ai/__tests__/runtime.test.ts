@@ -38,6 +38,15 @@ describe('AI turn runtime', () => {
     await expect(runtime.confirm(pending.confirmation)).rejects.toThrow(/invalid|used/i);
     expect(execute).not.toHaveBeenCalled();
   });
+  it('emits an auditable lifecycle with provider, model, requested tool, confirmation, and execution result', async () => {
+    const events: any[] = []; const remove = testTool('task.delete', 'destructive', () => ({ summary: 'Deleted task' }));
+    const runtime = new AiTurnRuntime({ registry: new ToolRegistry().register(remove), policy: new AiToolPolicy(new ToolRegistry().register(remove)), context: {}, provider: provider({ reply: 'Delete?', toolCalls: [{ name: 'task.delete', arguments: {} }], notchPresentation: null, providerMetadata: { model: 'audit-model' } }, 'Audit provider'), onAudit: (event) => events.push(event) });
+    const pending = await runtime.runTurn({ message: 'Delete', surface: 'desktop' }); if (!pending.confirmation) throw new Error('Expected confirmation');
+    await runtime.confirm(pending.confirmation);
+    expect(events.map((event) => event.type)).toEqual(expect.arrayContaining(['turn.received', 'tool.requested', 'confirmation.requested', 'confirmation.confirmed', 'tool.completed']))
+    expect(events.find((event) => event.type === 'tool.requested')).toMatchObject({ provider: 'Audit provider', model: 'audit-model', tools: ['task.delete'] })
+    expect(JSON.stringify(events)).not.toContain('arguments')
+  });
   it('executes calls sequentially and reports truthful partial failures', async () => {
     const sequence: string[] = []; const first = testTool('first', 'read', () => { sequence.push('first'); return { summary: 'first' }; }); const second = testTool('second', 'read', () => { sequence.push('second'); throw new Error('Second failed'); });
     const runtime = setup(provider({ reply: 'Done', toolCalls: [{ name: 'first', arguments: {} }, { name: 'second', arguments: {} }], notchPresentation: null }), [first, second]);

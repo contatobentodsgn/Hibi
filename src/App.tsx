@@ -30,6 +30,7 @@ import { createLocalHibiRuntime, LocalToolProvider } from './ai/local-runtime';
 import { ElectronConfiguredProvider } from './ai/electron-provider';
 import { CompanionController } from './companion/controller';
 import type { CompanionEvent } from './companion/contracts';
+import type { AiAuditEvent } from './ai/history';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
@@ -50,7 +51,8 @@ export default function App() {
   if (!companionController.current) companionController.current = new CompanionController({ show: (presentation) => { void window.hibiDesktop?.showNotch?.(presentation); }, hide: (requestId) => { void window.hibiDesktop?.hideNotch?.(requestId); } });
   const dispatchCompanion = (event: CompanionEvent) => companionController.current!.dispatch(event);
   const companionId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
-  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); } }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider())); });
+  const [aiHistory, setAiHistory] = useState<AiAuditEvent[]>(() => { try { const saved = JSON.parse(window.localStorage.getItem('hibi-ai-history') ?? '[]'); return Array.isArray(saved) ? saved.slice(0, 200) : []; } catch { return []; } });
+  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); }, onAudit: (event: AiAuditEvent) => setAiHistory((current) => [event, ...current].slice(0, 200)) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider())); });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
@@ -149,6 +151,7 @@ export default function App() {
 
   React.useEffect(() => { window.localStorage.setItem('hibi-study-data', repository.exportJson()); }, [repository, data]);
   React.useEffect(() => { window.localStorage.setItem('hibi-events', JSON.stringify(events)); }, [events]);
+  React.useEffect(() => { window.localStorage.setItem('hibi-ai-history', JSON.stringify(aiHistory)); }, [aiHistory]);
   React.useEffect(() => {
     const syncNotifications = window.hibiDesktop?.syncNotifications;
     if (syncNotifications) void syncNotifications(buildNotificationEntries(data)).catch(() => undefined);
@@ -192,7 +195,7 @@ export default function App() {
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;
       case 'focus': return <FocusView {...props} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} />;
       case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onTestNotification={testNativeNotification} />;
-      case 'instrumentation': return <InstrumentationView events={events} onEvent={log} onClear={clearEvents} />;
+      case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;
       default: return <HomeView {...props} data={data} onOpenCommands={() => setPaletteOpen(true)} />;
