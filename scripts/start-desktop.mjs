@@ -2,7 +2,10 @@ import { spawn } from 'node:child_process';
 import process from 'node:process';
 import http from 'node:http';
 
-const vite = spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'dev', '--', '--host', '127.0.0.1'], { stdio: 'inherit' });
+// The Electron process must never attach to a different, stale Vite server.
+// Strictly owning this port makes an occupied port fail fast instead of silently
+// validating a previous build.
+const vite = spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', '5173', '--strictPort'], { stdio: 'inherit' });
 let electron;
 let stopping = false;
 const devServer = 'http://127.0.0.1:5173';

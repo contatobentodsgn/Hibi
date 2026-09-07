@@ -1,6 +1,19 @@
 let addon;
 try { addon = require('./build/Release/hibi_notch.node'); } catch { addon = null; }
-const unavailable = { available: () => false, promotionAvailable: () => false, screenGeometry: () => [], place: () => false, teardown: () => undefined };
+const unavailable = {
+  available: () => false,
+  promotionAvailable: () => false,
+  screenGeometry: () => [],
+  place: () => false,
+  teardown: () => undefined,
+  nativeHostAvailable: () => false,
+  createHost: () => false,
+  showHost: () => false,
+  hideHost: () => false,
+  repositionHost: () => false,
+  destroyHost: () => false,
+  hostDiagnostics: () => ({ available: false }),
+};
 const { createPublicNotchAdapter } = require('./adapters/public.cjs');
 
 function createNotchAdapter({ mode = 'public', isPackaged = false, allowExperimental = false, platform = process.platform, bridge = addon ?? unavailable } = {}) {
@@ -11,5 +24,5 @@ function createNotchAdapter({ mode = 'public', isPackaged = false, allowExperime
   return require('./adapters/experimental.cjs').createExperimentalNotchAdapter(bridge);
 }
 
-const bridge = addon ?? unavailable;
+const bridge = { ...unavailable, ...(addon ?? {}) };
 module.exports = { ...bridge, createNotchAdapter };

@@ -10,6 +10,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
   let window = null;
   let activeRequestId = null;
   let activeActions = new Set();
+  let activeHost = null;
   let preferredDisplayId = null;
   const getWindow = () => window && !window.isDestroyed() ? window : null;
   const makePassive = (target) => target.setIgnoreMouseEvents?.(true, { forward: true });
@@ -19,6 +20,17 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     const bounds = notchBounds(selectedDisplay());
     target.setBounds(bounds);
     nativeBridge?.place?.(target.getNativeWindowHandle?.(), bounds);
+  };
+  const selectedDisplayId = () => selectedDisplay().id;
+  const useNativeHost = () => {
+    try {
+      return platform === 'darwin'
+        && nativeBridge?.nativeHostAvailable?.() === true
+        && nativeBridge?.createHost?.((action) => resolveAction(action?.requestId, action?.actionId)) === true;
+    } catch { return false; }
+  };
+  const showNativeHost = (presentation) => {
+    try { return nativeBridge?.showHost?.(presentation, selectedDisplayId()) === true; } catch { return false; }
   };
   const ensure = () => {
     if (getWindow()) return window;
@@ -35,27 +47,44 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     load(window);
     return window;
   };
+  const resolveAction = (requestId, actionId) => {
+    if (requestId !== activeRequestId || !activeActions.has(actionId)) return false;
+    if (activeHost === 'native') nativeBridge?.hideHost?.();
+    else { const target = getWindow(); if (!target) return false; makePassive(target); target.hide(); }
+    activeRequestId = null; activeActions = new Set(); activeHost = null;
+    onAction?.({ requestId, actionId });
+    return true;
+  };
   return {
     show(presentation) {
       if (!validPresentation(presentation)) throw new Error('Invalid companion presentation.');
-      const target = ensure(); activeRequestId = presentation.requestId; activeActions = new Set(presentation.actions.map((action) => action.id)); position();
+      activeRequestId = presentation.requestId; activeActions = new Set(presentation.actions.map((action) => action.id));
+      if (useNativeHost() && showNativeHost(presentation)) {
+        activeHost = 'native';
+        return { degraded: false, requestId: activeRequestId, host: activeHost };
+      }
+      const target = ensure(); activeHost = 'electron'; position();
       target.setIgnoreMouseEvents?.(presentation.interaction === 'capture' ? false : true, presentation.interaction === 'capture' ? undefined : { forward: true });
       target.webContents.send('hibi:companion:presentation', presentation);
       target.showInactive?.();
-      return { degraded: !(nativeBridge?.promotionAvailable?.() && platform === 'darwin'), requestId: activeRequestId };
+      return { degraded: true, requestId: activeRequestId, host: activeHost };
     },
-    hide(requestId) { const target = getWindow(); if (!target || requestId !== activeRequestId) return false; makePassive(target); target.hide(); activeRequestId = null; activeActions = new Set(); return true; },
-    resolveAction(requestId, actionId) {
-      const target = getWindow();
-      if (!target || requestId !== activeRequestId || !activeActions.has(actionId)) return false;
-      makePassive(target); target.hide(); activeRequestId = null; activeActions = new Set();
-      onAction?.({ requestId, actionId });
-      return true;
+    hide(requestId) {
+      if (requestId !== activeRequestId) return false;
+      if (activeHost === 'native') nativeBridge?.hideHost?.();
+      else { const target = getWindow(); if (!target) return false; makePassive(target); target.hide(); }
+      activeRequestId = null; activeActions = new Set(); activeHost = null; return true;
     },
-    setPreferredDisplay(displayId) { preferredDisplayId = Number.isInteger(displayId) ? displayId : null; position(); },
-    reposition: position,
-    destroy() { const target = getWindow(); nativeBridge?.teardown?.(); if (target) target.destroy(); window = null; activeRequestId = null; },
+    resolveAction,
+    setPreferredDisplay(displayId) { preferredDisplayId = Number.isInteger(displayId) ? displayId : null; if (activeHost === 'native') nativeBridge?.repositionHost?.(selectedDisplayId()); else position(); },
+    reposition() { if (activeHost === 'native') return nativeBridge?.repositionHost?.(selectedDisplayId()) === true; position(); return Boolean(getWindow()); },
+    destroy() { const target = getWindow(); nativeBridge?.destroyHost?.(); nativeBridge?.teardown?.(); if (target) target.destroy(); window = null; activeRequestId = null; activeActions = new Set(); activeHost = null; },
     get activeRequestId() { return activeRequestId; },
+    get activeHost() { return activeHost; },
+    get diagnostics() {
+      if (nativeBridge?.nativeHostAvailable?.() === true) return { ...nativeBridge.hostDiagnostics?.(), host: activeHost ?? 'native' };
+      return { available: false, host: 'electron' };
+    },
   };
 }
 

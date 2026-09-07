@@ -10,7 +10,7 @@ This is the reconstructed contract surface for the Hibi study replica. It descri
 | Reminders | Reminders contain a title, category, status, one initial `schedule.at`, and optional daily/weekly recurrence. Paused reminders are excluded from notification entries. | Recurrence is local date/time logic; there is no external reminder provider. |
 | Calendar | Calendar surfaces read/write local `ScheduleBlock` records (`start`, `end`, category, optional task link, hard flag). Recurrence expansion and conflict validation are domain functions. | “Calendar connected” means local blocks; external calendar sync is not configured. |
 | Notifications | Active task deadlines and reminders become sanitized notification entries. The renderer sends the list through optional preload IPC; Electron owns timers and native notification delivery. | OS permission/support can suppress delivery; no remote push service exists. |
-| AI / hardware | The assistant uses a provider-neutral contract and a local heuristic by default; an OpenAI-compatible endpoint is accepted only in the Electron main process with HTTPS/loopback validation, timeout, size limits, and redacted errors. The notch uses a documented Electron fallback and may optionally load a Hibi-owned AppKit bridge. | Provider credentials never cross the preload boundary. The AppKit addon is deliberately optional; without a compiled addon the UI reports degraded fallback behavior. |
+| AI / hardware | The assistant uses a provider-neutral contract and a local heuristic by default; an OpenAI-compatible endpoint is accepted only in the Electron main process with HTTPS/loopback validation, timeout, size limits, and redacted errors. On macOS, the public notch adapter owns an AppKit `NSPanel`; without its compiled addon, Hibi uses an Electron fallback. | Provider credentials never cross the preload boundary. The native panel receives only bounded presentation data and can return only `confirm` or `cancel` for the active request. |
 | Extracted assets | Browser-safe companion assets are referenced by `/companion-assets/...`; quarantined Rive talk resources and native/compiled helpers are not registered or loaded. | Redistribution rights must be confirmed before shipping extracted assets. |
 
 ## Contract details
@@ -37,12 +37,12 @@ This is the reconstructed contract surface for the Hibi study replica. It descri
 ### AI and hardware
 
 - AI turns have typed provider requests/proposals, bounded parser inputs, minimal evidence selection, deterministic tool policy, SHA-256-bound one-time confirmations, and sequential execution semantics ([contracts.ts](../src/ai/contracts.ts), [runtime.ts](../src/ai/runtime.ts), [policy.ts](../src/ai/policy.ts)).
-- The macOS companion reducer is request-ID-safe, honors priority/interactivity/expiry, and supports reduced motion. The Electron notch fallback uses top-center display bounds and all-Spaces click-through behavior ([reducer.ts](../src/companion/reducer.ts), [notch-window.cjs](../electron/notch-window.cjs)).
+- The macOS companion reducer is request-ID-safe, honors priority/interactivity/expiry, and supports reduced motion. The public native host owns an AppKit `NSPanel` and uses `NSScreen` display IDs, all-Spaces/full-screen collection behavior, and native passive/interactive modes. The Electron notch fallback retains top-center display bounds and click-through behavior ([reducer.ts](../src/companion/reducer.ts), [notch-window.cjs](../electron/notch-window.cjs), [notch.mm](../native/notch/src/notch.mm)).
 
 - Capability declarations mark tasks, reminders, calendar, focus, and notes as local/available; external AI and hardware as unavailable ([capabilities.ts](../src/domain/capabilities.ts)).
 - The separate adapter-status registry reports local persistence, native notifications, and launch-at-login as available, while external AI/hardware remain unavailable ([adapter-status.ts](../src/domain/adapter-status.ts)).
 - The Taby view is a local query surface over the supplied data and states that it does not access internet, external AI, microphone, camera, or other hardware ([TabyView.tsx](../src/ui/TabyView.tsx)).
-- The hardware availability view reports no compatible hardware integration, while settings report Brain/hardware unavailable offline ([AvailabilityView.tsx](../src/ui/AvailabilityView.tsx), [SettingsView.tsx](../src/ui/SettingsView.tsx)).
+- The hardware availability view does not claim access to camera hardware. Its native companion diagnostic is available through the narrow preload capability call and reports host state without exposing native handles.
 
 ### Extracted asset quarantine
 

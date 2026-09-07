@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification } = require("electron");
+const { app, BrowserWindow, ipcMain, Notification, screen, powerMonitor } = require("electron");
 const path = require("node:path");
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.cjs");
 const { createMainAiRuntime } = require("./ai-runtime.cjs");
@@ -11,6 +11,7 @@ let notificationScheduler;
 let aiRuntime;
 let aiConfiguration;
 let notchWindow;
+let detachNotchLifecycle = () => {};
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
 const notchAdapter = nativeNotchBridge.createNotchAdapter({
   mode: process.env.HIBI_NOTCH_ADAPTER,
@@ -34,6 +35,30 @@ function isValidNotchAction(requestId, actionId) {
     && (actionId === 'confirm' || actionId === 'cancel');
 }
 
+function notchCapabilities(adapter, manager) {
+  return {
+    adapter: adapter.id,
+    experimental: adapter.experimental,
+    reason: adapter.reason,
+    bridgeLoaded: adapter.available?.() === true,
+    nativePromotion: adapter.promotionAvailable?.() === true,
+    nativeHost: adapter.nativeHostAvailable?.() === true,
+    screens: adapter.screenGeometry?.() ?? [],
+    host: manager?.diagnostics ?? { available: false },
+  };
+}
+
+function attachNotchLifecycle({ displayService, powerService, manager }) {
+  const reposition = () => manager?.reposition();
+  const displayEvents = ['display-added', 'display-removed', 'display-metrics-changed'];
+  for (const event of displayEvents) displayService?.on?.(event, reposition);
+  powerService?.on?.('resume', reposition);
+  return () => {
+    for (const event of displayEvents) displayService?.removeListener?.(event, reposition);
+    powerService?.removeListener?.('resume', reposition);
+  };
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 820, minWidth: 960, minHeight: 620,
@@ -54,7 +79,8 @@ app.whenReady().then(async () => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
   aiRuntime = createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) });
-  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen: require('electron').screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => mainWindow?.webContents.send('hibi:companion:action', action) });
+  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => mainWindow?.webContents.send('hibi:companion:action', action) });
+  detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
   ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
   ipcMain.handle("hibi:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });
@@ -81,18 +107,11 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
   ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));
-  ipcMain.handle('hibi:notch:capabilities', () => ({
-    adapter: notchAdapter.id,
-    experimental: notchAdapter.experimental,
-    reason: notchAdapter.reason,
-    bridgeLoaded: notchAdapter.available?.() === true,
-    nativePromotion: notchAdapter.promotionAvailable?.() === true,
-    screens: notchAdapter.screenGeometry?.() ?? [],
-  }));
+  ipcMain.handle('hibi:notch:capabilities', () => notchCapabilities(notchAdapter, notchWindow));
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
-app.on("before-quit", () => { notificationScheduler?.clear(); notchWindow?.destroy(); });
+app.on("before-quit", () => { detachNotchLifecycle(); notificationScheduler?.clear(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
-module.exports = { isAllowedNavigation, isValidNotchAction };
+module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle };

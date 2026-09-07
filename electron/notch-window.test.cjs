@@ -11,6 +11,50 @@ test('uses a non-activating macOS panel for the companion surface', () => {
 
   assert.equal(notch.options.type, 'panel');
 });
+test('uses the AppKit host before creating an Electron fallback window', () => {
+  const calls = [];
+  const nativeBridge = {
+    nativeHostAvailable: () => true,
+    createHost: (onAction) => { calls.push(['create']); nativeBridge.action = onAction; return true; },
+    showHost: (value, displayId) => { calls.push(['show', value.requestId, displayId]); return true; },
+    hideHost: () => { calls.push(['hide']); return true; },
+    repositionHost: (displayId) => { calls.push(['reposition', displayId]); return true; },
+    destroyHost: () => { calls.push(['destroy']); return true; },
+    hostDiagnostics: () => ({ available: true, visible: true }),
+  };
+  const manager = createNotchWindowManager({ BrowserWindowClass: class { constructor() { throw new Error('fallback should not be created'); } }, screen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+
+  const response = manager.show({ requestId: 'native-confirm', kind: 'confirmation', text: 'Create task?', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }], interaction: 'capture' });
+
+  assert.deepEqual(response, { degraded: false, requestId: 'native-confirm', host: 'native' });
+  assert.deepEqual(calls, [['create'], ['show', 'native-confirm', 1]]);
+  nativeBridge.action({ requestId: 'native-confirm', actionId: 'confirm' });
+  assert.equal(manager.activeRequestId, null);
+  assert.deepEqual(calls.at(-1), ['hide']);
+  manager.destroy();
+  assert.deepEqual(calls.at(-1), ['destroy']);
+});
+
+test('falls back to Electron when AppKit host creation fails', () => {
+  let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge: { nativeHostAvailable: () => true, createHost: () => false }, platform: 'darwin' });
+
+  const response = manager.show(presentation);
+
+  assert.equal(response.degraded, true);
+  assert.equal(response.host, 'electron');
+  assert.equal(notch.options.type, 'panel');
+});
+
+test('falls back to Electron when the native host throws while presenting', () => {
+  let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge: { nativeHostAvailable: () => true, createHost: () => true, showHost: () => { throw new Error('native host unavailable'); } }, platform: 'darwin' });
+
+  const response = manager.show(presentation);
+
+  assert.deepEqual(response, { degraded: true, requestId: 'a', host: 'electron' });
+  assert.equal(notch.options.type, 'panel');
+});
 test('guards delayed hide requests and tears down safely', () => { const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {} }); manager.show(presentation); assert.equal(manager.hide('old'), false); assert.equal(manager.hide('a'), true); manager.destroy(); });
 test('resolves only an action belonging to the active presentation', () => {
   const received = [];

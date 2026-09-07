@@ -14,10 +14,10 @@ declare global {
       getAiConfig?: () => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
       saveAiConfig?: (config: { provider: 'local' | 'openai-compatible'; endpoint: string; model: string; apiKey?: string }) => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
       deleteAiKey?: () => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
-      showNotch?: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly unknown[]; interaction: 'passthrough' | 'capture' }) => Promise<{ degraded: boolean; requestId: string }>;
+      showNotch?: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly unknown[]; interaction: 'passthrough' | 'capture' }) => Promise<{ degraded: boolean; requestId: string; host?: 'native' | 'electron' }>;
       hideNotch?: (requestId: string) => Promise<boolean>;
       resolveNotchAction?: (requestId: string, actionId: 'confirm' | 'cancel') => Promise<boolean>;
-      getNotchCapabilities?: () => Promise<{ adapter: 'public' | 'experimental'; experimental: boolean; reason: string | null; bridgeLoaded: boolean; nativePromotion: boolean; screens: readonly { index: number; frame: { x: number; y: number; width: number; height: number }; safeAreaTop: number; hasCameraHousing: boolean }[] }>;
+      getNotchCapabilities?: () => Promise<{ adapter: 'public' | 'experimental'; experimental: boolean; reason: string | null; bridgeLoaded: boolean; nativePromotion: boolean; nativeHost: boolean; screens: readonly { index: number; displayId?: number; frame: { x: number; y: number; width: number; height: number }; safeAreaTop: number; hasCameraHousing: boolean }[]; host: { available: boolean; created?: boolean; visible?: boolean; interactive?: boolean; displayId?: number; host?: 'native' | 'electron' } }>;
       onCompanionPresentation?: (callback: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' }) => void) => () => void;
       onCompanionAction?: (callback: (action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void) => () => void;
       onNotificationTriggered?: (callback: (entry: NotificationEntry) => void) => () => void;

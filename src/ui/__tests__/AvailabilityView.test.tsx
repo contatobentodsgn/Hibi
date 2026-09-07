@@ -15,5 +15,6 @@ describe('AvailabilityView adapter status', () => {
     expect(markup).toContain('>Available</b>');
     expect(markup).toContain('>Unavailable</b>');
     expect(markup).toContain('Companion previews');
+    expect(markup).toContain('Checking native companion');
   });
 });

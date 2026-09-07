@@ -8,6 +8,13 @@ function createPublicNotchAdapter(bridge, reason = null) {
     screenGeometry: () => bridge.screenGeometry?.() ?? [],
     place: (...args) => bridge.place?.(...args) === true,
     teardown: () => bridge.teardown?.(),
+    nativeHostAvailable: () => bridge.nativeHostAvailable?.() === true,
+    createHost: (onAction) => typeof onAction === 'function' && bridge.createHost?.(onAction) === true,
+    showHost: (presentation, displayId) => bridge.showHost?.(presentation, displayId) === true,
+    hideHost: () => bridge.hideHost?.() === true,
+    repositionHost: (displayId) => bridge.repositionHost?.(displayId) === true,
+    destroyHost: () => bridge.destroyHost?.() === true,
+    hostDiagnostics: () => bridge.hostDiagnostics?.() ?? { available: false },
   });
 }
 

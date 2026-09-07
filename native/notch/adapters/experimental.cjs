@@ -10,6 +10,13 @@ function createExperimentalNotchAdapter(bridge) {
     screenGeometry: () => bridge.screenGeometry?.() ?? [],
     place: () => false,
     teardown: () => bridge.teardown?.(),
+    nativeHostAvailable: () => false,
+    createHost: () => false,
+    showHost: () => false,
+    hideHost: () => false,
+    repositionHost: () => false,
+    destroyHost: () => false,
+    hostDiagnostics: () => ({ available: false }),
   });
 }
 
