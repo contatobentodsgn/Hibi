@@ -25,6 +25,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     window = new BrowserWindowClass({
       ...notchBounds(selectedDisplay()), show: false, frame: false, transparent: true, hasShadow: false,
       resizable: false, movable: false, skipTaskbar: true, focusable: false, alwaysOnTop: true,
+      ...(platform === 'darwin' ? { type: 'panel' } : {}),
       webPreferences: { preload: preloadPath, contextIsolation: true, nodeIntegration: false, sandbox: true },
     });
     window.setAlwaysOnTop?.(true, 'pop-up-menu');
