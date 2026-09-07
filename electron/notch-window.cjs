@@ -41,6 +41,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
       target.setIgnoreMouseEvents?.(presentation.interaction === 'capture' ? false : true, presentation.interaction === 'capture' ? undefined : { forward: true });
       target.webContents.send('hibi:companion:presentation', presentation);
       target.showInactive?.();
+      target.moveTop?.();
       return { degraded: !(nativeBridge?.promotionAvailable?.() && platform === 'darwin'), requestId: activeRequestId };
     },
     hide(requestId) { const target = getWindow(); if (!target || requestId !== activeRequestId) return false; makePassive(target); target.hide(); activeRequestId = null; activeActions = new Set(); return true; },
