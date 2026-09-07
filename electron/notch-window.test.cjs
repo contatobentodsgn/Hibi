@@ -35,6 +35,24 @@ test('uses the AppKit host before creating an Electron fallback window', () => {
   assert.deepEqual(calls.at(-1), ['destroy']);
 });
 
+test('prefers the physical Mac notch display when an external display is primary', () => {
+  const calls = [];
+  const external = { id: 2, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
+  const macbook = { id: 1, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
+  const multiScreen = { getAllDisplays: () => [external, macbook], getPrimaryDisplay: () => external };
+  const nativeBridge = {
+    nativeHostAvailable: () => true,
+    createHost: () => true,
+    screenGeometry: () => [{ displayId: 2, hasCameraHousing: false }, { displayId: 1, hasCameraHousing: true }],
+    showHost: (_presentation, displayId) => { calls.push(displayId); return true; },
+  };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+
+  manager.show({ requestId: 'native-mac', kind: 'confirmation', text: 'Check', actions: [{ id: 'confirm', label: 'Confirmar' }], interaction: 'capture' });
+
+  assert.deepEqual(calls, [1]);
+});
+
 test('falls back to Electron when AppKit host creation fails', () => {
   let notch;
   const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge: { nativeHostAvailable: () => true, createHost: () => false }, platform: 'darwin' });

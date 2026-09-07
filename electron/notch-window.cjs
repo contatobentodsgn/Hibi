@@ -11,7 +11,10 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
   let activeRequestId = null;
   let activeActions = new Set();
   let activeHost = null;
-  let preferredDisplayId = null;
+  // When an external monitor is primary, keep the companion on the physical
+  // Mac display that exposes a camera housing (the real notch).
+  const nativeNotchDisplay = nativeBridge?.screenGeometry?.().find((display) => display?.hasCameraHousing && Number.isInteger(display.displayId));
+  let preferredDisplayId = nativeNotchDisplay?.displayId ?? null;
   const getWindow = () => window && !window.isDestroyed() ? window : null;
   const makePassive = (target) => target.setIgnoreMouseEvents?.(true, { forward: true });
   const selectedDisplay = () => selectDisplay(screen, preferredDisplayId);
