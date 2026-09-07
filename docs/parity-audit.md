@@ -38,11 +38,13 @@ Os testes automatizados cobrem geometria, fallback, IPC, política e reducer. A 
 |---|---|---|
 | Tela interna com notch | `hasCameraHousing: true`, `safeAreaTop: 32` no addon | Aprovado para detecção e geometria |
 | Monitor externo | LG ULTRAWIDE 2560×1080 online, sem notch; addon devolveu `hasCameraHousing: false` | Aprovado para detecção e geometria |
-| Tela cheia | Janela do Hibi alternada para tela cheia e continuou acessível por automação de interface | Aprovado para janela principal; o card do overlay ainda precisa observação visual dedicada |
+| Tela cheia | Janela do Hibi alternada para tela cheia e continuou acessível por automação de interface | Aprovado para janela principal; o card do overlay depende da correção abaixo |
 | Spaces e clique pass-through | Configuração confirmada no runtime: `CanJoinAllSpaces`, `FullScreenAuxiliary`, `setVisibleOnAllWorkspaces`, `setIgnoreMouseEvents` | Cobertura de implementação; observação visual pendente |
-| Card interativo | Fluxo de confirmação é coberto pelo runtime e IPC | Observação visual pendente |
+| Card interativo | O fluxo de confirmação e IPC foram disparados, mas a janela auxiliar foi encontrada pelo compositor como `onscreen: 0` | Reprovado na inspeção visual; requer nova validação depois da correção de superfície macOS |
 | Repouso/despertar | Não executado para não interromper a sessão do usuário | Pendente de ação física controlada |
 | Desconexão/reconexão do display | Não executada para não alterar a estação de trabalho do usuário | Pendente de ação física controlada |
+
+Durante a investigação, a ponte AppKit foi corrigida para resolver o `NSView*` documentado pelo Electron até a `NSWindow` proprietária, e o overlay passou a usar uma `panel` não ativadora — a superfície pública recomendada pelo Electron para flutuar acima de apps em tela cheia e em todos os Spaces. A aprovação visual dessa alteração ainda é pendente.
 
 O runtime ainda não assina eventos de energia ou de mudança de displays. Assim, repouso/despertar e reconexão devem ser retestados depois de implementar a reavaliação automática do overlay nesses eventos.
 
