@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createNotificationScheduler, nextOccurrence, sanitizeEntries } = require('./notifications.cjs');
 
-function createHarness(start) {
+function createHarness(start, { onTrigger } = {}) {
   let now = Date.parse(start);
   let nextId = 1;
   const timers = new Map();
@@ -23,6 +23,7 @@ function createHarness(start) {
       constructor(options) { shown.push(options); }
       show() {}
     },
+    onTrigger,
   });
   return {
     scheduler,
@@ -49,6 +50,13 @@ test('shows a future one-time notification when its timer fires', () => {
 
   assert.deepEqual(harness.shown, [{ title: 'Deadline: Paper', body: 'Task deadline reached.' }]);
   assert.equal(harness.timers.size, 0);
+});
+
+test('reports the entry that triggered to the companion bridge', () => {
+  const triggered = []; const harness = createHarness('2026-09-06T12:00:00-03:00', { onTrigger: (entry) => triggered.push(entry.id) });
+  harness.scheduler.sync([{ id: 'reminder:1', kind: 'reminder', title: 'Check in', body: 'Body', at: '2026-09-06T13:00:00-03:00' }]);
+  harness.setNow('2026-09-06T13:00:00-03:00'); harness.fireNext();
+  assert.deepEqual(triggered, ['reminder:1']);
 });
 
 test('reschedules the next configured weekday after a recurring reminder fires', () => {

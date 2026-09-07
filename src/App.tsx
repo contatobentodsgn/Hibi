@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { LocalRepository } from './data/local-repository';
 import { createSeedData } from './data/seed-data';
 import type { EntityStatus, Goal, Habit, ScheduleBlock, StudyData } from './domain/models';
@@ -27,6 +27,8 @@ import { TaskCreateModal, type NewTaskForm } from './ui/TaskCreateModal';
 import { ReminderCreateModal, type NewReminderForm } from './ui/ReminderCreateModal';
 import { DeadlineEditModal } from './ui/DeadlineEditModal';
 import { createLocalHibiRuntime } from './ai/local-runtime';
+import { CompanionController } from './companion/controller';
+import type { CompanionEvent } from './companion/contracts';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
@@ -43,7 +45,11 @@ export default function App() {
   });
   const [data, setData] = useState<StudyData>(() => repository.snapshot());
   const [route, setRoute] = useState<NavKey>('home');
-  const [aiRuntime] = useState(() => createLocalHibiRuntime(repository, { onDataChanged: () => setData(repository.snapshot()), onFocusStarted: () => setRoute('focus') }));
+  const companionController = useRef<CompanionController | null>(null);
+  if (!companionController.current) companionController.current = new CompanionController({ show: (presentation) => { void window.hibiDesktop?.showNotch?.(presentation); }, hide: (requestId) => { void window.hibiDesktop?.hideNotch?.(requestId); } });
+  const dispatchCompanion = (event: CompanionEvent) => companionController.current!.dispatch(event);
+  const companionId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+  const [aiRuntime] = useState(() => createLocalHibiRuntime(repository, { onDataChanged: () => setData(repository.snapshot()), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); } }));
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
@@ -65,6 +71,7 @@ export default function App() {
     repository.updateTask(id, { status });
     refreshData();
     log(status === 'completed' ? 'complete' : 'reopen', task.title, status);
+    if (status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${task.title}`, nowMs: Date.now(), expiresInMs: 3_000 });
   };
 
   const changeReminderStatus = (id: string, status: EntityStatus) => {
@@ -77,7 +84,7 @@ export default function App() {
 
   const createBlock = (input: Omit<ScheduleBlock, 'id'>) => {
     const validation = validateScheduleBlock({ ...input, id: `preview-${Date.now()}` }, repository.listBlocks());
-    if (!validation.valid) { setValidationError(validation.errors.join('\n')); log('validation', input.title, 'blocked'); return; }
+    if (!validation.valid) { const text = validation.errors.join('\n'); setValidationError(text); log('validation', input.title, 'blocked'); dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }); return; }
     setValidationError('');
     repository.createBlock(input);
     refreshData();
@@ -145,6 +152,13 @@ export default function App() {
     const syncNotifications = window.hibiDesktop?.syncNotifications;
     if (syncNotifications) void syncNotifications(buildNotificationEntries(data)).catch(() => undefined);
   }, [data]);
+  React.useEffect(() => window.hibiDesktop?.onNotificationTriggered?.((entry) => {
+    dispatchCompanion({ type: 'reminder.triggered', requestId: companionId('reminder'), text: entry.title, nowMs: Date.now(), expiresInMs: 7_000, animationId: entry.kind === 'deadline' ? 'warning_01' : undefined });
+  }) ?? (() => undefined), []);
+  React.useEffect(() => {
+    const interval = window.setInterval(() => dispatchCompanion({ type: 'time.elapsed', nowMs: Date.now() }), 1_000);
+    return () => window.clearInterval(interval);
+  }, []);
   React.useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -170,12 +184,12 @@ export default function App() {
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
       case 'review': return <ReviewView data={data} onNavigate={navigate} />;
-      case 'taby': return <TabyView data={data} runtime={aiRuntime} onEvent={log} />;
+      case 'taby': return <TabyView data={data} runtime={aiRuntime} onEvent={log} onCompanionError={(text) => dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 })} />;
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;
-      case 'focus': return <FocusView {...props} />;
+      case 'focus': return <FocusView {...props} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} />;
       case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onTestNotification={testNativeNotification} />;
       case 'instrumentation': return <InstrumentationView events={events} onEvent={log} onClear={clearEvents} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;

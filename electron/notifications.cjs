@@ -100,7 +100,7 @@ function sanitizeEntries(entries) {
   });
 }
 
-function createNotificationScheduler({ NotificationClass, now = Date.now, setTimeout: setTimeoutFn = setTimeout, clearTimeout: clearTimeoutFn = clearTimeout } = {}) {
+function createNotificationScheduler({ NotificationClass, now = Date.now, setTimeout: setTimeoutFn = setTimeout, clearTimeout: clearTimeoutFn = clearTimeout, onTrigger = () => undefined } = {}) {
   const timers = new Map();
 
   function clear() {
@@ -129,6 +129,7 @@ function createNotificationScheduler({ NotificationClass, now = Date.now, setTim
         return;
       }
       show(entry);
+      onTrigger(entry);
       if (entry.recurrence) schedule(entry);
     }, Math.min(Math.max(delay, 1), MAX_TIMEOUT_MS));
     timers.set(entry.id, timer);
