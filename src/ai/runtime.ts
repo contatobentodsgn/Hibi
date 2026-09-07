@@ -16,6 +16,15 @@ export class AiTurnRuntime {
 
   cancel(): void { this.active?.abort(); }
 
+  async confirm(confirmation: Confirmation): Promise<Pick<AiRuntimeResult, 'toolResults' | 'partialFailure'>> {
+    const decision = await this.deps.policy.consume(confirmation.id, confirmation.calls);
+    if (decision.kind === 'blocked') throw new Error(decision.reason);
+    if (decision.kind !== 'execute') throw new Error('Confirmation could not be consumed.');
+    return this.executeCalls(confirmation.calls);
+  }
+
+  cancelConfirmation(confirmation: Confirmation): boolean { return this.deps.policy.cancel(confirmation.id); }
+
   async runTurn(input: AiTurnInput): Promise<AiRuntimeResult> {
     this.cancel();
     const controller = new AbortController();
@@ -50,13 +59,7 @@ export class AiTurnRuntime {
         return { requestId, providerLabel, reply: proposal.reply, proposal, confirmation: decision.confirmation, toolResults: [] };
       }
       emit('executing');
-      const toolResults: ToolExecutionResult[] = [];
-      let partialFailure: string | undefined;
-      for (const call of calls) {
-        if (controller.signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError');
-        try { toolResults.push(await this.execute(call)); }
-        catch (error) { partialFailure = error instanceof Error ? error.message : 'A tool failed.'; break; }
-      }
+      const { toolResults, partialFailure } = await this.executeCalls(calls, controller.signal);
       emit('completed');
       return { requestId, providerLabel, reply: partialFailure ? `${proposal.reply}\n\n${partialFailure}` : proposal.reply, proposal, toolResults, partialFailure };
     } catch (error) {
@@ -69,5 +72,16 @@ export class AiTurnRuntime {
     const tool = this.deps.registry.get(call.name);
     if (!tool) throw new Error(`Unknown tool: ${call.name}`);
     return tool.execute(call.arguments, { nowMs: Date.now() });
+  }
+
+  private async executeCalls(calls: readonly AiToolCall[], signal?: AbortSignal): Promise<Pick<AiRuntimeResult, 'toolResults' | 'partialFailure'>> {
+    const toolResults: ToolExecutionResult[] = [];
+    let partialFailure: string | undefined;
+    for (const call of calls) {
+      if (signal?.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError');
+      try { toolResults.push(await this.execute(call)); }
+      catch (error) { partialFailure = error instanceof Error ? error.message : 'A tool failed.'; break; }
+    }
+    return { toolResults, partialFailure };
   }
 }

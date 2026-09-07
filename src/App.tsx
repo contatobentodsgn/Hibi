@@ -26,7 +26,7 @@ import { firstWeeklyOccurrence } from './domain/recurrence';
 import { TaskCreateModal, type NewTaskForm } from './ui/TaskCreateModal';
 import { ReminderCreateModal, type NewReminderForm } from './ui/ReminderCreateModal';
 import { DeadlineEditModal } from './ui/DeadlineEditModal';
-import type { LocalAction } from './ai/local-actions';
+import { createLocalHibiRuntime } from './ai/local-runtime';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 
@@ -43,6 +43,7 @@ export default function App() {
   });
   const [data, setData] = useState<StudyData>(() => repository.snapshot());
   const [route, setRoute] = useState<NavKey>('home');
+  const [aiRuntime] = useState(() => createLocalHibiRuntime(repository, { onDataChanged: () => setData(repository.snapshot()), onFocusStarted: () => setRoute('focus') }));
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
@@ -102,14 +103,6 @@ export default function App() {
   const updateNote = (id: string, changes: Partial<import('./domain/models').Note>) => { repository.updateNote(id, changes); refreshData(); log('edit', id); };
   const deleteNote = (id: string) => { repository.deleteNote(id); refreshData(); log('delete', id); };
   const submitFeedback = (kind: string, text: string) => { repository.createNote({ title: `[${kind}] Feedback`, content: text, folder: 'Bento', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); refreshData(); log('feedback', kind, 'saved-local'); };
-  const executeAssistantAction = (action: LocalAction) => {
-    if (action.kind === 'create-task') repository.createTask({ title: action.title, durationMinutes: action.durationMinutes, category: 'work', folder: 'Bento', status: 'open' });
-    if (action.kind === 'create-reminder') repository.createReminder({ title: action.title, category: 'important', status: 'open', schedule: { at: action.at } });
-    if (action.kind === 'create-block') createBlock({ title: action.title, start: action.start, end: action.end, category: action.category });
-    if (action.kind === 'create-note') repository.createNote({ title: action.title, content: action.content, folder: 'Bento', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-    if (action.kind === 'start-focus') { setRoute('focus'); log('assistant-action', 'Started focus'); return; }
-    refreshData(); log('assistant-action', action.kind, 'executed');
-  };
   const createHabit = (title: string, frequency: Habit['frequency'] = 'daily', targetPerWeek = 7) => { repository.createHabit({ title, frequency, targetPerWeek, completedDates: [], status: 'open' }); refreshData(); log('create', title); };
   const updateHabit = (id: string, changes: Partial<Omit<Habit, 'id'>>) => { repository.updateHabit(id, changes); refreshData(); log('edit', id); };
   const deleteHabit = (id: string) => { repository.deleteHabit(id); refreshData(); log('delete', id); };
@@ -177,7 +170,7 @@ export default function App() {
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
       case 'review': return <ReviewView data={data} onNavigate={navigate} />;
-      case 'taby': return <TabyView data={data} onEvent={log} onAction={executeAssistantAction} />;
+      case 'taby': return <TabyView data={data} runtime={aiRuntime} onEvent={log} />;
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;

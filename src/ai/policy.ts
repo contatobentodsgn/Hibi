@@ -81,4 +81,10 @@ export class AiToolPolicy {
     this.confirmations.delete(id);
     return { kind: 'execute' };
   }
+
+  cancel(id: string): boolean {
+    if (!this.confirmations.has(id) || this.consumed.has(id)) return false;
+    this.confirmations.delete(id);
+    return true;
+  }
 }
