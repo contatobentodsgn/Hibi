@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, Notification } = require("electron");
 const path = require("node:path");
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.cjs");
 const { createMainAiRuntime } = require("./ai-runtime.cjs");
-const { createAiConfiguration } = require('./ai-config.cjs');
+const { createAiConfiguration, verifyAndSaveAiConfiguration } = require('./ai-config.cjs');
 const { createNotchWindowManager } = require("./notch-window.cjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
@@ -69,7 +69,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:ai:cancel', () => { aiRuntime.cancel(); return true; });
   ipcMain.handle('hibi:ai-config:get', () => aiConfiguration.getStatus());
   ipcMain.handle('hibi:ai-config:save', async (_event, value) => {
-    const status = await aiConfiguration.save(value);
+    const status = await verifyAndSaveAiConfiguration({ configuration: aiConfiguration, value, verifyCandidate: async (config) => createMainAiRuntime({ config }).testConnection() });
     aiRuntime = createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) });
     return status;
   });

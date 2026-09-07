@@ -49,6 +49,7 @@ export class AiTurnRuntime {
         proposal = await fallback.generate(request, controller.signal);
         providerLabel = fallback.label;
       }
+      providerLabel = proposal.providerMetadata?.model ?? providerLabel;
       if (controller.signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError');
       emit('validating');
       const calls = proposal.toolCalls.slice(0, 2);

@@ -45,9 +45,9 @@ function localProposal(request: AiProviderRequest): AiProviderProposal {
   return { reply, toolCalls, notchPresentation: null, providerMetadata: { model: 'local-tool-provider' } };
 }
 
-class LocalToolProvider implements AiProvider { readonly id = 'local-tools'; readonly label = 'Hibi local tools'; async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> { if (signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError'); return localProposal(request); } }
+export class LocalToolProvider implements AiProvider { readonly id = 'local-tools'; readonly label = 'Hibi local tools'; async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> { if (signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError'); return localProposal(request); } }
 
-export function createLocalHibiRuntime(repository: LocalRepository, hooks: Hooks = {}): AiTurnRuntime {
+export function createLocalHibiRuntime(repository: LocalRepository, hooks: Hooks = {}, provider: AiProvider = new LocalToolProvider()): AiTurnRuntime {
   const registry = createLocalToolRegistry(repository, hooks);
-  return new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), provider: new LocalToolProvider(), context: { get tasks() { return repository.listTasks().map((task) => ({ id: task.id, title: task.title, dueAt: task.deadline })); }, get reminders() { return repository.listReminders().map((reminder) => ({ id: reminder.id, title: reminder.title, nextAt: reminder.schedule.at })); }, get schedule() { return repository.listBlocks(); } } });
+  return new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), provider, context: { get tasks() { return repository.listTasks().map((task) => ({ id: task.id, title: task.title, dueAt: task.deadline })); }, get reminders() { return repository.listReminders().map((reminder) => ({ id: reminder.id, title: reminder.title, nextAt: reminder.schedule.at })); }, get schedule() { return repository.listBlocks(); } } });
 }

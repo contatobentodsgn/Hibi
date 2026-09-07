@@ -80,7 +80,19 @@ function createAiConfiguration({ filePath, keychain = createMacKeychain() }) {
       const config = read();
       return config.provider === 'local' ? {} : { ...config, apiKey: await keychain.get(config.provider) };
     },
+    getCandidateRuntimeConfig: async (value) => {
+      const config = validateConfig(value);
+      if (config.provider === 'local') return {};
+      const apiKey = typeof value.apiKey === 'string' && value.apiKey.trim() ? value.apiKey : await keychain.get(config.provider);
+      return { ...config, apiKey };
+    },
   };
 }
 
-module.exports = { DEFAULT_CONFIG, SERVICE, createAiConfiguration, createMacKeychain, validateConfig };
+async function verifyAndSaveAiConfiguration({ configuration, value, verifyCandidate }) {
+  const candidate = await configuration.getCandidateRuntimeConfig(value);
+  if (candidate.apiKey) await verifyCandidate(candidate);
+  return configuration.save(value);
+}
+
+module.exports = { DEFAULT_CONFIG, SERVICE, createAiConfiguration, createMacKeychain, validateConfig, verifyAndSaveAiConfiguration };

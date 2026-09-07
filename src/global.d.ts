@@ -1,4 +1,5 @@
 import type { NotificationEntry } from './domain/notifications';
+import type { AiProviderRequest } from './ai/contracts';
 
 declare global {
   interface Window {
@@ -8,7 +9,7 @@ declare global {
       setOpenAtLogin?: (enabled: boolean) => Promise<boolean>;
       syncNotifications?: (entries: NotificationEntry[]) => Promise<void>;
       showTestNotification?: () => Promise<boolean>;
-      runAiTurn?: (turn: { message: string; surface: 'desktop' | 'notch' }) => Promise<{ reply: string; providerLabel: string }>;
+      runAiTurn?: (turn: { request: AiProviderRequest }) => Promise<{ content: string; providerLabel: string; model: string }>;
       cancelAiTurn?: () => Promise<boolean>;
       getAiConfig?: () => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
       saveAiConfig?: (config: { provider: 'local' | 'openai-compatible'; endpoint: string; model: string; apiKey?: string }) => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;

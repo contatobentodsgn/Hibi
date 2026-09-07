@@ -26,7 +26,8 @@ import { firstWeeklyOccurrence } from './domain/recurrence';
 import { TaskCreateModal, type NewTaskForm } from './ui/TaskCreateModal';
 import { ReminderCreateModal, type NewReminderForm } from './ui/ReminderCreateModal';
 import { DeadlineEditModal } from './ui/DeadlineEditModal';
-import { createLocalHibiRuntime } from './ai/local-runtime';
+import { createLocalHibiRuntime, LocalToolProvider } from './ai/local-runtime';
+import { ElectronConfiguredProvider } from './ai/electron-provider';
 import { CompanionController } from './companion/controller';
 import type { CompanionEvent } from './companion/contracts';
 
@@ -49,7 +50,7 @@ export default function App() {
   if (!companionController.current) companionController.current = new CompanionController({ show: (presentation) => { void window.hibiDesktop?.showNotch?.(presentation); }, hide: (requestId) => { void window.hibiDesktop?.hideNotch?.(requestId); } });
   const dispatchCompanion = (event: CompanionEvent) => companionController.current!.dispatch(event);
   const companionId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
-  const [aiRuntime] = useState(() => createLocalHibiRuntime(repository, { onDataChanged: () => setData(repository.snapshot()), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); } }));
+  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); } }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider())); });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);

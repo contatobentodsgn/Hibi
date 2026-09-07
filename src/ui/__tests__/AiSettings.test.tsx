@@ -11,5 +11,6 @@ describe('AI settings', () => {
     expect(markup).toContain('Model');
     expect(markup).toContain('Stored only in macOS Keychain');
     expect(markup).toContain('Save AI settings');
+    expect(markup).toContain('The endpoint, key, and model are tested before any setting is saved.');
   });
 });

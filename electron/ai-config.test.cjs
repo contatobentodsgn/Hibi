@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createAiConfiguration, createMacKeychain } = require('./ai-config.cjs');
+const { createAiConfiguration, createMacKeychain, verifyAndSaveAiConfiguration } = require('./ai-config.cjs');
 
 const tempFile = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hibi-ai-config-')), 'config.json');
 
@@ -38,4 +38,25 @@ test('does not accept credentials for the local-only provider', async () => {
   const config = createAiConfiguration({ filePath: tempFile(), keychain: { set: async () => { throw new Error('must not write'); }, has: async () => false, remove: async () => true } });
 
   await assert.rejects(() => config.save({ provider: 'local', endpoint: '', model: 'local-tool-provider', apiKey: 'secret-value' }), /external provider/);
+});
+
+test('does not persist a candidate configuration when its connection test fails', async () => {
+  const filePath = tempFile();
+  const calls = [];
+  const config = createAiConfiguration({ filePath, keychain: { set: async (...args) => calls.push(args), has: async () => false, get: async () => 'secret-value', remove: async () => true } });
+
+  await assert.rejects(() => verifyAndSaveAiConfiguration({ configuration: config, value: { provider: 'openai-compatible', endpoint: 'https://api.example.test/v1', model: 'gpt-test', apiKey: 'secret-value' }, verifyCandidate: async (candidate) => { assert.equal(candidate.apiKey, 'secret-value'); throw new Error('Provider request failed (401).'); } }), /401/);
+
+  assert.equal(fs.existsSync(filePath), false);
+  assert.deepEqual(calls, []);
+});
+
+test('saves only after a candidate connection succeeds', async () => {
+  const config = createAiConfiguration({ filePath: tempFile(), keychain: { set: async () => undefined, has: async () => true, get: async () => 'secret-value', remove: async () => true } });
+  let candidate;
+
+  const status = await verifyAndSaveAiConfiguration({ configuration: config, value: { provider: 'openai-compatible', endpoint: 'https://api.example.test/v1', model: 'gpt-test', apiKey: 'secret-value' }, verifyCandidate: async (value) => { candidate = value; } });
+
+  assert.equal(candidate.model, 'gpt-test');
+  assert.equal(status.hasApiKey, true);
 });
