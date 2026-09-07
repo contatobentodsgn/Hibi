@@ -2,12 +2,14 @@ const { app, BrowserWindow, ipcMain, Notification } = require("electron");
 const path = require("node:path");
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.cjs");
 const { createMainAiRuntime } = require("./ai-runtime.cjs");
+const { createAiConfiguration } = require('./ai-config.cjs');
 const { createNotchWindowManager } = require("./notch-window.cjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
 let mainWindow;
 let notificationScheduler;
 let aiRuntime;
+let aiConfiguration;
 let notchWindow;
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
 const notchAdapter = nativeNotchBridge.createNotchAdapter({
@@ -48,9 +50,10 @@ function createWindow() {
   else mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
-  aiRuntime = createMainAiRuntime();
+  aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
+  aiRuntime = createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) });
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen: require('electron').screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => mainWindow?.webContents.send('hibi:companion:action', action) });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
   ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
@@ -64,6 +67,17 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('hibi:ai:run', (_event, turn) => aiRuntime.run(turn));
   ipcMain.handle('hibi:ai:cancel', () => { aiRuntime.cancel(); return true; });
+  ipcMain.handle('hibi:ai-config:get', () => aiConfiguration.getStatus());
+  ipcMain.handle('hibi:ai-config:save', async (_event, value) => {
+    const status = await aiConfiguration.save(value);
+    aiRuntime = createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) });
+    return status;
+  });
+  ipcMain.handle('hibi:ai-config:delete-key', async () => {
+    const status = await aiConfiguration.deleteKey();
+    aiRuntime = createMainAiRuntime();
+    return status;
+  });
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
   ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));

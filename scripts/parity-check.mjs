@@ -11,6 +11,7 @@ const files = {
   preload: await readFile('electron/preload.cjs', 'utf8'),
   main: await readFile('electron/main.cjs', 'utf8'),
   aiContracts: await readFile('src/ai/contracts.ts', 'utf8'),
+  aiConfig: await readFile('electron/ai-config.cjs', 'utf8'),
   policy: await readFile('src/ai/policy.ts', 'utf8'),
   companion: await readFile('src/companion/reducer.ts', 'utf8'),
   geometry: await readFile('electron/notch-geometry.cjs', 'utf8'),
@@ -31,6 +32,7 @@ const checks = [
   ['dates: workspace-aware views', files.home.includes('referenceDate(data)') && files.day.includes('referenceDate(data)') && files.week.includes('referenceDate(data)') && files.taby.includes('referenceDate(data)'), 'views derive schedule dates'],
   ['ai: provider-neutral contracts', files.aiContracts.includes('AiProvider') && files.aiContracts.includes('AiProviderProposal'), 'bounded AI provider contract'],
   ['ai: confirmation policy', files.policy.includes('Confirmation') && files.policy.includes('SHA-256'), 'single-use confirmation binding'],
+  ['ai: secure configuration', files.aiConfig.includes('createMacKeychain') && files.aiConfig.includes('nativeKeychain') && files.preload.includes('saveAiConfig') && files.taby.includes('Model:'), 'Keychain-backed provider configuration and model provenance'],
   ['companion: deterministic state', files.companion.includes('reduceCompanion') && files.companion.includes('requestId'), 'stale event guard'],
   ['notch: documented fallback', files.geometry.includes('BASE_WIDTH = 392') && files.main.includes('createNotchWindowManager'), 'Electron fallback placement'],
 ];

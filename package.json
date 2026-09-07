@@ -6,14 +6,15 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
-    "desktop": "node scripts/start-desktop.mjs",
+    "desktop": "npm run native:build && node scripts/start-desktop.mjs",
     "desktop:production": "npm run build && HIBI_PRODUCTION=1 electron electron/main.cjs",
-    "build": "tsc --noEmit && vite build",
+    "native:build": "npm --prefix native/notch run build",
+    "build": "npm run native:build && tsc --noEmit && vite build",
     "check:companion-assets": "node scripts/check-companion-assets.mjs",
     "safety:renderer": "node scripts/renderer-safety-check.mjs",
     "parity:check": "node scripts/parity-check.mjs",
     "audit": "npm run parity:check && npm run build && npm test && npm run test:e2e",
-    "test": "vitest run src --exclude 'src/**/._*' --exclude '**/.worktrees/**' && node --test electron/*.test.cjs native/notch/index.test.cjs",
+    "test": "vitest run src --exclude 'src/**/._*' --exclude '**/.worktrees/**' && node --test electron/*.test.cjs native/notch/*.test.cjs",
     "test:e2e": "playwright test"
   },
   "dependencies": { "react": "^19.2.0", "react-dom": "^19.2.0" },

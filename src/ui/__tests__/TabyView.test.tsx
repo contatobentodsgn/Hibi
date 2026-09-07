@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { createSeedData } from '../../data/seed-data';
-import { confirmationPresentationFor, TabyView } from '../TabyView';
+import { confirmationPresentationFor, modelLabelFor, TabyView } from '../TabyView';
 import { createLocalHibiRuntime } from '../../ai/local-runtime';
 import { LocalRepository } from '../../data/local-repository';
 
@@ -26,5 +26,10 @@ describe('TabyView capability boundaries', () => {
       requestId: 'request-1', kind: 'confirmation', text: 'Criar tarefa?', interaction: 'capture',
       actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }],
     });
+  });
+
+  it('uses provider model metadata as the response provenance label', () => {
+    expect(modelLabelFor({ providerLabel: 'Compatible provider', proposal: { providerMetadata: { model: 'gpt-test' } } })).toBe('gpt-test');
+    expect(modelLabelFor({ providerLabel: 'Hibi local tools', proposal: {} })).toBe('Hibi local tools');
   });
 });

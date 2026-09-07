@@ -10,5 +10,6 @@ describe('Settings notifications action', () => {
     );
 
     expect(markup).toContain('>Notifications</button>');
+    expect(markup).toContain('>AI</button>');
   });
 });
