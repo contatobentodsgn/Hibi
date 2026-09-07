@@ -4,7 +4,7 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 
 ## Situação atual
 
-Última verificação: 06/09/2026. Evidências executadas no repositório: `npm run build`, `npm test` (6 arquivos Vitest, 24 testes, mais 5 testes nativos), `npm run test:e2e` (15 fluxos aprovados) e `npm audit --omit=dev` (0 vulnerabilidades de produção). Esses testes validam a implementação do Hibi; não equivalem, por si só, a paridade 1:1 com o produto de referência.
+Última verificação: 07/09/2026. Evidências executadas no repositório: `npm run build`, `npm test` (6 arquivos Vitest, 24 testes, mais 5 testes nativos), `npm run test:e2e` (15 fluxos aprovados) e `npm audit --omit=dev` (0 vulnerabilidades de produção). Esses testes validam a implementação do Hibi; não equivalem, por si só, a paridade 1:1 com o produto de referência.
 
 | Área | Hibi | Observação |
 |---|---|---|
@@ -20,7 +20,7 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 | Goals | Funcional | Metas, progresso limitado ao alvo, conclusão, edição e exclusão. |
 | Review | Funcional | Resumo de tarefas, hábitos, metas, notas e blocos com atalhos. |
 | Taby/AI | Funcional local / extensível | Runtime próprio com provedor heurístico, contrato para provedor OpenAI-compatível, contexto mínimo, política determinística e confirmação vinculada. Não reutiliza o Brain original. |
-| Hardware/notch | Fallback funcional / promoção opcional | Janela Electron transparente no topo do monitor, todos os Spaces, click-through e estados semânticos. O bridge AppKit próprio é opcional; sem addon compilado o status é degradado, não “hardware notch”. |
+| Hardware/notch | Funcional com ponte AppKit pública | Janela Electron transparente no topo do monitor, todos os Spaces, click-through e estados semânticos. Em 07/09/2026, o addon próprio compilado informou a tela interna com `hasCameraHousing: true` e área segura de 32 pt, além do LG ULTRAWIDE externo sem notch. |
 | Feedback/updates | Parcial | Feedback, bug e ideia são salvos localmente; `/updates` informa a build offline, sem serviço remoto de envio nem atualização do produto. |
 | Notificações nativas | Funcional | Scheduler macOS para lembretes/deadlines, recorrência e teste. |
 | Animações | Parcial | Transições CSS acessíveis; o inventário original referencia dezenas de vídeos/estados proprietários que não estão disponíveis no Hibi. |
@@ -30,9 +30,21 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 
 O Hibi não é uma réplica 1:1. O núcleo de planejamento local e a nova base de IA/companion estão operacionais com implementação própria; paridade visual e integrações proprietárias continuam fora do escopo.
 
-## Matriz manual macOS pendente
+## Validação manual do notch no macOS — 07/09/2026
 
-Os testes automatizados cobrem geometria, fallback, IPC, política e reducer. Antes de habilitar a janela por padrão em uma release, validar manualmente em Mac com notch, Mac sem notch, monitor externo, Space em tela cheia, clique pass-through, card interativo, repouso/despertar e reconexão de display. Nesta árvore o bridge nativo não está compilado, portanto o estado esperado é `degraded`.
+Os testes automatizados cobrem geometria, fallback, IPC, política e reducer. A validação manual nesta máquina encontrou a tela interna com camera housing e um LG ULTRAWIDE externo conectado como monitor principal. A ponte AppKit compilada devolveu as duas geometrias corretamente e a janela principal permaneceu acessível após alternar para tela cheia.
+
+| Cenário | Evidência atual | Estado |
+|---|---|---|
+| Tela interna com notch | `hasCameraHousing: true`, `safeAreaTop: 32` no addon | Aprovado para detecção e geometria |
+| Monitor externo | LG ULTRAWIDE 2560×1080 online, sem notch; addon devolveu `hasCameraHousing: false` | Aprovado para detecção e geometria |
+| Tela cheia | Janela do Hibi alternada para tela cheia e continuou acessível por automação de interface | Aprovado para janela principal; o card do overlay ainda precisa observação visual dedicada |
+| Spaces e clique pass-through | Configuração confirmada no runtime: `CanJoinAllSpaces`, `FullScreenAuxiliary`, `setVisibleOnAllWorkspaces`, `setIgnoreMouseEvents` | Cobertura de implementação; observação visual pendente |
+| Card interativo | Fluxo de confirmação é coberto pelo runtime e IPC | Observação visual pendente |
+| Repouso/despertar | Não executado para não interromper a sessão do usuário | Pendente de ação física controlada |
+| Desconexão/reconexão do display | Não executada para não alterar a estação de trabalho do usuário | Pendente de ação física controlada |
+
+O runtime ainda não assina eventos de energia ou de mudança de displays. Assim, repouso/despertar e reconexão devem ser retestados depois de implementar a reavaliação automática do overlay nesses eventos.
 
 ## Próximo ciclo recomendado
 
