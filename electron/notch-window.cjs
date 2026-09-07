@@ -12,6 +12,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
   let activeActions = new Set();
   let preferredDisplayId = null;
   const getWindow = () => window && !window.isDestroyed() ? window : null;
+  const makePassive = (target) => target.setIgnoreMouseEvents?.(true, { forward: true });
   const selectedDisplay = () => selectDisplay(screen, preferredDisplayId);
   const position = () => {
     const target = getWindow(); if (!target) return;
@@ -28,7 +29,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     });
     window.setAlwaysOnTop?.(true, 'pop-up-menu');
     window.setVisibleOnAllWorkspaces?.(true, { visibleOnFullScreen: true });
-    window.setIgnoreMouseEvents?.(true, { forward: true });
+    makePassive(window);
     window.on?.('closed', () => { window = null; activeRequestId = null; activeActions = new Set(); });
     load(window);
     return window;
@@ -42,12 +43,12 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
       target.showInactive?.();
       return { degraded: !(nativeBridge?.promotionAvailable?.() && platform === 'darwin'), requestId: activeRequestId };
     },
-    hide(requestId) { const target = getWindow(); if (!target || requestId !== activeRequestId) return false; target.hide(); activeRequestId = null; activeActions = new Set(); return true; },
+    hide(requestId) { const target = getWindow(); if (!target || requestId !== activeRequestId) return false; makePassive(target); target.hide(); activeRequestId = null; activeActions = new Set(); return true; },
     resolveAction(requestId, actionId) {
       const target = getWindow();
       if (!target || requestId !== activeRequestId || !activeActions.has(actionId)) return false;
+      makePassive(target); target.hide(); activeRequestId = null; activeActions = new Set();
       onAction?.({ requestId, actionId });
-      target.hide(); activeRequestId = null; activeActions = new Set();
       return true;
     },
     setPreferredDisplay(displayId) { preferredDisplayId = Number.isInteger(displayId) ? displayId : null; position(); },

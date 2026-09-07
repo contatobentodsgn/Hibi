@@ -59,4 +59,15 @@ describe('AI tool policy', () => {
     await expect(policy.consume(decision.confirmation.id, [{ name: 'task.delete', arguments: { id: 'task-2' } }], 101)).resolves.toMatchObject({ kind: 'blocked', reason: 'Confirmation does not match these tool calls.' });
     await expect(policy.consume(decision.confirmation.id, [{ name: 'task.delete', arguments: { id: 'task-1' } }], 111)).resolves.toMatchObject({ kind: 'blocked', reason: 'Confirmation has expired.' });
   });
+
+  it('invalidates a cancelled confirmation so it can never execute', async () => {
+    const policy = new AiToolPolicy(registry());
+    const calls = [{ name: 'task.delete', arguments: { id: 'task-1' } }];
+    const decision = await policy.decide(calls, 100);
+    if (decision.kind !== 'confirm') throw new Error('Expected confirmation');
+
+    expect(policy.cancel(decision.confirmation.id)).toBe(true);
+    expect(policy.cancel(decision.confirmation.id)).toBe(false);
+    await expect(policy.consume(decision.confirmation.id, calls, 101)).resolves.toMatchObject({ kind: 'blocked' });
+  });
 });

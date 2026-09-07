@@ -14,3 +14,17 @@ test('resolves only an action belonging to the active presentation', () => {
   assert.deepEqual(received, [{ requestId: 'confirm-1', actionId: 'confirm' }]);
   assert.equal(manager.activeRequestId, null);
 });
+test('cancelling a confirmation releases mouse capture before closing the card', () => {
+  let notch;
+  let manager;
+  const callbackStates = [];
+  manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, onAction: () => callbackStates.push(manager.activeRequestId) });
+  manager.show({ requestId: 'confirm-cancel', kind: 'confirmation', text: 'Create task?', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }], interaction: 'capture' });
+
+  assert.equal(manager.resolveAction('confirm-cancel', 'cancel'), true);
+
+  assert.deepEqual(notch.calls.at(-2), ['mouse', true, { forward: true }]);
+  assert.deepEqual(notch.calls.at(-1), ['hide']);
+  assert.equal(manager.activeRequestId, null);
+  assert.deepEqual(callbackStates, [null]);
+});

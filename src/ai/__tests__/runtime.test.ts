@@ -28,6 +28,16 @@ describe('AI turn runtime', () => {
     await expect(runtime.confirm(pending.confirmation)).resolves.toMatchObject({ toolResults: [{ summary: 'Deleted' }] });
     expect(execute).toHaveBeenCalledWith({ id: 'task-1' }, expect.any(Object));
   });
+  it('never executes a confirmation after the user cancels it', async () => {
+    const execute = vi.fn(() => ({ summary: 'Deleted' })); const remove = testTool('task.delete', 'destructive', execute);
+    const runtime = setup(provider({ reply: 'Delete?', toolCalls: [{ name: 'task.delete', arguments: { id: 'task-1' } }], notchPresentation: null }), [remove]);
+    const pending = await runtime.runTurn({ message: 'Delete it', surface: 'desktop' });
+    if (!pending.confirmation) throw new Error('Expected confirmation');
+
+    expect(runtime.cancelConfirmation(pending.confirmation)).toBe(true);
+    await expect(runtime.confirm(pending.confirmation)).rejects.toThrow(/invalid|used/i);
+    expect(execute).not.toHaveBeenCalled();
+  });
   it('executes calls sequentially and reports truthful partial failures', async () => {
     const sequence: string[] = []; const first = testTool('first', 'read', () => { sequence.push('first'); return { summary: 'first' }; }); const second = testTool('second', 'read', () => { sequence.push('second'); throw new Error('Second failed'); });
     const runtime = setup(provider({ reply: 'Done', toolCalls: [{ name: 'first', arguments: {} }, { name: 'second', arguments: {} }], notchPresentation: null }), [first, second]);
