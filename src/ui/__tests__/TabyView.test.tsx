@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { createSeedData } from '../../data/seed-data';
-import { confirmationPresentationFor, modelLabelFor, TabyView } from '../TabyView';
+import { companionEventFor, confirmationPresentationFor, modelLabelFor, TabyView } from '../TabyView';
 import { createLocalHibiRuntime } from '../../ai/local-runtime';
 import { LocalRepository } from '../../data/local-repository';
 
@@ -31,5 +31,11 @@ describe('TabyView capability boundaries', () => {
   it('uses provider model metadata as the response provenance label', () => {
     expect(modelLabelFor({ providerLabel: 'Compatible provider', proposal: { providerMetadata: { model: 'gpt-test' } } })).toBe('gpt-test');
     expect(modelLabelFor({ providerLabel: 'Hibi local tools', proposal: {} })).toBe('Hibi local tools');
+  });
+
+  it('maps assistant stages, confirmations, results, and failures to companion events', () => {
+    expect(companionEventFor('confirmation', 'c-1', 'Confirm?', 10)).toMatchObject({ type: 'confirmation.requested', requestId: 'c-1', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] });
+    expect(companionEventFor('result', 'r-1', 'Done', 10)).toMatchObject({ type: 'ai.result', requestId: 'r-1', expiresInMs: 4_000 });
+    expect(companionEventFor('error', 'e-1', 'Failed', 10)).toMatchObject({ type: 'error.raised', requestId: 'e-1', expiresInMs: 5_000 });
   });
 });
