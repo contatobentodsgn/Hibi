@@ -40,11 +40,11 @@ Os testes automatizados cobrem geometria, fallback, IPC, política e reducer. A 
 | Monitor externo | LG ULTRAWIDE 2560×1080 online, sem notch; addon devolveu `hasCameraHousing: false` | Aprovado para detecção e geometria |
 | Tela cheia | Janela do Hibi alternada para tela cheia e continuou acessível por automação de interface | Aprovado para janela principal; o card do overlay depende da correção abaixo |
 | Spaces e clique pass-through | Configuração confirmada no runtime: `CanJoinAllSpaces`, `FullScreenAuxiliary`, `setVisibleOnAllWorkspaces`, `setIgnoreMouseEvents` | Cobertura de implementação; observação visual pendente |
-| Card interativo | O fluxo de confirmação e IPC foram disparados, mas a janela auxiliar foi encontrada pelo compositor como `onscreen: 0` | Reprovado na inspeção visual; requer nova validação depois da correção de superfície macOS |
+| Card interativo | O fluxo de confirmação e IPC foram disparados três vezes após correções de ponte e superfície; a janela auxiliar continuou como `onscreen: 0` no compositor | Reprovado na inspeção visual; requer revisão arquitetural da estratégia de superfície |
 | Repouso/despertar | Não executado para não interromper a sessão do usuário | Pendente de ação física controlada |
 | Desconexão/reconexão do display | Não executada para não alterar a estação de trabalho do usuário | Pendente de ação física controlada |
 
-Durante a investigação, a ponte AppKit foi corrigida para resolver o `NSView*` documentado pelo Electron até a `NSWindow` proprietária, e o overlay passou a usar uma `panel` não ativadora — a superfície pública recomendada pelo Electron para flutuar acima de apps em tela cheia e em todos os Spaces. A aprovação visual dessa alteração ainda é pendente.
+Durante a investigação, a ponte AppKit foi corrigida para resolver o `NSView*` documentado pelo Electron até a `NSWindow` proprietária, e o overlay passou a usar uma `panel` não ativadora — a superfície pública recomendada pelo Electron para flutuar acima de apps em tela cheia e em todos os Spaces. Mesmo assim, a confirmação continua criada fora do compositor. As três hipóteses isoladas testadas foram: promoção de z-order, resolução correta do handle e uso de `panel`; nenhuma tornou a janela visível. Novas tentativas incrementais devem parar até que a estratégia seja redesenhada (por exemplo, um host AppKit dedicado em vez de uma janela secundária do Electron).
 
 O runtime ainda não assina eventos de energia ou de mudança de displays. Assim, repouso/despertar e reconexão devem ser retestados depois de implementar a reavaliação automática do overlay nesses eventos.
 
