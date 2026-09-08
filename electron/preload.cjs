@@ -15,6 +15,17 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,hideNotch: (requestId) => ipcRenderer.invoke('hibi:notch:hide', requestId)
   ,resolveNotchAction: (requestId, actionId) => ipcRenderer.invoke('hibi:notch:action', requestId, actionId)
   ,getNotchCapabilities: () => ipcRenderer.invoke('hibi:notch:capabilities')
+  ,onAiStreamEvent: (callback) => {
+    if (typeof callback !== 'function') throw new TypeError('AI stream listener must be a function.');
+    let subscribed = true;
+    const listener = (_event, streamEvent) => { if (subscribed) callback(streamEvent); };
+    ipcRenderer.on('hibi:ai:stream', listener);
+    return () => {
+      if (!subscribed) return;
+      subscribed = false;
+      ipcRenderer.removeListener('hibi:ai:stream', listener);
+    };
+  }
   ,onCompanionPresentation: (callback) => { const listener = (_event, presentation) => callback(presentation); ipcRenderer.on('hibi:companion:presentation', listener); return () => ipcRenderer.removeListener('hibi:companion:presentation', listener); }
   ,onCompanionAction: (callback) => { const listener = (_event, action) => callback(action); ipcRenderer.on('hibi:companion:action', listener); return () => ipcRenderer.removeListener('hibi:companion:action', listener); }
   ,onNotificationTriggered: (callback) => { const listener = (_event, entry) => callback(entry); ipcRenderer.on('hibi:notification:triggered', listener); return () => ipcRenderer.removeListener('hibi:notification:triggered', listener); }

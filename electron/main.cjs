@@ -13,6 +13,9 @@ let aiConfiguration;
 let notchWindow;
 let detachNotchLifecycle = () => {};
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
+const MAX_AI_STREAM_DELTA = 8000;
+const MAX_AI_STREAM_DELAY = 60_000;
+const MAX_AI_STREAM_TEXT = 240;
 const notchAdapter = nativeNotchBridge.createNotchAdapter({
   mode: process.env.HIBI_NOTCH_ADAPTER,
   isPackaged: app.isPackaged,
@@ -46,6 +49,42 @@ function notchCapabilities(adapter, manager) {
     screens: adapter.screenGeometry?.() ?? [],
     host: manager?.diagnostics ?? { available: false },
   };
+}
+
+function safeAiFailure(value) {
+  if (!value || typeof value !== 'object') return null;
+  const code = value.code;
+  const retryable = value.retryable;
+  if (!['invalid_credentials', 'rate_limited', 'unavailable', 'invalid_response', 'cancelled'].includes(code) || typeof retryable !== 'boolean') return null;
+  const retryAfterMs = value.retryAfterMs;
+  if (retryAfterMs !== undefined && (!Number.isFinite(retryAfterMs) || retryAfterMs <= 0 || retryAfterMs > MAX_AI_STREAM_DELAY)) return null;
+  return { code, retryable, ...(retryAfterMs === undefined ? {} : { retryAfterMs }) };
+}
+
+function safeAiUsage(value) {
+  if (!value || typeof value !== 'object') return null;
+  const inputTokens = value.inputTokens; const outputTokens = value.outputTokens; const totalTokens = value.totalTokens; const estimatedCost = value.estimatedCost;
+  if (![inputTokens, outputTokens, totalTokens].every((item) => Number.isFinite(item) && item >= 0) || (estimatedCost !== undefined && (!Number.isFinite(estimatedCost) || estimatedCost < 0))) return null;
+  return { inputTokens, outputTokens, totalTokens, ...(estimatedCost === undefined ? {} : { estimatedCost }) };
+}
+
+function safeAiStreamEvent(value) {
+  if (!value || typeof value !== 'object') return null;
+  if (value.type === 'delta' && typeof value.delta === 'string' && value.delta.length > 0 && value.delta.length <= MAX_AI_STREAM_DELTA) return { type: 'delta', delta: value.delta };
+  if (value.type === 'usage') { const usage = safeAiUsage(value.usage); return usage ? { type: 'usage', usage } : null; }
+  if (value.type === 'completed') return { type: 'completed' };
+  if (value.type === 'failed') { const failure = safeAiFailure(value.failure); return failure ? { type: 'failed', failure } : null; }
+  if (value.type === 'retrying') {
+    const failure = safeAiFailure(value.failure);
+    if (failure && Number.isInteger(value.attempt) && value.attempt >= 1 && value.attempt <= 2 && Number.isFinite(value.delayMs) && value.delayMs >= 0 && value.delayMs <= MAX_AI_STREAM_DELAY) return { type: 'retrying', attempt: value.attempt, delayMs: value.delayMs, failure };
+  }
+  if (value.type === 'started') {
+    const requestId = typeof value.requestId === 'string' && value.requestId.length <= MAX_AI_STREAM_TEXT ? value.requestId : undefined;
+    const provider = typeof value.provider === 'string' && value.provider.length <= MAX_AI_STREAM_TEXT ? value.provider : undefined;
+    const model = typeof value.model === 'string' && value.model.length <= MAX_AI_STREAM_TEXT ? value.model : undefined;
+    return { type: 'started', ...(requestId === undefined ? {} : { requestId }), ...(provider === undefined ? {} : { provider }), ...(model === undefined ? {} : { model }) };
+  }
+  return null;
 }
 
 function attachNotchLifecycle({ displayService, powerService, manager }) {
@@ -104,7 +143,12 @@ app.whenReady().then(async () => {
     notification.show();
     return true;
   });
-  ipcMain.handle('hibi:ai:run', (_event, turn) => aiRuntime.run(turn));
+  ipcMain.handle('hibi:ai:run', (event, turn) => aiRuntime.run(turn, {
+    onEvent: (streamEvent) => {
+      const safeEvent = safeAiStreamEvent(streamEvent);
+      if (safeEvent && !event.sender.isDestroyed()) event.sender.send('hibi:ai:stream', safeEvent);
+    },
+  }));
   ipcMain.handle('hibi:ai:cancel', () => { aiRuntime.cancel(); return true; });
   ipcMain.handle('hibi:ai-config:get', () => aiConfiguration.getStatus());
   ipcMain.handle('hibi:ai-config:save', async (_event, value) => {
