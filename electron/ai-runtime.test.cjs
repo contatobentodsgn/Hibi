@@ -154,6 +154,24 @@ test('does not retry invalid HTTP client requests or expose provider text', asyn
   }
 });
 
+test('retries HTTP request timeouts within the unavailable fetch budget', async () => {
+  const events = []; const delays = []; let calls = 0;
+  const client = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', onEvent: (event) => events.push(event), sleep: async (delay) => { delays.push(delay); }, fetchImpl: async () => {
+    calls += 1;
+    return jsonResponse({ error: { message: 'raw timeout detail' } }, { status: 408 });
+  } });
+
+  await assert.rejects(() => client.generate({ message: 'x', surface: 'desktop' }), /unavailable/);
+
+  assert.equal(calls, 3);
+  assert.deepEqual(delays, [1_000, 2_000]);
+  assert.deepEqual(events, [
+    { type: 'retrying', attempt: 1, delayMs: 1_000, failure: { code: 'unavailable', retryable: true } },
+    { type: 'retrying', attempt: 2, delayMs: 2_000, failure: { code: 'unavailable', retryable: true } },
+    { type: 'failed', failure: { code: 'unavailable', retryable: true } },
+  ]);
+});
+
 test('stops after the exact global rate-limited fetch budget', async () => {
   const events = []; const delays = []; let calls = 0;
   const client = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', onEvent: (event) => events.push(event), sleep: async (delay) => { delays.push(delay); }, fetchImpl: async () => { calls += 1; return jsonResponse({}, { status: 429, headers: { 'retry-after': '120' } }); } });
