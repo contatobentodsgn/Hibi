@@ -46,7 +46,11 @@ Os testes automatizados cobrem geometria, fallback, IPC, política e reducer. A 
 
 Durante a investigação, a ponte AppKit foi corrigida para resolver o `NSView*` documentado pelo Electron até a `NSWindow` proprietária, e o overlay passou a usar uma `panel` não ativadora — a superfície pública recomendada pelo Electron para flutuar acima de apps em tela cheia e em todos os Spaces. Mesmo assim, a confirmação continua criada fora do compositor. As três hipóteses isoladas testadas foram: promoção de z-order, resolução correta do handle e uso de `panel`; nenhuma tornou a janela visível. Novas tentativas incrementais devem parar até que a estratégia seja redesenhada (por exemplo, um host AppKit dedicado em vez de uma janela secundária do Electron).
 
-O runtime ainda não assina eventos de energia ou de mudança de displays. Assim, repouso/despertar e reconexão devem ser retestados depois de implementar a reavaliação automática do overlay nesses eventos.
+O runtime já assina eventos de adição, remoção e mudança de métricas dos displays,
+além do retorno do repouso, e solicita o reposicionamento do overlay nesses eventos.
+Repouso/despertar e reconexão continuam pendentes de teste físico: a presença dos
+listeners e seus testes automatizados comprova o caminho de implementação, mas não
+substitui a observação do compositor e do hardware reais.
 
 ## Próximo ciclo recomendado
 
