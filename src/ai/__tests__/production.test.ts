@@ -40,6 +40,20 @@ describe('normalizeUsage', () => {
     ).toEqual({ inputTokens: 12, outputTokens: 5, totalTokens: 17, estimatedCost: 0.01 })
   })
 
+  it('caps an overflowing normalized total at the largest finite number', () => {
+    const usage = normalizeUsage({
+      input_tokens: Number.MAX_VALUE,
+      output_tokens: Number.MAX_VALUE,
+    })
+
+    expect(usage).toEqual({
+      inputTokens: Number.MAX_VALUE,
+      outputTokens: Number.MAX_VALUE,
+      totalTokens: Number.MAX_VALUE,
+    })
+    expect(Number.isFinite(usage.totalTokens)).toBe(true)
+  })
+
   it('uses zeroes for missing, malformed, negative, or non-finite usage values', () => {
     expect(
       normalizeUsage({

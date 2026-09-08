@@ -67,11 +67,12 @@ export function normalizeUsage(value: unknown): AiNormalizedUsage {
   const inputTokens = firstFiniteNonNegative(record, ['input_tokens', 'prompt_tokens']) ?? 0
   const outputTokens = firstFiniteNonNegative(record, ['output_tokens', 'completion_tokens']) ?? 0
   const estimatedCost = firstFiniteNonNegative(record, ['estimatedCost', 'estimated_cost'])
+  const totalTokens = Math.min(inputTokens + outputTokens, Number.MAX_VALUE)
 
   return {
     inputTokens,
     outputTokens,
-    totalTokens: inputTokens + outputTokens,
+    totalTokens,
     ...(estimatedCost === undefined ? {} : { estimatedCost }),
   }
 }
