@@ -11,6 +11,7 @@ test-results/
 !.env.example
 study-data/
 event-logs/
+.superpowers/
 .worktrees/
 native/notch/build/
 native/notch/node_modules/
