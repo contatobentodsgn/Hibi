@@ -10,8 +10,14 @@ Date: 2026-09-08
 
 ### External-display evidence collected
 
+- Revalidated on 2026-09-08 after rebuilding both native addons with
+  `npm run native:notch:smoke`; the command completed successfully and the
+  focused native/Electron suite passed all 23 tests.
 - `npm run native:notch:smoke` saw both displays: external `displayId: 3` with no
   camera housing and internal `displayId: 1` with a camera housing.
+- The latest smoke diagnostics reported the passive host on external display
+  `3` at frame `1152,1042,256x38`, with `visible: true`, `interactive: false`,
+  `occluded: false`, and `activeSpace: true`.
 - The smoke utility invokes the AppKit bridge directly, so it deliberately presents
   on the current main display (`displayId: 3`). It does **not** exercise Hibi's
   companion display-selection policy.
