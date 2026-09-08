@@ -24,15 +24,32 @@ test('uses the AppKit host before creating an Electron fallback window', () => {
   };
   const manager = createNotchWindowManager({ BrowserWindowClass: class { constructor() { throw new Error('fallback should not be created'); } }, screen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
 
-  const response = manager.show({ requestId: 'native-confirm', kind: 'confirmation', text: 'Create task?', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }], interaction: 'capture' });
+  const response = manager.show({ requestId: 'native-passive', kind: 'result', text: 'Concluído', actions: [], interaction: 'passthrough' });
 
-  assert.deepEqual(response, { degraded: false, requestId: 'native-confirm', host: 'native' });
-  assert.deepEqual(calls, [['create'], ['show', 'native-confirm', 1]]);
-  nativeBridge.action({ requestId: 'native-confirm', actionId: 'confirm' });
+  assert.deepEqual(response, { degraded: false, requestId: 'native-passive', host: 'native' });
+  assert.deepEqual(calls, [['create'], ['show', 'native-passive', 1]]);
+  assert.equal(manager.hide('native-passive'), true);
   assert.equal(manager.activeRequestId, null);
   assert.deepEqual(calls.at(-1), ['hide']);
   manager.destroy();
   assert.deepEqual(calls.at(-1), ['destroy']);
+});
+
+test('keeps action-bearing presentations out of the native visual host', () => {
+  const calls = [];
+  const nativeBridge = {
+    nativeHostAvailable: () => true,
+    createHost: () => { calls.push('create'); return true; },
+    showHost: () => { calls.push('native-show'); return true; },
+  };
+  let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge, platform: 'darwin' });
+  const response = manager.show({ requestId: 'action-surface', kind: 'confirmation', text: 'Confirmar?', actions: [{ id: 'confirm', label: 'Confirmar' }], interaction: 'capture' });
+
+  assert.deepEqual(response, { degraded: true, requestId: 'action-surface', host: 'electron' });
+  assert.deepEqual(calls, []);
+  const visual = require('./notch-geometry.cjs').notchBounds(display);
+  assert.ok(notch.calls.some((call) => call[0] === 'bounds' && call[1].y > visual.y + visual.height));
 });
 
 test('prefers the physical Mac notch display when an external display is primary', () => {
@@ -48,7 +65,7 @@ test('prefers the physical Mac notch display when an external display is primary
   };
   const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
 
-  manager.show({ requestId: 'native-mac', kind: 'confirmation', text: 'Check', actions: [{ id: 'confirm', label: 'Confirmar' }], interaction: 'capture' });
+  manager.show({ requestId: 'native-mac', kind: 'result', text: 'Check', actions: [], interaction: 'passthrough' });
 
   assert.deepEqual(calls, [1]);
 });

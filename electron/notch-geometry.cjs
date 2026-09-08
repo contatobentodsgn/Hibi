@@ -15,6 +15,13 @@ function notchBounds(display) {
   return { x: Math.round(x + (displayWidth - width) / 2), y, width, height, scale };
 }
 
+function actionBounds(display) {
+  const visual = notchBounds(display);
+  const height = Math.round(clamp(visual.height * 0.52, 96, 116));
+  const gap = Math.round(clamp(visual.height * 0.08, 10, 16));
+  return { x: visual.x - Math.round((visual.width * 0.55)), y: visual.y + visual.height + gap, width: visual.width + Math.round(visual.width * 1.1), height, scale: visual.scale };
+}
+
 function activationBounds(display) {
   const { x, y, width: displayWidth, height: displayHeight } = display.bounds;
   const width = Math.round(clamp(displayWidth * 0.19, 256, 320));
@@ -27,4 +34,4 @@ function selectDisplay(screen, preferredDisplayId) {
   return displays.find((display) => display.id === preferredDisplayId) ?? screen.getPrimaryDisplay();
 }
 
-module.exports = { BASE_WIDTH, BASE_HEIGHT, scaleForDisplay, notchBounds, activationBounds, selectDisplay };
+module.exports = { BASE_WIDTH, BASE_HEIGHT, scaleForDisplay, notchBounds, actionBounds, activationBounds, selectDisplay };

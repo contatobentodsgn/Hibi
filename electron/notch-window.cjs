@@ -1,4 +1,4 @@
-const { notchBounds, selectDisplay } = require('./notch-geometry.cjs');
+const { notchBounds, actionBounds, selectDisplay } = require('./notch-geometry.cjs');
 
 const validPresentation = (value) => value && typeof value === 'object'
   && typeof value.requestId === 'string' && value.requestId.length <= 128
@@ -20,7 +20,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
   const selectedDisplay = () => selectDisplay(screen, preferredDisplayId);
   const position = () => {
     const target = getWindow(); if (!target) return;
-    const bounds = notchBounds(selectedDisplay());
+    const bounds = activeActions.size > 0 ? actionBounds(selectedDisplay()) : notchBounds(selectedDisplay());
     target.setBounds(bounds);
     nativeBridge?.place?.(target.getNativeWindowHandle?.(), bounds);
   };
@@ -28,6 +28,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
   const useNativeHost = () => {
     try {
       return platform === 'darwin'
+        && activeActions.size === 0
         && nativeBridge?.nativeHostAvailable?.() === true
         && nativeBridge?.createHost?.((action) => resolveAction(action?.requestId, action?.actionId)) === true;
     } catch { return false; }
