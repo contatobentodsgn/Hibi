@@ -60,6 +60,81 @@ export interface AiProviderMetadata {
   finishReason?: string
 }
 
+export interface AiNormalizedUsage {
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  estimatedCost?: number
+}
+
+export type AiProviderFailureCode =
+  | 'invalid_credentials'
+  | 'rate_limited'
+  | 'unavailable'
+  | 'invalid_response'
+  | 'cancelled'
+
+export interface AiProviderFailure {
+  code: AiProviderFailureCode
+  retryable: boolean
+  retryAfterMs?: number
+}
+
+export type AiFallbackPolicy = 'ask' | 'automatic' | 'never'
+
+export type AiModelPresetId = 'fast' | 'balanced' | 'reasoning' | 'custom'
+
+export interface AiModelPreset {
+  id: AiModelPresetId
+  label: string
+  description: string
+}
+
+export interface AiProviderStreamStartedEvent {
+  type: 'started'
+  requestId?: string
+  provider?: string
+  model?: string
+}
+
+export interface AiProviderStreamDeltaEvent {
+  type: 'delta'
+  delta: string
+}
+
+export interface AiProviderStreamUsageEvent {
+  type: 'usage'
+  usage: AiNormalizedUsage
+}
+
+export interface AiProviderStreamCompletedEvent {
+  type: 'completed'
+}
+
+export interface AiProviderStreamRetryingEvent {
+  type: 'retrying'
+  attempt: number
+  delayMs: number
+  failure: AiProviderFailure
+}
+
+export interface AiProviderStreamFailedEvent {
+  type: 'failed'
+  failure: AiProviderFailure
+}
+
+export type AiProviderStreamEvent =
+  | AiProviderStreamStartedEvent
+  | AiProviderStreamDeltaEvent
+  | AiProviderStreamUsageEvent
+  | AiProviderStreamCompletedEvent
+  | AiProviderStreamRetryingEvent
+  | AiProviderStreamFailedEvent
+
+export type AiStreamEvent = AiProviderStreamEvent
+export type AiProviderUsage = AiNormalizedUsage
+export type AiSafeProviderFailure = AiProviderFailure
+
 export interface AiProviderProposal {
   reply: string
   toolCalls: AiToolCall[]
