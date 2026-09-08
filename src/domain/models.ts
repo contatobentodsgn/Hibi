@@ -1,3 +1,5 @@
+import type { ActivityRecord } from './activity';
+
 export type Category = 'work' | 'break' | 'learning' | 'important' | 'wellbeing';
 export type EntityStatus = 'open' | 'completed' | 'paused';
 
@@ -72,6 +74,7 @@ export interface TelemetryEvent {
 }
 
 export interface StudyData {
+  activity: ActivityRecord[];
   notes: Note[];
   tasks: Task[];
   reminders: Reminder[];
