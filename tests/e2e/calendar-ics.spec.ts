@@ -32,3 +32,18 @@ test('importa um evento ICS na semana exibida', async ({ page }) => {
   });
   await expect(page.getByText('Evento importado')).toBeVisible();
 });
+
+test('mantém um evento ICS importado após recarregar o app', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'persistente.ics',
+    mimeType: 'text/calendar',
+    buffer: Buffer.from(['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:persist-ics-test', 'DTSTART:20260907T220000', 'DTEND:20260907T230000', 'SUMMARY:Evento persistente', 'END:VEVENT', 'END:VCALENDAR'].join('\n')),
+  });
+  await expect(page.getByText('Evento persistente')).toBeVisible();
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await expect(page.getByText('Evento persistente')).toBeVisible();
+});
