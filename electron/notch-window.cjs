@@ -16,7 +16,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
   const nativeNotchDisplay = nativeBridge?.screenGeometry?.().find((display) => display?.hasCameraHousing && Number.isInteger(display.displayId));
   let preferredDisplayId = nativeNotchDisplay?.displayId ?? null;
   const getWindow = () => window && !window.isDestroyed() ? window : null;
-  const makePassive = (target) => target.setIgnoreMouseEvents?.(true, { forward: true });
+  const makePassive = (target) => { target.setIgnoreMouseEvents?.(true, { forward: true }); target.setFocusable?.(false); };
   const selectedDisplay = () => selectDisplay(screen, preferredDisplayId);
   const position = () => {
     const target = getWindow(); if (!target) return;
@@ -67,9 +67,12 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
         return { degraded: false, requestId: activeRequestId, host: activeHost };
       }
       const target = ensure(); activeHost = 'electron'; position();
-      target.setIgnoreMouseEvents?.(presentation.interaction === 'capture' ? false : true, presentation.interaction === 'capture' ? undefined : { forward: true });
+      const capturesInput = presentation.interaction === 'capture';
+      target.setIgnoreMouseEvents?.(capturesInput ? false : true, capturesInput ? undefined : { forward: true });
+      target.setFocusable?.(capturesInput);
       target.webContents.send('hibi:companion:presentation', presentation);
       target.showInactive?.();
+      if (capturesInput) target.focus?.();
       return { degraded: true, requestId: activeRequestId, host: activeHost };
     },
     hide(requestId) {

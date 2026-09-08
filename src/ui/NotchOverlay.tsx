@@ -11,9 +11,10 @@ export function NotchOverlay({ initialPresentation = null }: { initialPresentati
   useEffect(() => { if (!presentation) return; const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && presentation.actions.length === 0) void window.hibiDesktop?.hideNotch?.(presentation.requestId); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [presentation]);
   if (!presentation) return <main className="notch-overlay" aria-live="polite" />;
   const media = notchMediaFor(presentation.kind);
-  return <main className="notch-overlay" role={presentation.actions.length ? 'dialog' : 'status'} aria-label={presentation.kind} data-interaction={presentation.interaction}>
+  const interactive = presentation.actions.length > 0;
+  return <main className="notch-overlay" role={interactive ? 'dialog' : 'status'} aria-modal={interactive || undefined} aria-live={interactive ? undefined : 'polite'} aria-label={interactive ? 'Hibi confirmation' : `Hibi ${presentation.kind}`} data-interaction={presentation.interaction}>
     <video src={media.url} autoPlay muted loop playsInline aria-hidden="true" />
     {presentation.text && <p>{presentation.text}</p>}
-    {presentation.actions.map((action) => <button type="button" key={action.id} onClick={() => { if (action.id === 'confirm' || action.id === 'cancel') void window.hibiDesktop?.resolveNotchAction?.(presentation.requestId, action.id); }}>{action.label}</button>)}
+    {presentation.actions.map((action, index) => <button type="button" autoFocus={index === 0} key={action.id} onClick={() => { if (action.id === 'confirm' || action.id === 'cancel') void window.hibiDesktop?.resolveNotchAction?.(presentation.requestId, action.id); }}>{action.label}</button>)}
   </main>;
 }

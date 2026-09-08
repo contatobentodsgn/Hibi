@@ -13,6 +13,9 @@ describe('NotchOverlay', () => {
   it('renders a labelled confirmation card with explicit actions', () => {
     const markup = renderToStaticMarkup(<NotchOverlay initialPresentation={{ requestId: 'confirm-1', kind: 'confirmation', text: 'Criar tarefa?', interaction: 'capture', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] }} />);
     expect(markup).toContain('role="dialog"');
+    expect(markup).toContain('aria-modal="true"');
+    expect(markup).toContain('aria-label="Hibi confirmation"');
+    expect(markup).toContain('autofocus');
     expect(markup).toContain('Confirmar');
     expect(markup).toContain('Cancelar');
   });

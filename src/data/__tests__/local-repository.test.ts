@@ -76,4 +76,13 @@ describe('LocalRepository', () => {
     expect(restored.listHabits()).toEqual([]);
     expect(restored.listGoals()).toEqual([]);
   });
+
+  it('replaces the entire local workspace only after validation', () => {
+    const imported = createSeedData();
+    imported.tasks[0].title = 'Imported task';
+    repository.replace(imported);
+    expect(repository.snapshot()).toEqual(imported);
+    expect(() => repository.replace({ ...imported, tasks: null as never })).toThrow('Invalid study data');
+    expect(repository.snapshot()).toEqual(imported);
+  });
 });

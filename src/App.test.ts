@@ -23,3 +23,14 @@ describe('study data reset instrumentation', () => {
     expect(resetBody.indexOf('refreshData();')).toBeLessThan(resetBody.indexOf("log('reset', 'Reset study data', 'pass');"));
   });
 });
+
+describe('companion event wiring', () => {
+  it('feeds the notch with real task, reminder, focus, and validation events', () => {
+    expect(appSource).toContain("type: 'task.completed'");
+    expect(appSource).toContain("type: 'reminder.triggered'");
+    expect(appSource).toContain("type: 'focus.started'");
+    expect(appSource).toContain("type: 'focus.completed'");
+    expect(appSource).toContain("type: 'error.raised'");
+    expect(appSource).toContain('onNotificationTriggered');
+  });
+});

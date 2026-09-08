@@ -1,5 +1,5 @@
 const test = require('node:test'); const assert = require('node:assert/strict'); const { createNotchWindowManager } = require('./notch-window.cjs');
-class FakeWindow { constructor(options) { this.options = options; this.destroyed = false; this.calls = []; this.webContents = { send: (...args) => this.calls.push(['send', ...args]) }; } isDestroyed() { return this.destroyed; } setBounds(value) { this.calls.push(['bounds', value]); } setAlwaysOnTop(...args) { this.calls.push(['top', ...args]); } setVisibleOnAllWorkspaces(...args) { this.calls.push(['spaces', ...args]); } setIgnoreMouseEvents(...args) { this.calls.push(['mouse', ...args]); } showInactive() { this.calls.push(['show']); } hide() { this.calls.push(['hide']); } on() {} destroy() { this.destroyed = true; } }
+class FakeWindow { constructor(options) { this.options = options; this.destroyed = false; this.calls = []; this.webContents = { send: (...args) => this.calls.push(['send', ...args]) }; } isDestroyed() { return this.destroyed; } setBounds(value) { this.calls.push(['bounds', value]); } setAlwaysOnTop(...args) { this.calls.push(['top', ...args]); } setVisibleOnAllWorkspaces(...args) { this.calls.push(['spaces', ...args]); } setIgnoreMouseEvents(...args) { this.calls.push(['mouse', ...args]); } setFocusable(value) { this.calls.push(['focusable', value]); } focus() { this.calls.push(['focus']); } showInactive() { this.calls.push(['show']); } hide() { this.calls.push(['hide']); } on() {} destroy() { this.destroyed = true; } }
 const display = { id: 1, bounds: { x: 0, y: 0, width: 1440, height: 900 } }; const screen = { getAllDisplays: () => [display], getPrimaryDisplay: () => display };
 const presentation = { requestId: 'a', kind: 'result', text: 'Done', actions: [], interaction: 'passthrough' };
 test('sets all-spaces fallback and click-through for passive presentations', () => { let loaded = false; const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => { loaded = true; }, platform: 'darwin' }); const response = manager.show(presentation); assert.equal(loaded, true); assert.equal(response.degraded, true); assert.equal(manager.activeRequestId, 'a'); });
@@ -93,8 +93,18 @@ test('cancelling a confirmation releases mouse capture before closing the card',
 
   assert.equal(manager.resolveAction('confirm-cancel', 'cancel'), true);
 
-  assert.deepEqual(notch.calls.at(-2), ['mouse', true, { forward: true }]);
+  assert.deepEqual(notch.calls.at(-3), ['mouse', true, { forward: true }]);
+  assert.deepEqual(notch.calls.at(-2), ['focusable', false]);
   assert.deepEqual(notch.calls.at(-1), ['hide']);
   assert.equal(manager.activeRequestId, null);
   assert.deepEqual(callbackStates, [null]);
+});
+test('makes a confirmation keyboard reachable, then restores passive behavior', () => {
+  let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; } });
+  manager.show({ requestId: 'keyboard-confirm', kind: 'confirmation', text: 'Create task?', actions: [{ id: 'confirm', label: 'Confirmar' }], interaction: 'capture' });
+  assert.ok(notch.calls.some((call) => call[0] === 'focusable' && call[1] === true));
+  assert.ok(notch.calls.some((call) => call[0] === 'focus'));
+  manager.resolveAction('keyboard-confirm', 'confirm');
+  assert.ok(notch.calls.some((call) => call[0] === 'focusable' && call[1] === false));
 });

@@ -27,6 +27,11 @@ export class LocalRepository {
     return repository;
   }
 
+  replace(data: StudyData): void {
+    const restored = LocalRepository.fromJson(this.seed, JSON.stringify(data));
+    this.data = restored.snapshot();
+  }
+
   snapshot(): StudyData { return clone(this.data); }
   listTasks(): Task[] { return clone(this.data.tasks); }
   listReminders(): Reminder[] { return clone(this.data.reminders); }
