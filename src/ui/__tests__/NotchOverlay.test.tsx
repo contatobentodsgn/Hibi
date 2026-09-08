@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { NotchOverlay, notchMediaFor } from '../NotchOverlay';
+import { readFileSync } from 'node:fs';
 
 describe('NotchOverlay', () => {
   it('uses only semantic companion assets and has an accessible dormant surface', () => {
@@ -18,5 +19,12 @@ describe('NotchOverlay', () => {
     expect(markup).toContain('autofocus');
     expect(markup).toContain('Confirmar');
     expect(markup).toContain('Cancelar');
+  });
+
+  it('keeps a non-motion, high-contrast path for macOS accessibility preferences', () => {
+    const css = readFileSync(new URL('../notch-overlay.css', import.meta.url), 'utf8');
+    expect(css).toContain('prefers-reduced-motion:reduce');
+    expect(css).toContain('prefers-reduced-transparency:reduce');
+    expect(css).toContain('forced-colors:active');
   });
 });
