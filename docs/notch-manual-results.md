@@ -5,8 +5,24 @@ Date: 2026-09-08
 ## Environment observed
 
 - Apple M4, internal Liquid Retina display, 2560 × 1664 logical Retina mode.
-- One online internal display; no external display connected.
+- LG ULTRAWIDE external display, 2560 × 1080 at 75 Hz, configured as the main display.
 - The native bridge reports `hasCameraHousing: true` and `safeAreaTop: 32`.
+
+### External-display evidence collected
+
+- `npm run native:notch:smoke` saw both displays: external `displayId: 3` with no
+  camera housing and internal `displayId: 1` with a camera housing.
+- The smoke utility invokes the AppKit bridge directly, so it deliberately presents
+  on the current main display (`displayId: 3`). It does **not** exercise Hibi's
+  companion display-selection policy.
+- The production window manager has a separate, automated contract test:
+  `prefers the physical Mac notch display when an external display is primary`.
+  It verifies that a real companion presentation selects the internal notched
+  display rather than the external primary display.
+
+This is implementation evidence, not a replacement for the interactive external
+monitor procedure below. The manual row remains open until a passive card and a
+confirmation card are seen and operated with this arrangement.
 
 ## Completed on this Mac
 
@@ -23,7 +39,7 @@ Date: 2026-09-08
 | Scenario | Why it remains open |
 | --- | --- |
 | Mac without a camera housing | This host only has an internal display with a camera housing. |
-| External monitor and reconnect | No external display is attached. |
+| External monitor and reconnect | An LG ULTRAWIDE is now attached and detected, but the interactive passive/confirmation and reconnect procedure has not yet been completed. |
 | Spaces and fullscreen | Requires interactive switching through the user’s active workspace. |
 | Sleep and wake | Requires putting the active computer to sleep, which must be performed by the user. |
 | VoiceOver spoken output | Requires VoiceOver to be enabled and listened to by a user. |
