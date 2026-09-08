@@ -1,5 +1,6 @@
 const MAX_BODY_BYTES = 1024 * 1024;
 const TURN_LIMIT = 8000;
+const MAX_MODEL_LENGTH = 240;
 
 function safeEndpoint(raw) {
   const url = new URL(raw);
@@ -25,6 +26,17 @@ function validateTurn(value) {
   return { ...candidate, message: message.trim(), surface };
 }
 
+function reportedModel(value, fallback) {
+  return typeof value === 'string' && value.trim().length > 0 && value.length <= MAX_MODEL_LENGTH ? value : fallback;
+}
+
+function validateJsonContract(content) {
+  let value;
+  try { value = JSON.parse(content); } catch { throw new Error('Provider returned an invalid JSON contract.'); }
+  if (!value || typeof value !== 'object' || typeof value.reply !== 'string' || !Array.isArray(value.toolCalls) || !Object.prototype.hasOwnProperty.call(value, 'notchPresentation')) throw new Error('Provider returned an invalid JSON contract.');
+  return value;
+}
+
 function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fetch, timeoutMs = 30_000 }) {
   const url = safeEndpoint(endpoint);
   const requestCompletion = async (messages, signal) => {
@@ -32,7 +44,7 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
     const controller = new AbortController();
     const abort = () => controller.abort(); signal?.addEventListener('abort', abort, { once: true }); timeout.addEventListener('abort', abort, { once: true });
     try {
-      const response = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model, messages, response_format: { type: 'json_object' } }), signal: controller.signal });
+      const response = await fetchImpl(url, { method: 'POST', redirect: 'error', headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model, messages, response_format: { type: 'json_object' } }), signal: controller.signal });
       if (!response.ok) throw new Error(`Provider request failed (${response.status}).`);
       const length = Number(response.headers?.get?.('content-length') ?? 0);
       if (length > MAX_BODY_BYTES) throw new Error('Provider response exceeds the 1 MiB limit.');
@@ -41,17 +53,17 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
       const parsed = JSON.parse(text);
       const content = parsed?.choices?.[0]?.message?.content;
       if (typeof content !== 'string' || content.length > MAX_BODY_BYTES) throw new Error('Provider returned an invalid response.');
-      return content;
+      return { content, model: reportedModel(parsed?.model, model) };
     } catch (error) { throw new Error(redactedError(error)); }
     finally { signal?.removeEventListener('abort', abort); }
   };
   return {
     async generate(turn, signal) {
       const contract = JSON.stringify({ allowedTools: turn.allowedTools ?? [], contextEvidence: turn.contextEvidence ?? [], currentTime: turn.currentTime, surface: turn.surface });
-      const content = await requestCompletion([{ role: 'system', content: `Return only a JSON object with reply, toolCalls, and notchPresentation. You may use only these tool schemas and context: ${contract}` }, { role: 'user', content: turn.message }], signal);
-      return { content: content.slice(0, TURN_LIMIT), providerLabel: 'OpenAI-compatible', model };
+      const response = await requestCompletion([{ role: 'system', content: `Return only a JSON object with reply, toolCalls, and notchPresentation. You may use only these tool schemas and context: ${contract}` }, { role: 'user', content: turn.message }], signal);
+      return { content: response.content.slice(0, TURN_LIMIT), providerLabel: 'OpenAI-compatible', model: response.model };
     },
-    async testConnection(signal) { await requestCompletion([{ role: 'user', content: 'Connection test. Reply with a compact JSON object.' }], signal); },
+    async testConnection(signal) { const response = await requestCompletion([{ role: 'user', content: 'Connection test. Reply with a compact JSON object with reply, toolCalls, and notchPresentation.' }], signal); validateJsonContract(response.content); },
   };
 }
 
@@ -71,4 +83,4 @@ function createMainAiRuntime({ config = {}, fetchImpl } = {}) {
   };
 }
 
-module.exports = { MAX_BODY_BYTES, safeEndpoint, redactedError, validateTurn, createOpenAiCompatibleClient, createMainAiRuntime };
+module.exports = { MAX_BODY_BYTES, safeEndpoint, redactedError, validateTurn, validateJsonContract, createOpenAiCompatibleClient, createMainAiRuntime };

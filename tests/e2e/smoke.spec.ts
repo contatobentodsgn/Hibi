@@ -213,3 +213,16 @@ test('assistente local responde sobre a agenda', async ({ page }) => {
   await page.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByText(/\d+ blocos na agenda/)).toBeVisible();
 });
+
+test('assistente confirma uma mudança antes de criar uma tarefa local', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Taby', exact: true }).click();
+  const input = page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
+  await input.fill('crie uma tarefa: Revisar briefing');
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(page.getByRole('button', { name: 'Confirmar' })).toBeVisible();
+  await page.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(page.getByText('Tarefa criada: Revisar briefing')).toBeVisible();
+  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await expect(page.getByText('Revisar briefing')).toBeVisible();
+});

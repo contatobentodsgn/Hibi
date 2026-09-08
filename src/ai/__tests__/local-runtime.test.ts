@@ -66,4 +66,28 @@ describe('local Hibi tool registry', () => {
     await runtime.confirm(pending.confirmation);
     expect(repository.listReminders().some((item) => item.id === reminder.id)).toBe(false);
   });
+
+  it('interprets local edit and delete commands for every mutable workspace entity', async () => {
+    const repository = new LocalRepository(createSeedData());
+    const note = repository.createNote({ title: 'Rascunho', content: 'texto', folder: 'Bento', createdAt: '2026-09-07T09:00:00-03:00', updatedAt: '2026-09-07T09:00:00-03:00' });
+    const cases: Array<[string, string, () => boolean]> = [
+      ['edite tarefa: Kabrito Post 01 para Post revisado', 'exclua tarefa: Post revisado', () => repository.listTasks().some((item) => item.title === 'Post revisado')],
+      ['edite lembrete: vaga/inglês - Horizontes para Aviso Horizontes', 'exclua lembrete: Aviso Horizontes', () => repository.listReminders().some((item) => item.title === 'Aviso Horizontes')],
+      ['edite bloco: 2026-09-07-09:00 para Bloco revisado', 'exclua bloco: Bloco revisado', () => repository.listBlocks().some((item) => item.title === 'Bloco revisado')],
+      ['edite nota: Rascunho para Nota revisada', 'exclua nota: Nota revisada', () => repository.listNotes().some((item) => item.id === note.id && item.title === 'Nota revisada')],
+    ];
+    const runtime = createLocalHibiRuntime(repository);
+
+    for (const [edit, remove, exists] of cases) {
+      const editPending = await runtime.runTurn({ message: edit, surface: 'desktop' });
+      expect(editPending.confirmation).toBeDefined();
+      expect(exists()).toBe(false);
+      await runtime.confirm(editPending.confirmation!);
+      expect(exists()).toBe(true);
+      const deletePending = await runtime.runTurn({ message: remove, surface: 'desktop' });
+      expect(deletePending.confirmation).toBeDefined();
+      await runtime.confirm(deletePending.confirmation!);
+      expect(exists()).toBe(false);
+    }
+  });
 });

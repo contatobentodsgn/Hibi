@@ -18,7 +18,7 @@ describe('TabyView capability boundaries', () => {
     expect(markup).toContain('Notes');
     expect(markup).toContain('External AI');
     expect(markup).toContain('Hardware');
-    expect(markup).toContain('No network calls.');
+    expect(markup).toContain('O modo local não usa rede');
   });
 
   it('builds a capture presentation with only confirm and cancel actions', () => {

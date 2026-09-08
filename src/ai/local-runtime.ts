@@ -38,13 +38,29 @@ export function createLocalToolRegistry(repository: LocalRepository, hooks: Hook
 }
 
 const match = (message: string, expression: RegExp) => message.match(expression)?.[1]?.trim();
-function localProposal(request: AiProviderRequest): AiProviderProposal {
+type NamedEntity = Readonly<{ id: string; title: string }>;
+const resolveEntity = (entities: readonly NamedEntity[], reference: string) => {
+  const normalized = reference.trim().toLocaleLowerCase('pt-BR');
+  const matches = entities.filter((item) => item.id === reference || item.title.toLocaleLowerCase('pt-BR') === normalized);
+  return matches.length === 1 ? matches[0] : undefined;
+};
+
+function localProposal(request: AiProviderRequest, repository: LocalRepository): AiProviderProposal {
   const message = request.message.trim(); const lower = message.toLocaleLowerCase('pt-BR'); let toolCalls: AiToolCall[] = [];
   const task = match(message, /^(?:crie|criar|adicione|adicionar)\s+(?:uma?\s+)?tarefa\s*:?[\s-]*(.+)$/i);
   const note = match(message, /^(?:crie|criar|adicione|adicionar)\s+(?:uma?\s+)?nota\s*:?[\s-]*(.+)$/i);
   const block = message.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?bloco\s*:?[\s-]*(.+?)\s+(?:das?\s+)?(\d{1,2}:\d{2})\s+(?:às?|a)\s+(\d{1,2}:\d{2})$/i);
   const reminder = message.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?lembrete\s*:?[\s-]*(.+?)(?:\s+às?\s+(\d{1,2}:\d{2}))?$/i);
-  if (task) toolCalls = [{ name: 'task.create', arguments: { title: task, durationMinutes: 60 } }];
+  const mutation = message.match(/^(?:edite|editar|renomeie|renomear)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+?)\s+(?:para|como)\s+(.+)$/i);
+  const removal = message.match(/^(?:exclua|excluir|apague|apagar|remova|remover)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+)$/i);
+  if (mutation || removal) {
+    const operation = mutation ?? removal!;
+    const kind = operation[1]!.toLocaleLowerCase('pt-BR');
+    const reference = operation[2]!.trim();
+    const descriptor = kind === 'tarefa' ? { name: 'task', entities: repository.listTasks() } : kind === 'lembrete' ? { name: 'reminder', entities: repository.listReminders() } : kind === 'bloco' ? { name: 'block', entities: repository.listBlocks() } : { name: 'note', entities: repository.listNotes() };
+    const entity = resolveEntity(descriptor.entities, reference);
+    if (entity) toolCalls = removal ? [{ name: `${descriptor.name}.delete`, arguments: { id: entity.id } }] : [{ name: `${descriptor.name}.update`, arguments: { id: entity.id, title: mutation![3].trim() } }];
+  } else if (task) toolCalls = [{ name: 'task.create', arguments: { title: task, durationMinutes: 60 } }];
   else if (note) toolCalls = [{ name: 'note.create', arguments: { title: note, content: note } }];
   else if (block) toolCalls = [{ name: 'block.create', arguments: { title: block[1].trim(), start: `${request.currentTime.slice(0, 10)}T${block[2].padStart(5, '0')}:00-03:00`, end: `${request.currentTime.slice(0, 10)}T${block[3].padStart(5, '0')}:00-03:00`, category: 'work' } }];
   else if (reminder) { const time = reminder[2] ?? request.currentTime.slice(11, 16); toolCalls = [{ name: 'reminder.create', arguments: { title: reminder[1].trim(), at: `${request.currentTime.slice(0, 10)}T${time}:00-03:00` } }]; }
@@ -56,9 +72,9 @@ function localProposal(request: AiProviderRequest): AiProviderProposal {
   return { reply, toolCalls, notchPresentation: null, providerMetadata: { model: 'local-tool-provider' } };
 }
 
-export class LocalToolProvider implements AiProvider { readonly id = 'local-tools'; readonly label = 'Hibi local tools'; async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> { if (signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError'); return localProposal(request); } }
+export class LocalToolProvider implements AiProvider { readonly id = 'local-tools'; readonly label = 'Hibi local tools'; constructor(private readonly repository: LocalRepository) {} async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> { if (signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError'); return localProposal(request, this.repository); } }
 
-export function createLocalHibiRuntime(repository: LocalRepository, hooks: Hooks = {}, provider: AiProvider = new LocalToolProvider()): AiTurnRuntime {
+export function createLocalHibiRuntime(repository: LocalRepository, hooks: Hooks = {}, provider: AiProvider = new LocalToolProvider(repository)): AiTurnRuntime {
   const registry = createLocalToolRegistry(repository, hooks);
-  return new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), provider, onAudit: hooks.onAudit, context: { get tasks() { return repository.listTasks().map((task) => ({ id: task.id, title: task.title, dueAt: task.deadline })); }, get reminders() { return repository.listReminders().map((reminder) => ({ id: reminder.id, title: reminder.title, nextAt: reminder.schedule.at })); }, get schedule() { return repository.listBlocks(); } } });
+  return new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), provider, onAudit: hooks.onAudit, context: { get tasks() { return repository.listTasks().map((task) => ({ id: task.id, title: task.title, dueAt: task.deadline })); }, get reminders() { return repository.listReminders().map((reminder) => ({ id: reminder.id, title: reminder.title, nextAt: reminder.schedule.at })); }, get schedule() { return repository.listBlocks(); }, get notes() { return repository.listNotes().map((note) => ({ id: note.id, title: note.title })); } } });
 }
