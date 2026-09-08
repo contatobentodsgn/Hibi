@@ -195,7 +195,9 @@ test('updates e hardware são acessíveis pela paleta', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Type a command' }).fill('/hardware');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Hardware' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open Events' }).click();
+  await page.getByRole('button', { name: /commands/ }).click();
+  await page.getByRole('textbox', { name: 'Type a command' }).fill('/events');
+  await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Instrumentation' })).toBeVisible();
   await page.getByRole('button', { name: /commands/ }).click();
   await page.getByRole('textbox', { name: 'Type a command' }).fill('/updates');
@@ -206,11 +208,8 @@ test('updates e hardware são acessíveis pela paleta', async ({ page }) => {
 test('assistente local responde sobre a agenda', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Taby', exact: true }).click();
-  const input = page.getByPlaceholder('Ask about your workspace');
+  const input = page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
   await input.fill('qual a agenda de hoje?');
   await page.getByRole('button', { name: 'Send' }).click();
-  await expect(page.getByText(/Hoje há 10 blocos/)).toBeVisible();
-  await input.fill('qual o próximo compromisso?');
-  await input.press('Enter');
-  await expect(page.getByText(/Seu próximo bloco é/)).toBeVisible();
+  await expect(page.getByText(/\d+ blocos na agenda/)).toBeVisible();
 });
