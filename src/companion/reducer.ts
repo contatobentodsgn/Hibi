@@ -91,6 +91,10 @@ export function reduceCompanion(state: CompanionPresentation, event: CompanionEv
       const candidate = presentation('focus', event);
       return canReplace(state, candidate) ? candidate : state;
     }
+    case 'focus.completed': {
+      const candidate = presentation('result', event);
+      return canReplace(state, candidate) ? candidate : state;
+    }
     case 'reminder.triggered': {
       const candidate = presentation('reminder', event, event.actions ?? [], event.animationId);
       return canReplace(state, candidate) ? candidate : state;

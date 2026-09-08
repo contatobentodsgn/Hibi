@@ -58,6 +58,14 @@ describe('companion reducer', () => {
     expect(focus.interaction).toBe('passthrough');
   });
 
+  it('turns a completed focus session into a short result presentation', () => {
+    const completed = reduceCompanion(initialCompanionState, {
+      type: 'focus.completed', requestId: 'focus-complete', text: 'Focus complete', nowMs: 0, expiresInMs: 3_000,
+    });
+
+    expect(completed).toMatchObject({ kind: 'result', text: 'Focus complete', expiresAtMs: 3_000, interaction: 'passthrough' });
+  });
+
   it('captures the pointer for visible actions', () => {
     const reminder = reduceCompanion(initialCompanionState, {
       type: 'reminder.triggered', requestId: 'reminder-a', text: 'Send the message',

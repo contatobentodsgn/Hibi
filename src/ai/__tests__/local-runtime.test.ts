@@ -43,6 +43,19 @@ describe('local Hibi tool registry', () => {
     expect(repository.getTask(task.id)?.title).toBe('Updated by AI');
   });
 
+  it('emits a completion event when an approved AI update completes a task', async () => {
+    const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
+    const completed: string[] = [];
+    const runtime = createLocalHibiRuntime(repository, { onTaskCompleted: (title) => completed.push(title) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'completed' } }]));
+
+    const pending = await runtime.runTurn({ message: 'Complete it', surface: 'desktop' });
+    if (!pending.confirmation) throw new Error('Expected confirmation');
+    await runtime.confirm(pending.confirmation);
+
+    expect(repository.getTask(task.id)?.status).toBe('completed');
+    expect(completed).toEqual([task.title]);
+  });
+
   it('deletes a reminder only after an explicit confirmation', async () => {
     const repository = new LocalRepository(createSeedData()); const reminder = repository.listReminders()[0]!;
     const runtime = createLocalHibiRuntime(repository, {}, providerFor([{ name: 'reminder.delete', arguments: { id: reminder.id } }]));

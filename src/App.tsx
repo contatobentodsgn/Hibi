@@ -52,7 +52,7 @@ export default function App() {
   const dispatchCompanion = (event: CompanionEvent) => companionController.current!.dispatch(event);
   const companionId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
   const [aiHistory, setAiHistory] = useState<AiAuditEvent[]>(() => { try { const saved = JSON.parse(window.localStorage.getItem('hibi-ai-history') ?? '[]'); return Array.isArray(saved) ? saved.slice(0, 200) : []; } catch { return []; } });
-  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); }, onAudit: (event: AiAuditEvent) => setAiHistory((current) => [event, ...current].slice(0, 200)) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider())); });
+  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskCompleted: (title: string) => dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${title}`, nowMs: Date.now(), expiresInMs: 3_000 }), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); }, onAudit: (event: AiAuditEvent) => setAiHistory((current) => [event, ...current].slice(0, 200)) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider())); });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
@@ -193,7 +193,7 @@ export default function App() {
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;
-      case 'focus': return <FocusView {...props} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} />;
+      case 'focus': return <FocusView {...props} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
       case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onTestNotification={testNativeNotification} />;
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;

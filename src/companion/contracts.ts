@@ -47,6 +47,7 @@ export type CompanionEvent =
   | (PresentationEvent & { type: 'ai.result' })
   | (PresentationEvent & { type: 'confirmation.requested'; actions: readonly CompanionAction[] })
   | (PresentationEvent & { type: 'focus.started' })
+  | (PresentationEvent & { type: 'focus.completed' })
   | (PresentationEvent & { type: 'reminder.triggered'; actions?: readonly CompanionAction[]; animationId?: string })
   | (PresentationEvent & { type: 'error.raised'; actions?: readonly CompanionAction[] })
   | (PresentationEvent & { type: 'task.completed' })
