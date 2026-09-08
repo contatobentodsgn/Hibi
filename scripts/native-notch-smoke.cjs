@@ -13,10 +13,10 @@ app.whenReady().then(() => {
   const created = adapter.createHost(() => {});
   const shown = created && adapter.showHost({
     requestId: 'native-notch-smoke',
-    kind: 'confirmation',
+    kind: 'result',
     text: 'Native companion verification',
-    interaction: 'capture',
-    actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }],
+    interaction: 'passthrough',
+    actions: [],
   }, display.id);
 
   setTimeout(() => {
