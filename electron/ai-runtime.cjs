@@ -1,3 +1,5 @@
+const { randomUUID } = require('node:crypto');
+
 const MAX_BODY_BYTES = 1024 * 1024;
 const TURN_LIMIT = 8000;
 const MAX_MODEL_LENGTH = 240;
@@ -127,19 +129,72 @@ async function waitForRetry(sleep, delayMs, signal) {
   });
 }
 
-function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fetch, timeoutMs = 30_000, onEvent, sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay)) }) {
+function createTimeout(timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  timer.unref?.();
+  return { signal: controller.signal, dispose: () => clearTimeout(timer) };
+}
+
+function isValidRequestId(value) {
+  return typeof value === 'string' && value.length > 0 && value.length <= 128 && /^[A-Za-z0-9_-]+$/.test(value);
+}
+
+function createAiRequestCoordinator({ runtime, createRequestId = () => `ai-${randomUUID()}` }) {
+  let active = null;
+  return {
+    async run(sender, turn, onEvent) {
+      const requestId = createRequestId();
+      if (!isValidRequestId(requestId)) throw new Error('Invalid AI request id.');
+      const request = { sender, requestId };
+      active = request;
+      try {
+        return await runtime.run(turn, {
+          onEvent: (event) => {
+            if (active === request && event && typeof event === 'object') onEvent({ ...event, requestId });
+          },
+        });
+      } finally {
+        if (active === request) active = null;
+      }
+    },
+    cancel(sender) {
+      if (!active || active.sender !== sender) return false;
+      runtime.cancel();
+      return true;
+    },
+  };
+}
+
+function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fetch, timeoutMs = 30_000, timeoutFactory = createTimeout, onEvent, sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay)) }) {
   const url = safeEndpoint(endpoint);
   const requestCompletion = async (messages, signal, requestOnEvent, stream = true) => {
     const emit = typeof requestOnEvent === 'function' ? requestOnEvent : typeof onEvent === 'function' ? onEvent : () => {};
-    const responseTimeouts = new WeakMap();
+    let fetchCount = 0;
+    let maxFetches = Infinity;
+    let retryAttempt = 0;
+    const noteFailure = (error) => {
+      const failure = classifyProviderFailure(signal?.aborted ? { name: 'AbortError' } : error);
+      const limit = failure.code === 'invalid_credentials' || failure.code === 'invalid_response' || failure.code === 'cancelled' ? 1 : failure.code === 'rate_limited' ? 2 : 3;
+      maxFetches = Math.min(maxFetches, limit);
+      return failure;
+    };
     const request = async (streaming) => {
-      const timeout = AbortSignal.timeout(timeoutMs);
+      if (fetchCount >= maxFetches) throw new Error('AI provider request budget exhausted.');
+      const timeout = timeoutFactory(timeoutMs);
+      if (!timeout?.signal || typeof timeout.signal.addEventListener !== 'function') throw new Error('Invalid AI timeout controller.');
       const controller = new AbortController();
       const abort = () => controller.abort();
       let timedOut = false;
       const abortForTimeout = () => { timedOut = true; controller.abort(); };
       signal?.addEventListener('abort', abort, { once: true });
-      timeout.addEventListener('abort', abortForTimeout, { once: true });
+      timeout.signal.addEventListener('abort', abortForTimeout, { once: true });
+      fetchCount += 1;
+      const dispose = () => {
+        signal?.removeEventListener('abort', abort);
+        timeout.signal.removeEventListener('abort', abortForTimeout);
+        timeout.dispose?.();
+      };
       try {
         const response = await fetchImpl(url, {
           method: 'POST', redirect: 'error', headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
@@ -150,13 +205,12 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
         if (length > MAX_BODY_BYTES) {
           const error = invalidResponseError(); error.safeMessage = 'Provider response exceeds the 1 MiB limit.'; throw error;
         }
-        responseTimeouts.set(response, timeout);
-        return response;
+        return { response, timeout, dispose };
       } catch (error) {
+        dispose();
         if (timedOut) throw Object.assign(new Error('Provider request timed out.'), { name: 'TimeoutError' });
+        noteFailure(error);
         throw error;
-      } finally {
-        signal?.removeEventListener('abort', abort);
       }
     };
     const parseJsonResponse = async (response) => {
@@ -171,7 +225,7 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
       if (typeof content !== 'string' || content.length > MAX_BODY_BYTES) throw invalidResponseError();
       return { content, model: reportedModel(parsed?.model, model) };
     };
-    const parseStream = async (response, timeout) => {
+    const parseStream = async (response, timeoutSignal) => {
       const reader = response.body?.getReader?.();
       if (!reader) return { fallbackResponse: response };
       let bodyBytes = 0; let buffer = ''; let content = ''; let sawEvent = false; let completed = false;
@@ -215,52 +269,50 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
         return { content, model };
       } catch (error) {
         if (signal?.aborted) throw cancellationError();
-        if (timeout?.aborted) throw Object.assign(new Error('Provider request timed out.'), { name: 'TimeoutError' });
+        if (timeoutSignal?.aborted) throw Object.assign(new Error('Provider request timed out.'), { name: 'TimeoutError' });
         if (error?.code === 'invalid_response' && error?.safeMessage === 'Provider response exceeds the 1 MiB limit.') throw error;
-        if (!sawEvent) return { fallback: true };
+        if (!sawEvent) return { fallback: true, error };
         throw error;
       } finally {
         signal?.removeEventListener('abort', abort);
         cancelReader();
       }
     };
-    let retries = 0;
     while (true) {
-        if (signal?.aborted) throw cancellationError();
-        try {
-          const response = await request(stream);
-          let activeTimeout = responseTimeouts.get(response);
-          if (!stream) {
-            try { return await parseJsonResponse(response); }
-            catch (error) {
-              if (activeTimeout?.aborted) throw Object.assign(new Error('Provider request timed out.'), { name: 'TimeoutError' });
-              throw error;
-            }
-          }
-          const parsed = await parseStream(response, activeTimeout);
-          if (!parsed.fallback && !parsed.fallbackResponse) return parsed;
-          if (signal?.aborted) throw cancellationError();
-          const fallbackResponse = parsed.fallbackResponse ?? await request(false);
-          activeTimeout = responseTimeouts.get(fallbackResponse);
-          try { return await parseJsonResponse(fallbackResponse); }
+      if (signal?.aborted) throw cancellationError();
+      try {
+        const streamAttempt = await request(stream);
+        const parseJsonAttempt = async (attempt) => {
+          try { return await parseJsonResponse(attempt.response); }
           catch (error) {
-            if (activeTimeout?.aborted) throw Object.assign(new Error('Provider request timed out.'), { name: 'TimeoutError' });
+            if (attempt.timeout.signal.aborted) throw Object.assign(new Error('Provider request timed out.'), { name: 'TimeoutError' });
             throw error;
-          }
-        } catch (error) {
-          const failure = classifyProviderFailure(signal?.aborted ? { name: 'AbortError' } : error);
-          const maxRetries = failure.code === 'rate_limited' ? 1 : failure.code === 'unavailable' ? 2 : 0;
-          if (failure.retryable && retries < maxRetries) {
-            retries += 1;
-            const delayMs = failure.retryAfterMs ?? retryDelayFor(retries);
-            emit({ type: 'retrying', attempt: retries, delayMs, failure });
-            await waitForRetry(sleep, delayMs, signal);
-            continue;
-          }
-          emit({ type: 'failed', failure });
-          throw safeFailureError(failure, error);
+          } finally { attempt.dispose(); }
+        };
+        if (!stream) return await parseJsonAttempt(streamAttempt);
+        let parsed;
+        try { parsed = await parseStream(streamAttempt.response, streamAttempt.timeout.signal); }
+        catch (error) { streamAttempt.dispose(); throw error; }
+        if (!parsed.fallback && !parsed.fallbackResponse) { streamAttempt.dispose(); return parsed; }
+        if (parsed.fallbackResponse) return await parseJsonAttempt(streamAttempt);
+        streamAttempt.dispose();
+        if (parsed.error) noteFailure(parsed.error);
+        if (fetchCount >= maxFetches) throw parsed.error ?? new Error('AI provider request budget exhausted.');
+        if (signal?.aborted) throw cancellationError();
+        return await parseJsonAttempt(await request(false));
+      } catch (error) {
+        const failure = noteFailure(error);
+        if (failure.retryable && fetchCount < maxFetches) {
+          retryAttempt += 1;
+          const delayMs = failure.retryAfterMs ?? retryDelayFor(retryAttempt);
+          emit({ type: 'retrying', attempt: retryAttempt, delayMs, failure });
+          await waitForRetry(sleep, delayMs, signal);
+          continue;
         }
+        emit({ type: 'failed', failure });
+        throw safeFailureError(failure, error);
       }
+    }
   };
   return {
     async generate(turn, signal, requestOptions) {
@@ -272,9 +324,9 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
   };
 }
 
-function createMainAiRuntime({ config = {}, fetchImpl, sleep } = {}) {
+function createMainAiRuntime({ config = {}, fetchImpl, sleep, timeoutFactory } = {}) {
   let active = null;
-  const client = config.endpoint && config.apiKey && config.model ? createOpenAiCompatibleClient({ ...config, fetchImpl, sleep }) : null;
+  const client = config.endpoint && config.apiKey && config.model ? createOpenAiCompatibleClient({ ...config, fetchImpl, sleep, timeoutFactory }) : null;
   return {
     async run(raw, requestOptions) {
       const turn = validateTurn(raw); active?.abort(); const controller = new AbortController(); active = controller;
@@ -288,4 +340,4 @@ function createMainAiRuntime({ config = {}, fetchImpl, sleep } = {}) {
   };
 }
 
-module.exports = { MAX_BODY_BYTES, safeEndpoint, redactedError, validateTurn, validateJsonContract, normalizeUsage, parseRetryAfter, retryDelayFor, classifyProviderFailure, createOpenAiCompatibleClient, createMainAiRuntime };
+module.exports = { MAX_BODY_BYTES, safeEndpoint, redactedError, validateTurn, validateJsonContract, normalizeUsage, parseRetryAfter, retryDelayFor, classifyProviderFailure, createAiRequestCoordinator, createOpenAiCompatibleClient, createMainAiRuntime };

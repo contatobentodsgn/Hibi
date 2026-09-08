@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, Notification, screen, powerMonitor } = require("electron");
 const path = require("node:path");
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.cjs");
-const { createMainAiRuntime } = require("./ai-runtime.cjs");
+const { createAiRequestCoordinator, createMainAiRuntime } = require("./ai-runtime.cjs");
 const { createAiConfiguration, verifyAndSaveAiConfiguration } = require('./ai-config.cjs');
 const { createNotchWindowManager } = require("./notch-window.cjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
@@ -9,6 +9,7 @@ const nativeNotchBridge = require("../native/notch/index.cjs");
 let mainWindow;
 let notificationScheduler;
 let aiRuntime;
+let aiRequestCoordinator;
 let aiConfiguration;
 let notchWindow;
 let detachNotchLifecycle = () => {};
@@ -70,19 +71,21 @@ function safeAiUsage(value) {
 
 function safeAiStreamEvent(value) {
   if (!value || typeof value !== 'object') return null;
-  if (value.type === 'delta' && typeof value.delta === 'string' && value.delta.length > 0 && value.delta.length <= MAX_AI_STREAM_DELTA) return { type: 'delta', delta: value.delta };
-  if (value.type === 'usage') { const usage = safeAiUsage(value.usage); return usage ? { type: 'usage', usage } : null; }
-  if (value.type === 'completed') return { type: 'completed' };
-  if (value.type === 'failed') { const failure = safeAiFailure(value.failure); return failure ? { type: 'failed', failure } : null; }
+  const requestId = typeof value.requestId === 'string' && value.requestId.length > 0 && value.requestId.length <= MAX_AI_STREAM_TEXT && /^[A-Za-z0-9_-]+$/.test(value.requestId) ? value.requestId : null;
+  if (!requestId) return null;
+  const scoped = (event) => ({ ...event, requestId });
+  if (value.type === 'delta' && typeof value.delta === 'string' && value.delta.length > 0 && value.delta.length <= MAX_AI_STREAM_DELTA) return scoped({ type: 'delta', delta: value.delta });
+  if (value.type === 'usage') { const usage = safeAiUsage(value.usage); return usage ? scoped({ type: 'usage', usage }) : null; }
+  if (value.type === 'completed') return scoped({ type: 'completed' });
+  if (value.type === 'failed') { const failure = safeAiFailure(value.failure); return failure ? scoped({ type: 'failed', failure }) : null; }
   if (value.type === 'retrying') {
     const failure = safeAiFailure(value.failure);
-    if (failure && Number.isInteger(value.attempt) && value.attempt >= 1 && value.attempt <= 2 && Number.isFinite(value.delayMs) && value.delayMs >= 0 && value.delayMs <= MAX_AI_STREAM_DELAY) return { type: 'retrying', attempt: value.attempt, delayMs: value.delayMs, failure };
+    if (failure && Number.isInteger(value.attempt) && value.attempt >= 1 && value.attempt <= 2 && Number.isFinite(value.delayMs) && value.delayMs >= 0 && value.delayMs <= MAX_AI_STREAM_DELAY) return scoped({ type: 'retrying', attempt: value.attempt, delayMs: value.delayMs, failure });
   }
   if (value.type === 'started') {
-    const requestId = typeof value.requestId === 'string' && value.requestId.length <= MAX_AI_STREAM_TEXT ? value.requestId : undefined;
     const provider = typeof value.provider === 'string' && value.provider.length <= MAX_AI_STREAM_TEXT ? value.provider : undefined;
     const model = typeof value.model === 'string' && value.model.length <= MAX_AI_STREAM_TEXT ? value.model : undefined;
-    return { type: 'started', ...(requestId === undefined ? {} : { requestId }), ...(provider === undefined ? {} : { provider }), ...(model === undefined ? {} : { model }) };
+    return scoped({ type: 'started', ...(provider === undefined ? {} : { provider }), ...(model === undefined ? {} : { model }) });
   }
   return null;
 }
@@ -131,6 +134,7 @@ app.whenReady().then(async () => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
   aiRuntime = createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) });
+  aiRequestCoordinator = createAiRequestCoordinator({ runtime: aiRuntime });
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => mainWindow?.webContents.send('hibi:companion:action', action) });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
@@ -143,22 +147,22 @@ app.whenReady().then(async () => {
     notification.show();
     return true;
   });
-  ipcMain.handle('hibi:ai:run', (event, turn) => aiRuntime.run(turn, {
-    onEvent: (streamEvent) => {
-      const safeEvent = safeAiStreamEvent(streamEvent);
-      if (safeEvent && !event.sender.isDestroyed()) event.sender.send('hibi:ai:stream', safeEvent);
-    },
+  ipcMain.handle('hibi:ai:run', (event, turn) => aiRequestCoordinator.run(event.sender, turn, (streamEvent) => {
+    const safeEvent = safeAiStreamEvent(streamEvent);
+    if (safeEvent && !event.sender.isDestroyed()) event.sender.send('hibi:ai:stream', safeEvent);
   }));
-  ipcMain.handle('hibi:ai:cancel', () => { aiRuntime.cancel(); return true; });
+  ipcMain.handle('hibi:ai:cancel', (event) => aiRequestCoordinator.cancel(event.sender));
   ipcMain.handle('hibi:ai-config:get', () => aiConfiguration.getStatus());
   ipcMain.handle('hibi:ai-config:save', async (_event, value) => {
     const status = await verifyAndSaveAiConfiguration({ configuration: aiConfiguration, value, verifyCandidate: async (config) => createMainAiRuntime({ config }).testConnection() });
     aiRuntime = createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) });
+    aiRequestCoordinator = createAiRequestCoordinator({ runtime: aiRuntime });
     return status;
   });
   ipcMain.handle('hibi:ai-config:delete-key', async () => {
     const status = await aiConfiguration.deleteKey();
     aiRuntime = createMainAiRuntime();
+    aiRequestCoordinator = createAiRequestCoordinator({ runtime: aiRuntime });
     return status;
   });
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));

@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,onAiStreamEvent: (callback) => {
     if (typeof callback !== 'function') throw new TypeError('AI stream listener must be a function.');
     let subscribed = true;
-    const listener = (_event, streamEvent) => { if (subscribed) callback(streamEvent); };
+    const listener = (_event, streamEvent) => { if (subscribed && streamEvent && typeof streamEvent === 'object') callback(streamEvent); };
     ipcRenderer.on('hibi:ai:stream', listener);
     return () => {
       if (!subscribed) return;
