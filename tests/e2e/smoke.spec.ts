@@ -63,6 +63,28 @@ test('abas de Settings alternam conteúdo funcional', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Reset study data' })).toBeVisible();
 });
 
+test('restaura um backup completo pela interface sem incluir dados do Keychain', async ({ page }) => {
+  await page.goto('/');
+  const backup = await page.evaluate(() => {
+    const data = JSON.parse(window.localStorage.getItem('hibi-study-data') ?? '{}');
+    data.tasks.push({ id: 'backup-task', title: 'Tarefa restaurada', durationMinutes: 45, category: 'important', folder: 'Bento' });
+    data.notes.push({ id: 'backup-note', title: 'Nota restaurada', content: 'Contexto preservado', folder: 'Bento', createdAt: '2026-09-08T12:00:00.000Z', updatedAt: '2026-09-08T12:00:00.000Z' });
+    data.blocks.push({ id: 'backup-block', title: 'Bloco restaurado', start: '2026-09-07T08:00:00-03:00', end: '2026-09-07T09:00:00-03:00', category: 'important' });
+    return JSON.stringify({ app: 'Hibi', version: 1, exportedAt: '2026-09-08T12:00:00.000Z', data, preferences: { language: 'pt', twentyFourHour: true } });
+  });
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Data', exact: true }).click();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByLabel('Choose Hibi workspace backup').setInputFiles({ name: 'hibi-workspace-backup.json', mimeType: 'application/json', buffer: Buffer.from(backup) });
+  await expect(page.getByText('Workspace restored from hibi-workspace-backup.json.')).toBeVisible();
+  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await expect(page.getByText('Tarefa restaurada')).toBeVisible();
+  await page.getByRole('button', { name: 'Notes', exact: true }).click();
+  await expect(page.getByText('Nota restaurada')).toBeVisible();
+  await page.getByRole('button', { name: 'Day', exact: true }).click();
+  await expect(page.getByText('Bloco restaurado')).toBeVisible();
+});
+
 test('navegação diária e semanal atualiza o período', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Day', exact: true }).click();
