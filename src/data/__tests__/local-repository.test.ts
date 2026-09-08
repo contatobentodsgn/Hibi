@@ -7,6 +7,123 @@ describe('LocalRepository', () => {
 
   beforeEach(() => { repository = new LocalRepository(createSeedData()); });
 
+  it('starts seed data with an empty activity ledger', () => {
+    expect(createSeedData().activity).toEqual([]);
+  });
+
+  it('appends exactly one cloned activity record', () => {
+    const appended = repository.appendActivity({
+      id: 'activity-task-1',
+      type: 'task.completed',
+      at: '2026-09-08T12:00:00.000Z',
+      entityType: 'task',
+      entityId: 'task-1',
+      title: 'Post',
+    });
+
+    expect(appended).toEqual({
+      id: 'activity-task-1',
+      schemaVersion: 1,
+      type: 'task.completed',
+      at: '2026-09-08T12:00:00.000Z',
+      entityType: 'task',
+      entityId: 'task-1',
+      title: 'Post',
+    });
+    expect(repository.listActivity()).toEqual([appended]);
+  });
+
+  it('protects activity state from returned records and list results', () => {
+    const appended = repository.appendActivity({
+      id: 'activity-task-1',
+      type: 'task.completed',
+      at: '2026-09-08T12:00:00.000Z',
+      title: 'Original title',
+    });
+    appended.title = 'Changed append result';
+    const listed = repository.listActivity();
+    listed[0].title = 'Changed list result';
+    listed.push({ ...listed[0], id: 'activity-injected' });
+
+    expect(repository.listActivity()).toEqual([expect.objectContaining({
+      id: 'activity-task-1',
+      title: 'Original title',
+    })]);
+  });
+
+  it('rejects malformed imported activity records', () => {
+    const imported = createSeedData() as unknown as Record<string, unknown>;
+    imported.activity = [{
+      id: 'activity-bad',
+      schemaVersion: 1,
+      type: '../bad',
+      at: 'not-a-timestamp',
+    }];
+
+    expect(() => LocalRepository.fromJson(createSeedData(), JSON.stringify(imported))).toThrow('Invalid study data');
+  });
+
+  it('loads legacy snapshots without activity with an empty ledger', () => {
+    const legacy = JSON.parse(repository.exportJson()) as Record<string, unknown>;
+    delete legacy.activity;
+
+    const restored = LocalRepository.fromJson(createSeedData(), JSON.stringify(legacy));
+
+    expect(restored.listActivity()).toEqual([]);
+  });
+
+  it('rejects duplicate imported and appended activity IDs', () => {
+    const record = {
+      id: 'activity-duplicate',
+      schemaVersion: 1,
+      type: 'task.completed',
+      at: '2026-09-08T12:00:00.000Z',
+    } as const;
+    const imported = { ...createSeedData(), activity: [record, record] };
+
+    expect(() => LocalRepository.fromJson(createSeedData(), JSON.stringify(imported))).toThrow('Duplicate activity id: activity-duplicate');
+
+    repository.appendActivity({
+      id: record.id,
+      type: record.type,
+      at: record.at,
+    });
+    expect(() => repository.appendActivity({
+      id: record.id,
+      type: record.type,
+      at: record.at,
+    })).toThrow('Duplicate activity id: activity-duplicate');
+    expect(repository.listActivity()).toHaveLength(1);
+  });
+
+  it('preserves structurally valid unknown namespaced activity types on import', () => {
+    const imported = {
+      ...createSeedData(),
+      activity: [{
+        id: 'activity-future',
+        schemaVersion: 1,
+        type: 'future.valid',
+        at: '2026-09-08T12:00:00.000Z',
+      }],
+    };
+
+    expect(LocalRepository.fromJson(createSeedData(), JSON.stringify(imported)).listActivity()).toEqual(imported.activity);
+  });
+
+  it('rejects unsupported imported activity schema versions', () => {
+    const imported = {
+      ...createSeedData(),
+      activity: [{
+        id: 'activity-future-schema',
+        schemaVersion: 2,
+        type: 'future.valid',
+        at: '2026-09-08T12:00:00.000Z',
+      }],
+    };
+
+    expect(() => LocalRepository.fromJson(createSeedData(), JSON.stringify(imported))).toThrow('Invalid study data');
+  });
+
   it('seeds the internal study routine with exact fixed commitments', () => {
     const data = repository.snapshot();
     expect(data.blocks.some((b) => b.title === 'Almoço' && b.start.endsWith('T12:00:00-03:00') && b.end.endsWith('T14:00:00-03:00'))).toBe(true);
