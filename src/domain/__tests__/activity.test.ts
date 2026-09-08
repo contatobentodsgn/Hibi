@@ -45,6 +45,30 @@ describe('activity records', () => {
     expect(() => createActivityRecord({ type: 'task.completed', at: 'not-a-date' })).toThrow();
   });
 
+  it('accepts an ISO timestamp with an offset and normalizes it to UTC', () => {
+    const record = createActivityRecord({
+      type: 'task.completed',
+      at: '2026-09-08T09:00:00.000-03:00',
+    });
+
+    expect(record.at).toBe('2026-09-08T12:00:00.000Z');
+    expect(isActivityRecord({ ...record, at: '2026-09-08T09:00:00.000-03:00' })).toBe(true);
+  });
+
+  it.each([
+    '2026-09-08',
+    'September 8, 2026 09:00:00 GMT-0300',
+    '2026-09-08T09:00:00',
+    '2026-09-08T09:00:00.000-03',
+  ])('rejects non-ISO or zoneless persisted timestamp %s', (at) => {
+    expect(isActivityRecord({
+      id: 'activity-1',
+      schemaVersion: 1,
+      type: 'task.completed',
+      at,
+    })).toBe(false);
+  });
+
   it('rejects negative durations', () => {
     expect(() => createActivityRecord({
       type: 'focus.completed',
@@ -69,5 +93,25 @@ describe('activity records', () => {
       type: '../bad',
       at: '2026-09-08T12:00:00.000Z',
     })).toBe(false);
+  });
+
+  it('rejects persisted records with unknown properties', () => {
+    expect(isActivityRecord({
+      id: 'activity-1',
+      schemaVersion: 1,
+      type: 'task.completed',
+      at: '2026-09-08T12:00:00.000Z',
+      apiKey: 'secret',
+    })).toBe(false);
+  });
+
+  it('constructs records using only declared properties', () => {
+    const record = createActivityRecord({
+      type: 'task.completed',
+      at: '2026-09-08T12:00:00.000Z',
+      apiKey: 'secret',
+    } as Parameters<typeof createActivityRecord>[0] & { apiKey: string });
+
+    expect(record).not.toHaveProperty('apiKey');
   });
 });

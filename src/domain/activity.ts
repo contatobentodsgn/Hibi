@@ -59,6 +59,21 @@ const CATEGORIES = new Set<Category>(['work', 'break', 'learning', 'important', 
 const MAX_TITLE_LENGTH = 240;
 const MAX_FOLDER_LENGTH = 240;
 const MAX_ENTITY_ID_LENGTH = 128;
+const ACTIVITY_RECORD_KEYS = new Set([
+  'id',
+  'schemaVersion',
+  'type',
+  'at',
+  'entityType',
+  'entityId',
+  'title',
+  'durationMinutes',
+  'category',
+  'folder',
+  'value',
+  'seeded',
+]);
+const ISO_TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 function isBoundedString(value: unknown, maximumLength: number): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= maximumLength;
@@ -66,8 +81,21 @@ function isBoundedString(value: unknown, maximumLength: number): value is string
 
 function isIsoTimestamp(value: unknown): value is string {
   if (typeof value !== 'string') return false;
+  const match = ISO_TIMESTAMP_PATTERN.exec(value);
+  if (!match) return false;
+
+  const [, year, month, day, hour, minute, second] = match.map(Number);
+  const dateIsValid = month >= 1
+    && month <= 12
+    && day >= 1
+    && day <= new Date(Date.UTC(year, month, 0)).getUTCDate()
+    && hour <= 23
+    && minute <= 59
+    && second <= 59;
+  if (!dateIsValid) return false;
+
   const parsed = new Date(value);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
+  return !Number.isNaN(parsed.getTime());
 }
 
 function isNonNegativeFiniteNumber(value: unknown): value is number {
@@ -89,7 +117,8 @@ export function isActivityRecord(value: unknown): value is ActivityRecord {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
 
-  return record.schemaVersion === ACTIVITY_SCHEMA_VERSION
+  return Object.keys(record).every((key) => ACTIVITY_RECORD_KEYS.has(key))
+    && record.schemaVersion === ACTIVITY_SCHEMA_VERSION
     && typeof record.id === 'string'
     && ID_PATTERN.test(record.id)
     && typeof record.type === 'string'
@@ -100,10 +129,20 @@ export function isActivityRecord(value: unknown): value is ActivityRecord {
 
 export function createActivityRecord(input: ActivityInput): ActivityRecord {
   const record: ActivityRecord = {
-    ...input,
     id: input.id ?? `activity-${crypto.randomUUID()}`,
     schemaVersion: ACTIVITY_SCHEMA_VERSION,
+    type: input.type,
+    at: isIsoTimestamp(input.at) ? new Date(input.at).toISOString() : input.at,
   };
+
+  if (input.entityType !== undefined) record.entityType = input.entityType;
+  if (input.entityId !== undefined) record.entityId = input.entityId;
+  if (input.title !== undefined) record.title = input.title;
+  if (input.durationMinutes !== undefined) record.durationMinutes = input.durationMinutes;
+  if (input.category !== undefined) record.category = input.category;
+  if (input.folder !== undefined) record.folder = input.folder;
+  if (input.value !== undefined) record.value = input.value;
+  if (input.seeded !== undefined) record.seeded = input.seeded;
 
   if (!isActivityRecord(record) || !ACTIVITY_TYPES.includes(input.type)) {
     throw new TypeError('Invalid activity record');
