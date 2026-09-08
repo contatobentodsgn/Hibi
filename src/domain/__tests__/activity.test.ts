@@ -21,8 +21,24 @@ describe('activity records', () => {
       title: 'Post',
       durationMinutes: 60,
     });
-    expect(record.id).toEqual(expect.any(String));
+    expect(record.id).toMatch(/^activity-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(isActivityRecord(record)).toBe(true);
+  });
+
+  it.each(['title', 'folder'] as const)('accepts a 240-character %s', (field) => {
+    expect(() => createActivityRecord({
+      type: 'task.completed',
+      at: '2026-09-08T12:00:00.000Z',
+      [field]: 'a'.repeat(240),
+    })).not.toThrow();
+  });
+
+  it.each(['title', 'folder'] as const)('rejects a 241-character %s', (field) => {
+    expect(() => createActivityRecord({
+      type: 'task.completed',
+      at: '2026-09-08T12:00:00.000Z',
+      [field]: 'a'.repeat(241),
+    })).toThrow();
   });
 
   it('rejects invalid timestamps', () => {

@@ -56,8 +56,8 @@ const EVENT_TYPE_PATTERN = /^[a-z][a-z0-9-]{0,31}\.[a-z][a-z0-9-]{0,31}$/;
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const ENTITY_TYPES = new Set<ActivityEntityType>(['task', 'focus', 'habit', 'goal', 'block']);
 const CATEGORIES = new Set<Category>(['work', 'break', 'learning', 'important', 'wellbeing']);
-const MAX_TITLE_LENGTH = 256;
-const MAX_FOLDER_LENGTH = 256;
+const MAX_TITLE_LENGTH = 240;
+const MAX_FOLDER_LENGTH = 240;
 const MAX_ENTITY_ID_LENGTH = 128;
 
 function isBoundedString(value: unknown, maximumLength: number): value is string {
@@ -101,7 +101,7 @@ export function isActivityRecord(value: unknown): value is ActivityRecord {
 export function createActivityRecord(input: ActivityInput): ActivityRecord {
   const record: ActivityRecord = {
     ...input,
-    id: input.id ?? crypto.randomUUID(),
+    id: input.id ?? `activity-${crypto.randomUUID()}`,
     schemaVersion: ACTIVITY_SCHEMA_VERSION,
   };
 
