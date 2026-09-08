@@ -55,6 +55,15 @@ describe('activity records', () => {
     expect(isActivityRecord({ ...record, at: '2026-09-08T09:00:00.000-03:00' })).toBe(true);
   });
 
+  it('accepts year 0000 leap day and normalizes it to UTC', () => {
+    const record = createActivityRecord({
+      type: 'task.completed',
+      at: '0000-02-29T00:00:00Z',
+    });
+
+    expect(record.at).toBe('0000-02-29T00:00:00.000Z');
+  });
+
   it.each([
     '2026-09-08',
     'September 8, 2026 09:00:00 GMT-0300',

@@ -75,6 +75,15 @@ const ACTIVITY_RECORD_KEYS = new Set([
 ]);
 const ISO_TIMESTAMP_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) {
+    const isLeapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+    return isLeapYear ? 29 : 28;
+  }
+
+  return [4, 6, 9, 11].includes(month) ? 30 : 31;
+}
+
 function isBoundedString(value: unknown, maximumLength: number): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= maximumLength;
 }
@@ -88,7 +97,7 @@ function isIsoTimestamp(value: unknown): value is string {
   const dateIsValid = month >= 1
     && month <= 12
     && day >= 1
-    && day <= new Date(Date.UTC(year, month, 0)).getUTCDate()
+    && day <= daysInMonth(year, month)
     && hour <= 23
     && minute <= 59
     && second <= 59;
