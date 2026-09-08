@@ -59,6 +59,18 @@ function attachNotchLifecycle({ displayService, powerService, manager }) {
   };
 }
 
+function attachRendererRecovery(window) {
+  let recovering = false;
+  const recover = () => {
+    if (recovering || window?.isDestroyed?.()) return;
+    recovering = true;
+    window.webContents?.reloadIgnoringCache?.();
+  };
+  window?.webContents?.on?.('render-process-gone', recover);
+  window?.webContents?.on?.('did-finish-load', () => { recovering = false; });
+  return recover;
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 820, minWidth: 960, minHeight: 620,
@@ -71,6 +83,7 @@ function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => ({
     action: isAllowedNavigation(url) ? "allow" : "deny"
   }));
+  attachRendererRecovery(mainWindow);
   if (isDev) { const candidate = process.env.HIBI_DEV_SERVER || "http://127.0.0.1:5173"; const url = new URL(candidate); if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(url.hostname)) throw new Error('HIBI_DEV_SERVER must target loopback HTTP'); mainWindow.loadURL(url.toString()); }
   else mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 }
@@ -114,4 +127,4 @@ app.whenReady().then(async () => {
 app.on("before-quit", () => { detachNotchLifecycle(); notificationScheduler?.clear(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
-module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle };
+module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery };

@@ -15,7 +15,7 @@ Module._load = function (request, parent, isMain) {
   if (request === "./notifications.cjs") return { createNotificationScheduler() { return { clear() {} }; } };
   return originalLoad.call(this, request, parent, isMain);
 };
-const { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle } = require("./main.cjs");
+const { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery } = require("./main.cjs");
 Module._load = originalLoad;
 
 test("allows only local development and packaged file navigation", () => {
@@ -63,4 +63,18 @@ test('repositions the companion after display changes and wake then unregisters 
   assert.equal(calls, 4);
   detach();
   assert.deepEqual(removed.map(([event]) => event), ['display-added', 'display-removed', 'display-metrics-changed', 'resume']);
+});
+
+test('recovers a crashed renderer once and resets the guard after a successful load', () => {
+  const listeners = new Map();
+  let reloads = 0;
+  const target = { isDestroyed: () => false, webContents: { on: (event, listener) => listeners.set(event, listener), reloadIgnoringCache: () => { reloads += 1; } } };
+  attachRendererRecovery(target);
+
+  listeners.get('render-process-gone')({}, { reason: 'crashed' });
+  listeners.get('render-process-gone')({}, { reason: 'crashed' });
+  assert.equal(reloads, 1);
+  listeners.get('did-finish-load')();
+  listeners.get('render-process-gone')({}, { reason: 'crashed' });
+  assert.equal(reloads, 2);
 });
