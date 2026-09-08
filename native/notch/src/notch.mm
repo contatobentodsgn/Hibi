@@ -2,9 +2,11 @@
 #import <Cocoa/Cocoa.h>
 #import <objc/runtime.h>
 
-constexpr CGFloat kHostWidth = 392.0;
-constexpr CGFloat kPassiveHeight = 116.0;
-constexpr CGFloat kInteractiveHeight = 188.0;
+// The window is intentionally small. It expands from the camera housing as a
+// compact square surface instead of becoming a wide desktop notification.
+constexpr CGFloat kHostWidth = 256.0;
+constexpr CGFloat kPassiveHeight = 38.0;
+constexpr CGFloat kInteractiveHeight = 190.0;
 
 static napi_env gRawEnv = nullptr;
 static Napi::FunctionReference gActionCallback;
@@ -55,7 +57,7 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
   self = [super initWithFrame:frame];
   if (self) {
     self.wantsLayer = YES;
-    self.layer.cornerRadius = 22.0;
+    self.layer.cornerRadius = 30.0;
     self.layer.masksToBounds = YES;
     self.layer.backgroundColor = NSColor.blackColor.CGColor;
     self.message = @"Hibi";
@@ -87,10 +89,10 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
 - (void)layout {
   [super layout];
   if (self.actions.count == 0) return;
-  CGFloat gap = 10.0;
-  CGFloat width = (self.bounds.size.width - 48.0 - gap * (self.actions.count - 1)) / self.actions.count;
+  CGFloat gap = 8.0;
+  CGFloat width = (self.bounds.size.width - 32.0 - gap * (self.actions.count - 1)) / self.actions.count;
   for (NSUInteger index = 0; index < self.subviews.count; index++) {
-    self.subviews[index].frame = NSMakeRect(24.0 + index * (width + gap), 22.0, width, 36.0);
+    self.subviews[index].frame = NSMakeRect(16.0 + index * (width + gap), 16.0, width, 34.0);
   }
 }
 - (void)drawRect:(NSRect)dirtyRect {
@@ -98,8 +100,8 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
   NSMutableParagraphStyle *paragraph = [NSMutableParagraphStyle new];
   paragraph.alignment = NSTextAlignmentCenter;
   NSDictionary *attributes = @{ NSFontAttributeName: [NSFont systemFontOfSize:15 weight:NSFontWeightMedium], NSForegroundColorAttributeName: NSColor.whiteColor, NSParagraphStyleAttributeName: paragraph };
-  CGFloat bottom = self.actions.count > 0 ? 76.0 : 26.0;
-  [self.message drawInRect:NSMakeRect(24.0, bottom, self.bounds.size.width - 48.0, self.bounds.size.height - bottom - 22.0) withAttributes:attributes];
+  CGFloat bottom = self.actions.count > 0 ? 66.0 : 14.0;
+  [self.message drawInRect:NSMakeRect(16.0, bottom, self.bounds.size.width - 32.0, self.bounds.size.height - bottom - 14.0) withAttributes:attributes];
 }
 @end
 
