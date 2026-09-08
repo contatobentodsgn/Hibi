@@ -15,6 +15,7 @@ static NSString *gRequestId = nil;
 static NSNumber *gDisplayId = nil;
 static BOOL gInteractive = NO;
 static id gScreenObserver = nil;
+static id gKeyObserver = nil;
 
 NSString *StringFromValue(const Napi::Value &value) {
   return [NSString stringWithUTF8String:value.As<Napi::String>().Utf8Value().c_str()];
@@ -33,8 +34,21 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
 @interface HibiNotchPanel : NSPanel
 @end
 @implementation HibiNotchPanel
-- (BOOL)canBecomeKeyWindow { return NO; }
+- (BOOL)canBecomeKeyWindow { return gInteractive; }
 - (BOOL)canBecomeMainWindow { return NO; }
+- (void)keyDown:(NSEvent *)event {
+  if (gInteractive && event.keyCode == 48) {
+    NSArray<NSView *> *actions = gPanel.contentView.subviews;
+    NSUInteger current = 0;
+    NSResponder *firstResponder = self.firstResponder;
+    for (NSUInteger index = 0; index < actions.count; index++) if (actions[index] == firstResponder) { current = index; break; }
+    BOOL reverse = (event.modifierFlags & NSEventModifierFlagShift) != 0;
+    NSUInteger next = reverse ? (current + actions.count - 1) % actions.count : (current + 1) % actions.count;
+    [self makeFirstResponder:actions[next]];
+    return;
+  }
+  [super keyDown:event];
+}
 @end
 
 @interface HibiNotchActionTarget : NSObject
@@ -50,6 +64,7 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
 @property(nonatomic, copy) NSString *requestId;
 @property(nonatomic, strong) NSArray<NSDictionary<NSString *, NSString *> *> *actions;
 - (void)setPresentationMessage:(NSString *)message requestId:(NSString *)requestId actions:(NSArray<NSDictionary<NSString *, NSString *> *> *)actions;
+- (void)focusFirstAction;
 @end
 
 @implementation HibiNotchContentView
@@ -95,6 +110,10 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
     self.subviews[index].frame = NSMakeRect(16.0 + index * (width + gap), 16.0, width, 34.0);
   }
 }
+- (void)focusFirstAction {
+  NSView *firstAction = self.subviews.firstObject;
+  if (firstAction) [self.window makeFirstResponder:firstAction];
+}
 - (void)drawRect:(NSRect)dirtyRect {
   [super drawRect:dirtyRect];
   NSMutableParagraphStyle *paragraph = [NSMutableParagraphStyle new];
@@ -136,6 +155,11 @@ BOOL EnsureHost() {
   gPanel = panel;
   gScreenObserver = [[NSNotificationCenter defaultCenter] addObserverForName:NSApplicationDidChangeScreenParametersNotification object:NSApp queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
     if (gPanel && gDisplayId) PositionHost(gDisplayId.unsignedLongLongValue);
+  }];
+  gKeyObserver = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown handler:^NSEvent *(NSEvent *event) {
+    if (gInteractive && gPanel.isKeyWindow && event.keyCode == 48) { [gPanel keyDown:event]; return nil; }
+    if (gInteractive && gPanel.isKeyWindow && (event.keyCode == 36 || event.keyCode == 76) && [gPanel.firstResponder isKindOfClass:NSButton.class]) { [(NSButton *)gPanel.firstResponder performClick:nil]; return nil; }
+    return event;
   }];
   return YES;
 }
@@ -185,11 +209,11 @@ Napi::Value ShowHost(const Napi::CallbackInfo& info) {
   NSMutableArray<NSDictionary<NSString *, NSString *> *> *actions = [NSMutableArray array];
   for (uint32_t index = 0; index < actionsValue.Length(); index++) { Napi::Value rawAction = actionsValue.Get(index); if (!rawAction.IsObject()) return Napi::Boolean::New(info.Env(), false); Napi::Object action = rawAction.As<Napi::Object>(); if (!action.Has("id") || !action.Get("id").IsString() || !action.Has("label") || !action.Get("label").IsString()) return Napi::Boolean::New(info.Env(), false); NSString *actionId = StringFromValue(action.Get("id")); NSString *label = StringFromValue(action.Get("label")); if (actionId.length == 0 || actionId.length > 64 || label.length == 0 || label.length > 80) return Napi::Boolean::New(info.Env(), false); [actions addObject:@{ @"id": actionId, @"label": label }]; }
   NSString *message = presentation.Has("text") && presentation.Get("text").IsString() ? StringFromValue(presentation.Get("text")) : @"Hibi";
-  gRequestId = requestId; gInteractive = actions.count > 0; HibiNotchContentView *view = HostContentView(); [view setPresentationMessage:message requestId:requestId actions:actions]; uint64_t displayId = static_cast<uint64_t>(info[1].As<Napi::Number>().Int64Value()); if (!PositionHost(displayId)) return Napi::Boolean::New(info.Env(), false); gPanel.ignoresMouseEvents = !gInteractive; [gPanel orderFrontRegardless]; return Napi::Boolean::New(info.Env(), true);
+  gRequestId = requestId; gInteractive = actions.count > 0; HibiNotchContentView *view = HostContentView(); [view setPresentationMessage:message requestId:requestId actions:actions]; uint64_t displayId = static_cast<uint64_t>(info[1].As<Napi::Number>().Int64Value()); if (!PositionHost(displayId)) return Napi::Boolean::New(info.Env(), false); gPanel.ignoresMouseEvents = !gInteractive; if (gInteractive) { gPanel.styleMask &= ~NSWindowStyleMaskNonactivatingPanel; gPanel.becomesKeyOnlyIfNeeded = NO; [gPanel makeKeyAndOrderFront:nil]; [view focusFirstAction]; } else { gPanel.styleMask |= NSWindowStyleMaskNonactivatingPanel; gPanel.becomesKeyOnlyIfNeeded = YES; [gPanel orderFrontRegardless]; } return Napi::Boolean::New(info.Env(), true);
 }
 Napi::Value HideHost(const Napi::CallbackInfo& info) { if (!gPanel) return Napi::Boolean::New(info.Env(), false); gPanel.ignoresMouseEvents = YES; [gPanel orderOut:nil]; gRequestId = nil; gInteractive = NO; return Napi::Boolean::New(info.Env(), true); }
 Napi::Value RepositionHost(const Napi::CallbackInfo& info) { if (!gPanel || info.Length() < 1 || !info[0].IsNumber()) return Napi::Boolean::New(info.Env(), false); return Napi::Boolean::New(info.Env(), PositionHost(static_cast<uint64_t>(info[0].As<Napi::Number>().Int64Value()))); }
-Napi::Value DestroyHost(const Napi::CallbackInfo& info) { if (gPanel) { [gPanel orderOut:nil]; [gPanel close]; gPanel = nil; } if (gScreenObserver) { [[NSNotificationCenter defaultCenter] removeObserver:gScreenObserver]; gScreenObserver = nil; } gRequestId = nil; gDisplayId = nil; gInteractive = NO; gActionCallback.Reset(); gRawEnv = nullptr; return Napi::Boolean::New(info.Env(), true); }
+Napi::Value DestroyHost(const Napi::CallbackInfo& info) { if (gPanel) { [gPanel orderOut:nil]; [gPanel close]; gPanel = nil; } if (gScreenObserver) { [[NSNotificationCenter defaultCenter] removeObserver:gScreenObserver]; gScreenObserver = nil; } if (gKeyObserver) { [NSEvent removeMonitor:gKeyObserver]; gKeyObserver = nil; } gRequestId = nil; gDisplayId = nil; gInteractive = NO; gActionCallback.Reset(); gRawEnv = nullptr; return Napi::Boolean::New(info.Env(), true); }
 Napi::Value HostDiagnostics(const Napi::CallbackInfo& info) { Napi::Object result = Napi::Object::New(info.Env()); result.Set("available", Napi::Boolean::New(info.Env(), true)); result.Set("created", Napi::Boolean::New(info.Env(), gPanel != nil)); result.Set("visible", Napi::Boolean::New(info.Env(), gPanel != nil && gPanel.isVisible)); result.Set("interactive", Napi::Boolean::New(info.Env(), gInteractive)); if (gDisplayId) result.Set("displayId", Napi::Number::New(info.Env(), gDisplayId.unsignedLongLongValue)); if (gRequestId) result.Set("requestId", Napi::String::New(info.Env(), gRequestId.UTF8String)); if (gPanel) { NSRect frame = gPanel.frame; Napi::Object rect = Napi::Object::New(info.Env()); rect.Set("x", Napi::Number::New(info.Env(), frame.origin.x)); rect.Set("y", Napi::Number::New(info.Env(), frame.origin.y)); rect.Set("width", Napi::Number::New(info.Env(), frame.size.width)); rect.Set("height", Napi::Number::New(info.Env(), frame.size.height)); result.Set("frame", rect); result.Set("occluded", Napi::Boolean::New(info.Env(), (gPanel.occlusionState & NSWindowOcclusionStateVisible) == 0)); result.Set("activeSpace", Napi::Boolean::New(info.Env(), gPanel.onActiveSpace)); } return result; }
 Napi::Value Teardown(const Napi::CallbackInfo& info) { DestroyHost(info); return info.Env().Undefined(); }
 
