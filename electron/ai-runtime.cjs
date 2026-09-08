@@ -215,9 +215,9 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
         throw error;
       }
     };
-    const parseJsonResponse = async (response) => {
-      if (typeof response.text !== 'function') throw invalidResponseError();
-      const text = await response.text();
+    const parseJsonResponse = async (response, fallbackText) => {
+      if (fallbackText === undefined && typeof response.text !== 'function') throw invalidResponseError();
+      const text = fallbackText ?? await response.text();
       if (Buffer.byteLength(text, 'utf8') > MAX_BODY_BYTES) {
         const error = invalidResponseError(); error.safeMessage = 'Provider response exceeds the 1 MiB limit.'; throw error;
       }
@@ -230,7 +230,7 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
     const parseStream = async (response, timeoutSignal) => {
       const reader = response.body?.getReader?.();
       if (!reader) return { fallbackResponse: response };
-      let bodyBytes = 0; let buffer = ''; let content = ''; let sawEvent = false; let completed = false;
+      let bodyBytes = 0; let buffer = ''; let bodyText = ''; let content = ''; let sawEvent = false; let completed = false;
       const decoder = new TextDecoder();
       const cancelReader = () => { void Promise.resolve(reader.cancel()).catch(() => {}); };
       const abort = () => { cancelReader(); };
@@ -260,13 +260,17 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
           if (bodyBytes > MAX_BODY_BYTES) {
             const error = invalidResponseError(); error.safeMessage = 'Provider response exceeds the 1 MiB limit.'; throw error;
           }
-          buffer += decoder.decode(chunk.value, { stream: true });
+          const decoded = decoder.decode(chunk.value, { stream: true });
+          bodyText += decoded;
+          buffer += decoded;
           const blocks = buffer.split(/\r?\n\r?\n/); buffer = blocks.pop();
           for (const block of blocks) consumeEvent(block);
         }
-        buffer += decoder.decode();
+        const decoded = decoder.decode();
+        bodyText += decoded;
+        buffer += decoded;
         if (buffer.trim()) consumeEvent(buffer);
-        if (!sawEvent && !completed) return { fallbackResponse: response };
+        if (!sawEvent && !completed) return { fallbackText: bodyText };
         if (!completed) emit({ type: 'completed' });
         return { content, model };
       } catch (error) {
@@ -284,8 +288,8 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
       if (signal?.aborted) throw cancellationError();
       try {
         const streamAttempt = await request(stream);
-        const parseJsonAttempt = async (attempt) => {
-          try { return await parseJsonResponse(attempt.response); }
+        const parseJsonAttempt = async (attempt, fallbackText) => {
+          try { return await parseJsonResponse(attempt.response, fallbackText); }
           catch (error) {
             if (attempt.timeout.signal.aborted) throw Object.assign(new Error('Provider request timed out.'), { name: 'TimeoutError' });
             throw error;
@@ -295,7 +299,8 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
         let parsed;
         try { parsed = await parseStream(streamAttempt.response, streamAttempt.timeout.signal); }
         catch (error) { streamAttempt.dispose(); throw error; }
-        if (!parsed.fallback && !parsed.fallbackResponse) { streamAttempt.dispose(); return parsed; }
+        if (!parsed.fallback && !parsed.fallbackResponse && parsed.fallbackText === undefined) { streamAttempt.dispose(); return parsed; }
+        if (parsed.fallbackText !== undefined) return await parseJsonAttempt(streamAttempt, parsed.fallbackText);
         if (parsed.fallbackResponse) return await parseJsonAttempt(streamAttempt);
         streamAttempt.dispose();
         if (parsed.error) noteFailure(parsed.error);

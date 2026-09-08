@@ -93,6 +93,34 @@ test('uses the existing JSON completion response when streaming is unavailable',
   assert.equal(requests[0].stream, true);
 });
 
+test('parses a single-use JSON response after probing its stream body', async () => {
+  const events = []; const bodyText = JSON.stringify(providerJson('single-use fallback'));
+  let calls = 0; let textCalls = 0; let readerConsumed = false; let index = 0;
+  const response = {
+    ok: true, status: 200, headers: { get: () => null },
+    body: { getReader: () => ({
+      read: async () => index++ === 0 ? (readerConsumed = true, { done: false, value: encoder.encode(bodyText) }) : { done: true },
+      cancel: async () => {},
+    }) },
+    text: async () => {
+      textCalls += 1;
+      if (readerConsumed) throw new Error('response body was already consumed');
+      return bodyText;
+    },
+  };
+  const client = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', onEvent: (event) => events.push(event), sleep: async () => assert.fail('must not retry a normal JSON response'), fetchImpl: async () => {
+    calls += 1;
+    return response;
+  } });
+
+  const result = await client.generate({ message: 'x', surface: 'desktop' });
+
+  assert.equal(result.content, 'single-use fallback');
+  assert.equal(calls, 1);
+  assert.equal(textCalls, 0);
+  assert.deepEqual(events, []);
+});
+
 test('falls back to a non-streaming completion when the stream fails before valid events', async () => {
   let calls = 0;
   const client = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', fetchImpl: async (_url, init) => {
