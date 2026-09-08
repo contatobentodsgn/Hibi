@@ -114,6 +114,9 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
   NSView *firstAction = self.subviews.firstObject;
   if (firstAction) [self.window makeFirstResponder:firstAction];
 }
+- (BOOL)isAccessibilityElement { return YES; }
+- (NSAccessibilityRole)accessibilityRole { return NSAccessibilityGroupRole; }
+- (NSString *)accessibilityLabel { return self.message; }
 - (void)drawRect:(NSRect)dirtyRect {
   [super drawRect:dirtyRect];
   NSMutableParagraphStyle *paragraph = [NSMutableParagraphStyle new];

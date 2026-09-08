@@ -27,4 +27,6 @@ test('keeps passive cards non-activating but makes confirmation actions keyboard
   assert.match(source, /removeMonitor:gKeyObserver/);
   assert.match(source, /event\.keyCode == 36 \|\| event\.keyCode == 76/);
   assert.match(source, /\[\(NSButton \*\)gPanel\.firstResponder performClick:nil\]/);
+  assert.match(source, /- \(NSAccessibilityRole\)accessibilityRole \{ return NSAccessibilityGroupRole; \}/);
+  assert.match(source, /- \(NSString \*\)accessibilityLabel \{ return self\.message; \}/);
 });
