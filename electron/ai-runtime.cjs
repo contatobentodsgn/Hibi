@@ -92,6 +92,7 @@ function classifyProviderFailure(input) {
     const retryAfterMs = finiteNonNegative(record?.retryAfterMs);
     return { code: 'rate_limited', retryable: true, ...(retryAfterMs && retryAfterMs > 0 ? { retryAfterMs: Math.min(retryAfterMs, MAX_RETRY_AFTER_MS) } : {}) };
   }
+  if (status >= 400 && status < 500) return { code: 'invalid_response', retryable: false };
   if (name === 'syntaxerror' || code === 'invalid_response' || record?.type === 'malformed_response') return { code: 'invalid_response', retryable: false };
   return { code: 'unavailable', retryable: true };
 }

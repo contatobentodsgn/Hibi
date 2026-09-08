@@ -135,6 +135,25 @@ test('classifies invalid credentials without retrying or exposing provider data'
   }
 });
 
+test('does not retry invalid HTTP client requests or expose provider text', async () => {
+  for (const status of [400, 404]) {
+    const events = []; let calls = 0;
+    const client = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', onEvent: (event) => events.push(event), sleep: async () => assert.fail('must not retry invalid client requests'), fetchImpl: async () => {
+      calls += 1;
+      return jsonResponse({ error: { message: 'raw client detail' } }, { status });
+    } });
+
+    await assert.rejects(() => client.generate({ message: 'x', surface: 'desktop' }), (error) => {
+      assert.match(error.message, /invalid_response/);
+      assert.doesNotMatch(error.message, /raw client detail/i);
+      return true;
+    });
+
+    assert.equal(calls, 1);
+    assert.deepEqual(events, [{ type: 'failed', failure: { code: 'invalid_response', retryable: false } }]);
+  }
+});
+
 test('stops after the exact global rate-limited fetch budget', async () => {
   const events = []; const delays = []; let calls = 0;
   const client = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', onEvent: (event) => events.push(event), sleep: async (delay) => { delays.push(delay); }, fetchImpl: async () => { calls += 1; return jsonResponse({}, { status: 429, headers: { 'retry-after': '120' } }); } });
