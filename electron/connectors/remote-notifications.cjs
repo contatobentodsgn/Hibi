@@ -3,6 +3,12 @@ function createRemoteNotificationConnector({ baseUrl = 'https://notifications.ex
   const call = async (path, init, override) => (override ?? request)(new URL(path, url).toString(), init);
   return {
     id: 'remote-notifications', label: 'Remote notifications', allowedHosts: [url.hostname], capabilities: ['notify', 'write'],
+    // Só consulta a saúde do endpoint; nenhum envio é disparado no teste.
+    async testConnection({ credential, request: override }) {
+      const response = await call('health', { method: 'GET', headers: { Authorization: `Bearer ${credential}` } }, override);
+      if (!response?.ok) throw new Error('The notification endpoint rejected this credential.');
+      return { ok: true, detail: 'Notification endpoint reachable and credential accepted.' };
+    },
     prepareWrite(input) {
       const { title, body } = input?.payload ?? {};
       if (input?.kind !== 'notification.send' || typeof title !== 'string' || !title || title.length > 240 || typeof body !== 'string' || !body || body.length > 2_000) throw new Error('Invalid remote notification.');

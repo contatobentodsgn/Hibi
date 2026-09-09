@@ -84,6 +84,17 @@ function createSafeIntegrationFetch({ connector, fetch = globalThis.fetch, timeo
   };
 }
 
+// Envolve o fetch seguro recusando qualquer método que possa escrever, para que
+// um teste de conexão não consiga alterar nada no serviço remoto nem por engano.
+function createReadOnlyFetch(request) {
+  return async (url, init = {}) => {
+    const method = String(init.method ?? 'GET').toUpperCase();
+    if (method !== 'GET' && method !== 'HEAD') throw new Error('A connection test cannot perform writes.');
+    if (init.body !== undefined && init.body !== null) throw new Error('A connection test cannot send a request body.');
+    return request(url, { ...init, method });
+  };
+}
+
 function createIntegrationManager({ connectors = [], keychain, now = () => new Date().toISOString() } = {}) {
   if (!keychain || typeof keychain.set !== 'function' || typeof keychain.get !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function') throw new Error('A Keychain implementation is required.');
   const registered = new Map(connectors.map((connector) => { validateConnector(connector); return [connector.id, connector]; }));
@@ -135,10 +146,36 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       appendAudit({ action: 'execute', connectorId: action.connector.id, detail: `Executed approved ${action.kind}.` });
       return result;
     },
+    async testConnection(id) {
+      const connector = getConnector(id);
+      if (typeof connector.testConnection !== 'function') throw new Error('This integration does not offer a connection test.');
+      const credential = await keychain.get(accountFor(id));
+      if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
+      try {
+        const result = await connector.testConnection({ credential, request: createReadOnlyFetch(createSafeIntegrationFetch({ connector })) });
+        const detail = boundedText(result?.detail) ? redact(result.detail) : 'Credential accepted.';
+        appendAudit({ action: 'test-connection', connectorId: id, detail });
+        return { ok: true, detail };
+      } catch (error) {
+        const detail = redact(error instanceof Error ? error.message : 'The connection test failed.');
+        appendAudit({ action: 'test-connection', connectorId: id, detail });
+        return { ok: false, detail };
+      }
+    },
+    async listImportTargets(id) {
+      const connector = getConnector(id);
+      if (typeof connector.listImportTargets !== 'function') throw new Error('This integration does not expose import targets.');
+      const credential = await keychain.get(accountFor(id));
+      if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
+      const targets = await connector.listImportTargets({ credential, request: createSafeIntegrationFetch({ connector }) });
+      const safe = (Array.isArray(targets) ? targets : []).slice(0, 200).flatMap((target) => boundedText(target?.id, 240) ? [{ id: target.id, label: boundedText(target?.label, 240) ? target.label : target.id }] : []);
+      appendAudit({ action: 'list-import-targets', connectorId: id, detail: `Listed ${safe.length} import targets.` });
+      return safe;
+    },
     async audit() { return audits.map(({ at, action, connectorId, detail }) => ({ at, action, connectorId, detail })); },
     getConnector,
     createSafeFetch(id, options = {}) { return createSafeIntegrationFetch({ connector: getConnector(id), ...options }); },
   };
 }
 
-module.exports = { MAX_BODY_BYTES, MAX_RESPONSE_BYTES, createIntegrationManager, createSafeIntegrationFetch, sanitizeIntegrationAudit };
+module.exports = { MAX_BODY_BYTES, MAX_RESPONSE_BYTES, createIntegrationManager, createReadOnlyFetch, createSafeIntegrationFetch, sanitizeIntegrationAudit };

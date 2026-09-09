@@ -1,12 +1,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createIntegrationManager, createSafeIntegrationFetch, sanitizeIntegrationAudit } = require('./integrations.cjs');
+const { createIntegrationManager, createReadOnlyFetch, createSafeIntegrationFetch, sanitizeIntegrationAudit } = require('./integrations.cjs');
 
 const keychain = () => {
   const values = new Map();
   return {
     set: async (account, secret) => values.set(account, secret),
-    get: async (account) => values.get(account),
     get: async (account) => values.get(account),
     has: async (account) => values.has(account),
     remove: async (account) => values.delete(account),
@@ -88,4 +87,58 @@ test('asks each connector to validate a remote action before it can be confirmed
 
   assert.deepEqual(prepared, { kind: 'allowed.write', payload: { ignored: true } });
   assert.equal(action.requiresConfirmation, true);
+});
+
+test('testa a conexão sem executar escrita e registra o resultado sanitizado', async () => {
+  const store = keychain();
+  await store.set('integration:fixture', 'token-secreto');
+  const attempted = [];
+  const manager = createIntegrationManager({ keychain: store, connectors: [{
+    id: 'fixture', label: 'Fixture', allowedHosts: ['fixture.example.test'], capabilities: ['import', 'write'],
+    async testConnection({ credential, request }) {
+      attempted.push('read');
+      // Uma tentativa de escrita durante o teste precisa ser barrada pelo próprio contrato.
+      await assert.rejects(request('https://fixture.example.test/write', { method: 'POST', body: '{}' }), /cannot perform writes/);
+      assert.equal(credential, 'token-secreto');
+      return { detail: 'Connected as Fixture Bot.' };
+    },
+  }] });
+
+  assert.deepEqual(await manager.testConnection('fixture'), { ok: true, detail: 'Connected as Fixture Bot.' });
+  assert.deepEqual(attempted, ['read']);
+  const [entry] = await manager.audit();
+  assert.equal(entry.action, 'test-connection');
+  assert.equal(entry.detail, 'Connected as Fixture Bot.');
+});
+
+test('reporta a falha do teste de conexão sem vazar a credencial', async () => {
+  const store = keychain();
+  await store.set('integration:fixture', 'token-secreto');
+  const manager = createIntegrationManager({ keychain: store, connectors: [{
+    id: 'fixture', label: 'Fixture', allowedHosts: ['fixture.example.test'], capabilities: ['import'],
+    async testConnection() { throw new Error('Rejected token: token-secreto'); },
+  }] });
+
+  const result = await manager.testConnection('fixture');
+  assert.equal(result.ok, false);
+  assert.doesNotMatch(result.detail, /token-secreto/);
+  assert.match(result.detail, /\[redacted\]/);
+});
+
+test('lista alvos de importação limitados e normalizados', async () => {
+  const store = keychain();
+  await store.set('integration:fixture', 'token');
+  const manager = createIntegrationManager({ keychain: store, connectors: [{
+    id: 'fixture', label: 'Fixture', allowedHosts: ['fixture.example.test'], capabilities: ['import'],
+    async listImportTargets() { return [{ id: 'C1', label: '#geral' }, { id: 'C2' }, { label: 'sem id' }, null]; },
+  }] });
+
+  assert.deepEqual(await manager.listImportTargets('fixture'), [{ id: 'C1', label: '#geral' }, { id: 'C2', label: 'C2' }]);
+  assert.equal((await manager.audit())[0].detail, 'Listed 2 import targets.');
+});
+
+test('o fetch somente leitura recusa corpo mesmo em GET', async () => {
+  const request = createReadOnlyFetch(async () => ({ ok: true }));
+  await assert.rejects(request('https://fixture.example.test/', { method: 'GET', body: '{}' }), /cannot send a request body/);
+  assert.deepEqual(await request('https://fixture.example.test/'), { ok: true });
 });
