@@ -47,7 +47,7 @@ A reconstrução é grande demais para um plano só. Este documento cobre apenas
 
 **Mecanismo.** `data-theme="light" | "dark"` no `<html>`. `src/ui/theme.ts` expõe `resolveTheme(preference, systemPrefersDark)` (puro) e `applyThemePreference(preference)`, que grava `hibi-theme` = `system | light | dark` em localStorage e, em `system`, escuta `matchMedia('(prefers-color-scheme: dark)')`. Ajustes › Geral ganha o seletor.
 
-**Ponte com o CSS existente.** `theme.css` continua importado, mas suas 8 variáveis viram aliases: `--paper: var(--bg-canvas)`, `--ink: var(--text-primary)`, `--muted: var(--text-secondary)`, `--line: var(--stroke-default)`, `--orange: var(--accent)`, `--green: var(--cat-break-soft)`, `--blue: var(--cat-learning-soft)`, `--amber: var(--cat-important-soft)`. As telas antigas ganham escuro parcial sem edição. Cores fixas dentro de `theme.css` (ex.: `background:#fff` dos cards) ficam como estão até cada tela migrar. `notch-overlay.css` passa a consumir tokens sem mudar de forma.
+**Ponte com o CSS existente.** `theme.css` continua importado, mas suas 8 variáveis viram aliases: `--paper: var(--bg-canvas)`, `--ink: var(--text-primary)`, `--muted: var(--text-secondary)`, `--line: var(--stroke-default)`, `--orange: var(--accent)`, `--green: var(--cat-break-soft)`, `--blue: var(--cat-learning-soft)`, `--amber: var(--cat-important-soft)`. As telas antigas ganham escuro parcial sem edição. Cores fixas dentro de `theme.css` (ex.: `background:#fff` dos cards) ficam como estão até cada tela migrar. `notch-overlay.css` **não muda**: o overlay flutua sobre o notch físico, preto em qualquer tema, e suas cores fixas são deliberadas.
 
 ## 2. i18n
 
@@ -69,7 +69,7 @@ A reconstrução é grande demais para um plano só. Este documento cobre apenas
 - **`Dock`** — cinco itens primários, botão `···` que abre um menu com Lembretes, Notas, Hábitos, Metas, Revisão, Ajustes, Ajuda, Eventos, Feedback, Atualizações e Hardware, e o botão `⌘K`. `role="navigation"`, `aria-current="page"` no ativo, setas para mover o foco, `Home`/`End`. Rótulos do dicionário. Flutua com `--depth-float`.
 - **Rotas** — `NavKey` mantém todas as chaves atuais e ganha `agenda`. `agenda` renderiza `DayView` ou `WeekView` com alternância interna persistida em `hibi-agenda-view` (`day | week`). Os comandos `/day` e `/week` continuam válidos e levam a `agenda` no modo correspondente. Nenhum comando ou rota existente deixa de funcionar.
 - **Janela** — `electron/main.cjs` passa a criar a janela principal com `titleBarStyle: 'hiddenInset'` (só macOS; sem efeito nos outros). Os semáforos ficam sobre a faixa do topo.
-- **Telas atuais** — entram na região de conteúdo sem alteração. O overlay do notch (`?overlay=notch`) não muda de forma.
+- **Telas atuais** — entram na região de conteúdo sem alteração. O overlay do notch (`?overlay=notch`) não muda.
 
 ## 4. Paleta + Taby
 
