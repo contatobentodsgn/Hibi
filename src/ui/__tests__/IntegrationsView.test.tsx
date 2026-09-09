@@ -15,6 +15,7 @@ describe('IntegrationsView', () => {
     expect(markup).toContain('Connect securely')
     expect(markup).toContain('Import preview')
     expect(markup).toContain('Local API')
+    expect(markup).toContain('Local webhook')
     expect(markup).toContain('Start local API')
     expect(markup).toContain('Saved credentials are never shown again in this view.')
   })
