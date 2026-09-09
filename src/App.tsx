@@ -168,13 +168,13 @@ export default function App() {
     refreshData();
     log('import', `Restored ${restored.tasks.length} tasks, ${restored.blocks.length} calendar blocks`, `${preferences.language} · ${preferences.twentyFourHour ? '24h' : '12h'}`);
   };
-  const applyImportedTask = (candidate: ImportCandidate, decision: ImportDecision, localId?: string) => {
+  const applyImportedTask = (candidate: ImportCandidate, decision: ImportDecision, localId?: string, connectorId = 'file-import') => {
     const local = localId ? data.tasks.find((task) => task.id === localId) : undefined;
-    const mutation = applyImportDecision(local, candidate, decision, 'file-import');
+    const mutation = applyImportDecision(local, candidate, decision, connectorId);
     if (mutation.type === 'update') repository.updateTask(mutation.localId, { title: mutation.title, remoteRef: mutation.remoteRef });
     if (mutation.type === 'create') repository.createTask({ title: mutation.title, durationMinutes: 60, category: 'work', folder: 'Bento', status: 'open', remoteRef: mutation.remoteRef });
     if (mutation.type !== 'none') refreshData();
-    log('import', `${decision}: ${candidate.title}`, mutation.type);
+    log('import', `${connectorId} · ${decision}: ${candidate.title}`, mutation.type);
   };
   const resolveLocalApiIntent = async (approved: boolean) => {
     const intent = pendingLocalApiIntent;

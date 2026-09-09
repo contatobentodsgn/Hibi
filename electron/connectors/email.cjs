@@ -20,6 +20,17 @@ function createEmailConnector({ baseUrl = 'https://mail.example.test/', request 
       const body = await response.json().catch(() => ({}));
       return (Array.isArray(body?.mailboxes) ? body.mailboxes : []).flatMap((mailbox) => typeof mailbox?.id === 'string' && mailbox.id ? [{ id: mailbox.id, label: typeof mailbox.name === 'string' && mailbox.name ? mailbox.name.slice(0, 120) : mailbox.id }] : []);
     },
+    // Somente mensagens sinalizadas, e somente das caixas escolhidas.
+    async fetchImports({ credential, request: override, targets = [], limit = 50 }) {
+      const messages = [];
+      for (const target of targets.slice(0, 20)) {
+        const response = await call(`messages?mailbox=${encodeURIComponent(target.id)}&flagged=true&limit=${Math.min(limit, 200)}`, { method: 'GET', headers: { Authorization: `Bearer ${credential}` } }, override);
+        if (!response?.ok) throw new Error('The mail service could not read one of the selected mailboxes.');
+        const body = await response.json().catch(() => ({}));
+        for (const message of Array.isArray(body?.messages) ? body.messages : []) messages.push(message);
+      }
+      return messages;
+    },
     prepareWrite(input) {
       const { to, subject, text } = input?.payload ?? {};
       if (input?.kind !== 'email.send' || typeof to !== 'string' || !to || typeof subject !== 'string' || !subject || typeof text !== 'string' || !text || text.length > 20_000) throw new Error('Invalid email message.');

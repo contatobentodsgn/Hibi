@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const MAX_BODY_BYTES = 256 * 1024;
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_AUDIT_ENTRIES = 200;
+const MAX_IMPORT_CANDIDATES = 1_000;
 const MAX_TEXT = 500;
 
 const boundedText = (value, maximum = MAX_TEXT) => typeof value === 'string' && value.trim().length > 0 && value.length <= maximum;
@@ -171,6 +172,24 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       const safe = (Array.isArray(targets) ? targets : []).slice(0, 200).flatMap((target) => boundedText(target?.id, 240) ? [{ id: target.id, label: boundedText(target?.label, 240) ? target.label : target.id }] : []);
       appendAudit({ action: 'list-import-targets', connectorId: id, detail: `Listed ${safe.length} import targets.` });
       return safe;
+    },
+    // Importação é leitura: busca nos alvos escolhidos e normaliza com o mesmo
+    // normalizeImport já coberto por fixtures. Nada é gravado no workspace aqui;
+    // a decisão por item continua sendo da pessoa usuária, na prévia.
+    async listImportCandidates(id, input = {}) {
+      const connector = getConnector(id);
+      if (!connector.capabilities.includes('import') || typeof connector.fetchImports !== 'function' || typeof connector.normalizeImport !== 'function') throw new Error('This integration does not support importing.');
+      const targets = (Array.isArray(input.targets) ? input.targets : []).flatMap((target) => boundedText(target?.id, 240) ? [{ id: target.id }] : []);
+      if (targets.length === 0) throw new Error('Choose at least one source before importing.');
+      const credential = await keychain.get(accountFor(id));
+      if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
+      const raw = await connector.fetchImports({ credential, request: createSafeIntegrationFetch({ connector }), targets });
+      const candidates = (Array.isArray(raw) ? raw : []).slice(0, MAX_IMPORT_CANDIDATES).flatMap((item) => {
+        const candidate = connector.normalizeImport(item);
+        return candidate && boundedText(candidate.remoteId, 240) && boundedText(candidate.title, 240) ? [{ remoteId: candidate.remoteId, title: candidate.title.slice(0, 240), kind: candidate.kind === 'email' ? 'email' : 'task', ...(boundedText(candidate.revision, 240) ? { revision: candidate.revision } : {}), ...(boundedText(candidate.source, 240) ? { source: candidate.source } : {}) }] : [];
+      });
+      appendAudit({ action: 'import-read', connectorId: id, detail: `Read ${candidates.length} items from ${targets.length} selected sources.` });
+      return candidates;
     },
     async audit() { return audits.map(({ at, action, connectorId, detail }) => ({ at, action, connectorId, detail })); },
     getConnector,

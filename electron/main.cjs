@@ -220,6 +220,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:integrations:execute-approved', (_event, input) => integrationManager.executeApproved(input));
   ipcMain.handle('hibi:integrations:test-connection', (_event, connectorId) => integrationManager.testConnection(connectorId));
   ipcMain.handle('hibi:integrations:import-targets', (_event, connectorId) => integrationManager.listImportTargets(connectorId));
+  ipcMain.handle('hibi:integrations:import-candidates', (_event, connectorId) => integrationManager.listImportCandidates(connectorId, { targets: connectorSettings.get(connectorId).targets }));
   ipcMain.handle('hibi:integrations:get-settings', (_event, connectorId) => connectorSettings.get(connectorId));
   ipcMain.handle('hibi:integrations:save-settings', (_event, connectorId, patch) => {
     const saved = connectorSettings.save(connectorId, patch);

@@ -30,6 +30,17 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request 
       const body = await response.json().catch(() => ({}));
       return (Array.isArray(body?.results) ? body.results : []).flatMap((entry) => typeof entry?.id === 'string' && entry.id ? [{ id: entry.id, label: titleFrom(entry.title ? { title: { title: entry.title } } : entry.properties) }] : []);
     },
+    // Consulta apenas as bases escolhidas; sem seleção nada é buscado.
+    async fetchImports({ credential, request: override, targets = [], limit = 50 }) {
+      const pages = [];
+      for (const target of targets.slice(0, 20)) {
+        const response = await call(`databases/${encodeURIComponent(target.id)}/query`, { method: 'POST', headers: { Authorization: `Bearer ${credential}`, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' }, body: JSON.stringify({ page_size: Math.min(limit, 100) }) }, override);
+        if (!response?.ok) throw new Error('Notion could not read one of the selected databases.');
+        const body = await response.json().catch(() => ({}));
+        for (const page of Array.isArray(body?.results) ? body.results : []) pages.push(page);
+      }
+      return pages;
+    },
     prepareWrite(input) {
       if (!input || !['notion.page.create', 'notion.page.update'].includes(input.kind)) throw new Error('Unsupported Notion write action.');
       return { kind: input.kind, payload: structuredClone(input.payload ?? {}) };

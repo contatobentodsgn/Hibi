@@ -21,6 +21,21 @@ function createSlackConnector({ baseUrl = 'https://slack.com/api/', request } = 
       if (body?.ok !== true) throw new Error('Slack could not list channels.');
       return (Array.isArray(body.channels) ? body.channels : []).flatMap((channel) => typeof channel?.id === 'string' && channel.id ? [{ id: channel.id, label: typeof channel.name === 'string' && channel.name ? `#${channel.name.slice(0, 120)}` : channel.id }] : []);
     },
+    // Itens salvos do usuário, restritos aos canais escolhidos. A forma devolvida
+    // aqui é a que normalizeImport espera, para o mapeamento ficar num lugar só.
+    async fetchImports({ credential, request: override, targets = [], limit = 200 }) {
+      const response = await call(`stars.list?limit=${Math.min(limit, 200)}`, { method: 'GET', headers: { Authorization: `Bearer ${credential}` } }, override);
+      const body = response?.ok ? await response.json().catch(() => ({})) : {};
+      if (body?.ok !== true) throw new Error('Slack could not read the saved items.');
+      const selected = new Set(targets.map((target) => target.id));
+      return (Array.isArray(body.items) ? body.items : []).flatMap((item) => {
+        const message = item?.message;
+        const channel = typeof item?.channel === 'string' ? item.channel : undefined;
+        if (!message || !channel || selected.size > 0 && !selected.has(channel)) return [];
+        const id = typeof message.ts === 'string' && message.ts ? `${channel}:${message.ts}` : undefined;
+        return id ? [{ id, saved: true, text: typeof message.text === 'string' ? message.text : '', channel, ...(typeof message.ts === 'string' ? { updatedAt: message.ts } : {}) }] : [];
+      });
+    },
     prepareWrite(input) {
       const channel = input?.payload?.channel; const text = input?.payload?.text;
       if (input?.kind !== 'slack.post' || typeof channel !== 'string' || !channel || typeof text !== 'string' || !text || text.length > 4_000) throw new Error('Invalid Slack message.');

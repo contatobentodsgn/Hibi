@@ -6,7 +6,7 @@ import { recommendedModelPresets } from '../ai/production';
 import { IntegrationsView } from './IntegrationsView';
 import type { AiUsageRecord } from '../ai/usage';
 
-type Props = { data: StudyData; onEvent: (action: string, detail: string, result?: string) => void; onReset: () => void; onRestore?: (data: StudyData, preferences: WorkspacePreferences) => void; onTestNotification?: () => Promise<boolean>; aiFallbackPolicy?: AiFallbackPolicy; onAiFallbackPolicyChange?: (policy: AiFallbackPolicy) => void; aiUsage?: readonly AiUsageRecord[]; onApplyImport?: (candidate: import('../integrations/imports').ImportCandidate, decision: import('../integrations/imports').ImportDecision, localId?: string) => void };
+type Props = { data: StudyData; onEvent: (action: string, detail: string, result?: string) => void; onReset: () => void; onRestore?: (data: StudyData, preferences: WorkspacePreferences) => void; onTestNotification?: () => Promise<boolean>; aiFallbackPolicy?: AiFallbackPolicy; onAiFallbackPolicyChange?: (policy: AiFallbackPolicy) => void; aiUsage?: readonly AiUsageRecord[]; onApplyImport?: (candidate: import('../integrations/imports').ImportCandidate, decision: import('../integrations/imports').ImportDecision, localId?: string, connectorId?: string) => void };
 type Language = 'pt' | 'en';
 type AiConfig = { provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean };
 const DEFAULT_AI_CONFIG: AiConfig = { provider: 'local', endpoint: '', model: 'local-tool-provider', hasApiKey: false };

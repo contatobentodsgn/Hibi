@@ -54,3 +54,40 @@ test('delivers a remote notification only through an approved action', async () 
   assert.equal(calls.length, 1);
   assert.equal(calls[0][1].headers.Authorization, 'Bearer token');
 });
+
+test('o Notion busca apenas as bases escolhidas e devolve páginas para normalizar', async () => {
+  const requests = [];
+  const connector = createNotionConnector({ request: async (url, init) => { requests.push({ url, method: init.method, body: init.body }); return { ok: true, json: async () => ({ results: [{ id: `page-${requests.length}`, last_edited_time: 'v1', properties: { Name: { title: [{ plain_text: 'Página' }] } } }] }) }; } });
+
+  const pages = await connector.fetchImports({ credential: 'token', targets: [{ id: 'db 1' }, { id: 'db2' }] });
+  assert.equal(requests.length, 2);
+  assert.equal(requests[0].url, 'https://api.notion.com/v1/databases/db%201/query');
+  assert.equal(requests[0].method, 'POST');
+  assert.deepEqual(pages.map((page) => connector.normalizeImport(page).title), ['Página', 'Página']);
+});
+
+test('o Slack lê itens salvos e descarta canais fora da seleção', async () => {
+  const connector = createSlackConnector({ request: async () => ({ ok: true, json: async () => ({ ok: true, items: [
+    { channel: 'C1', message: { ts: '1.1', text: 'guardado' } },
+    { channel: 'C9', message: { ts: '9.9', text: 'outro canal' } },
+    { channel: 'C1' },
+  ] }) }) });
+
+  const items = await connector.fetchImports({ credential: 'token', targets: [{ id: 'C1' }] });
+  assert.deepEqual(items, [{ id: 'C1:1.1', saved: true, text: 'guardado', channel: 'C1', updatedAt: '1.1' }]);
+  assert.deepEqual(connector.normalizeImport(items[0]), { remoteId: 'C1:1.1', revision: '1.1', title: 'guardado', kind: 'task', source: 'C1' });
+});
+
+test('o e-mail busca somente mensagens sinalizadas das caixas escolhidas', async () => {
+  const requests = [];
+  const connector = createEmailConnector({ request: async (url) => { requests.push(url); return { ok: true, json: async () => ({ messages: [{ id: 'm1', flagged: true, subject: 'Assunto', from: 'alguem@example.test' }] }) }; } });
+
+  const messages = await connector.fetchImports({ credential: 'token', targets: [{ id: 'INBOX' }] });
+  assert.match(requests[0], /messages\?mailbox=INBOX&flagged=true&limit=50$/);
+  assert.deepEqual(connector.normalizeImport(messages[0]), { remoteId: 'm1', title: 'Assunto', kind: 'email', source: 'alguem@example.test' });
+});
+
+test('uma falha de leitura interrompe a importação em vez de devolver resultado parcial', async () => {
+  const connector = createEmailConnector({ request: async () => ({ ok: false, json: async () => ({}) }) });
+  await assert.rejects(connector.fetchImports({ credential: 'token', targets: [{ id: 'INBOX' }] }), /could not read/);
+});

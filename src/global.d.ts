@@ -1,4 +1,5 @@
 import type { NotificationEntry } from './domain/notifications';
+import type { ImportCandidate } from './integrations/imports';
 import type { AiNormalizedUsage, AiProviderRequest, AiProviderStreamEvent } from './ai/contracts';
 import type { ConnectorSettings, IntegrationAuditEvent, IntegrationAuthorization, IntegrationImportTarget, IntegrationStatus, PreparedIntegrationAction } from './integrations/contracts';
 
@@ -28,6 +29,7 @@ declare global {
       getLocalApiStatus?: () => Promise<{ running: boolean }>;
       testIntegrationConnection?: (connectorId: string) => Promise<{ ok: boolean; detail: string }>;
       listIntegrationImportTargets?: (connectorId: string) => Promise<readonly IntegrationImportTarget[]>;
+      listIntegrationImportCandidates?: (connectorId: string) => Promise<readonly ImportCandidate[]>;
       getConnectorSettings?: (connectorId: string) => Promise<ConnectorSettings>;
       saveConnectorSettings?: (connectorId: string, patch: Partial<ConnectorSettings>) => Promise<ConnectorSettings>;
       isOauthSupported?: (connectorId: string) => Promise<boolean>;

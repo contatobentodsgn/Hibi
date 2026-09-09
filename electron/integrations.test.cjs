@@ -142,3 +142,40 @@ test('o fetch somente leitura recusa corpo mesmo em GET', async () => {
   await assert.rejects(request('https://fixture.example.test/', { method: 'GET', body: '{}' }), /cannot send a request body/);
   assert.deepEqual(await request('https://fixture.example.test/'), { ok: true });
 });
+
+test('lê candidatos apenas das fontes escolhidas e normaliza pelo conector', async () => {
+  const store = keychain();
+  await store.set('integration:fixture', 'token');
+  const asked = [];
+  const manager = createIntegrationManager({ keychain: store, connectors: [{
+    id: 'fixture', label: 'Fixture', allowedHosts: ['fixture.example.test'], capabilities: ['import'],
+    async fetchImports({ targets }) { asked.push(targets.map((target) => target.id).join(',')); return [{ id: 'r1', title: 'Primeiro', rev: 'v1' }, { id: 'r2', title: 'Segundo' }, { semId: true }]; },
+    normalizeImport(item) { return typeof item?.id === 'string' ? { remoteId: item.id, title: item.title, kind: 'task', ...(item.rev ? { revision: item.rev } : {}) } : null; },
+  }] });
+
+  const candidates = await manager.listImportCandidates('fixture', { targets: [{ id: 'db-1' }, { id: 'db-2' }] });
+  assert.deepEqual(asked, ['db-1,db-2']);
+  assert.deepEqual(candidates, [{ remoteId: 'r1', title: 'Primeiro', kind: 'task', revision: 'v1' }, { remoteId: 'r2', title: 'Segundo', kind: 'task' }]);
+  assert.equal((await manager.audit())[0].detail, 'Read 2 items from 2 selected sources.');
+});
+
+test('recusa importar sem nenhuma fonte escolhida', async () => {
+  const store = keychain();
+  await store.set('integration:fixture', 'token');
+  let fetched = false;
+  const manager = createIntegrationManager({ keychain: store, connectors: [{
+    id: 'fixture', label: 'Fixture', allowedHosts: ['fixture.example.test'], capabilities: ['import'],
+    async fetchImports() { fetched = true; return []; },
+    normalizeImport: () => null,
+  }] });
+
+  await assert.rejects(manager.listImportCandidates('fixture', { targets: [] }), /at least one source/);
+  assert.equal(fetched, false);
+});
+
+test('recusa importar de um conector sem capacidade de importação', async () => {
+  const store = keychain();
+  await store.set('integration:fixture', 'token');
+  const manager = createIntegrationManager({ keychain: store, connectors: [{ id: 'fixture', label: 'Fixture', allowedHosts: ['fixture.example.test'], capabilities: ['notify'] }] });
+  await assert.rejects(manager.listImportCandidates('fixture', { targets: [{ id: 'x' }] }), /does not support importing/);
+});
