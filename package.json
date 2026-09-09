@@ -17,6 +17,7 @@
     "audit": "npm run parity:check && npm run build && npm test && npm run test:e2e",
     "test": "vitest run src --exclude 'src/**/._*' --exclude '**/.worktrees/**' && node --test electron/*.test.cjs native/notch/*.test.cjs",
     "test:e2e": "playwright test",
+    "test:providers:live": "node scripts/test-live-providers.mjs",
     "release:preflight": "node scripts/release-preflight.mjs",
     "release:mac": "npm run release:preflight && npm run build && electron-builder --mac"
   },

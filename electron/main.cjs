@@ -190,6 +190,7 @@ app.whenReady().then(async () => {
     return status;
   });
   ipcMain.handle('hibi:integrations:list-status', () => integrationManager.listStatus());
+  ipcMain.handle('hibi:integrations:connect', (_event, connectorId, credential) => integrationManager.connect(connectorId, { credential }));
   ipcMain.handle('hibi:integrations:audit', () => integrationManager.audit());
   ipcMain.handle('hibi:integrations:revoke', (_event, connectorId) => integrationManager.revoke(connectorId));
   ipcMain.handle('hibi:integrations:prepare-action', (_event, input) => integrationManager.prepareAction(input));
@@ -198,7 +199,10 @@ app.whenReady().then(async () => {
     const safe = value && typeof value === 'object' ? value : {};
     localApiWorkspace = { tasks: Array.isArray(safe.tasks) ? safe.tasks.slice(0, 5_000) : [], reminders: Array.isArray(safe.reminders) ? safe.reminders.slice(0, 5_000) : [], blocks: Array.isArray(safe.blocks) ? safe.blocks.slice(0, 5_000) : [] };
   });
-  ipcMain.handle('hibi:local-api:start', () => localApi.start());
+  ipcMain.handle('hibi:local-api:start', async () => {
+    const started = await localApi.start();
+    return { origin: started.origin };
+  });
   ipcMain.handle('hibi:local-api:stop', async () => { await localApi.stop(); return { running: false }; });
   ipcMain.handle('hibi:local-api:status', () => ({ running: localApi.isRunning() }));
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));

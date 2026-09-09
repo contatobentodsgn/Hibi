@@ -77,3 +77,15 @@ test('returns only a safe result summary when a connector responds with remote J
   assert.deepEqual(result, { ok: true, status: 201, remoteId: 'remote-44' });
   assert.equal(JSON.stringify(result).includes('do not expose'), false);
 });
+
+test('asks each connector to validate a remote action before it can be confirmed', async () => {
+  let prepared;
+  const validatingConnector = { ...connector, id: 'validating', prepareWrite: (input) => { prepared = input; if (input.kind !== 'allowed.write') throw new Error('Unsupported action.'); return { kind: input.kind, payload: { safe: true } }; } };
+  const manager = createIntegrationManager({ connectors: [validatingConnector], keychain: keychain() });
+
+  await assert.rejects(() => manager.prepareAction({ connectorId: 'validating', kind: 'arbitrary.write', payload: { unsafe: true } }), /Unsupported/);
+  const action = await manager.prepareAction({ connectorId: 'validating', kind: 'allowed.write', payload: { ignored: true } });
+
+  assert.deepEqual(prepared, { kind: 'allowed.write', payload: { ignored: true } });
+  assert.equal(action.requiresConfirmation, true);
+});

@@ -112,11 +112,15 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
     async prepareAction(input) {
       const connector = getConnector(input?.connectorId);
       if (!connector.capabilities.includes('write') || !boundedText(input?.kind, 120)) throw new Error('This integration cannot prepare that action.');
-      const serialized = JSON.stringify(input.payload ?? {});
+      const preparedAction = typeof connector.prepareWrite === 'function'
+        ? connector.prepareWrite({ kind: input.kind, payload: input.payload ?? {} })
+        : { kind: input.kind, payload: input.payload ?? {} };
+      if (!preparedAction || preparedAction.kind !== input.kind || !preparedAction.payload || typeof preparedAction.payload !== 'object') throw new Error('Integration action preparation is invalid.');
+      const serialized = JSON.stringify(preparedAction.payload);
       if (Buffer.byteLength(serialized) > MAX_BODY_BYTES) throw new Error('Integration action exceeds the size limit.');
       const id = `action-${crypto.randomUUID()}`;
       const confirmationId = `confirm-${crypto.randomUUID()}`;
-      prepared.set(id, { connector, kind: input.kind, payload: JSON.parse(serialized), confirmationId });
+      prepared.set(id, { connector, kind: preparedAction.kind, payload: JSON.parse(serialized), confirmationId });
       appendAudit({ action: 'prepare', connectorId: connector.id, detail: `Prepared ${input.kind}.` });
       return { id, connectorId: connector.id, kind: input.kind, confirmationId, requiresConfirmation: true };
     },

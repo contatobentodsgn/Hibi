@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { AiSettings } from '../SettingsView';
+import { AiSettings, usageSummaryFor } from '../SettingsView';
 
 describe('AI settings', () => {
   it('shows the provider, model presets, fallback policy, and Keychain-only credential controls', () => {
@@ -21,5 +21,9 @@ describe('AI settings', () => {
     expect(markup).toContain('Stored only in macOS Keychain');
     expect(markup).toContain('Save AI settings');
     expect(markup).toContain('The endpoint, key, and model are tested before any setting is saved.');
+  });
+
+  it('summarizes local AI usage without exposing prompts or credentials', () => {
+    expect(usageSummaryFor([{ at: '2026-09-09T12:00:00.000Z', provider: 'OpenAI-compatible', model: 'gpt-4.1-mini', inputTokens: 12, outputTokens: 5, totalTokens: 17, outcome: 'completed', fallback: false }])).toEqual({ turns: 1, totalTokens: 17, estimatedCost: 0 });
   });
 });

@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,saveAiConfig: (config) => ipcRenderer.invoke('hibi:ai-config:save', config)
   ,deleteAiKey: () => ipcRenderer.invoke('hibi:ai-config:delete-key')
   ,listIntegrationStatus: () => ipcRenderer.invoke('hibi:integrations:list-status')
+  ,connectIntegration: (connectorId, credential) => ipcRenderer.invoke('hibi:integrations:connect', connectorId, credential)
   ,listIntegrationAudit: () => ipcRenderer.invoke('hibi:integrations:audit')
   ,revokeIntegration: (connectorId) => ipcRenderer.invoke('hibi:integrations:revoke', connectorId)
   ,prepareIntegrationAction: (input) => ipcRenderer.invoke('hibi:integrations:prepare-action', input)

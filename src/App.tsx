@@ -218,7 +218,7 @@ export default function App() {
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;
       case 'focus': return <FocusView {...props} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
-      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} />;
+      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} />;
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} onClearAiHistory={clearAiHistory} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;

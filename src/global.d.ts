@@ -17,12 +17,13 @@ declare global {
       saveAiConfig?: (config: { provider: 'local' | 'openai-compatible'; endpoint: string; model: string; apiKey?: string }) => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
       deleteAiKey?: () => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
       listIntegrationStatus?: () => Promise<readonly IntegrationStatus[]>;
+      connectIntegration?: (connectorId: string, credential: string) => Promise<IntegrationStatus>;
       listIntegrationAudit?: () => Promise<readonly IntegrationAuditEvent[]>;
       revokeIntegration?: (connectorId: string) => Promise<IntegrationStatus>;
       prepareIntegrationAction?: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => Promise<PreparedIntegrationAction>;
       executeApprovedIntegrationAction?: (input: { actionId: string; confirmationId: string }) => Promise<unknown>;
       syncLocalApiWorkspace?: (workspace: { tasks: readonly unknown[]; reminders: readonly unknown[]; blocks: readonly unknown[] }) => Promise<void>;
-      startLocalApi?: () => Promise<{ origin: string; token: string }>;
+      startLocalApi?: () => Promise<{ origin: string }>;
       stopLocalApi?: () => Promise<{ running: false }>;
       getLocalApiStatus?: () => Promise<{ running: boolean }>;
       showNotch?: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly unknown[]; interaction: 'passthrough' | 'capture' }) => Promise<{ degraded: boolean; requestId: string; host?: 'native' | 'electron' }>;
