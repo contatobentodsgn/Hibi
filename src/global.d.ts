@@ -1,6 +1,6 @@
 import type { NotificationEntry } from './domain/notifications';
 import type { AiNormalizedUsage, AiProviderRequest, AiProviderStreamEvent } from './ai/contracts';
-import type { IntegrationAuditEvent, IntegrationStatus, PreparedIntegrationAction } from './integrations/contracts';
+import type { ConnectorSettings, IntegrationAuditEvent, IntegrationAuthorization, IntegrationImportTarget, IntegrationStatus, PreparedIntegrationAction } from './integrations/contracts';
 
 declare global {
   interface Window {
@@ -26,6 +26,14 @@ declare global {
       startLocalApi?: () => Promise<{ origin: string }>;
       stopLocalApi?: () => Promise<{ running: false }>;
       getLocalApiStatus?: () => Promise<{ running: boolean }>;
+      testIntegrationConnection?: (connectorId: string) => Promise<{ ok: boolean; detail: string }>;
+      listIntegrationImportTargets?: (connectorId: string) => Promise<readonly IntegrationImportTarget[]>;
+      getConnectorSettings?: (connectorId: string) => Promise<ConnectorSettings>;
+      saveConnectorSettings?: (connectorId: string, patch: Partial<ConnectorSettings>) => Promise<ConnectorSettings>;
+      isOauthSupported?: (connectorId: string) => Promise<boolean>;
+      authorizeIntegration?: (connectorId: string) => Promise<IntegrationAuthorization>;
+      refreshIntegrationAuthorization?: (connectorId: string) => Promise<IntegrationAuthorization>;
+      cancelIntegrationAuthorization?: () => Promise<void>;
       configureWebhook?: (secret: string) => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       startWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       stopWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;

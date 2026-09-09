@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification, screen, powerMonitor } = require("electron");
+const { app, BrowserWindow, ipcMain, Notification, screen, shell, powerMonitor } = require("electron");
 const path = require("node:path");
 const crypto = require('node:crypto');
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.cjs");
@@ -11,6 +11,8 @@ const { createEmailConnector } = require('./connectors/email.cjs');
 const { createRemoteNotificationConnector } = require('./connectors/remote-notifications.cjs');
 const { createLocalApi, createLocalApiTokenStore } = require('./local-api.cjs');
 const { createWebhookService } = require('./webhooks.cjs');
+const { createOAuthService } = require('./oauth.cjs');
+const { createConnectorSettings } = require('./connector-settings.cjs');
 const { createNotchWindowManager } = require("./notch-window.cjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
@@ -22,6 +24,8 @@ let aiConfiguration;
 let integrationManager;
 let localApi;
 let webhookService;
+let connectorSettings;
+let oauthService;
 let localApiWorkspace = { tasks: [], reminders: [], blocks: [] };
 const pendingLocalApiWrites = new Map();
 let notchWindow;
@@ -149,11 +153,25 @@ function createWindow() {
   else mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 }
 
+// Um endpoint configurado troca a base do conector e, com ela, o allowlist de
+// hosts: nenhuma outra origem passa a ser permitida por causa disso.
+function buildConnectors(settings) {
+  const endpointFor = (id) => { const value = settings.get(id).endpoint; return value ? { baseUrl: value } : {}; };
+  return [
+    createNotionConnector(endpointFor('notion')),
+    createSlackConnector(endpointFor('slack')),
+    createEmailConnector(endpointFor('email')),
+    createRemoteNotificationConnector(endpointFor('remote-notifications')),
+  ];
+}
+
 app.whenReady().then(async () => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
   const secureKeychain = createMacKeychain();
-  integrationManager = createIntegrationManager({ connectors: [createNotionConnector(), createSlackConnector(), createEmailConnector(), createRemoteNotificationConnector()], keychain: secureKeychain });
+  connectorSettings = createConnectorSettings({ filePath: path.join(app.getPath('userData'), 'connector-settings.json') });
+  integrationManager = createIntegrationManager({ connectors: buildConnectors(connectorSettings), keychain: secureKeychain });
+  oauthService = createOAuthService({ keychain: secureKeychain, getConnector: (id) => integrationManager.getConnector(id), openExternal: (url) => shell.openExternal(url) });
   localApi = createLocalApi({ tokenStore: createLocalApiTokenStore({ keychain: createMacKeychain() }), workspace: () => localApiWorkspace, prepareWrite: async (intent) => {
     const confirmationId = `local-api-${crypto.randomUUID()}`;
     pendingLocalApiWrites.set(confirmationId, intent);
@@ -200,6 +218,21 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:integrations:revoke', (_event, connectorId) => integrationManager.revoke(connectorId));
   ipcMain.handle('hibi:integrations:prepare-action', (_event, input) => integrationManager.prepareAction(input));
   ipcMain.handle('hibi:integrations:execute-approved', (_event, input) => integrationManager.executeApproved(input));
+  ipcMain.handle('hibi:integrations:test-connection', (_event, connectorId) => integrationManager.testConnection(connectorId));
+  ipcMain.handle('hibi:integrations:import-targets', (_event, connectorId) => integrationManager.listImportTargets(connectorId));
+  ipcMain.handle('hibi:integrations:get-settings', (_event, connectorId) => connectorSettings.get(connectorId));
+  ipcMain.handle('hibi:integrations:save-settings', (_event, connectorId, patch) => {
+    const saved = connectorSettings.save(connectorId, patch);
+    // O endpoint entra na construção do conector, então o gerenciador é refeito.
+    // Isso descarta ações já preparadas de propósito: uma ação preparada contra o
+    // endpoint anterior não deve ser executada contra um endpoint novo.
+    if (patch?.endpoint !== undefined) integrationManager = createIntegrationManager({ connectors: buildConnectors(connectorSettings), keychain: secureKeychain });
+    return saved;
+  });
+  ipcMain.handle('hibi:oauth:supported', (_event, connectorId) => oauthService.supports(connectorId));
+  ipcMain.handle('hibi:oauth:authorize', (_event, connectorId) => oauthService.authorize(connectorId, { clientId: connectorSettings.get(connectorId).clientId }));
+  ipcMain.handle('hibi:oauth:refresh', (_event, connectorId) => oauthService.refresh(connectorId, { clientId: connectorSettings.get(connectorId).clientId }));
+  ipcMain.handle('hibi:oauth:cancel', () => oauthService.cancel());
   ipcMain.handle('hibi:local-api:sync-workspace', (_event, value) => {
     const safe = value && typeof value === 'object' ? value : {};
     localApiWorkspace = { tasks: Array.isArray(safe.tasks) ? safe.tasks.slice(0, 5_000) : [], reminders: Array.isArray(safe.reminders) ? safe.reminders.slice(0, 5_000) : [], blocks: Array.isArray(safe.blocks) ? safe.blocks.slice(0, 5_000) : [] };
@@ -228,7 +261,7 @@ app.whenReady().then(async () => {
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
-app.on("before-quit", () => { detachNotchLifecycle(); notificationScheduler?.clear(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
+app.on("before-quit", () => { detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
 module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent };

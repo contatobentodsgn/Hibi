@@ -28,3 +28,20 @@ export type IntegrationAuditEvent = Readonly<{
   connectorId: string
   detail: string
 }>
+
+export type IntegrationImportTarget = Readonly<{ id: string; label: string }>
+
+export type ConnectorSettings = Readonly<{
+  endpoint: string
+  clientId: string
+  targets: readonly IntegrationImportTarget[]
+}>
+
+export type IntegrationAuthorization = Readonly<{
+  connectorId: string
+  connected: boolean
+  hasRefreshToken: boolean
+  expiresAt?: string
+}>
+
+export type IntegrationConnectionTest = Readonly<{ ok: boolean; detail: string }>
