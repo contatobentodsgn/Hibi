@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { createSeedData } from '../../data/seed-data';
-import { companionEventFor, confirmationPresentationFor, modelLabelFor, TabyView } from '../TabyView';
+import { companionEventFor, confirmationPresentationFor, failurePresentationFor, modelLabelFor, provenanceLabelFor, TabyView } from '../TabyView';
 import { createLocalHibiRuntime } from '../../ai/local-runtime';
 import { LocalRepository } from '../../data/local-repository';
 
@@ -31,6 +31,22 @@ describe('TabyView capability boundaries', () => {
   it('uses provider model metadata as the response provenance label', () => {
     expect(modelLabelFor({ providerLabel: 'Compatible provider', proposal: { providerMetadata: { model: 'gpt-test' } } })).toBe('gpt-test');
     expect(modelLabelFor({ providerLabel: 'Hibi local tools', proposal: {} })).toBe('Hibi local tools');
+  });
+
+  it('formats truthful per-response provenance and safe actionable provider failures', () => {
+    expect(provenanceLabelFor({ provider: { label: 'OpenAI-compatible', model: 'gpt-test', usage: { inputTokens: 12, outputTokens: 5, totalTokens: 17 }, fallback: false } })).toBe('OpenAI-compatible · gpt-test · 17 tokens');
+    expect(failurePresentationFor({ code: 'invalid_credentials', retryable: false })).toEqual({
+      title: 'Check the API key',
+      detail: 'The configured provider rejected its credentials. Your key remains in Keychain.',
+      canRetry: false,
+      canUseLocalFallback: true,
+    });
+    expect(failurePresentationFor({ code: 'rate_limited', retryable: true, retryAfterMs: 3_000 })).toMatchObject({
+      title: 'Rate limit reached',
+      detail: 'The provider is temporarily limiting requests. Try again in about 3 seconds.',
+      canRetry: true,
+      canUseLocalFallback: true,
+    });
   });
 
   it('maps assistant stages, confirmations, results, and failures to companion events', () => {

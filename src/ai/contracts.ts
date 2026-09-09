@@ -41,6 +41,11 @@ export interface AiProviderRequest {
   allowedTools: readonly AiToolSchema[]
   contextEvidence: readonly AiContextEvidence[]
   recentTranscript: readonly AiConversationEntry[]
+  /**
+   * Renderer-only progress channel. Implementations must never serialize this
+   * callback across a process boundary.
+   */
+  onStreamEvent?: (event: AiProviderStreamEvent) => void
 }
 
 export interface AiNotchPresentation {
@@ -56,8 +61,11 @@ export interface AiStructuredUiBlock {
 
 export interface AiProviderMetadata {
   requestId?: string
+  providerId?: string
+  provider?: string
   model?: string
   finishReason?: string
+  usage?: AiNormalizedUsage
 }
 
 export interface AiNormalizedUsage {

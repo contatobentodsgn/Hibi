@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   syncNotifications: (entries) => ipcRenderer.invoke("hibi:notifications:sync", entries),
   showTestNotification: () => ipcRenderer.invoke("hibi:notifications:test")
   ,runAiTurn: (turn) => ipcRenderer.invoke('hibi:ai:run', turn)
-  ,cancelAiTurn: () => ipcRenderer.invoke('hibi:ai:cancel')
+  ,cancelAiTurn: (request) => ipcRenderer.invoke('hibi:ai:cancel', request)
   ,getAiConfig: () => ipcRenderer.invoke('hibi:ai-config:get')
   ,saveAiConfig: (config) => ipcRenderer.invoke('hibi:ai-config:save', config)
   ,deleteAiKey: () => ipcRenderer.invoke('hibi:ai-config:delete-key')

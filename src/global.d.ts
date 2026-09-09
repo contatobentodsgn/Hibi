@@ -1,5 +1,5 @@
 import type { NotificationEntry } from './domain/notifications';
-import type { AiProviderRequest } from './ai/contracts';
+import type { AiNormalizedUsage, AiProviderRequest, AiProviderStreamEvent } from './ai/contracts';
 
 declare global {
   interface Window {
@@ -9,8 +9,9 @@ declare global {
       setOpenAtLogin?: (enabled: boolean) => Promise<boolean>;
       syncNotifications?: (entries: NotificationEntry[]) => Promise<void>;
       showTestNotification?: () => Promise<boolean>;
-      runAiTurn?: (turn: { request: AiProviderRequest }) => Promise<{ content: string; providerLabel: string; model: string }>;
-      cancelAiTurn?: () => Promise<boolean>;
+      runAiTurn?: (turn: { request: AiProviderRequest; correlationId: string }) => Promise<{ content: string; providerLabel: string; model: string; requestId?: string; correlationId?: string; usage?: AiNormalizedUsage }>;
+      cancelAiTurn?: (request: { correlationId: string; requestId?: string }) => Promise<boolean>;
+      onAiStreamEvent?: (callback: (event: AiProviderStreamEvent & { requestId: string; correlationId: string }) => void) => () => void;
       getAiConfig?: () => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
       saveAiConfig?: (config: { provider: 'local' | 'openai-compatible'; endpoint: string; model: string; apiKey?: string }) => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
       deleteAiKey?: () => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;

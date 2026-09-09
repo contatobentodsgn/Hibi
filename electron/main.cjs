@@ -72,8 +72,9 @@ function safeAiUsage(value) {
 function safeAiStreamEvent(value) {
   if (!value || typeof value !== 'object') return null;
   const requestId = typeof value.requestId === 'string' && value.requestId.length > 0 && value.requestId.length <= MAX_AI_STREAM_TEXT && /^[A-Za-z0-9_-]+$/.test(value.requestId) ? value.requestId : null;
-  if (!requestId) return null;
-  const scoped = (event) => ({ ...event, requestId });
+  const correlationId = typeof value.correlationId === 'string' && value.correlationId.length > 0 && value.correlationId.length <= 128 && /^[A-Za-z0-9_-]+$/.test(value.correlationId) ? value.correlationId : null;
+  if (!requestId || !correlationId) return null;
+  const scoped = (event) => ({ ...event, requestId, correlationId });
   if (value.type === 'delta' && typeof value.delta === 'string' && value.delta.length > 0 && value.delta.length <= MAX_AI_STREAM_DELTA) return scoped({ type: 'delta', delta: value.delta });
   if (value.type === 'usage') { const usage = safeAiUsage(value.usage); return usage ? scoped({ type: 'usage', usage }) : null; }
   if (value.type === 'completed') return scoped({ type: 'completed' });
@@ -151,11 +152,15 @@ app.whenReady().then(async () => {
     notification.show();
     return true;
   });
-  ipcMain.handle('hibi:ai:run', (event, turn) => aiRequestCoordinator.run(event.sender, turn, (streamEvent) => {
+  ipcMain.handle('hibi:ai:run', (event, turn) => {
+    const correlationId = typeof turn?.correlationId === 'string' && turn.correlationId.length > 0 && turn.correlationId.length <= 128 && /^[A-Za-z0-9_-]+$/.test(turn.correlationId) ? turn.correlationId : null;
+    if (!correlationId) throw new Error('Invalid AI correlation id.');
+    return aiRequestCoordinator.run(event.sender, turn?.request, correlationId, (streamEvent) => {
     const safeEvent = safeAiStreamEvent(streamEvent);
     if (safeEvent && !event.sender.isDestroyed()) event.sender.send('hibi:ai:stream', safeEvent);
-  }));
-  ipcMain.handle('hibi:ai:cancel', (event) => aiRequestCoordinator.cancel(event.sender));
+    });
+  });
+  ipcMain.handle('hibi:ai:cancel', (event, value) => aiRequestCoordinator.cancel(event.sender, value?.requestId, value?.correlationId));
   ipcMain.handle('hibi:ai-config:get', () => aiConfiguration.getStatus());
   ipcMain.handle('hibi:ai-config:save', async (_event, value) => {
     const status = await verifyAndSaveAiConfiguration({ configuration: aiConfiguration, value, verifyCandidate: async (config) => createMainAiRuntime({ config }).testConnection() });
@@ -177,4 +182,4 @@ app.whenReady().then(async () => {
 app.on("before-quit", () => { detachNotchLifecycle(); notificationScheduler?.clear(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
-module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery };
+module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent };

@@ -442,21 +442,43 @@ test('injects request timeouts through the main runtime without real timers', as
   assert.equal(timeoutFactories, 3);
 });
 
-test('scopes same-sender supersession events to bounded main-generated request ids', async () => {
+test('scopes same-sender supersession events to bounded main-generated request ids and renderer correlations', async () => {
   const callbacks = []; const resolveRuns = []; const events = [];
   const coordinator = createAiRequestCoordinator({ runtime: { run: async (_turn, { onEvent }) => new Promise((resolve) => { callbacks.push(onEvent); resolveRuns.push(resolve); }), cancel: () => {} }, createRequestId: (() => { let next = 0; return () => `request-${++next}`; })() });
   const sender = { id: 1 };
-  const first = coordinator.run(sender, { message: 'first' }, (event) => events.push(event));
+  const first = coordinator.run(sender, { message: 'first' }, 'renderer-first', (event) => events.push(event));
   callbacks[0]({ type: 'delta', delta: 'one' });
-  const second = coordinator.run(sender, { message: 'second' }, (event) => events.push(event));
+  const second = coordinator.run(sender, { message: 'second' }, 'renderer-second', (event) => events.push(event));
   callbacks[0]({ type: 'delta', delta: 'stale' });
   callbacks[1]({ type: 'completed' });
 
-  assert.deepEqual(events, [{ type: 'delta', delta: 'one', requestId: 'request-1' }, { type: 'completed', requestId: 'request-2' }]);
+  assert.deepEqual(events, [
+    { type: 'started', requestId: 'request-1', correlationId: 'renderer-first' },
+    { type: 'delta', delta: 'one', requestId: 'request-1', correlationId: 'renderer-first' },
+    { type: 'started', requestId: 'request-2', correlationId: 'renderer-second' },
+    { type: 'completed', requestId: 'request-2', correlationId: 'renderer-second' },
+  ]);
   assert.equal(events.every((event) => typeof event.requestId === 'string' && event.requestId.length <= 128), true);
 
   resolveRuns[0]({}); resolveRuns[1]({});
   await Promise.all([first, second]);
+});
+
+test('emits a request-scoped started event before any provider event and returns both ownership ids', async () => {
+  const events = [];
+  const coordinator = createAiRequestCoordinator({ runtime: { run: async (_turn, { onEvent }) => {
+    onEvent({ type: 'delta', delta: 'ready' });
+    return { content: 'ready', providerLabel: 'Remote', model: 'remote-model' };
+  }, cancel: () => {} }, createRequestId: () => 'request-started' });
+
+  const result = await coordinator.run({ id: 1 }, { message: 'hello' }, 'renderer-started', (event) => events.push(event));
+
+  assert.deepEqual(events, [
+    { type: 'started', requestId: 'request-started', correlationId: 'renderer-started' },
+    { type: 'delta', delta: 'ready', requestId: 'request-started', correlationId: 'renderer-started' },
+  ]);
+  assert.equal(result.requestId, 'request-started');
+  assert.equal(result.correlationId, 'renderer-started');
 });
 
 test('rejects a different sender while an AI request is active', async () => {
@@ -466,9 +488,9 @@ test('rejects a different sender while an AI request is active', async () => {
     runs += 1;
     return runs === 1 ? new Promise((resolve) => { resolveRun = resolve; }) : { unexpected: true };
   }, cancel: () => {} }, createRequestId: () => 'request-owner' });
-  const pending = coordinator.run(senderA, { message: 'x' }, () => {});
+  const pending = coordinator.run(senderA, { message: 'x' }, 'renderer-owner-a', () => {});
 
-  await assert.rejects(() => coordinator.run(senderB, { message: 'y' }, () => {}), /already active/);
+  await assert.rejects(() => coordinator.run(senderB, { message: 'y' }, 'renderer-owner-b', () => {}), /already active/);
   assert.equal(runs, 1);
 
   resolveRun({}); await pending;
@@ -477,7 +499,7 @@ test('rejects a different sender while an AI request is active', async () => {
 test('cancels and clears an active request when its sender is destroyed', async () => {
   const sender = new EventEmitter(); let resolveRun; let cancels = 0;
   const coordinator = createAiRequestCoordinator({ runtime: { run: async () => new Promise((resolve) => { resolveRun = resolve; }), cancel: () => { cancels += 1; } }, createRequestId: () => 'request-owner' });
-  const pending = coordinator.run(sender, { message: 'x' }, () => {});
+  const pending = coordinator.run(sender, { message: 'x' }, 'renderer-destroyed', () => {});
 
   sender.emit('destroyed');
 
@@ -490,7 +512,7 @@ test('cancels and clears an active request when its sender is destroyed', async 
 test('disposes active work before replacing an AI request coordinator', async () => {
   const sender = { id: 1 }; let resolveRun; let cancels = 0;
   const previous = createAiRequestCoordinator({ runtime: { run: async () => new Promise((resolve) => { resolveRun = resolve; }), cancel: () => { cancels += 1; } }, createRequestId: () => 'previous-request' });
-  const pending = previous.run(sender, { message: 'x' }, () => {});
+  const pending = previous.run(sender, { message: 'x' }, 'renderer-previous', () => {});
 
   const next = replaceAiRequestCoordinator(previous, { run: async () => ({}), cancel: () => {} });
 
@@ -500,19 +522,37 @@ test('disposes active work before replacing an AI request coordinator', async ()
   resolveRun({}); await pending;
 });
 
-test('allows cancellation only from the sender that owns the active AI request', async () => {
+test('allows cancellation only from the sender that owns the exact active AI request', async () => {
   let resolveRun; let cancels = 0;
   const senderA = { id: 1 }; const senderB = { id: 2 };
   const coordinator = createAiRequestCoordinator({ runtime: { run: async () => new Promise((resolve) => { resolveRun = resolve; }), cancel: () => { cancels += 1; } }, createRequestId: () => 'request-owner' });
-  const pending = coordinator.run(senderA, { message: 'x' }, () => {});
+  const pending = coordinator.run(senderA, { message: 'x' }, 'renderer-cancel', () => {});
 
-  assert.equal(coordinator.cancel(senderB), false);
+  assert.equal(coordinator.cancel(senderB, 'request-owner'), false);
   assert.equal(cancels, 0);
-  assert.equal(coordinator.cancel(senderA), true);
+  assert.equal(coordinator.cancel(senderA, 'wrong-request'), false);
+  assert.equal(cancels, 0);
+  assert.equal(coordinator.cancel(senderA, 'request-owner'), true);
   assert.equal(cancels, 1);
 
   resolveRun({}); await pending;
-  assert.equal(coordinator.cancel(senderA), false);
+  assert.equal(coordinator.cancel(senderA, 'request-owner'), false);
+});
+
+test('preserves JSON provider usage in the main runtime result', async () => {
+  const runtime = createMainAiRuntime({ config: { endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'configured-model' }, fetchImpl: async () => jsonResponse({ model: 'reported-model', usage: { prompt_tokens: 12, completion_tokens: 5, total_tokens: 19 }, choices: [{ message: { content: JSON.stringify({ reply: 'Ready', toolCalls: [], notchPresentation: null }) } }] }) });
+
+  const result = await runtime.run({ message: 'hello', surface: 'desktop' });
+
+  assert.deepEqual(result.usage, { inputTokens: 12, outputTokens: 5, totalTokens: 19 });
+});
+
+test('preserves a zero total reported by a JSON provider response', async () => {
+  const runtime = createMainAiRuntime({ config: { endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'configured-model' }, fetchImpl: async () => jsonResponse({ model: 'reported-model', usage: { prompt_tokens: 12, completion_tokens: 5, total_tokens: 0 }, choices: [{ message: { content: JSON.stringify({ reply: 'Ready', toolCalls: [], notchPresentation: null }) } }] }) });
+
+  const result = await runtime.run({ message: 'hello', surface: 'desktop' });
+
+  assert.deepEqual(result.usage, { inputTokens: 12, outputTokens: 5, totalTokens: 0 });
 });
 
 test('cancels the stream reader and emits only a safe cancellation without retrying or falling back', async () => {

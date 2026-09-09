@@ -2,12 +2,13 @@ import { LocalRepository } from '../data/local-repository';
 import { validateScheduleBlock } from '../domain/conflicts';
 import type { Category, ScheduleBlock } from '../domain/models';
 import { AiToolPolicy } from './policy';
-import type { AiProvider, AiProviderProposal, AiProviderRequest, AiToolCall } from './contracts';
-import { AiTurnRuntime } from './runtime';
+import type { AiFallbackPolicy, AiProvider, AiProviderProposal, AiProviderRequest, AiToolCall } from './contracts';
+import { HeuristicAiProvider } from './heuristic-provider';
+import { AiTurnRuntime, type AiRuntimeUsageEvent } from './runtime';
 import { ToolRegistry, type HibiTool } from './tools';
 import type { AiAuditEvent } from './history';
 
-type Hooks = Readonly<{ onDataChanged?: () => void; onTaskCompleted?: (title: string) => void; onFocusStarted?: () => void; onAudit?: (event: AiAuditEvent) => void }>;
+type Hooks = Readonly<{ onDataChanged?: () => void; onTaskCompleted?: (title: string) => void; onFocusStarted?: () => void; onAudit?: (event: AiAuditEvent) => void; onUsage?: (event: AiRuntimeUsageEvent) => void }>;
 const isText = (value: unknown, max = 240): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= max;
 const isIsoDateTime = (value: unknown): value is string => isText(value, 40) && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/.test(value);
 const category = (value: unknown): value is Category => ['work', 'break', 'learning', 'important', 'wellbeing'].includes(String(value));
@@ -74,7 +75,7 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
 
 export class LocalToolProvider implements AiProvider { readonly id = 'local-tools'; readonly label = 'Hibi local tools'; constructor(private readonly repository: LocalRepository) {} async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> { if (signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError'); return localProposal(request, this.repository); } }
 
-export function createLocalHibiRuntime(repository: LocalRepository, hooks: Hooks = {}, provider: AiProvider = new LocalToolProvider(repository)): AiTurnRuntime {
+export function createLocalHibiRuntime(repository: LocalRepository, hooks: Hooks = {}, provider: AiProvider = new LocalToolProvider(repository), fallbackProvider: AiProvider = new HeuristicAiProvider(), fallbackPolicy: AiFallbackPolicy | (() => AiFallbackPolicy) = 'automatic'): AiTurnRuntime {
   const registry = createLocalToolRegistry(repository, hooks);
-  return new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), provider, onAudit: hooks.onAudit, context: { get tasks() { return repository.listTasks().map((task) => ({ id: task.id, title: task.title, dueAt: task.deadline })); }, get reminders() { return repository.listReminders().map((reminder) => ({ id: reminder.id, title: reminder.title, nextAt: reminder.schedule.at })); }, get schedule() { return repository.listBlocks(); }, get notes() { return repository.listNotes().map((note) => ({ id: note.id, title: note.title })); } } });
+  return new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), provider, fallbackProvider, fallbackPolicy, onAudit: hooks.onAudit, onUsage: hooks.onUsage, context: { get tasks() { return repository.listTasks().map((task) => ({ id: task.id, title: task.title, dueAt: task.deadline })); }, get reminders() { return repository.listReminders().map((reminder) => ({ id: reminder.id, title: reminder.title, nextAt: reminder.schedule.at })); }, get schedule() { return repository.listBlocks(); }, get notes() { return repository.listNotes().map((note) => ({ id: note.id, title: note.title })); } } });
 }

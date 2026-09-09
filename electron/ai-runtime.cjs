@@ -59,13 +59,14 @@ function normalizeUsage(value) {
   };
   const inputTokens = first(['input_tokens', 'prompt_tokens']);
   const outputTokens = first(['output_tokens', 'completion_tokens']);
+  const reportedTotalTokens = finiteNonNegative(record?.total_tokens);
   const estimatedCost = (() => {
     for (const key of ['estimatedCost', 'estimated_cost']) {
       const candidate = finiteNonNegative(record?.[key]);
       if (candidate !== undefined) return candidate;
     }
   })();
-  return { inputTokens, outputTokens, totalTokens: Math.min(inputTokens + outputTokens, Number.MAX_VALUE), ...(estimatedCost === undefined ? {} : { estimatedCost }) };
+  return { inputTokens, outputTokens, totalTokens: reportedTotalTokens ?? Math.min(inputTokens + outputTokens, Number.MAX_VALUE), ...(estimatedCost === undefined ? {} : { estimatedCost }) };
 }
 
 function parseRetryAfter(value, nowMs = Date.now()) {
@@ -187,11 +188,12 @@ function createAiRequestCoordinator({ runtime, createRequestId = () => `ai-${ran
     active = null;
   };
   return {
-    async run(sender, turn, onEvent) {
+    async run(sender, turn, correlationId, onEvent) {
       if (active && active.sender !== sender) throw new Error('An AI request is already active.');
       const requestId = createRequestId();
       if (!isValidRequestId(requestId)) throw new Error('Invalid AI request id.');
-      const request = { sender, requestId };
+      if (correlationId !== undefined && !isValidRequestId(correlationId)) throw new Error('Invalid AI correlation id.');
+      const request = { sender, requestId, correlationId };
       active?.detach?.();
       active = request;
       request.detach = attachAiRequestSenderLifecycle(sender, () => {
@@ -200,17 +202,23 @@ function createAiRequestCoordinator({ runtime, createRequestId = () => `ai-${ran
         clear(request);
       });
       try {
-        return await runtime.run(turn, {
+        const scopedEvent = (event) => ({ ...event, requestId, ...(correlationId === undefined ? {} : { correlationId }) });
+        onEvent(scopedEvent({ type: 'started' }));
+        const result = await runtime.run(turn, {
           onEvent: (event) => {
-            if (active === request && event && typeof event === 'object') onEvent({ ...event, requestId });
+            if (active === request && event && typeof event === 'object') onEvent(scopedEvent(event));
           },
         });
+        return { ...result, requestId, ...(correlationId === undefined ? {} : { correlationId }) };
       } finally {
         clear(request);
       }
     },
-    cancel(sender) {
+    cancel(sender, requestId, correlationId) {
       if (!active || active.sender !== sender) return false;
+      if (requestId !== undefined && active.requestId !== requestId) return false;
+      if (correlationId !== undefined && active.correlationId !== correlationId) return false;
+      if (requestId === undefined && correlationId === undefined) return false;
       runtime.cancel();
       return true;
     },
@@ -293,12 +301,12 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
       try { parsed = JSON.parse(text); } catch { throw invalidResponseError(); }
       const content = parsed?.choices?.[0]?.message?.content;
       if (typeof content !== 'string' || content.length > MAX_BODY_BYTES) throw invalidResponseError();
-      return { content, model: reportedModel(parsed?.model, model) };
+      return { content, model: reportedModel(parsed?.model, model), ...(parsed?.usage === undefined ? {} : { usage: normalizeUsage(parsed.usage) }) };
     };
     const parseStream = async (response, timeoutSignal) => {
       const reader = response.body?.getReader?.();
       if (!reader) return { fallbackResponse: response };
-      let bodyBytes = 0; let buffer = ''; let bodyText = ''; let content = ''; let sawEvent = false; let completed = false; let emittedDelta = false; let streamedModel = model;
+      let bodyBytes = 0; let buffer = ''; let bodyText = ''; let content = ''; let sawEvent = false; let completed = false; let emittedDelta = false; let streamedModel = model; let streamedUsage;
       const decoder = new TextDecoder();
       let readerCancelled = false;
       const cancelReader = () => {
@@ -326,7 +334,7 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
           emittedDelta = true;
           emitContentDeltas(delta);
         }
-        if (payload?.usage !== undefined) emit({ type: 'usage', usage: normalizeUsage(payload.usage) });
+        if (payload?.usage !== undefined) { streamedUsage = normalizeUsage(payload.usage); emit({ type: 'usage', usage: streamedUsage }); }
       };
       try {
         while (true) {
@@ -342,21 +350,21 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
           const blocks = buffer.split(/\r?\n\r?\n/); buffer = blocks.pop();
           for (const block of blocks) {
             consumeEvent(block);
-            if (completed) return { content, model: streamedModel };
+            if (completed) return { content, model: streamedModel, ...(streamedUsage === undefined ? {} : { usage: streamedUsage }) };
           }
         }
         const decoded = decoder.decode();
         bodyText += decoded;
         buffer += decoded;
         if (buffer.trim()) consumeEvent(buffer);
-        if (completed) return { content, model: streamedModel };
+        if (completed) return { content, model: streamedModel, ...(streamedUsage === undefined ? {} : { usage: streamedUsage }) };
         if (!sawEvent && !completed) return { fallbackText: bodyText };
         if (!completed) {
           const error = new Error('Provider stream ended before [DONE].');
           if (emittedDelta) error.code = 'incomplete_stream';
           throw error;
         }
-        return { content, model: streamedModel };
+        return { content, model: streamedModel, ...(streamedUsage === undefined ? {} : { usage: streamedUsage }) };
       } catch (error) {
         if (signal?.aborted) throw cancellationError();
         if (emittedDelta && !completed) {
@@ -429,7 +437,7 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
     async generate(turn, signal, requestOptions) {
       const contract = JSON.stringify({ allowedTools: turn.allowedTools ?? [], contextEvidence: turn.contextEvidence ?? [], currentTime: turn.currentTime, surface: turn.surface });
       const response = await requestCompletion([{ role: 'system', content: `Return only a JSON object with reply, toolCalls, and notchPresentation. You may use only these tool schemas and context: ${contract}` }, { role: 'user', content: turn.message }], signal, requestOptions?.onEvent);
-      return { content: response.content.slice(0, TURN_LIMIT), providerLabel: 'OpenAI-compatible', model: response.model };
+      return { content: response.content.slice(0, TURN_LIMIT), providerLabel: 'OpenAI-compatible', model: response.model, ...(response.usage === undefined ? {} : { usage: response.usage }) };
     },
     async testConnection(signal) { const response = await requestCompletion([{ role: 'user', content: 'Connection test. Reply with a compact JSON object with reply, toolCalls, and notchPresentation.' }], signal, undefined, false); validateJsonContract(response.content); },
   };

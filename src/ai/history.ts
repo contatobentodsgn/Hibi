@@ -1,3 +1,5 @@
+export { appendAiUsageRecord, loadAiUsageLedger, type AiUsageRecord, type AiUsageRecordInput } from './usage'
+
 export type AiAuditType = 'turn.received' | 'tool.requested' | 'confirmation.requested' | 'confirmation.confirmed' | 'confirmation.cancelled' | 'tool.completed' | 'failed'
 
 export type AiAuditEvent = Readonly<{
