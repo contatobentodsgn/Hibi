@@ -53,6 +53,9 @@ test('o relatório de leitura traz contagens e nenhum conteúdo importado', asyn
   const serialized = JSON.stringify(report)
   assert.equal(serialized.includes('assunto confidencial'), false)
   assert.equal(serialized.includes('token-secreto'), false)
+  assert.equal(serialized.includes('Estúdio'), false)
+  assert.deepEqual(report.connection, { ok: true })
+  assert.ok(report.audit.every((entry) => !Object.hasOwn(entry, 'detail')))
 })
 
 test('a escrita real só acontece com o segundo opt-in e não ecoa a mensagem enviada', async () => {
@@ -71,4 +74,5 @@ test('a escrita real só acontece com o segundo opt-in e não ecoa a mensagem en
   assert.deepEqual(withWrite.write, { attempted: true, kind: 'slack.post', ok: true, status: 200, receivedRemoteId: true })
   assert.equal(sent.length, 1)
   assert.equal(JSON.stringify(withWrite).includes('mensagem privada'), false)
+  assert.ok(withWrite.audit.every((entry) => !Object.hasOwn(entry, 'detail')))
 })
