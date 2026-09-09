@@ -96,7 +96,7 @@ function createReadOnlyFetch(request) {
   };
 }
 
-function createIntegrationManager({ connectors = [], keychain, now = () => new Date().toISOString() } = {}) {
+function createIntegrationManager({ connectors = [], keychain, now = () => new Date().toISOString(), fetch } = {}) {
   if (!keychain || typeof keychain.set !== 'function' || typeof keychain.get !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function') throw new Error('A Keychain implementation is required.');
   const registered = new Map(connectors.map((connector) => { validateConnector(connector); return [connector.id, connector]; }));
   if (registered.size !== connectors.length) throw new Error('Integration connector IDs must be unique.');
@@ -105,6 +105,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
   const accountFor = (id) => `integration:${id}`;
   const appendAudit = (value) => { const event = sanitizeIntegrationAudit(value); if (event) audits.unshift({ at: now(), ...event }); if (audits.length > MAX_AUDIT_ENTRIES) audits.length = MAX_AUDIT_ENTRIES; };
   const getConnector = (id) => { const connector = registered.get(id); if (!connector) throw new Error('Unknown integration connector.'); return connector; };
+  const safeFetchFor = (connector) => createSafeIntegrationFetch({ connector, ...(fetch ? { fetch } : {}) });
   const statusFor = async (connector) => ({ id: connector.id, label: connector.label, state: await keychain.has(accountFor(connector.id)) ? 'connected' : 'disconnected', capabilities: [...connector.capabilities], hasCredential: await keychain.has(accountFor(connector.id)) });
   return {
     async listStatus() { return Promise.all([...registered.values()].map(statusFor)); },
@@ -143,7 +144,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       if (typeof action.connector.executeApproved !== 'function') throw new Error('This integration does not support approved execution.');
       const credential = await keychain.get(accountFor(action.connector.id));
       if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
-      const result = await safeExecutionResult(await action.connector.executeApproved({ kind: action.kind, payload: action.payload, credential, request: createSafeIntegrationFetch({ connector: action.connector }) }));
+      const result = await safeExecutionResult(await action.connector.executeApproved({ kind: action.kind, payload: action.payload, credential, request: safeFetchFor(action.connector) }));
       appendAudit({ action: 'execute', connectorId: action.connector.id, detail: `Executed approved ${action.kind}.` });
       return result;
     },
@@ -153,7 +154,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       const credential = await keychain.get(accountFor(id));
       if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
       try {
-        const result = await connector.testConnection({ credential, request: createReadOnlyFetch(createSafeIntegrationFetch({ connector })) });
+        const result = await connector.testConnection({ credential, request: createReadOnlyFetch(safeFetchFor(connector)) });
         const detail = boundedText(result?.detail) ? redact(result.detail) : 'Credential accepted.';
         appendAudit({ action: 'test-connection', connectorId: id, detail });
         return { ok: true, detail };
@@ -168,7 +169,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       if (typeof connector.listImportTargets !== 'function') throw new Error('This integration does not expose import targets.');
       const credential = await keychain.get(accountFor(id));
       if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
-      const targets = await connector.listImportTargets({ credential, request: createSafeIntegrationFetch({ connector }) });
+      const targets = await connector.listImportTargets({ credential, request: safeFetchFor(connector) });
       const safe = (Array.isArray(targets) ? targets : []).slice(0, 200).flatMap((target) => boundedText(target?.id, 240) ? [{ id: target.id, label: boundedText(target?.label, 240) ? target.label : target.id }] : []);
       appendAudit({ action: 'list-import-targets', connectorId: id, detail: `Listed ${safe.length} import targets.` });
       return safe;
@@ -183,7 +184,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       if (targets.length === 0) throw new Error('Choose at least one source before importing.');
       const credential = await keychain.get(accountFor(id));
       if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
-      const raw = await connector.fetchImports({ credential, request: createSafeIntegrationFetch({ connector }), targets });
+      const raw = await connector.fetchImports({ credential, request: safeFetchFor(connector), targets });
       const candidates = (Array.isArray(raw) ? raw : []).slice(0, MAX_IMPORT_CANDIDATES).flatMap((item) => {
         const candidate = connector.normalizeImport(item);
         return candidate && boundedText(candidate.remoteId, 240) && boundedText(candidate.title, 240) ? [{ remoteId: candidate.remoteId, title: candidate.title.slice(0, 240), kind: candidate.kind === 'email' ? 'email' : 'task', ...(boundedText(candidate.revision, 240) ? { revision: candidate.revision } : {}), ...(boundedText(candidate.source, 240) ? { source: candidate.source } : {}) }] : [];
@@ -193,7 +194,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
     },
     async audit() { return audits.map(({ at, action, connectorId, detail }) => ({ at, action, connectorId, detail })); },
     getConnector,
-    createSafeFetch(id, options = {}) { return createSafeIntegrationFetch({ connector: getConnector(id), ...options }); },
+    createSafeFetch(id, options = {}) { return createSafeIntegrationFetch({ connector: getConnector(id), ...(fetch ? { fetch } : {}), ...options }); },
   };
 }
 

@@ -17,10 +17,11 @@ Atualizado em 2026-09-09. Este documento é a fonte operacional do status atual;
 | Notion, Slack e e-mail | Implementado localmente | Adaptadores, normalização, Keychain, allowlist, OAuth PKCE com callback em loopback, teste de conexão somente leitura, endpoint configurável e seleção de fontes importadas; falta exercitar contra contas reais. |
 | Webhooks | Implementado localmente | HMAC, nonce, expiração, limite de corpo, loopback, Keychain e confirmação; ciclo iniciar/parar e estado após reinício cobertos por e2e; não é endpoint público. |
 | API pública | Implementado localmente | API HTTP loopback, token revogável no Keychain, OpenAPI, leituras e escritas com confirmação. |
-| Importação | Implementado localmente | CSV/JSON/ICS, prévia, deduplicação, conflitos e aplicação local da decisão. |
+| Importação | Implementado localmente | CSV/JSON/ICS e leitura por conector a partir das fontes escolhidas, com prévia, deduplicação por referência remota, conflitos e aplicação local da decisão. |
 | Compartilhamento | Implementado localmente | Convites somente leitura assinados e expirados. |
 | Notificações remotas | Implementado localmente | Adaptador, confirmação, endpoint HTTPS configurável e teste de conexão; entrega real exige credencial do serviço escolhido. |
 | Teste com provedor real | Bloqueado por configuração | Harness protegido criado; falta endpoint sandbox, modelo, credencial e opt-in explícito. |
+| Teste com conector real | Bloqueado por configuração | Harness protegido criado, com opt-ins separados para leitura e escrita; falta endpoint sandbox, token e alvos. |
 
 ## Plano restante
 
@@ -42,10 +43,27 @@ Atualizado em 2026-09-09. Este documento é a fonte operacional do status atual;
 
 ### Fase 3 — validação externa
 
+Os dois harness recusam a execução até que o opt-in e os parâmetros seguros estejam presentes. Falta apenas fornecer sandbox e credenciais.
+
 - [ ] Executar `HIBI_LIVE_PROVIDER_TEST=1 npm run test:providers:live` contra sandbox autorizado.
 - [ ] Exercitar streaming, cancelamento, 401, limite de uso, indisponibilidade, retry e proveniência com o provedor real.
-- [ ] Executar uma importação real de cada conector em modo somente leitura.
-- [ ] Exercitar uma escrita real somente após confirmação explícita e registrar o resultado sanitizado.
+- [ ] Executar `HIBI_LIVE_CONNECTOR_TEST=1 npm run test:connectors:live` por conector, em modo somente leitura.
+- [ ] Exercitar uma escrita real com `HIBI_LIVE_CONNECTOR_WRITE_TEST=1` e registrar o relatório sanitizado.
+
+#### Parâmetros dos harness
+
+| Variável | Uso |
+| --- | --- |
+| `HIBI_LIVE_CONNECTOR_TEST=1` | Libera qualquer tráfego real de conector. |
+| `HIBI_LIVE_CONNECTOR_ID` | `notion`, `slack`, `email` ou `remote-notifications`. |
+| `HIBI_LIVE_CONNECTOR_ENDPOINT` | Base HTTPS do sandbox. |
+| `HIBI_LIVE_CONNECTOR_ALLOW_HOSTS` | Hosts autorizados; o endpoint precisa estar na lista. |
+| `HIBI_LIVE_CONNECTOR_TOKEN` | Credencial do sandbox; fica só em memória. |
+| `HIBI_LIVE_CONNECTOR_TARGETS` | Identificadores das fontes a importar, separados por vírgula. |
+| `HIBI_LIVE_CONNECTOR_WRITE_TEST=1` | Segundo opt-in, exigido para qualquer escrita real. |
+| `HIBI_LIVE_CONNECTOR_WRITE_KIND` e `..._WRITE_PAYLOAD` | Ação e corpo JSON da escrita. |
+
+O relatório traz apenas contagens, resultados e o host autorizado: nenhum título, corpo, identificador remoto ou credencial.
 
 ### Fase 4 — release e sincronização futura
 
@@ -66,6 +84,7 @@ npx tsc --noEmit
 npx vite build
 npx playwright test
 npm run test:providers:live
+npm run test:connectors:live
 ```
 
-O último comando deve permanecer recusando a execução até que o opt-in e os parâmetros seguros estejam presentes.
+Os dois últimos comandos devem permanecer recusando a execução, com código de saída 1, até que o opt-in e os parâmetros seguros estejam presentes.
