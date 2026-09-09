@@ -1,5 +1,6 @@
 import type { NotificationEntry } from './domain/notifications';
 import type { AiNormalizedUsage, AiProviderRequest, AiProviderStreamEvent } from './ai/contracts';
+import type { IntegrationAuditEvent, IntegrationStatus, PreparedIntegrationAction } from './integrations/contracts';
 
 declare global {
   interface Window {
@@ -15,6 +16,11 @@ declare global {
       getAiConfig?: () => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
       saveAiConfig?: (config: { provider: 'local' | 'openai-compatible'; endpoint: string; model: string; apiKey?: string }) => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
       deleteAiKey?: () => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
+      listIntegrationStatus?: () => Promise<readonly IntegrationStatus[]>;
+      listIntegrationAudit?: () => Promise<readonly IntegrationAuditEvent[]>;
+      revokeIntegration?: (connectorId: string) => Promise<IntegrationStatus>;
+      prepareIntegrationAction?: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => Promise<PreparedIntegrationAction>;
+      executeApprovedIntegrationAction?: (input: { actionId: string; confirmationId: string }) => Promise<unknown>;
       showNotch?: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly unknown[]; interaction: 'passthrough' | 'capture' }) => Promise<{ degraded: boolean; requestId: string; host?: 'native' | 'electron' }>;
       hideNotch?: (requestId: string) => Promise<boolean>;
       resolveNotchAction?: (requestId: string, actionId: 'confirm' | 'cancel') => Promise<boolean>;

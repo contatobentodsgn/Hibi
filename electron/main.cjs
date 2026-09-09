@@ -2,7 +2,8 @@ const { app, BrowserWindow, ipcMain, Notification, screen, powerMonitor } = requ
 const path = require("node:path");
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.cjs");
 const { createMainAiRuntime, replaceAiRequestCoordinator } = require("./ai-runtime.cjs");
-const { createAiConfiguration, verifyAndSaveAiConfiguration } = require('./ai-config.cjs');
+const { createAiConfiguration, createMacKeychain, verifyAndSaveAiConfiguration } = require('./ai-config.cjs');
+const { createIntegrationManager } = require('./integrations.cjs');
 const { createNotchWindowManager } = require("./notch-window.cjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
@@ -11,6 +12,7 @@ let notificationScheduler;
 let aiRuntime;
 let aiRequestCoordinator;
 let aiConfiguration;
+let integrationManager;
 let notchWindow;
 let detachNotchLifecycle = () => {};
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
@@ -139,6 +141,7 @@ function createWindow() {
 app.whenReady().then(async () => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
+  integrationManager = createIntegrationManager({ connectors: [], keychain: createMacKeychain() });
   replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => mainWindow?.webContents.send('hibi:companion:action', action) });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow });
@@ -172,6 +175,11 @@ app.whenReady().then(async () => {
     replaceAiRuntime(createMainAiRuntime());
     return status;
   });
+  ipcMain.handle('hibi:integrations:list-status', () => integrationManager.listStatus());
+  ipcMain.handle('hibi:integrations:audit', () => integrationManager.audit());
+  ipcMain.handle('hibi:integrations:revoke', (_event, connectorId) => integrationManager.revoke(connectorId));
+  ipcMain.handle('hibi:integrations:prepare-action', (_event, input) => integrationManager.prepareAction(input));
+  ipcMain.handle('hibi:integrations:execute-approved', (_event, input) => integrationManager.executeApproved(input));
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
   ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));
