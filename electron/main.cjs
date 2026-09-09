@@ -10,6 +10,7 @@ const { createSlackConnector } = require('./connectors/slack.cjs');
 const { createEmailConnector } = require('./connectors/email.cjs');
 const { createRemoteNotificationConnector } = require('./connectors/remote-notifications.cjs');
 const { createLocalApi, createLocalApiTokenStore } = require('./local-api.cjs');
+const { createWebhookService } = require('./webhooks.cjs');
 const { createNotchWindowManager } = require("./notch-window.cjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
@@ -20,6 +21,7 @@ let aiRequestCoordinator;
 let aiConfiguration;
 let integrationManager;
 let localApi;
+let webhookService;
 let localApiWorkspace = { tasks: [], reminders: [], blocks: [] };
 const pendingLocalApiWrites = new Map();
 let notchWindow;
@@ -150,13 +152,15 @@ function createWindow() {
 app.whenReady().then(async () => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
-  integrationManager = createIntegrationManager({ connectors: [createNotionConnector(), createSlackConnector(), createEmailConnector(), createRemoteNotificationConnector()], keychain: createMacKeychain() });
+  const secureKeychain = createMacKeychain();
+  integrationManager = createIntegrationManager({ connectors: [createNotionConnector(), createSlackConnector(), createEmailConnector(), createRemoteNotificationConnector()], keychain: secureKeychain });
   localApi = createLocalApi({ tokenStore: createLocalApiTokenStore({ keychain: createMacKeychain() }), workspace: () => localApiWorkspace, prepareWrite: async (intent) => {
     const confirmationId = `local-api-${crypto.randomUUID()}`;
     pendingLocalApiWrites.set(confirmationId, intent);
     mainWindow?.webContents.send('hibi:local-api:confirmation', { confirmationId, kind: intent.kind, payload: intent.payload });
     return { confirmationId, requiresConfirmation: true };
   } });
+  webhookService = createWebhookService({ keychain: secureKeychain, prepare: async (event) => { const confirmationId = `webhook-${crypto.randomUUID()}`; mainWindow?.webContents.send('hibi:webhook:confirmation', { confirmationId, kind: 'webhook.received', payload: event }); return { confirmationId, requiresConfirmation: true }; } });
   replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => mainWindow?.webContents.send('hibi:companion:action', action) });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow });
@@ -213,6 +217,10 @@ app.whenReady().then(async () => {
     pendingLocalApiWrites.delete(confirmationId);
     return { resolved: true, approved: input?.approved === true };
   });
+  ipcMain.handle('hibi:webhook:configure', async (_event, secret) => { await webhookService.configure(secret); return webhookService.status(); });
+  ipcMain.handle('hibi:webhook:start', async () => { await webhookService.start(); return webhookService.status(); });
+  ipcMain.handle('hibi:webhook:stop', async () => { await webhookService.stop(); return webhookService.status(); });
+  ipcMain.handle('hibi:webhook:status', () => webhookService.status());
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
   ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));
@@ -220,7 +228,7 @@ app.whenReady().then(async () => {
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
-app.on("before-quit", () => { detachNotchLifecycle(); notificationScheduler?.clear(); void localApi?.stop(); notchWindow?.destroy(); });
+app.on("before-quit", () => { detachNotchLifecycle(); notificationScheduler?.clear(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
 module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent };
