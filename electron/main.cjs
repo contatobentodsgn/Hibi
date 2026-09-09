@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, Notification, screen, powerMonitor } = require("electron");
 const path = require("node:path");
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.cjs");
-const { createAiRequestCoordinator, createMainAiRuntime } = require("./ai-runtime.cjs");
+const { createMainAiRuntime, replaceAiRequestCoordinator } = require("./ai-runtime.cjs");
 const { createAiConfiguration, verifyAndSaveAiConfiguration } = require('./ai-config.cjs');
 const { createNotchWindowManager } = require("./notch-window.cjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
@@ -113,6 +113,11 @@ function attachRendererRecovery(window) {
   return recover;
 }
 
+function replaceAiRuntime(runtime) {
+  aiRequestCoordinator = replaceAiRequestCoordinator(aiRequestCoordinator, runtime);
+  aiRuntime = runtime;
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 820, minWidth: 960, minHeight: 620,
@@ -133,8 +138,7 @@ function createWindow() {
 app.whenReady().then(async () => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
-  aiRuntime = createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) });
-  aiRequestCoordinator = createAiRequestCoordinator({ runtime: aiRuntime });
+  replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => mainWindow?.webContents.send('hibi:companion:action', action) });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
@@ -155,14 +159,12 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:ai-config:get', () => aiConfiguration.getStatus());
   ipcMain.handle('hibi:ai-config:save', async (_event, value) => {
     const status = await verifyAndSaveAiConfiguration({ configuration: aiConfiguration, value, verifyCandidate: async (config) => createMainAiRuntime({ config }).testConnection() });
-    aiRuntime = createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) });
-    aiRequestCoordinator = createAiRequestCoordinator({ runtime: aiRuntime });
+    replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
     return status;
   });
   ipcMain.handle('hibi:ai-config:delete-key', async () => {
     const status = await aiConfiguration.deleteKey();
-    aiRuntime = createMainAiRuntime();
-    aiRequestCoordinator = createAiRequestCoordinator({ runtime: aiRuntime });
+    replaceAiRuntime(createMainAiRuntime());
     return status;
   });
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));

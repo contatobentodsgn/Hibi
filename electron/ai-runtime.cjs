@@ -76,9 +76,12 @@ function parseRetryAfter(value, nowMs = Date.now()) {
   return Number.isFinite(retryAtMs) && retryAtMs > nowMs ? Math.min(retryAtMs - nowMs, MAX_RETRY_AFTER_MS) : undefined;
 }
 
-function retryDelayFor(attempt) {
+function retryDelayFor(attempt, random = Math.random) {
   const boundedAttempt = Number.isFinite(attempt) && attempt > 0 ? Math.floor(attempt) : 1;
-  return Math.min(1000 * 2 ** Math.max(0, boundedAttempt - 1), 4000);
+  const capMs = Math.min(1000 * 2 ** Math.max(0, boundedAttempt - 1), 4000);
+  const sample = typeof random === 'function' ? random() : 0.5;
+  const jitter = Number.isFinite(sample) ? Math.min(Math.max(sample, 0), 1) : 0.5;
+  return Math.round(capMs * (0.5 + jitter * 0.5));
 }
 
 function classifyProviderFailure(input) {
@@ -87,6 +90,7 @@ function classifyProviderFailure(input) {
   const code = typeof record?.code === 'string' ? record.code.toLowerCase() : undefined;
   const status = finiteNonNegative(record?.status) ?? finiteNonNegative(record?.statusCode) ?? finiteNonNegative(recordFrom(record?.response)?.status);
   if (name === 'aborterror' || code === 'abort_err' || code === 'aborted') return { code: 'cancelled', retryable: false };
+  if (code === 'incomplete_stream') return { code: 'unavailable', retryable: false };
   if (status === 401 || status === 403) return { code: 'invalid_credentials', retryable: false };
   if (status === 429) {
     const retryAfterMs = finiteNonNegative(record?.retryAfterMs);
@@ -122,12 +126,29 @@ function cancellationError() {
 }
 
 async function waitForRetry(sleep, delayMs, signal) {
-  if (!signal) return sleep(delayMs);
+  if (!signal) return typeof sleep === 'function' ? sleep(delayMs) : new Promise((resolve) => setTimeout(resolve, delayMs));
   if (signal.aborted) throw cancellationError();
   await new Promise((resolve, reject) => {
-    const abort = () => { signal.removeEventListener('abort', abort); reject(cancellationError()); };
+    let timer;
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener('abort', abort);
+      callback(value);
+    };
+    const abort = () => {
+      if (timer !== undefined) clearTimeout(timer);
+      finish(reject, cancellationError());
+    };
     signal.addEventListener('abort', abort, { once: true });
-    Promise.resolve(sleep(delayMs)).then(() => { signal.removeEventListener('abort', abort); resolve(); }, (error) => { signal.removeEventListener('abort', abort); reject(error); });
+    if (typeof sleep === 'function') {
+      try { Promise.resolve(sleep(delayMs)).then(() => finish(resolve), (error) => finish(reject, error)); }
+      catch (error) { finish(reject, error); }
+    } else {
+      timer = setTimeout(() => finish(resolve), delayMs);
+      timer.unref?.();
+    }
   });
 }
 
@@ -142,14 +163,42 @@ function isValidRequestId(value) {
   return typeof value === 'string' && value.length > 0 && value.length <= 128 && /^[A-Za-z0-9_-]+$/.test(value);
 }
 
+function attachAiRequestSenderLifecycle(sender, onDestroyed) {
+  if (!sender?.once || typeof onDestroyed !== 'function') return () => {};
+  let attached = true;
+  const destroyed = () => {
+    if (!attached) return;
+    attached = false;
+    onDestroyed();
+  };
+  sender.once('destroyed', destroyed);
+  return () => {
+    if (!attached) return;
+    attached = false;
+    sender.removeListener?.('destroyed', destroyed);
+  };
+}
+
 function createAiRequestCoordinator({ runtime, createRequestId = () => `ai-${randomUUID()}` }) {
   let active = null;
+  const clear = (request) => {
+    if (active !== request) return;
+    request.detach?.();
+    active = null;
+  };
   return {
     async run(sender, turn, onEvent) {
+      if (active && active.sender !== sender) throw new Error('An AI request is already active.');
       const requestId = createRequestId();
       if (!isValidRequestId(requestId)) throw new Error('Invalid AI request id.');
       const request = { sender, requestId };
+      active?.detach?.();
       active = request;
+      request.detach = attachAiRequestSenderLifecycle(sender, () => {
+        if (active !== request) return;
+        runtime.cancel();
+        clear(request);
+      });
       try {
         return await runtime.run(turn, {
           onEvent: (event) => {
@@ -157,7 +206,7 @@ function createAiRequestCoordinator({ runtime, createRequestId = () => `ai-${ran
           },
         });
       } finally {
-        if (active === request) active = null;
+        clear(request);
       }
     },
     cancel(sender) {
@@ -165,13 +214,32 @@ function createAiRequestCoordinator({ runtime, createRequestId = () => `ai-${ran
       runtime.cancel();
       return true;
     },
+    dispose() {
+      if (!active) return false;
+      const request = active;
+      runtime.cancel();
+      clear(request);
+      return true;
+    },
   };
 }
 
-function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fetch, timeoutMs = 30_000, timeoutFactory = createTimeout, onEvent, sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay)) }) {
+function replaceAiRequestCoordinator(previous, runtime, createCoordinator = createAiRequestCoordinator) {
+  previous?.dispose?.();
+  return createCoordinator({ runtime });
+}
+
+function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fetch, timeoutMs = 30_000, timeoutFactory = createTimeout, onEvent, sleep, random = Math.random }) {
   const url = safeEndpoint(endpoint);
   const requestCompletion = async (messages, signal, requestOnEvent, stream = true) => {
     const emit = typeof requestOnEvent === 'function' ? requestOnEvent : typeof onEvent === 'function' ? onEvent : () => {};
+    const emitContentDeltas = (content) => {
+      for (let start = 0; start < content.length; start += TURN_LIMIT) emit({ type: 'delta', delta: content.slice(start, start + TURN_LIMIT) });
+    };
+    const emitFallbackContent = (content) => {
+      emitContentDeltas(content);
+      emit({ type: 'completed' });
+    };
     let fetchCount = 0;
     let maxFetches = Infinity;
     let retryAttempt = 0;
@@ -230,25 +298,33 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
     const parseStream = async (response, timeoutSignal) => {
       const reader = response.body?.getReader?.();
       if (!reader) return { fallbackResponse: response };
-      let bodyBytes = 0; let buffer = ''; let bodyText = ''; let content = ''; let sawEvent = false; let completed = false;
+      let bodyBytes = 0; let buffer = ''; let bodyText = ''; let content = ''; let sawEvent = false; let completed = false; let emittedDelta = false; let streamedModel = model;
       const decoder = new TextDecoder();
-      const cancelReader = () => { void Promise.resolve(reader.cancel()).catch(() => {}); };
+      let readerCancelled = false;
+      const cancelReader = () => {
+        if (readerCancelled) return;
+        readerCancelled = true;
+        void Promise.resolve(reader.cancel()).catch(() => {});
+      };
       const abort = () => { cancelReader(); };
       signal?.addEventListener('abort', abort, { once: true });
       const consumeEvent = (block) => {
+        if (completed) return;
         const data = block.split(/\r?\n/).filter((line) => line.startsWith('data:')).map((line) => line.slice(5).trimStart()).join('\n');
         if (!data) return;
-        if (data === '[DONE]') { completed = true; emit({ type: 'completed' }); return; }
+        if (data === '[DONE]') { completed = true; emit({ type: 'completed' }); cancelReader(); return; }
         let payload;
         try { payload = JSON.parse(data); } catch { throw invalidResponseError(); }
         sawEvent = true;
+        streamedModel = reportedModel(payload?.model, streamedModel);
         const delta = payload?.choices?.[0]?.delta?.content;
         if (typeof delta === 'string' && delta.length > 0) {
           content += delta;
           if (Buffer.byteLength(content, 'utf8') > MAX_BODY_BYTES) {
             const error = invalidResponseError(); error.safeMessage = 'Provider response exceeds the 1 MiB limit.'; throw error;
           }
-          for (let start = 0; start < delta.length; start += TURN_LIMIT) emit({ type: 'delta', delta: delta.slice(start, start + TURN_LIMIT) });
+          emittedDelta = true;
+          emitContentDeltas(delta);
         }
         if (payload?.usage !== undefined) emit({ type: 'usage', usage: normalizeUsage(payload.usage) });
       };
@@ -264,17 +340,30 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
           bodyText += decoded;
           buffer += decoded;
           const blocks = buffer.split(/\r?\n\r?\n/); buffer = blocks.pop();
-          for (const block of blocks) consumeEvent(block);
+          for (const block of blocks) {
+            consumeEvent(block);
+            if (completed) return { content, model: streamedModel };
+          }
         }
         const decoded = decoder.decode();
         bodyText += decoded;
         buffer += decoded;
         if (buffer.trim()) consumeEvent(buffer);
+        if (completed) return { content, model: streamedModel };
         if (!sawEvent && !completed) return { fallbackText: bodyText };
-        if (!completed) emit({ type: 'completed' });
-        return { content, model };
+        if (!completed) {
+          const error = new Error('Provider stream ended before [DONE].');
+          if (emittedDelta) error.code = 'incomplete_stream';
+          throw error;
+        }
+        return { content, model: streamedModel };
       } catch (error) {
         if (signal?.aborted) throw cancellationError();
+        if (emittedDelta && !completed) {
+          const interrupted = new Error('Provider stream interrupted after visible output.');
+          interrupted.code = 'incomplete_stream';
+          throw interrupted;
+        }
         if (timeoutSignal?.aborted) throw Object.assign(new Error('Provider request timed out.'), { name: 'TimeoutError' });
         if (error?.code === 'invalid_response' && error?.safeMessage === 'Provider response exceeds the 1 MiB limit.') throw error;
         if (!sawEvent) return { fallback: true, error };
@@ -300,20 +389,35 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
         try { parsed = await parseStream(streamAttempt.response, streamAttempt.timeout.signal); }
         catch (error) { streamAttempt.dispose(); throw error; }
         if (!parsed.fallback && !parsed.fallbackResponse && parsed.fallbackText === undefined) { streamAttempt.dispose(); return parsed; }
-        if (parsed.fallbackText !== undefined) return await parseJsonAttempt(streamAttempt, parsed.fallbackText);
-        if (parsed.fallbackResponse) return await parseJsonAttempt(streamAttempt);
+        if (parsed.fallbackText !== undefined) {
+          const fallback = await parseJsonAttempt(streamAttempt, parsed.fallbackText);
+          emitFallbackContent(fallback.content);
+          return fallback;
+        }
+        if (parsed.fallbackResponse) {
+          const fallback = await parseJsonAttempt(streamAttempt);
+          emitFallbackContent(fallback.content);
+          return fallback;
+        }
         streamAttempt.dispose();
         if (parsed.error) noteFailure(parsed.error);
         if (fetchCount >= maxFetches) throw parsed.error ?? new Error('AI provider request budget exhausted.');
         if (signal?.aborted) throw cancellationError();
-        return await parseJsonAttempt(await request(false));
+        const fallback = await parseJsonAttempt(await request(false));
+        emitFallbackContent(fallback.content);
+        return fallback;
       } catch (error) {
         const failure = noteFailure(error);
         if (failure.retryable && fetchCount < maxFetches) {
           retryAttempt += 1;
-          const delayMs = failure.retryAfterMs ?? retryDelayFor(retryAttempt);
+          const delayMs = failure.retryAfterMs ?? retryDelayFor(retryAttempt, random);
           emit({ type: 'retrying', attempt: retryAttempt, delayMs, failure });
-          await waitForRetry(sleep, delayMs, signal);
+          try { await waitForRetry(sleep, delayMs, signal); }
+          catch (retryError) {
+            const retryFailure = noteFailure(retryError);
+            emit({ type: 'failed', failure: retryFailure });
+            throw safeFailureError(retryFailure, retryError);
+          }
           continue;
         }
         emit({ type: 'failed', failure });
@@ -331,9 +435,9 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
   };
 }
 
-function createMainAiRuntime({ config = {}, fetchImpl, sleep, timeoutFactory } = {}) {
+function createMainAiRuntime({ config = {}, fetchImpl, sleep, timeoutFactory, random } = {}) {
   let active = null;
-  const client = config.endpoint && config.apiKey && config.model ? createOpenAiCompatibleClient({ ...config, fetchImpl, sleep, timeoutFactory }) : null;
+  const client = config.endpoint && config.apiKey && config.model ? createOpenAiCompatibleClient({ ...config, fetchImpl, sleep, timeoutFactory, random }) : null;
   return {
     async run(raw, requestOptions) {
       const turn = validateTurn(raw); active?.abort(); const controller = new AbortController(); active = controller;
@@ -347,4 +451,4 @@ function createMainAiRuntime({ config = {}, fetchImpl, sleep, timeoutFactory } =
   };
 }
 
-module.exports = { MAX_BODY_BYTES, safeEndpoint, redactedError, validateTurn, validateJsonContract, normalizeUsage, parseRetryAfter, retryDelayFor, classifyProviderFailure, createAiRequestCoordinator, createOpenAiCompatibleClient, createMainAiRuntime };
+module.exports = { MAX_BODY_BYTES, safeEndpoint, redactedError, validateTurn, validateJsonContract, normalizeUsage, parseRetryAfter, retryDelayFor, classifyProviderFailure, attachAiRequestSenderLifecycle, createAiRequestCoordinator, replaceAiRequestCoordinator, createOpenAiCompatibleClient, createMainAiRuntime };
