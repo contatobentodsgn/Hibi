@@ -175,6 +175,7 @@ export default function App() {
   React.useEffect(() => { window.localStorage.setItem('hibi-events', JSON.stringify(events)); }, [events]);
   React.useEffect(() => { try { window.localStorage.setItem('hibi-ai-history', JSON.stringify(loadAiAuditHistory(JSON.stringify(aiHistory)))); } catch { /* unavailable storage */ } }, [aiHistory]);
   React.useEffect(() => { try { window.localStorage.setItem(AI_USAGE_LEDGER_STORAGE_KEY, JSON.stringify(loadAiUsageLedger(JSON.stringify(aiUsage)))); } catch { /* unavailable storage */ } }, [aiUsage]);
+  React.useEffect(() => { void window.hibiDesktop?.syncLocalApiWorkspace?.({ tasks: data.tasks, reminders: data.reminders, blocks: data.blocks }); }, [data]);
   React.useEffect(() => {
     const syncNotifications = window.hibiDesktop?.syncNotifications;
     if (syncNotifications) void syncNotifications(buildNotificationEntries(data)).catch(() => undefined);

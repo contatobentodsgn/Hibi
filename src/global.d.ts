@@ -21,6 +21,10 @@ declare global {
       revokeIntegration?: (connectorId: string) => Promise<IntegrationStatus>;
       prepareIntegrationAction?: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => Promise<PreparedIntegrationAction>;
       executeApprovedIntegrationAction?: (input: { actionId: string; confirmationId: string }) => Promise<unknown>;
+      syncLocalApiWorkspace?: (workspace: { tasks: readonly unknown[]; reminders: readonly unknown[]; blocks: readonly unknown[] }) => Promise<void>;
+      startLocalApi?: () => Promise<{ origin: string; token: string }>;
+      stopLocalApi?: () => Promise<{ running: false }>;
+      getLocalApiStatus?: () => Promise<{ running: boolean }>;
       showNotch?: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly unknown[]; interaction: 'passthrough' | 'capture' }) => Promise<{ degraded: boolean; requestId: string; host?: 'native' | 'electron' }>;
       hideNotch?: (requestId: string) => Promise<boolean>;
       resolveNotchAction?: (requestId: string, actionId: 'confirm' | 'cancel') => Promise<boolean>;

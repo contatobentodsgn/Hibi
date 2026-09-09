@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, Notification, screen, powerMonitor } = require("electron");
 const path = require("node:path");
+const crypto = require('node:crypto');
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.cjs");
 const { createMainAiRuntime, replaceAiRequestCoordinator } = require("./ai-runtime.cjs");
 const { createAiConfiguration, createMacKeychain, verifyAndSaveAiConfiguration } = require('./ai-config.cjs');
@@ -8,6 +9,7 @@ const { createNotionConnector } = require('./connectors/notion.cjs');
 const { createSlackConnector } = require('./connectors/slack.cjs');
 const { createEmailConnector } = require('./connectors/email.cjs');
 const { createRemoteNotificationConnector } = require('./connectors/remote-notifications.cjs');
+const { createLocalApi, createLocalApiTokenStore } = require('./local-api.cjs');
 const { createNotchWindowManager } = require("./notch-window.cjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
@@ -17,6 +19,9 @@ let aiRuntime;
 let aiRequestCoordinator;
 let aiConfiguration;
 let integrationManager;
+let localApi;
+let localApiWorkspace = { tasks: [], reminders: [], blocks: [] };
+const pendingLocalApiWrites = new Map();
 let notchWindow;
 let detachNotchLifecycle = () => {};
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
@@ -146,6 +151,11 @@ app.whenReady().then(async () => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
   integrationManager = createIntegrationManager({ connectors: [createNotionConnector(), createSlackConnector(), createEmailConnector(), createRemoteNotificationConnector()], keychain: createMacKeychain() });
+  localApi = createLocalApi({ tokenStore: createLocalApiTokenStore({ keychain: createMacKeychain() }), workspace: () => localApiWorkspace, prepareWrite: async (intent) => {
+    const confirmationId = `local-api-${crypto.randomUUID()}`;
+    pendingLocalApiWrites.set(confirmationId, intent);
+    return { confirmationId, requiresConfirmation: true };
+  } });
   replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => mainWindow?.webContents.send('hibi:companion:action', action) });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow });
@@ -184,6 +194,13 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:integrations:revoke', (_event, connectorId) => integrationManager.revoke(connectorId));
   ipcMain.handle('hibi:integrations:prepare-action', (_event, input) => integrationManager.prepareAction(input));
   ipcMain.handle('hibi:integrations:execute-approved', (_event, input) => integrationManager.executeApproved(input));
+  ipcMain.handle('hibi:local-api:sync-workspace', (_event, value) => {
+    const safe = value && typeof value === 'object' ? value : {};
+    localApiWorkspace = { tasks: Array.isArray(safe.tasks) ? safe.tasks.slice(0, 5_000) : [], reminders: Array.isArray(safe.reminders) ? safe.reminders.slice(0, 5_000) : [], blocks: Array.isArray(safe.blocks) ? safe.blocks.slice(0, 5_000) : [] };
+  });
+  ipcMain.handle('hibi:local-api:start', () => localApi.start());
+  ipcMain.handle('hibi:local-api:stop', async () => { await localApi.stop(); return { running: false }; });
+  ipcMain.handle('hibi:local-api:status', () => ({ running: localApi.isRunning() }));
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
   ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));
@@ -191,7 +208,7 @@ app.whenReady().then(async () => {
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
-app.on("before-quit", () => { detachNotchLifecycle(); notificationScheduler?.clear(); notchWindow?.destroy(); });
+app.on("before-quit", () => { detachNotchLifecycle(); notificationScheduler?.clear(); void localApi?.stop(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
 module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent };
