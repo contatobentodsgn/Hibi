@@ -15,7 +15,7 @@ Atualizado em 2026-09-09. Este documento é a fonte operacional do status atual;
 | Provedor/modelo por resposta | Implementado | Proveniência exibida no assistente e nos eventos de streaming. |
 | Fallback | Implementado | Políticas perguntar/automático/nunca e fallback local somente em falhas elegíveis. |
 | Notion, Slack e e-mail | Parcial | Adaptadores, normalização mínima, Keychain, allowlist e ações preparadas; OAuth PKCE e testes contra contas reais ainda dependem de configuração externa. |
-| Webhooks | Implementado localmente | HMAC, nonce, expiração, limite de corpo, loopback, Keychain e confirmação; não é endpoint público. |
+| Webhooks | Implementado localmente | HMAC, nonce, expiração, limite de corpo, loopback, Keychain e confirmação; ciclo iniciar/parar e estado após reinício cobertos por e2e; não é endpoint público. |
 | API pública | Implementado localmente | API HTTP loopback, token revogável no Keychain, OpenAPI, leituras e escritas com confirmação. |
 | Importação | Implementado localmente | CSV/JSON/ICS, prévia, deduplicação, conflitos e aplicação local da decisão. |
 | Compartilhamento | Implementado localmente | Convites somente leitura assinados e expirados. |
@@ -29,8 +29,8 @@ Atualizado em 2026-09-09. Este documento é a fonte operacional do status atual;
 - [x] Conectar webhook à ponte Electron e à tela de Integrações.
 - [x] Exigir confirmação dentro do app para escritas recebidas pela API local.
 - [x] Recompilar e validar o addon nativo do notch.
-- [ ] Adicionar teste de interface para iniciar/parar webhook e confirmar estado após reinício.
-- [ ] Exibir histórico completo de confirmações de integrações, em vez de somente a contagem de auditoria.
+- [x] Adicionar teste de interface para iniciar/parar webhook e confirmar estado após reinício.
+- [x] Exibir histórico completo de confirmações de integrações, em vez de somente a contagem de auditoria.
 
 ### Fase 2 — tornar conectores operacionais
 
@@ -64,6 +64,7 @@ O projeto só deve ser considerado completo quando as fases 1–3 tiverem evidê
 npm test
 npx tsc --noEmit
 npx vite build
+npx playwright test
 npm run test:providers:live
 ```
 

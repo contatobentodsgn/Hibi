@@ -18,5 +18,7 @@ describe('IntegrationsView', () => {
     expect(markup).toContain('Local webhook')
     expect(markup).toContain('Start local API')
     expect(markup).toContain('Saved credentials are never shown again in this view.')
+    expect(markup).toContain('No remote action has been recorded.')
+    expect(markup).not.toContain('Integration audit history')
   })
 })
