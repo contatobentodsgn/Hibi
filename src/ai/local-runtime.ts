@@ -8,12 +8,19 @@ import { AiTurnRuntime, type AiRuntimeUsageEvent } from './runtime';
 import { ToolRegistry, type HibiTool } from './tools';
 import type { AiAuditEvent } from './history';
 
-type Hooks = Readonly<{ onDataChanged?: () => void; onTaskCompleted?: (title: string) => void; onFocusStarted?: () => void; onAudit?: (event: AiAuditEvent) => void; onUsage?: (event: AiRuntimeUsageEvent) => void }>;
+// Uma ação remota só é registrada como ferramenta quando a ponte do app desktop
+// oferece o par preparar/executar. Sem ela o assistente segue estritamente local.
+export type IntegrationActionBridge = Readonly<{
+  prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => Promise<{ id: string; connectorId: string; kind: string; confirmationId: string }>;
+  executeApproved: (input: { actionId: string; confirmationId: string }) => Promise<{ ok: boolean; remoteId?: string }>;
+}>;
+type Hooks = Readonly<{ onDataChanged?: () => void; onTaskCompleted?: (title: string) => void; onFocusStarted?: () => void; onAudit?: (event: AiAuditEvent) => void; onUsage?: (event: AiRuntimeUsageEvent) => void; integrations?: IntegrationActionBridge }>;
 const isText = (value: unknown, max = 240): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= max;
 const isIsoDateTime = (value: unknown): value is string => isText(value, 40) && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/.test(value);
 const category = (value: unknown): value is Category => ['work', 'break', 'learning', 'important', 'wellbeing'].includes(String(value));
 const title = (arguments_: Record<string, unknown>) => String(arguments_.title ?? '').trim();
 const id = (arguments_: Record<string, unknown>) => isText(arguments_.id, 240) ? arguments_.id : '';
+const isConnectorId = (value: unknown): value is string => typeof value === 'string' && /^[a-z0-9-]{1,80}$/.test(value);
 const entityStatus = (value: unknown) => value === undefined || ['open', 'completed', 'paused'].includes(String(value));
 
 export function createLocalToolRegistry(repository: LocalRepository, hooks: Hooks = {}): ToolRegistry {
@@ -35,6 +42,14 @@ export function createLocalToolRegistry(repository: LocalRepository, hooks: Hook
   register({ name: 'note.update', description: 'Update a local note title or content.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)) && (args.title === undefined || isText(args.title)) && (args.content === undefined || isText(args.content, 10_000)), execute: (args) => { const note = repository.updateNote(id(args), { ...(args.title === undefined ? {} : { title: title(args) }), ...(args.content === undefined ? {} : { content: args.content as string }), updatedAt: new Date().toISOString() }); hooks.onDataChanged?.(); return { summary: `Nota atualizada: ${note.title}`, data: { id: note.id } }; } });
   register({ name: 'note.delete', description: 'Permanently delete a local note.', risk: 'destructive', inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)), execute: (args) => { const note = repository.listNotes().find((item) => item.id === id(args)); if (!note) throw new Error(`Note not found: ${id(args)}`); repository.deleteNote(note.id); hooks.onDataChanged?.(); return { summary: `Nota excluída: ${note.title}`, data: { id: note.id } }; } });
   register({ name: 'focus.start', description: 'Start a local focus session.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object' }, validate: () => true, execute: () => { hooks.onFocusStarted?.(); return { summary: 'Sessão de foco iniciada' }; } });
+  // Risco 'external': a política sempre exige o cartão Confirmar/Cancelar antes
+  // de executar, e a preparação no processo principal só é consumida aqui.
+  if (hooks.integrations) register({ name: 'integration.send', description: 'Send a message through a connected integration after explicit confirmation.', risk: 'external', inputSchema: { type: 'object', required: ['connectorId', 'kind', 'payload'] }, validate: (args) => isConnectorId(args.connectorId) && isText(args.kind, 120) && Boolean(args.payload) && typeof args.payload === 'object' && !Array.isArray(args.payload), execute: async (args) => {
+    const prepared = await hooks.integrations!.prepare({ connectorId: String(args.connectorId), kind: String(args.kind), payload: args.payload as Record<string, unknown> });
+    const result = await hooks.integrations!.executeApproved({ actionId: prepared.id, confirmationId: prepared.confirmationId });
+    if (!result?.ok) throw new Error(`A ação remota não foi aceita por ${prepared.connectorId}.`);
+    return { summary: `Ação enviada para ${prepared.connectorId}: ${prepared.kind}`, data: { connectorId: prepared.connectorId, ...(result.remoteId === undefined ? {} : { remoteId: result.remoteId }) } };
+  } });
   return registry;
 }
 
@@ -54,6 +69,7 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
   const reminder = message.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?lembrete\s*:?[\s-]*(.+?)(?:\s+às?\s+(\d{1,2}:\d{2}))?$/i);
   const mutation = message.match(/^(?:edite|editar|renomeie|renomear)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+?)\s+(?:para|como)\s+(.+)$/i);
   const removal = message.match(/^(?:exclua|excluir|apague|apagar|remova|remover)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+)$/i);
+  const slackPost = message.match(/^(?:envie|enviar|poste|postar|publique|publicar)\s+(?:uma\s+)?(?:mensagem\s+)?(?:no|para\s+o)\s+slack\s+#?([\w-]{1,80})\s*:\s*(.+)$/i);
   if (mutation || removal) {
     const operation = mutation ?? removal!;
     const kind = operation[1]!.toLocaleLowerCase('pt-BR');
@@ -65,6 +81,7 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
   else if (note) toolCalls = [{ name: 'note.create', arguments: { title: note, content: note } }];
   else if (block) toolCalls = [{ name: 'block.create', arguments: { title: block[1].trim(), start: `${request.currentTime.slice(0, 10)}T${block[2].padStart(5, '0')}:00-03:00`, end: `${request.currentTime.slice(0, 10)}T${block[3].padStart(5, '0')}:00-03:00`, category: 'work' } }];
   else if (reminder) { const time = reminder[2] ?? request.currentTime.slice(11, 16); toolCalls = [{ name: 'reminder.create', arguments: { title: reminder[1].trim(), at: `${request.currentTime.slice(0, 10)}T${time}:00-03:00` } }]; }
+  else if (slackPost) toolCalls = [{ name: 'integration.send', arguments: { connectorId: 'slack', kind: 'slack.post', payload: { channel: `#${slackPost[1].trim()}`, text: slackPost[2].trim() } } }];
   else if (/^(iniciar|começar|comecar|start).*(foco|focus)/i.test(message)) toolCalls = [{ name: 'focus.start', arguments: {} }];
   else if (/(agenda|calend|hor.rio|schedule|today|hoje)/u.test(lower)) toolCalls = [{ name: 'search.schedule', arguments: {} }];
   else if (/(lembrete|remind)/u.test(lower)) toolCalls = [{ name: 'search.reminders', arguments: {} }];

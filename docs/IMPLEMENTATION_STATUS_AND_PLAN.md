@@ -14,12 +14,12 @@ Atualizado em 2026-09-09. Este documento é a fonte operacional do status atual;
 | Seleção orientada de modelos | Parcial | Perfis rápido/equilibrado/raciocínio e modelo customizado existem; a escolha do identificador final ainda depende do provedor configurado. |
 | Provedor/modelo por resposta | Implementado | Proveniência exibida no assistente e nos eventos de streaming. |
 | Fallback | Implementado | Políticas perguntar/automático/nunca e fallback local somente em falhas elegíveis. |
-| Notion, Slack e e-mail | Parcial | Adaptadores, normalização mínima, Keychain, allowlist e ações preparadas; OAuth PKCE e testes contra contas reais ainda dependem de configuração externa. |
+| Notion, Slack e e-mail | Implementado localmente | Adaptadores, normalização, Keychain, allowlist, OAuth PKCE com callback em loopback, teste de conexão somente leitura, endpoint configurável e seleção de fontes importadas; falta exercitar contra contas reais. |
 | Webhooks | Implementado localmente | HMAC, nonce, expiração, limite de corpo, loopback, Keychain e confirmação; ciclo iniciar/parar e estado após reinício cobertos por e2e; não é endpoint público. |
 | API pública | Implementado localmente | API HTTP loopback, token revogável no Keychain, OpenAPI, leituras e escritas com confirmação. |
 | Importação | Implementado localmente | CSV/JSON/ICS, prévia, deduplicação, conflitos e aplicação local da decisão. |
 | Compartilhamento | Implementado localmente | Convites somente leitura assinados e expirados. |
-| Notificações remotas | Parcial | Adaptador e confirmação existem; entrega real exige endpoint e credencial do serviço escolhido. |
+| Notificações remotas | Implementado localmente | Adaptador, confirmação, endpoint HTTPS configurável e teste de conexão; entrega real exige credencial do serviço escolhido. |
 | Teste com provedor real | Bloqueado por configuração | Harness protegido criado; falta endpoint sandbox, modelo, credencial e opt-in explícito. |
 
 ## Plano restante
@@ -34,11 +34,11 @@ Atualizado em 2026-09-09. Este documento é a fonte operacional do status atual;
 
 ### Fase 2 — tornar conectores operacionais
 
-- [ ] Implementar fluxo OAuth PKCE real por conector, com callback local, state de uso único e refresh seguro.
-- [ ] Adicionar seleção de bases/canais/caixas de entrada importados.
-- [ ] Adicionar teste de conexão que não execute escrita.
-- [ ] Integrar ações preparadas ao cartão Confirmar/Cancelar do assistente e do companion.
-- [ ] Adicionar configuração de endpoint para notificações remotas e e-mail compatível.
+- [x] Implementar fluxo OAuth PKCE real por conector, com callback local, state de uso único e refresh seguro.
+- [x] Adicionar seleção de bases/canais/caixas de entrada importados.
+- [x] Adicionar teste de conexão que não execute escrita.
+- [x] Integrar ações preparadas ao cartão Confirmar/Cancelar do assistente e do companion.
+- [x] Adicionar configuração de endpoint para notificações remotas e e-mail compatível.
 
 ### Fase 3 — validação externa
 
