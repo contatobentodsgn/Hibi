@@ -45,6 +45,22 @@ async function boundedResponse(response) {
   return new Response(Buffer.concat(parts), { status: response.status, statusText: response.statusText, headers: response.headers });
 }
 
+async function safeExecutionResult(value) {
+  if (value && typeof value === 'object' && typeof value.status === 'number' && typeof value.json === 'function') {
+    let body = {};
+    try { body = await value.json(); } catch { /* a successful remote action does not require a JSON body */ }
+    const remoteId = typeof body?.id === 'string' && body.id.length <= 240 ? body.id : undefined;
+    const revision = typeof body?.revision === 'string' && body.revision.length <= 240 ? body.revision : undefined;
+    return { ok: value.ok === true, status: value.status, ...(remoteId === undefined ? {} : { remoteId }), ...(revision === undefined ? {} : { revision }) };
+  }
+  if (value && typeof value === 'object') {
+    const remoteId = typeof value.remoteId === 'string' && value.remoteId.length <= 240 ? value.remoteId : undefined;
+    const revision = typeof value.revision === 'string' && value.revision.length <= 240 ? value.revision : undefined;
+    return { ok: value.ok === true, ...(remoteId === undefined ? {} : { remoteId }), ...(revision === undefined ? {} : { revision }) };
+  }
+  return { ok: false };
+}
+
 function createSafeIntegrationFetch({ connector, fetch = globalThis.fetch, timeoutMs = 10_000 }) {
   validateConnector(connector);
   if (typeof fetch !== 'function') throw new Error('A fetch implementation is required.');
@@ -69,7 +85,7 @@ function createSafeIntegrationFetch({ connector, fetch = globalThis.fetch, timeo
 }
 
 function createIntegrationManager({ connectors = [], keychain, now = () => new Date().toISOString() } = {}) {
-  if (!keychain || typeof keychain.set !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function') throw new Error('A Keychain implementation is required.');
+  if (!keychain || typeof keychain.set !== 'function' || typeof keychain.get !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function') throw new Error('A Keychain implementation is required.');
   const registered = new Map(connectors.map((connector) => { validateConnector(connector); return [connector.id, connector]; }));
   if (registered.size !== connectors.length) throw new Error('Integration connector IDs must be unique.');
   const prepared = new Map();
@@ -109,7 +125,9 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       if (!action || input?.confirmationId !== action.confirmationId) throw new Error('A matching confirmation is required before executing this integration action.');
       prepared.delete(input.actionId);
       if (typeof action.connector.executeApproved !== 'function') throw new Error('This integration does not support approved execution.');
-      const result = await action.connector.executeApproved({ kind: action.kind, payload: action.payload });
+      const credential = await keychain.get(accountFor(action.connector.id));
+      if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
+      const result = await safeExecutionResult(await action.connector.executeApproved({ kind: action.kind, payload: action.payload, credential, request: createSafeIntegrationFetch({ connector: action.connector }) }));
       appendAudit({ action: 'execute', connectorId: action.connector.id, detail: `Executed approved ${action.kind}.` });
       return result;
     },
