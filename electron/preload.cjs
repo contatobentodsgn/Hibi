@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,startLocalApi: () => ipcRenderer.invoke('hibi:local-api:start')
   ,stopLocalApi: () => ipcRenderer.invoke('hibi:local-api:stop')
   ,getLocalApiStatus: () => ipcRenderer.invoke('hibi:local-api:status')
+  ,resolveLocalApiWrite: (input) => ipcRenderer.invoke('hibi:local-api:resolve-write', input)
   ,showNotch: (presentation) => ipcRenderer.invoke('hibi:notch:show', presentation)
   ,hideNotch: (requestId) => ipcRenderer.invoke('hibi:notch:hide', requestId)
   ,resolveNotchAction: (requestId, actionId) => ipcRenderer.invoke('hibi:notch:action', requestId, actionId)
@@ -39,4 +40,5 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,onCompanionPresentation: (callback) => { const listener = (_event, presentation) => callback(presentation); ipcRenderer.on('hibi:companion:presentation', listener); return () => ipcRenderer.removeListener('hibi:companion:presentation', listener); }
   ,onCompanionAction: (callback) => { const listener = (_event, action) => callback(action); ipcRenderer.on('hibi:companion:action', listener); return () => ipcRenderer.removeListener('hibi:companion:action', listener); }
   ,onNotificationTriggered: (callback) => { const listener = (_event, entry) => callback(entry); ipcRenderer.on('hibi:notification:triggered', listener); return () => ipcRenderer.removeListener('hibi:notification:triggered', listener); }
+  ,onLocalApiConfirmation: (callback) => { const listener = (_event, intent) => callback(intent); ipcRenderer.on('hibi:local-api:confirmation', listener); return () => ipcRenderer.removeListener('hibi:local-api:confirmation', listener); }
 });

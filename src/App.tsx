@@ -35,6 +35,7 @@ import type { CompanionEvent } from './companion/contracts';
 import { appendAiAuditEvent, appendAiUsageRecord, loadAiAuditHistory, loadAiUsageLedger, type AiAuditEvent, type AiUsageRecord } from './ai/history';
 import type { AiFallbackPolicy } from './ai/contracts';
 import { applyImportDecision, type ImportCandidate, type ImportDecision } from './integrations/imports';
+import { localApiTaskMutation, type LocalApiIntent } from './integrations/local-api-intents';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 const AI_FALLBACK_POLICY_STORAGE_KEY = 'hibi-ai-fallback-policy';
@@ -74,6 +75,7 @@ export default function App() {
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
   const [deadlineEditTaskId, setDeadlineEditTaskId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState('');
+  const [pendingLocalApiIntent, setPendingLocalApiIntent] = useState<LocalApiIntent | null>(null);
   const [events, setEvents] = useState<EventRecord[]>(() => { try { const saved = window.localStorage.getItem('hibi-events'); return saved ? JSON.parse(saved) as EventRecord[] : initialEvents; } catch { return initialEvents; } });
   const clearEvents = () => setEvents([]);
   const clearAiHistory = () => setAiHistory([]);
@@ -174,6 +176,16 @@ export default function App() {
     if (mutation.type !== 'none') refreshData();
     log('import', `${decision}: ${candidate.title}`, mutation.type);
   };
+  const resolveLocalApiIntent = async (approved: boolean) => {
+    const intent = pendingLocalApiIntent;
+    if (!intent) return;
+    setPendingLocalApiIntent(null);
+    if (approved) {
+      const mutation = localApiTaskMutation(intent);
+      if (mutation) { repository.createTask(mutation); refreshData(); log('local-api', mutation.title, 'approved'); }
+    }
+    await window.hibiDesktop?.resolveLocalApiWrite?.({ confirmationId: intent.confirmationId, approved });
+  };
 
   const testNativeNotification = async () => {
     const shown = await window.hibiDesktop?.showTestNotification?.();
@@ -192,6 +204,8 @@ export default function App() {
   React.useEffect(() => window.hibiDesktop?.onNotificationTriggered?.((entry) => {
     dispatchCompanion({ type: 'reminder.triggered', requestId: companionId('reminder'), text: entry.title, nowMs: Date.now(), expiresInMs: 7_000, animationId: entry.kind === 'deadline' ? 'warning_01' : undefined });
   }) ?? (() => undefined), []);
+  React.useEffect(() => window.hibiDesktop?.onLocalApiConfirmation?.((intent) => { setPendingLocalApiIntent(intent); dispatchCompanion({ type: 'confirmation.requested', requestId: intent.confirmationId, text: `A API local quer criar: ${typeof intent.payload.title === 'string' ? intent.payload.title : 'uma tarefa'}`, nowMs: Date.now(), expiresInMs: 60_000, actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] }); }) ?? (() => undefined), []);
+  React.useEffect(() => window.hibiDesktop?.onCompanionAction?.((action) => { if (action.requestId === pendingLocalApiIntent?.confirmationId) void resolveLocalApiIntent(action.actionId === 'confirm'); }) ?? (() => undefined), [pendingLocalApiIntent]);
   React.useEffect(() => {
     const interval = window.setInterval(() => dispatchCompanion({ type: 'time.elapsed', nowMs: Date.now() }), 1_000);
     return () => window.clearInterval(interval);
@@ -238,6 +252,7 @@ export default function App() {
   return (
     <AppShell active={route} taskCount={data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused').length} reminderCount={data.reminders.filter((reminder) => reminder.status !== 'paused').length} habitCount={data.habits.filter((habit) => habit.status !== 'completed' && habit.status !== 'paused').length} goalCount={data.goals.filter((goal) => goal.status !== 'completed' && goal.status !== 'paused').length} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
       {validationError && <div role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '0 0 16px', padding: '13px 16px', border: '1px solid #e2a992', borderRadius: 12, background: '#fff0eb', color: '#984418' }}><span aria-hidden="true" style={{ fontWeight: 900 }}>!</span><div style={{ flex: 1, whiteSpace: 'pre-line' }}>{validationError}</div><button type="button" className="outline" onClick={() => setValidationError('')} aria-label="Dismiss validation error" style={{ padding: '7px 10px' }}>Dismiss</button></div>}
+      {pendingLocalApiIntent && <div role="alert" className="notice" style={{ marginBottom: 16 }}><div><strong>Confirmação da API local</strong><p>Deseja criar “{typeof pendingLocalApiIntent.payload.title === 'string' ? pendingLocalApiIntent.payload.title : 'esta tarefa'}”?</p></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={() => void resolveLocalApiIntent(true)}>Confirmar</button><button className="outline" onClick={() => void resolveLocalApiIntent(false)}>Cancelar</button></div></div>}
       <div onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } if (route === 'reminders' && button?.textContent?.trim() === '+ New reminder') { event.preventDefault(); event.stopPropagation(); setReminderCreateOpen(true); } }}>{content}</div>
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} />}
       {taskCreateOpen && <TaskCreateModal onClose={() => setTaskCreateOpen(false)} onSubmit={createTask} />}

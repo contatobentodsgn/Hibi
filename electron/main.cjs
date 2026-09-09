@@ -154,6 +154,7 @@ app.whenReady().then(async () => {
   localApi = createLocalApi({ tokenStore: createLocalApiTokenStore({ keychain: createMacKeychain() }), workspace: () => localApiWorkspace, prepareWrite: async (intent) => {
     const confirmationId = `local-api-${crypto.randomUUID()}`;
     pendingLocalApiWrites.set(confirmationId, intent);
+    mainWindow?.webContents.send('hibi:local-api:confirmation', { confirmationId, kind: intent.kind, payload: intent.payload });
     return { confirmationId, requiresConfirmation: true };
   } });
   replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
@@ -205,6 +206,13 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('hibi:local-api:stop', async () => { await localApi.stop(); return { running: false }; });
   ipcMain.handle('hibi:local-api:status', () => ({ running: localApi.isRunning() }));
+  ipcMain.handle('hibi:local-api:resolve-write', (_event, input) => {
+    const confirmationId = typeof input?.confirmationId === 'string' ? input.confirmationId : '';
+    const intent = pendingLocalApiWrites.get(confirmationId);
+    if (!intent) return { resolved: false };
+    pendingLocalApiWrites.delete(confirmationId);
+    return { resolved: true, approved: input?.approved === true };
+  });
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
   ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));

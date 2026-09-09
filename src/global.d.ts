@@ -26,6 +26,7 @@ declare global {
       startLocalApi?: () => Promise<{ origin: string }>;
       stopLocalApi?: () => Promise<{ running: false }>;
       getLocalApiStatus?: () => Promise<{ running: boolean }>;
+      resolveLocalApiWrite?: (input: { confirmationId: string; approved: boolean }) => Promise<{ resolved: boolean; approved?: boolean }>;
       showNotch?: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly unknown[]; interaction: 'passthrough' | 'capture' }) => Promise<{ degraded: boolean; requestId: string; host?: 'native' | 'electron' }>;
       hideNotch?: (requestId: string) => Promise<boolean>;
       resolveNotchAction?: (requestId: string, actionId: 'confirm' | 'cancel') => Promise<boolean>;
@@ -33,6 +34,7 @@ declare global {
       onCompanionPresentation?: (callback: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' }) => void) => () => void;
       onCompanionAction?: (callback: (action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void) => () => void;
       onNotificationTriggered?: (callback: (entry: NotificationEntry) => void) => () => void;
+      onLocalApiConfirmation?: (callback: (intent: { confirmationId: string; kind: string; payload: Record<string, unknown> }) => void) => () => void;
     };
   }
 }
