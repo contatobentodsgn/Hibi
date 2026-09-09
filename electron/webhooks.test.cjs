@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
-const { createLoopbackWebhookReceiver, createWebhookVerifier } = require('./webhooks.cjs');
+const { createLoopbackWebhookReceiver, createWebhookService, createWebhookVerifier } = require('./webhooks.cjs');
 
 const signed = (secret, timestamp, nonce, body) => crypto.createHmac('sha256', secret).update(`${timestamp}.${nonce}.`).update(body).digest('hex');
 
@@ -37,4 +37,13 @@ test('accepts a verified loopback webhook only as a confirmation intent', async 
     assert.equal(response.status, 202);
     assert.deepEqual(await response.json(), { confirmationId: 'confirm-task.updated', requiresConfirmation: true });
   } finally { await receiver.stop(); }
+});
+
+test('stores a webhook secret in Keychain and reports only its loopback state', async () => {
+  const values = new Map();
+  const service = createWebhookService({ keychain: { get: async (key) => values.get(key), set: async (key, value) => values.set(key, value), has: async (key) => values.has(key), remove: async (key) => values.delete(key) }, prepare: async () => ({ confirmationId: 'confirm-1', requiresConfirmation: true }) });
+  await service.configure('secret-for-test');
+  const started = await service.start();
+  try { assert.deepEqual(await service.status(), { running: true, hasSecret: true, origin: started.origin }); }
+  finally { await service.stop(); }
 });

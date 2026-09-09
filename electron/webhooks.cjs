@@ -4,6 +4,7 @@ const http = require('node:http');
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 const MAX_NONCES = 1_000;
+const WEBHOOK_SECRET_ACCOUNT = 'webhook-signing-secret';
 const isNonce = (value) => typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 const isEvent = (value) => typeof value === 'string' && /^[a-z0-9._-]{1,120}$/.test(value);
 
@@ -74,4 +75,16 @@ function createLoopbackWebhookReceiver({ verifier, prepare } = {}) {
   };
 }
 
-module.exports = { createWebhookVerifier, createLoopbackWebhookReceiver };
+function createWebhookService({ keychain, prepare, account = WEBHOOK_SECRET_ACCOUNT } = {}) {
+  if (!keychain || typeof keychain.get !== 'function' || typeof keychain.set !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function' || typeof prepare !== 'function') throw new Error('Webhook service dependencies are required.');
+  let receiver;
+  return {
+    async configure(secret) { if (typeof secret !== 'string' || !secret.trim() || secret.length > 8_192) throw new Error('A webhook signing secret is required.'); await keychain.set(account, secret.trim()); },
+    async start() { if (receiver) return receiver.start(); const secret = await keychain.get(account); receiver = createLoopbackWebhookReceiver({ verifier: createWebhookVerifier({ secret }), prepare }); return receiver.start(); },
+    async stop() { if (!receiver) return; const current = receiver; receiver = undefined; await current.stop(); },
+    async status() { return { running: Boolean(receiver?.isRunning()), hasSecret: await keychain.has(account), ...(receiver?.isRunning() ? { origin: (await receiver.start()).origin } : {}) }; },
+    async revoke() { await this.stop(); return keychain.remove(account); },
+  };
+}
+
+module.exports = { createWebhookVerifier, createLoopbackWebhookReceiver, createWebhookService, WEBHOOK_SECRET_ACCOUNT };
