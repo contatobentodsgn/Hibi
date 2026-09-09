@@ -1,5 +1,8 @@
+import React from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { applyThemePreference, readThemePreference, resolveTheme, THEME_STORAGE_KEY, type ThemeHost } from '../theme'
+import { ThemeProvider, useThemePreference } from '../theme-context'
 
 const host = (systemPrefersDark: boolean, stored: string | null = null): ThemeHost & { attributes: Record<string, string>; listeners: Array<(event: { matches: boolean }) => void>; store: Map<string, string> } => {
   const store = new Map<string, string>(stored === null ? [] : [[THEME_STORAGE_KEY, stored]])
@@ -43,5 +46,36 @@ describe('tema', () => {
     applyThemePreference('light', fake)
     expect(fake.attributes['data-theme']).toBe('light')
     expect(fake.listeners).toHaveLength(0)
+  })
+
+  it('cai em system quando a leitura do armazenamento lança', () => {
+    const storage: Pick<Storage, 'getItem'> = { getItem: () => { throw new Error('indisponível') } }
+    expect(readThemePreference(storage)).toBe('system')
+  })
+
+  it('mantém o atributo data-theme mesmo quando a escrita falha', () => {
+    const fake = host(false)
+    fake.storage.setItem = () => { throw new Error('quota excedida') }
+    expect(() => applyThemePreference('dark', fake)).not.toThrow()
+    expect(fake.attributes['data-theme']).toBe('dark')
+  })
+})
+
+describe('ThemeProvider', () => {
+  const Consumer = () => {
+    const { preference } = useThemePreference()
+    return React.createElement('span', null, preference)
+  }
+
+  it('renderiza os filhos e aplica a preferência guardada por um host fake', () => {
+    const fake = host(false, 'dark')
+    const markup = renderToStaticMarkup(React.createElement(ThemeProvider, { host: fake, children: React.createElement(Consumer) }))
+    expect(markup).toContain('dark')
+  })
+
+  it('não lança ao montar mesmo se a leitura do host fake falhar', () => {
+    const fake = host(false)
+    fake.storage.getItem = () => { throw new Error('indisponível') }
+    expect(() => renderToStaticMarkup(React.createElement(ThemeProvider, { host: fake, children: React.createElement('p', null, 'olá') }))).not.toThrow()
   })
 })

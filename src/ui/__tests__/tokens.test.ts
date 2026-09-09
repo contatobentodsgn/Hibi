@@ -14,7 +14,7 @@ const luminance = (hex: string) => {
   const [r, g, b] = [1, 3, 5].map((index) => Number.parseInt(hex.slice(index, index + 2), 16) / 255).map((channel) => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
   return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!
 }
-export const contrastRatio = (foreground: string, background: string) => {
+const contrastRatio = (foreground: string, background: string) => {
   const [high, low] = [luminance(foreground), luminance(background)].sort((a, b) => b - a)
   return (high! + 0.05) / (low! + 0.05)
 }

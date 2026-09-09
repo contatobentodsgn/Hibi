@@ -2,7 +2,6 @@ export type ThemePreference = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
 
 export const THEME_STORAGE_KEY = 'hibi-theme'
-export const THEME_PREFERENCES: readonly ThemePreference[] = ['system', 'light', 'dark']
 
 export type ThemeHost = Readonly<{
   storage: Pick<Storage, 'getItem' | 'setItem'>
@@ -31,8 +30,21 @@ export function applyThemePreference(preference: ThemePreference, host: ThemeHos
   return () => host.media.removeEventListener('change', listener)
 }
 
+const noopStorage: Pick<Storage, 'getItem' | 'setItem'> = { getItem: () => null, setItem: () => undefined }
+const noopMedia: ThemeHost['media'] = { matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }
+
+// window.localStorage e window.matchMedia podem lançar (política de armazenamento restritiva,
+// contexto embutido sem suporte); caem para no-ops para o app sempre conseguir montar.
+const safeStorage = (): Pick<Storage, 'getItem' | 'setItem'> => {
+  try { return window.localStorage } catch { return noopStorage }
+}
+
+const safeMedia = (): ThemeHost['media'] => {
+  try { return typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : noopMedia } catch { return noopMedia }
+}
+
 export const browserThemeHost = (): ThemeHost => ({
-  storage: window.localStorage,
+  storage: safeStorage(),
   root: document.documentElement,
-  media: window.matchMedia('(prefers-color-scheme: dark)'),
+  media: safeMedia(),
 })

@@ -51,6 +51,8 @@
 
   --depth-card: 0 1px 2px rgba(20, 18, 14, 0.06);
   --depth-float: 0 24px 60px rgba(0, 0, 0, 0.28);
+
+  --bg-scrim: rgba(0, 0, 0, 0.55);
 }
 
 :root[data-theme="dark"] {
@@ -84,6 +86,8 @@
 
   --depth-card: 0 1px 2px rgba(0, 0, 0, 0.4);
   --depth-float: 0 24px 60px rgba(0, 0, 0, 0.6);
+
+  --bg-scrim: rgba(0, 0, 0, 0.68);
 }
 
 /* Ponte com theme.css: as 8 variáveis antigas seguem os tokens. Este arquivo é importado
