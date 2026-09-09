@@ -34,6 +34,7 @@ import { CompanionController } from './companion/controller';
 import type { CompanionEvent } from './companion/contracts';
 import { appendAiAuditEvent, appendAiUsageRecord, loadAiAuditHistory, loadAiUsageLedger, type AiAuditEvent, type AiUsageRecord } from './ai/history';
 import type { AiFallbackPolicy } from './ai/contracts';
+import { applyImportDecision, type ImportCandidate, type ImportDecision } from './integrations/imports';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 const AI_FALLBACK_POLICY_STORAGE_KEY = 'hibi-ai-fallback-policy';
@@ -165,6 +166,14 @@ export default function App() {
     refreshData();
     log('import', `Restored ${restored.tasks.length} tasks, ${restored.blocks.length} calendar blocks`, `${preferences.language} · ${preferences.twentyFourHour ? '24h' : '12h'}`);
   };
+  const applyImportedTask = (candidate: ImportCandidate, decision: ImportDecision, localId?: string) => {
+    const local = localId ? data.tasks.find((task) => task.id === localId) : undefined;
+    const mutation = applyImportDecision(local, candidate, decision, 'file-import');
+    if (mutation.type === 'update') repository.updateTask(mutation.localId, { title: mutation.title, remoteRef: mutation.remoteRef });
+    if (mutation.type === 'create') repository.createTask({ title: mutation.title, durationMinutes: 60, category: 'work', folder: 'Bento', status: 'open', remoteRef: mutation.remoteRef });
+    if (mutation.type !== 'none') refreshData();
+    log('import', `${decision}: ${candidate.title}`, mutation.type);
+  };
 
   const testNativeNotification = async () => {
     const shown = await window.hibiDesktop?.showTestNotification?.();
@@ -218,7 +227,7 @@ export default function App() {
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;
       case 'focus': return <FocusView {...props} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
-      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} />;
+      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} />;
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} onClearAiHistory={clearAiHistory} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;

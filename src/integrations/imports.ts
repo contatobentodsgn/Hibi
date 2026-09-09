@@ -3,6 +3,7 @@ export type LocalImportRecord = Readonly<{ id: string; title: string; remoteRef?
 export type ImportCandidate = Readonly<{ remoteId: string; revision?: string; title: string; kind: 'task' | 'email'; source?: string }>
 export type ImportPreviewItem = ImportCandidate & Readonly<{ state: 'new' | 'duplicate' | 'conflict'; localId?: string }>
 export type ImportDecision = 'keep-local' | 'keep-remote' | 'duplicate' | 'skip'
+export type ImportMutation = Readonly<{ type: 'none' }> | Readonly<{ type: 'update'; localId: string; title: string; remoteRef: RemoteReference }> | Readonly<{ type: 'create'; title: string; remoteRef: RemoteReference }>
 
 const copyCandidate = (candidate: ImportCandidate): ImportCandidate => ({ ...candidate })
 const MAX_IMPORT_BYTES = 1024 * 1024
@@ -59,4 +60,12 @@ export function buildImportPreview(local: readonly LocalImportRecord[], remote: 
 
 export function resolveImportDecision(candidate: ImportCandidate, operation: ImportDecision): Readonly<{ operation: ImportDecision; candidate: ImportCandidate }> {
   return { operation, candidate: copyCandidate(candidate) }
+}
+
+export function applyImportDecision(local: LocalImportRecord | undefined, candidate: ImportCandidate, operation: ImportDecision, connectorId: string): ImportMutation {
+  if (!/^[a-z0-9-]{1,80}$/.test(connectorId)) throw new Error('Import connector is invalid.')
+  if (operation === 'keep-local' || operation === 'skip') return { type: 'none' }
+  const remoteRef: RemoteReference = { connectorId, remoteId: candidate.remoteId, ...(candidate.revision ? { revision: candidate.revision } : {}) }
+  if (operation === 'keep-remote' && local) return { type: 'update', localId: local.id, title: candidate.title, remoteRef }
+  return { type: 'create', title: candidate.title, remoteRef }
 }
