@@ -7,6 +7,7 @@ const { createIntegrationManager } = require('./integrations.cjs');
 const { createNotionConnector } = require('./connectors/notion.cjs');
 const { createSlackConnector } = require('./connectors/slack.cjs');
 const { createEmailConnector } = require('./connectors/email.cjs');
+const { createRemoteNotificationConnector } = require('./connectors/remote-notifications.cjs');
 const { createNotchWindowManager } = require("./notch-window.cjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
@@ -144,7 +145,7 @@ function createWindow() {
 app.whenReady().then(async () => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
-  integrationManager = createIntegrationManager({ connectors: [createNotionConnector(), createSlackConnector(), createEmailConnector()], keychain: createMacKeychain() });
+  integrationManager = createIntegrationManager({ connectors: [createNotionConnector(), createSlackConnector(), createEmailConnector(), createRemoteNotificationConnector()], keychain: createMacKeychain() });
   replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => mainWindow?.webContents.send('hibi:companion:action', action) });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow });

@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { createNotionConnector } = require('./notion.cjs');
 const { createSlackConnector } = require('./slack.cjs');
 const { createEmailConnector } = require('./email.cjs');
+const { createRemoteNotificationConnector } = require('./remote-notifications.cjs');
 
 test('normalizes a Notion page without copying its body', () => {
   const notion = createNotionConnector();
@@ -41,4 +42,15 @@ test('imports only a flagged email header and sends only after approval', async 
   assert.equal(calls.length, 1);
   assert.equal(calls[0][0], 'https://mail.example.test/send');
   assert.equal(calls[0][1].headers.Authorization, 'Bearer secret-token');
+});
+
+test('delivers a remote notification only through an approved action', async () => {
+  const calls = [];
+  const notifications = createRemoteNotificationConnector({ request: async (url, init) => { calls.push([url, init]); return new Response('{}', { status: 202 }); } });
+
+  const prepared = notifications.prepareWrite({ kind: 'notification.send', payload: { title: 'Reminder', body: 'Time to review' } });
+  await notifications.executeApproved({ ...prepared, credential: 'token' });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][1].headers.Authorization, 'Bearer token');
 });
