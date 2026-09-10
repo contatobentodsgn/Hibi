@@ -47,7 +47,7 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
   }, [running, seconds, duration, onBreak, onEvent, onFocusCompleted]);
   // Escolher outra duração com a sessão pausada zera o relógio: a sessão anterior foi abandonada.
   // A mesma duração não muda nada, para um clique no botão já ativo não descartar a sessão.
-  const chooseDuration = (minutes: number) => { if (ignoresDurationChoice({ running, paused: lifecycle.current.phase === 'paused' || seconds < duration * 60, selectedMinutes: duration, nextMinutes: minutes })) return; emitLifecycle('abandon'); setDuration(minutes); setSeconds(minutes * 60); onEvent(onBreak ? 'break-duration' : 'focus-duration', `${minutes} minute ${onBreak ? 'break' : 'session'}`, 'pass'); };
+  const chooseDuration = (minutes: number) => { if (ignoresDurationChoice({ mode, running, paused: lifecycle.current.phase === 'paused' || seconds < duration * 60, selectedMinutes: duration, nextMinutes: minutes })) return; emitLifecycle('abandon'); setDuration(minutes); setSeconds(minutes * 60); onEvent(onBreak ? 'break-duration' : 'focus-duration', `${minutes} minute ${onBreak ? 'break' : 'session'}`, 'pass'); };
   const toggle = () => {
     const starting = !running;
     setRunning(starting);

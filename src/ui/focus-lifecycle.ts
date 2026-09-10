@@ -70,6 +70,8 @@ export function stepFocusLifecycle(mode: 'focus' | 'break', action: FocusLifecyc
 
 // Clicar na duração já escolhida com a sessão pausada não pode zerar o relógio nem abandonar a sessão;
 // outra duração continua recomeçando. Com o relógio intacto, reaplicar a mesma duração não perde nada.
-export function ignoresDurationChoice(choice: Readonly<{ running: boolean; paused: boolean; selectedMinutes: number; nextMinutes: number }>): boolean {
-  return choice.running || (choice.paused && choice.nextMinutes === choice.selectedMinutes);
+// Pausas não geram registro de atividade (não há progresso de foco a proteger), então o guard nunca
+// se aplica em modo break: lá, escolher a duração já selecionada sempre reinicia o relógio.
+export function ignoresDurationChoice(choice: Readonly<{ mode: 'focus' | 'break'; running: boolean; paused: boolean; selectedMinutes: number; nextMinutes: number }>): boolean {
+  return choice.mode === 'focus' && (choice.running || (choice.paused && choice.nextMinutes === choice.selectedMinutes));
 }

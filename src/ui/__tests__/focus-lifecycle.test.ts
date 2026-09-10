@@ -122,17 +122,24 @@ describe('stepFocusLifecycle', () => {
 
 describe('ignoresDurationChoice', () => {
   it('ignores any choice while the clock is running', () => {
-    expect(ignoresDurationChoice({ running: true, paused: false, selectedMinutes: 5, nextMinutes: 10 })).toBe(true);
+    expect(ignoresDurationChoice({ mode: 'focus', running: true, paused: false, selectedMinutes: 5, nextMinutes: 10 })).toBe(true);
   });
 
   it('ignores the already selected duration while paused, so the session is not abandoned', () => {
-    expect(ignoresDurationChoice({ running: false, paused: true, selectedMinutes: 25, nextMinutes: 25 })).toBe(true);
+    expect(ignoresDurationChoice({ mode: 'focus', running: false, paused: true, selectedMinutes: 25, nextMinutes: 25 })).toBe(true);
   });
 
   it('applies a different duration while paused, and any duration on an untouched clock', () => {
-    expect(ignoresDurationChoice({ running: false, paused: true, selectedMinutes: 5, nextMinutes: 10 })).toBe(false);
-    expect(ignoresDurationChoice({ running: false, paused: false, selectedMinutes: 25, nextMinutes: 25 })).toBe(false);
-    expect(ignoresDurationChoice({ running: false, paused: false, selectedMinutes: 5, nextMinutes: 15 })).toBe(false);
+    expect(ignoresDurationChoice({ mode: 'focus', running: false, paused: true, selectedMinutes: 5, nextMinutes: 10 })).toBe(false);
+    expect(ignoresDurationChoice({ mode: 'focus', running: false, paused: false, selectedMinutes: 25, nextMinutes: 25 })).toBe(false);
+    expect(ignoresDurationChoice({ mode: 'focus', running: false, paused: false, selectedMinutes: 5, nextMinutes: 15 })).toBe(false);
+  });
+
+  // Pausas não geram registro de atividade (DURATIONS.break só existe para o relógio de descanso):
+  // o guard existe para proteger progresso de foco, então nunca deve se aplicar a uma pausa.
+  it('never ignores a break duration choice, not even the already-selected one while stopped mid-countdown', () => {
+    expect(ignoresDurationChoice({ mode: 'break', running: false, paused: true, selectedMinutes: 5, nextMinutes: 5 })).toBe(false);
+    expect(ignoresDurationChoice({ mode: 'break', running: true, paused: true, selectedMinutes: 5, nextMinutes: 5 })).toBe(false);
   });
 });
 
@@ -166,7 +173,7 @@ describe('FocusView lifecycle wiring', () => {
 
   it('checks the duration choice before abandoning the paused session', () => {
     const choose = source.slice(source.indexOf('const chooseDuration = '), source.indexOf('\n', source.indexOf('const chooseDuration = ')));
-    const guard = 'if (ignoresDurationChoice({ running, paused: lifecycle.current.phase === \'paused\' || seconds < duration * 60, selectedMinutes: duration, nextMinutes: minutes })) return;';
+    const guard = 'if (ignoresDurationChoice({ mode, running, paused: lifecycle.current.phase === \'paused\' || seconds < duration * 60, selectedMinutes: duration, nextMinutes: minutes })) return;';
     expect(choose).toContain(guard);
     expect(choose.indexOf(guard)).toBeLessThan(choose.indexOf("emitLifecycle('abandon')"));
   });
