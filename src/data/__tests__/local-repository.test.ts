@@ -96,4 +96,16 @@ describe('LocalRepository', () => {
     expect(() => repository.replace({ ...imported, tasks: null as never })).toThrow('Invalid study data');
     expect(repository.snapshot()).toEqual(imported);
   });
+
+  it('renomeia uma pasta só nos itens dela e devolve as contagens', () => {
+    repository.createTask({ title: 'Cliente A', durationMinutes: 30, category: 'work', folder: 'Clientes' });
+    repository.createNote({ title: 'Briefing', content: '', folder: ' Clientes ', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' });
+
+    expect(repository.renameFolder('Clientes', ' Estúdio ')).toEqual({ tasks: 1, notes: 1 });
+
+    const data = repository.snapshot();
+    expect(data.tasks.filter((task) => task.folder === 'Estúdio')).toHaveLength(1);
+    expect(data.notes.map((note) => note.folder)).toEqual(['Estúdio']);
+    expect(data.tasks.filter((task) => task.folder === 'Bento')).toHaveLength(8);
+  });
 });
