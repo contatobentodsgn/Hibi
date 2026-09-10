@@ -30,7 +30,7 @@
 | `src/ai/assistant-turn.ts` (novo) | Reducer puro do turno do assistente e `dismissIntent` |
 | `src/ai/__tests__/assistant-turn.test.ts` (novo) | Transições do reducer |
 | `src/ui/useAssistantTurn.ts` (novo) | Hook que liga o reducer ao `AiTurnRuntime` e ao companion |
-| `src/ui/TabyView.tsx` (modificado) | Passa a usar o hook; markup e comportamento inalterados |
+| `src/ui/TabyView.tsx` (modificado) | Recebe os controles do turno por prop; markup e comportamento inalterados |
 | `src/ui/shell/routes.ts` (novo) | `NavKey`, `DOCK_ITEMS`, `MORE_ITEMS`, `isAgendaRoute` |
 | `src/ui/shell/Dock.tsx` (novo) | Dock flutuante, menu `···`, botão `⌘K` |
 | `src/ui/shell/AppShell.tsx` (novo) | Faixa do topo, região de conteúdo, `Dock` |
@@ -42,7 +42,7 @@
 | `src/ui/palette/CommandPalette.tsx` (novo) | Paleta unificada |
 | `src/ui/palette/palette.css` (novo) | Estilos da paleta em tokens |
 | `src/ui/CommandPalette.tsx` (removido) | Substituído por `palette/CommandPalette.tsx` |
-| `src/App.tsx` (modificado) | Usa shell novo, `agenda`, paleta nova, provedores |
+| `src/App.tsx` (modificado) | Usa shell novo, `agenda`, paleta nova, provedores, e possui a única instância do turno do assistente |
 | `src/main.tsx` (modificado) | Importa `tokens.css`; envolve com `ThemeProvider` e `LocaleProvider` |
 | `src/ui/SettingsView.tsx` (modificado) | Idioma vem do contexto; seletor de tema |
 | `electron/main.cjs` (modificado) | `titleBarStyle: 'hiddenInset'` |
@@ -1477,6 +1477,22 @@ Substitua a linha de abertura `<AppShell active={route} taskCount={…} … onNa
     <AppShell active={route} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
 ```
 
+**Uma única instância do turno do assistente.** `AiTurnRuntime` é single-flight: `runTurn()` chama `this.cancel()` e mantém um só `AbortController`. Duas instâncias de `useAssistantTurn` sobre o mesmo runtime — a página Taby e a paleta, que podem estar montadas ao mesmo tempo — abortariam uma à outra em silêncio, e cada superfície mostraria "Solicitação cancelada" sem dizer por quê. Por isso o `App` passa a possuir **um** turno e a entregá-lo às duas superfícies: um assistente, um runtime, um turno em voo. Uma confirmação pendente aparece nas duas e pode ser resolvida em qualquer uma — o que é o comportamento correto, já que a confirmação é uma só.
+
+Declare o turno logo após `const [aiRuntime] = useState(…)`:
+
+```tsx
+  const assistantTurn = useAssistantTurn({ runtime: aiRuntime, data, onEvent: log, onCompanionEvent: dispatchCompanion, onCompanionError: (text) => dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }) });
+```
+
+com o import `import { useAssistantTurn } from './ui/useAssistantTurn';`, e passe-o ao Taby trocando o `case 'taby'` por:
+
+```tsx
+      case 'taby': return <TabyView data={data} turn={assistantTurn} />;
+```
+
+`TabyView` deixa de chamar o hook e de receber `runtime`/`onEvent`/`onCompanion*`: passa a receber `turn` pronto. Ajuste sua assinatura para `type Props = { data: StudyData; turn: AssistantTurnControls }`, remova a chamada a `useAssistantTurn` e o import de `AiTurnRuntime`, e mantenha todo o resto — markup, histórico de mensagens e o efeito `handled` — como está. Em `src/ui/__tests__/TabyView.test.tsx`, o render passa a receber o mesmo duplo inerte de controles usado nos testes da paleta.
+
 Em `src/ui/CommandPalette.tsx`, substitua a linha 2 (`import { NavKey } from './AppShell';`) por `import type { NavKey } from './shell/routes';`. Em `src/ui/HelpView.tsx` e `src/ui/AvailabilityView.tsx`, substitua a linha 2 (`import type { NavKey } from './AppShell';`) por `import type { NavKey } from './shell/routes';`. Só então apague `src/ui/AppShell.tsx` — `tsc` acusa qualquer importador esquecido.
 
 - [ ] **Step 9: Atualizar o teste estático que usava o shell antigo**
@@ -1835,17 +1851,17 @@ Crie `src/ui/__tests__/palette.test.tsx`:
 ```tsx
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { createLocalHibiRuntime } from '../../ai/local-runtime'
-import { LocalRepository } from '../../data/local-repository'
 import { createSeedData } from '../../data/seed-data'
 import { translate } from '../../i18n/dictionary'
+import type { AssistantTurnControls } from '../useAssistantTurn'
 import { CommandPalette } from '../palette/CommandPalette'
 import { filterCommands, PALETTE_COMMANDS } from '../palette/commands'
 import { paletteModeFor } from '../palette/mode'
 
 const noop = () => undefined
 const data = createSeedData()
-const assistant = { runtime: createLocalHibiRuntime(new LocalRepository(data)), data, onEvent: noop }
+// Controles inertes: estes testes cobrem o modo comando, não o turno do assistente.
+const idleTurn: AssistantTurnControls = { state: { status: 'idle' }, ask: async () => undefined, confirm: async () => undefined, cancelConfirmation: async () => undefined, stop: noop, retry: async () => undefined, useLocalFallback: async () => undefined, dismiss: () => 'close', reset: noop }
 
 describe('paleta', () => {
   it('decide o modo pelo primeiro caractere', () => {
@@ -1863,7 +1879,7 @@ describe('paleta', () => {
   })
 
   it('renderiza o diálogo em modo comando com rótulos do dicionário', () => {
-    const markup = renderToStaticMarkup(<CommandPalette onClose={noop} onNavigate={noop} onEvent={noop} assistant={assistant} />)
+    const markup = renderToStaticMarkup(<CommandPalette onClose={noop} onNavigate={noop} onEvent={noop} turn={idleTurn} />)
     expect(markup).toContain('aria-label="Paleta de comandos"')
     expect(markup).toContain('placeholder="Digite um comando ou pergunte ao Taby"')
     expect(markup).toContain('Abrir agenda da semana')
@@ -1934,21 +1950,20 @@ import { provenanceLabel } from '../../ai/assistant-turn'
 import { useT } from '../../i18n/LocaleProvider'
 import { failurePresentationFor } from '../assistant-presentation'
 import type { NavKey } from '../shell/routes'
-import { useAssistantTurn, type AssistantHost } from '../useAssistantTurn'
+import type { AssistantTurnControls } from '../useAssistantTurn'
 import { filterCommands } from './commands'
 import { paletteModeFor } from './mode'
 import './palette.css'
 
-type Props = Readonly<{ onClose: () => void; onNavigate: (key: NavKey) => void; onEvent: (action: string, detail: string) => void; assistant: AssistantHost }>
+type Props = Readonly<{ onClose: () => void; onNavigate: (key: NavKey) => void; onEvent: (action: string, detail: string) => void; turn: AssistantTurnControls }>
 
 // Um campo, dois modos: "/" filtra comandos; qualquer outra coisa vai para o Taby e confirma aqui mesmo.
-export function CommandPalette({ onClose, onNavigate, onEvent, assistant }: Props) {
+export function CommandPalette({ onClose, onNavigate, onEvent, turn }: Props) {
   const t = useT()
   const [query, setQuery] = useState('')
   const [submitted, setSubmitted] = useState<string | null>(null)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const paletteRef = useRef<HTMLElement>(null)
-  const turn = useAssistantTurn(assistant)
   const turnRef = useRef(turn)
   turnRef.current = turn
   const mode = paletteModeFor(query)
@@ -2047,7 +2062,7 @@ Substitua a linha 8 (`import { CommandPalette } from './ui/CommandPalette';`) po
 Substitua a linha `{paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} />}` por:
 
 ```tsx
-      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} assistant={{ runtime: aiRuntime, data, onEvent: log, onCompanionEvent: dispatchCompanion, onCompanionError: (text) => dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }) }} />}
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} turn={assistantTurn} />}
 ```
 
 Apague `src/ui/CommandPalette.tsx`.
@@ -2056,14 +2071,19 @@ Em `src/ui/__tests__/data-bound-views.test.tsx`, substitua `import { CommandPale
 
 ```tsx
 import { CommandPalette } from '../palette/CommandPalette';
-import { createLocalHibiRuntime } from '../../ai/local-runtime';
-import { LocalRepository } from '../../data/local-repository';
+import type { AssistantTurnControls } from '../useAssistantTurn';
+```
+
+e declare, junto das outras constantes do arquivo, o mesmo duplo inerte usado em `palette.test.tsx`:
+
+```tsx
+const idleTurn: AssistantTurnControls = { state: { status: 'idle' }, ask: async () => undefined, confirm: async () => undefined, cancelConfirmation: async () => undefined, stop: onEvent, retry: async () => undefined, useLocalFallback: async () => undefined, dismiss: () => 'close', reset: onEvent };
 ```
 
 e, no teste `exposes habits and goals through the dock menu and commands`, substitua a linha da paleta e as duas asserções por:
 
 ```tsx
-    const palette = renderToStaticMarkup(<CommandPalette onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} assistant={{ runtime: createLocalHibiRuntime(new LocalRepository(data)), data, onEvent }} />);
+    const palette = renderToStaticMarkup(<CommandPalette onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} turn={idleTurn} />);
     expect(palette).toContain('Acompanhar hábitos');
     expect(palette).toContain('Revisar metas');
 ```
