@@ -133,6 +133,8 @@ function changeOf(type: string, minutes: number): Partial<Metrics> | undefined {
       return { habitCheckIns: -1 };
     case 'goal.completed':
       return { goalsCompleted: 1 };
+    case 'goal.reopened':
+      return { goalsCompleted: -1 };
     default:
       return undefined;
   }
@@ -214,7 +216,7 @@ export function calculateStats(records: readonly ActivityRecord[], period: Stats
     focusSessions: overall.focusSessions,
     focusMinutes: wholeMinutes(overall.focusMinutes),
     habitCheckIns: clamped(overall.habitCheckIns),
-    goalsCompleted: overall.goalsCompleted,
+    goalsCompleted: clamped(overall.goalsCompleted),
     daily: [...days].map(([date, metrics]) => ({
       date,
       tasksCompleted: metrics.tasksCompleted,

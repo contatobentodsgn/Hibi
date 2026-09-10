@@ -269,6 +269,21 @@ describe('calculateStats', () => {
     expect(calculateStats([record('habit.reopened', local(2026, 9, 6, 8))], september).habitCheckIns).toBe(0);
   });
 
+  it('nets goal completions against reopened goals, never below zero', () => {
+    // Baixar a meta abaixo do alvo e subir de novo não pode contar duas metas concluídas.
+    const stats = calculateStats([
+      record('goal.completed', local(2026, 9, 6, 10)),
+      record('goal.reopened', local(2026, 9, 6, 11)),
+      record('goal.completed', local(2026, 9, 6, 12)),
+      record('goal.completed', local(2026, 9, 7, 9)),
+    ], september);
+    expect(stats.goalsCompleted).toBe(2);
+
+    const onlyReopened = calculateStats([record('goal.reopened', local(2026, 9, 6, 11), { category: 'work', folder: 'Casa' })], september);
+    expect(onlyReopened).toMatchObject({ goalsCompleted: 0, tasksCompleted: 0, categories: [], folders: [] });
+    expect(onlyReopened.daily.every((day) => day.tasksCompleted === 0)).toBe(true);
+  });
+
   it('ignores unknown event types, seeded records and unreadable timestamps', () => {
     const stats = calculateStats([
       record('task.archived', local(2026, 9, 2, 10), { durationMinutes: 30 }),

@@ -83,9 +83,20 @@ describe('goalProgressActivities', () => {
     expect(goalProgressActivities(done, { ...done }, at)).toEqual([]);
   });
 
-  it('records a regression as progress without a new completion', () => {
+  it('records a regression below the target as progress and a reopen, never a new completion', () => {
     const done = { ...goal, current: 10, status: 'completed' as const };
-    expect(goalProgressActivities(done, { ...goal, current: 8, status: 'open' }, at)).toEqual([{ type: 'goal.progressed', at, entityType: 'goal', entityId: 'goal-1', title: 'Livros', value: 8 }]);
+    const inputs = goalProgressActivities(done, { ...goal, current: 8, status: 'open' }, at);
+    expect(inputs).toEqual([
+      { type: 'goal.progressed', at, entityType: 'goal', entityId: 'goal-1', title: 'Livros', value: 8 },
+      { type: 'goal.reopened', at, entityType: 'goal', entityId: 'goal-1', title: 'Livros' },
+    ]);
+    inputs.forEach(accepted);
+  });
+
+  it('records a reopen only when the goal leaves completed', () => {
+    expect(goalProgressActivities(goal, { ...goal, current: 2 }, at).map((input) => input.type)).toEqual(['goal.progressed']);
+    const paused = { ...goal, status: 'paused' as const };
+    expect(goalProgressActivities(paused, { ...goal, current: 2, status: 'open' }, at).map((input) => input.type)).toEqual(['goal.progressed']);
   });
 });
 

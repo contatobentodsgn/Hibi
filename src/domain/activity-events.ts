@@ -42,6 +42,8 @@ export function goalProgressActivities(before: Goal, after: Goal, at: string): A
   const inputs: ActivityInput[] = [];
   if (after.current !== before.current && isMinutes(after.current)) inputs.push({ type: 'goal.progressed', at, ...snapshot('goal', after), value: after.current });
   if (before.status !== 'completed' && after.status === 'completed') inputs.push({ type: 'goal.completed', at, ...snapshot('goal', after) });
+  // Sem a reversão, baixar a meta abaixo do alvo e subir de novo contaria a mesma meta duas vezes.
+  if (before.status === 'completed' && after.status !== 'completed') inputs.push({ type: 'goal.reopened', at, ...snapshot('goal', after) });
   return inputs;
 }
 

@@ -14,6 +14,7 @@ export const ACTIVITY_TYPES = [
   'habit.reopened',
   'goal.progressed',
   'goal.completed',
+  'goal.reopened',
   'block.created',
   'block.completed',
   'block.moved',
