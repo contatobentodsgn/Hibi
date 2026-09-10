@@ -47,7 +47,9 @@ these win.
 - **Daily series and distributions** use signed deltas: a reversal is negative on
   its own day, category and folder, drawn below a zero baseline; only period totals
   are clamped at 0.
-- **Periods.** Local timezone, half-open. Custom periods up to 366 days; invalid
+- **Periods.** Local timezone, half-open. Today, Week and Month start from the real
+  local date, because the ledger is stamped with the real clock; the rest of the
+  app keeps the workspace reference date. Custom periods up to 366 days; invalid
   input shows the invalid-period state. The previous period has the same number of
   days, except Month, which compares with the previous calendar month.
 - **Partial history.** A period that starts before the earliest non-seeded record

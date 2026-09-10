@@ -61,9 +61,9 @@ test('o dock reflete Estatísticas como seção atual, como faz para as demais s
   await expect(page.getByRole('menuitem', { name: 'Estatísticas', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
-// "Hoje" nas Estatísticas é a data de referência do workspace (o primeiro dia com blocos no seed,
-// 07/09/2026), mas cada atividade é gravada com o relógio do navegador. Fixar o relógio nesse dia, em
-// hora local (Node e Chromium herdam o mesmo TZ), deixa o fluxo independente da data real e do fuso do CI.
+// "Hoje" nas Estatísticas é a data local real, porque cada atividade é gravada com o relógio do navegador.
+// Fixar o relógio em hora local (Node e Chromium herdam o mesmo TZ) deixa o fluxo independente da data real
+// e do fuso do CI. Estes cenários usam 07/09/2026, a data de referência do seed (o primeiro dia com blocos).
 const workspaceToday = () => new Date(2026, 8, 7, 10, 0, 0);
 const TASK = 'Kabrito Post 01';
 const CSV_HEADER = 'at,type,entityType,entityId,title,durationMinutes,category,folder,value';
@@ -174,6 +174,36 @@ test('o CSV exporta só o período escolhido: Hoje traz a tarefa, um período se
   expect(excluded.fileName).toBe('hibi-stats-2026-09-07.csv');
   expect(excluded.content).not.toContain(TASK);
   expect(excluded.content).toBe(`${UTF8_BOM}${CSV_HEADER}\r\n`);
+  expect(errors).toEqual([]);
+});
+
+// Um dia que não é a data de referência do seed (07/09/2026) e cai em outra semana (segunda 14 a domingo 20/09).
+const realToday = () => new Date(2026, 8, 16, 10, 0, 0);
+const headingRange = (page: Page) => page.locator('.stats-view .view-heading p.muted');
+// O rótulo é montado no próprio navegador com o formato da página (datas de calendário em UTC), sem depender do ICU do Node.
+const rangeLabel = (page: Page, start: string, end: string) =>
+  page.evaluate(([from, to]) => new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+    .formatRange(new Date(`${from}T00:00:00Z`), new Date(`${to}T00:00:00Z`)), [start, end]);
+
+test('Hoje e a semana partem da data local real, não da data de referência do workspace', async ({ page }) => {
+  const errors = captureConsoleErrors(page);
+  await page.clock.install({ time: realToday() });
+  await page.goto('/');
+  await completeTask(page, TASK);
+  await openStats(page);
+
+  // Período inicial: a semana real de 16/09, com a tarefa recém-concluída.
+  await expect(periodButton(page, 'Semana')).toHaveAttribute('aria-pressed', 'true');
+  await expect(headingRange(page)).toHaveText(await rangeLabel(page, '2026-09-14', '2026-09-20'));
+  await expect(dailyTable(page).getByRole('row')).toHaveCount(8);
+  await expect(cardValue(page, 'Tarefas concluídas')).toHaveText('1');
+  await choosePeriod(page, 'Personalizado');
+  await expect(page.getByLabel('Início', { exact: true })).toHaveValue('2026-09-14');
+  await expect(page.getByLabel('Fim', { exact: true })).toHaveValue('2026-09-20');
+
+  await choosePeriod(page, 'Hoje');
+  await expect(headingRange(page)).toHaveText(await rangeLabel(page, '2026-09-16', '2026-09-16'));
+  await expectCompletedTaskToday(page);
   expect(errors).toEqual([]);
 });
 

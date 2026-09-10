@@ -22,7 +22,6 @@ import { HabitsView } from './ui/HabitsView';
 import { GoalsView } from './ui/GoalsView';
 import { ReviewView } from './ui/ReviewView';
 import { StatsView } from './ui/StatsView';
-import { referenceDate } from './domain/date-context';
 import { TabyView } from './ui/TabyView';
 import { HelpView } from './ui/HelpView';
 import { FeedbackView } from './ui/FeedbackView';
@@ -43,13 +42,6 @@ import { localApiTaskMutation, type LocalApiIntent } from './integrations/local-
 import { useAssistantTurn } from './ui/useAssistantTurn';
 import { applyNotionMutations, type NotionLocalMutation } from './integrations/notion-apply';
 import { listFolders, NO_FOLDER, planFolderRename, renameApplied, type FolderRenamePlan } from './domain/folders';
-
-// `referenceDate` devolve uma chave local (YYYY-MM-DD); `new Date('YYYY-MM-DD')` interpretaria como
-// UTC e viraria o dia errado nos fusos a oeste de Greenwich. Meio-dia evita qualquer virada por DST.
-const localDateFromKey = (key: string): Date => {
-  const [year, month, day] = key.split('-').map(Number);
-  return new Date(year, month - 1, day, 12);
-};
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 const AI_FALLBACK_POLICY_STORAGE_KEY = 'hibi-ai-fallback-policy';
@@ -324,7 +316,7 @@ export default function App() {
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
       case 'review': return <ReviewView data={data} onNavigate={navigate} />;
-      case 'stats': return <StatsView records={data.activity} referenceDate={localDateFromKey(referenceDate(data))} onEvent={log} />;
+      case 'stats': return <StatsView records={data.activity} referenceDate={new Date()} onEvent={log} />;
       case 'taby': return <TabyView data={data} turn={assistantTurn} />;
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
