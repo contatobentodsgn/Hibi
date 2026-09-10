@@ -75,6 +75,10 @@ const pt = {
   'command.updates': 'Verificar atualizações',
   'command.hardware': 'Inspecionar superfícies de hardware',
 
+  'folders.label': 'Pasta',
+  'folders.all': 'Todas',
+  'folders.none': 'Sem pasta',
+
   'settings.language.title': 'Idioma',
   'settings.language.detail': 'Idioma da interface',
   'settings.theme.title': 'Tema',
@@ -159,6 +163,10 @@ const en: Record<DictionaryKey, string> = {
   'command.events': 'Inspect instrumentation',
   'command.updates': 'Check available updates',
   'command.hardware': 'Inspect hardware surfaces',
+
+  'folders.label': 'Folder',
+  'folders.all': 'All',
+  'folders.none': 'No folder',
 
   'settings.language.title': 'Language',
   'settings.language.detail': 'Interface language',

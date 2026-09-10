@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import type { EntityStatus, StudyData } from '../domain/models';
+import { folderOf, listFolders } from '../domain/folders';
+import { useT } from '../i18n/LocaleProvider';
 
 type Props = {
   data: StudyData;
@@ -9,10 +11,13 @@ type Props = {
   onRenameTask?: (id: string, title: string) => void;
   onDeleteTask?: (id: string) => void;
   onEditTaskDeadline?: (id: string) => void;
+  // Filtro de pasta pedido pela navegação (ex.: /folder). `null` mostra todas; '' é "Sem pasta".
+  initialFolder?: string | null;
 };
 
-export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onRenameTask, onDeleteTask, onEditTaskDeadline }: Props) {
-  const [folder, setFolder] = useState<string | null>(null);
+export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onRenameTask, onDeleteTask, onEditTaskDeadline, initialFolder = null }: Props) {
+  const t = useT();
+  const [folder, setFolder] = useState<string | null>(initialFolder);
   const [scope, setScope] = useState<'open' | 'all'>('open');
   const [deadlineSort, setDeadlineSort] = useState(false);
   const [creating, setCreating] = useState(true);
@@ -21,20 +26,21 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
   const [editTitle, setEditTitle] = useState('');
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const openTasks = data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused');
-  const visibleTasks = [...data.tasks].filter((task) => (scope === 'all' || (task.status !== 'completed' && task.status !== 'paused')) && (!folder || (task.folder ?? 'Unfiled') === folder)).sort((a, b) => deadlineSort ? (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999') : 0);
+  const taskFolders = listFolders({ tasks: data.tasks, notes: [] });
+  const visibleTasks = [...data.tasks].filter((task) => (scope === 'all' || (task.status !== 'completed' && task.status !== 'paused')) && (folder === null || folderOf(task) === folder)).sort((a, b) => deadlineSort ? (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999') : 0);
   const submitNewTask = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const title = newTitle.trim(); if (!title) return; onCreateTask?.(title); setNewTitle(''); setCreating(false); };
   const startEditing = (id: string, title: string) => { setEditingId(id); setEditTitle(title); };
   const submitRename = (event: React.FormEvent<HTMLFormElement>, id: string, currentTitle: string) => { event.preventDefault(); const title = editTitle.trim(); if (title && title !== currentTitle) onRenameTask?.(id, title); setEditingId(null); };
 
   return <View title="Tasks" meta={`${openTasks.length} open · local study data`} action={creating ? 'Cancel' : '+ New task'} onAction={() => { setCreating(!creating); setNewTitle(''); }}>
     {creating && <form className="quick-input" onSubmit={submitNewTask} aria-label="Create task"><label htmlFor="new-task-title">Task title</label><input id="new-task-title" aria-label="New task title" value={newTitle} onChange={(event) => setNewTitle(event.target.value)} autoFocus /><button className="primary" type="submit">Add task</button></form>}
-    <div className="filter-row"><button className={`filter ${scope === 'open' ? 'active' : ''}`} onClick={() => { setScope('open'); onEvent('filter', 'Tasks · Open'); }}>Open {openTasks.length}</button><button className={`filter ${scope === 'all' ? 'active' : ''}`} onClick={() => { setScope('all'); onEvent('filter', 'Tasks · All'); }}>All {data.tasks.length}</button><button className={`filter ${folder === 'Bento' ? 'active' : ''}`} onClick={() => setFolder(folder === 'Bento' ? null : 'Bento')}>Folder · Bento</button><button className={`filter sort ${deadlineSort ? 'active' : ''}`} onClick={() => { setDeadlineSort(!deadlineSort); onEvent('sort', 'Tasks · Deadline'); }}>Deadline ↕</button></div>
+    <div className="filter-row"><button className={`filter ${scope === 'open' ? 'active' : ''}`} onClick={() => { setScope('open'); onEvent('filter', 'Tasks · Open'); }}>Open {openTasks.length}</button><button className={`filter ${scope === 'all' ? 'active' : ''}`} onClick={() => { setScope('all'); onEvent('filter', 'Tasks · All'); }}>All {data.tasks.length}</button><button className={`filter ${folder === null ? 'active' : ''}`} aria-pressed={folder === null} onClick={() => setFolder(null)}>{`${t('folders.label')} · ${t('folders.all')}`}</button>{taskFolders.map((entry) => <button key={`folder-${entry.name}`} className={`filter ${folder === entry.name ? 'active' : ''}`} aria-pressed={folder === entry.name} onClick={() => { setFolder(folder === entry.name ? null : entry.name); onEvent('filter', `Tasks · Folder · ${entry.name || 'none'}`); }}>{`${t('folders.label')} · ${entry.name || t('folders.none')} ${entry.tasks}`}</button>)}<button className={`filter sort ${deadlineSort ? 'active' : ''}`} onClick={() => { setDeadlineSort(!deadlineSort); onEvent('sort', 'Tasks · Deadline'); }}>Deadline ↕</button></div>
     <section className="list-card">{visibleTasks.map((task) => {
       const completed = task.status === 'completed';
       const paused = task.status === 'paused';
       return <div className="task-row" key={task.id}>
         <button className={`check ${completed ? 'checked' : ''}`} aria-label={`${completed ? 'Reopen' : 'Complete'} ${task.title}`} onClick={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }}>{completed ? '✓' : ''}</button>
-        {editingId === task.id ? <form onSubmit={(event) => submitRename(event, task.id, task.title)}><label htmlFor={`rename-${task.id}`}>Task title</label><input id={`rename-${task.id}`} aria-label={`Rename ${task.title}`} value={editTitle} onChange={(event) => setEditTitle(event.target.value)} autoFocus /><button className="primary" type="submit">Save</button><button className="outline" type="button" onClick={() => setEditingId(null)}>Cancel</button></form> : <div><strong>{task.title}</strong><span>{task.durationMinutes} min · {task.folder ?? 'Unfiled'} · {task.deadline ? `deadline ${task.deadline.replace('T', ' ')}` : 'sem deadline'} · {paused ? 'paused' : task.category}</span></div>}
+        {editingId === task.id ? <form onSubmit={(event) => submitRename(event, task.id, task.title)}><label htmlFor={`rename-${task.id}`}>Task title</label><input id={`rename-${task.id}`} aria-label={`Rename ${task.title}`} value={editTitle} onChange={(event) => setEditTitle(event.target.value)} autoFocus /><button className="primary" type="submit">Save</button><button className="outline" type="button" onClick={() => setEditingId(null)}>Cancel</button></form> : <div><strong>{task.title}</strong><span>{task.durationMinutes} min · {folderOf(task) || t('folders.none')} · {task.deadline ? `deadline ${task.deadline.replace('T', ' ')}` : 'sem deadline'} · {paused ? 'paused' : task.category}</span></div>}
         {task.folder && <span className="tag orange">{task.folder}</span>}
         {editingId !== task.id && <div className="heading-actions"><button className="more" aria-label={`Rename ${task.title}`} onClick={() => startEditing(task.id, task.title)}>Rename</button><button className="more" aria-label={`Set deadline for ${task.title}`} onClick={() => onEditTaskDeadline?.(task.id)}>Deadline</button><button className="more" aria-label={`Delete ${task.title}`} onClick={() => setPendingDelete({ id: task.id, title: task.title })}>Delete</button></div>}
       </div>;
