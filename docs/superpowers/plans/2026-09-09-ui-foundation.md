@@ -992,7 +992,7 @@ import type { AiRuntimeResult, AiTurnRuntime } from '../ai/runtime';
 import type { CompanionEvent } from '../companion/contracts';
 import { referenceDate } from '../domain/date-context';
 import type { StudyData } from '../domain/models';
-import { companionEventFor } from './assistant-presentation';
+import { companionEventFor, failurePresentationFor } from './assistant-presentation';
 
 export type AssistantHost = Readonly<{
   runtime: AiTurnRuntime;
@@ -1106,8 +1106,9 @@ export function useAssistantTurn({ runtime, data, onEvent, onCompanionEvent, onC
       }
       dispatch({ type: 'turn.failed', requestId, message: trimmed, failure });
       onEvent('assistant-query', failure.code, 'failed');
-      onCompanionError?.(failure.code);
-      onCompanionEvent?.(companionEventFor('error', requestId, failure.code, Date.now()));
+      const presentation = failurePresentationFor(failure);
+      onCompanionError?.(presentation.title);
+      onCompanionEvent?.(companionEventFor('error', requestId, presentation.title, Date.now()));
     } finally {
       if (activeRequestId.current === requestId) activeRequestId.current = null;
     }
