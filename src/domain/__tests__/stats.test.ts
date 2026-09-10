@@ -4,9 +4,11 @@ import { NO_FOLDER } from '../folders';
 import {
   calculateStats,
   compareStats,
+  MAX_CUSTOM_PERIOD_DAYS,
   previousPeriod,
   resolveStatsPeriod,
   type StatsPeriod,
+  type StatsPreset,
 } from '../stats';
 
 // Horários sempre construídos a partir de datas locais, para o teste valer em qualquer fuso.
@@ -73,6 +75,17 @@ describe('resolveStatsPeriod', () => {
     expect(() => custom('2026-09-10', '2026-09-09')).toThrow(RangeError);
     expect(() => resolveStatsPeriod('custom', september10)).toThrow(RangeError);
     expect(() => resolveStatsPeriod('today', new Date(Number.NaN))).toThrow(RangeError);
+  });
+
+  it('rejects an unknown preset at runtime', () => {
+    expect(() => resolveStatsPeriod('year' as StatsPreset, september10)).toThrow(RangeError);
+  });
+
+  it('limits custom periods to a maximum number of calendar days', () => {
+    expect(MAX_CUSTOM_PERIOD_DAYS).toBe(366);
+    expect(custom('2024-01-01', '2024-12-31').endExclusive).toBe(local(2025, 1, 1));
+    expect(custom('2026-01-01', '2027-01-01').endExclusive).toBe(local(2027, 1, 2));
+    expect(() => custom('2026-01-01', '2027-01-02')).toThrow(RangeError);
   });
 });
 
@@ -170,6 +183,64 @@ describe('calculateStats', () => {
     ], september).plannedMinutes).toBe(0);
   });
 
+  it('keeps daily signed deltas adding up to the unclamped net while totals are clamped', () => {
+    const period = custom('2026-09-02', '2026-09-03');
+    const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0);
+
+    const reopenedNextDay = calculateStats([
+      record('task.completed', local(2026, 9, 2, 10), { durationMinutes: 30 }),
+      record('block.created', local(2026, 9, 2, 11), { durationMinutes: 60 }),
+      record('task.reopened', local(2026, 9, 3, 10), { durationMinutes: 30 }),
+      record('block.deleted', local(2026, 9, 3, 11), { durationMinutes: 60 }),
+    ], period);
+    expect(reopenedNextDay.daily).toEqual([
+      { date: '2026-09-02', tasksCompleted: 1, focusMinutes: 0, plannedMinutes: 60, completedMinutes: 30 },
+      { date: '2026-09-03', tasksCompleted: -1, focusMinutes: 0, plannedMinutes: -60, completedMinutes: -30 },
+    ]);
+    expect(sum(reopenedNextDay.daily.map((day) => day.tasksCompleted))).toBe(0);
+    expect(sum(reopenedNextDay.daily.map((day) => day.completedMinutes))).toBe(0);
+    expect(reopenedNextDay).toMatchObject({ tasksCompleted: 0, completedMinutes: 0, plannedMinutes: 0 });
+
+    // A tarefa concluída antes do período, reaberta dentro dele, deixa o saldo sem limite negativo.
+    const alsoReopenedFromBefore = calculateStats([
+      record('task.completed', local(2026, 9, 1, 9), { durationMinutes: 45 }),
+      record('task.completed', local(2026, 9, 2, 10), { durationMinutes: 30 }),
+      record('task.reopened', local(2026, 9, 3, 10), { durationMinutes: 30 }),
+      record('task.reopened', local(2026, 9, 3, 12), { durationMinutes: 45 }),
+    ], period);
+    expect(alsoReopenedFromBefore.daily.map((day) => [day.tasksCompleted, day.completedMinutes])).toEqual([[1, 30], [-2, -75]]);
+    expect(sum(alsoReopenedFromBefore.daily.map((day) => day.tasksCompleted))).toBe(1 - 2);
+    expect(sum(alsoReopenedFromBefore.daily.map((day) => day.completedMinutes))).toBe(30 - 75);
+    expect(alsoReopenedFromBefore.tasksCompleted).toBe(Math.max(0, 1 - 2));
+    expect(alsoReopenedFromBefore.completedMinutes).toBe(Math.max(0, 30 - 75));
+  });
+
+  it('rounds minute outputs to whole minutes', () => {
+    const stats = calculateStats([
+      record('task.completed', local(2026, 9, 2, 9), { durationMinutes: 10.1, category: 'work', folder: 'Casa' }),
+      record('task.completed', local(2026, 9, 2, 10), { durationMinutes: 10.2, category: 'work', folder: 'Casa' }),
+      record('block.created', local(2026, 9, 2, 11), { durationMinutes: 30.4 }),
+      record('block.created', local(2026, 9, 2, 12), { durationMinutes: 30.4 }),
+      record('focus.completed', local(2026, 9, 2, 13), { durationMinutes: 0.1 }),
+      record('focus.cancelled', local(2026, 9, 2, 14), { durationMinutes: 0.2 }),
+    ], september);
+
+    expect(stats).toMatchObject({ completedMinutes: 20, plannedMinutes: 61, focusMinutes: 0 });
+    expect(stats.daily[1]).toEqual({ date: '2026-09-02', tasksCompleted: 2, focusMinutes: 0, plannedMinutes: 61, completedMinutes: 20 });
+    expect(stats.categories).toEqual([{ key: 'work', tasksCompleted: 2, minutes: 20 }]);
+    expect(stats.folders).toEqual([{ key: 'Casa', tasksCompleted: 2, minutes: 20 }]);
+  });
+
+  it('rejects periods with unreadable boundaries or that do not move forward', () => {
+    const at = (start: string, endExclusive: string): StatsPeriod => ({ start, endExclusive, preset: 'custom' });
+
+    expect(() => calculateStats([], at('not-a-date', local(2026, 9, 2)))).toThrow(RangeError);
+    expect(() => calculateStats([], at(local(2026, 9, 1), 'not-a-date'))).toThrow(RangeError);
+    expect(() => calculateStats([], at('2026-09-01', local(2026, 9, 2)))).toThrow(RangeError);
+    expect(() => calculateStats([], at(local(2026, 9, 2), local(2026, 9, 2)))).toThrow(RangeError);
+    expect(() => calculateStats([], at(local(2026, 9, 3), local(2026, 9, 2)))).toThrow(RangeError);
+  });
+
   it('counts completed focus sessions and adds the minutes of cancelled ones', () => {
     const stats = calculateStats([
       record('focus.started', local(2026, 9, 4, 9)),
@@ -230,25 +301,42 @@ describe('calculateStats', () => {
 
     expect(stats.daily).toEqual([
       { date: '2026-09-07', tasksCompleted: 1, focusMinutes: 0, plannedMinutes: 0, completedMinutes: 40 },
-      { date: '2026-09-08', tasksCompleted: 0, focusMinutes: 0, plannedMinutes: 0, completedMinutes: 0 },
+      { date: '2026-09-08', tasksCompleted: 0, focusMinutes: 0, plannedMinutes: 0, completedMinutes: -30 },
       { date: '2026-09-09', tasksCompleted: 0, focusMinutes: 0, plannedMinutes: 0, completedMinutes: 0 },
       { date: '2026-09-10', tasksCompleted: 0, focusMinutes: 15, plannedMinutes: 0, completedMinutes: 0 },
       { date: '2026-09-11', tasksCompleted: 0, focusMinutes: 0, plannedMinutes: 0, completedMinutes: 0 },
       { date: '2026-09-12', tasksCompleted: 0, focusMinutes: 0, plannedMinutes: 0, completedMinutes: 0 },
       { date: '2026-09-13', tasksCompleted: 0, focusMinutes: 0, plannedMinutes: 60, completedMinutes: 0 },
     ]);
+    expect(stats.daily.reduce((total, day) => total + day.completedMinutes, 0)).toBe(stats.completedMinutes);
     expect(calculateStats([], september).daily).toHaveLength(30);
     expect(calculateStats([], resolveStatsPeriod('today', september10)).daily.map((day) => day.date)).toEqual(['2026-09-10']);
   });
 
+  // Só protegem o horário de verão com TZ=Europe/Berlin (dias de 23 h em 2026-03-29 e de 25 h em
+  // 2026-10-25); em qualquer outro fuso continuam valendo.
   it('keeps one daily entry per calendar day across daylight saving changes', () => {
-    const springForward = calculateStats([], custom('2026-03-28', '2026-03-30'));
+    const springPeriod = custom('2026-03-28', '2026-03-30');
+    expect(springPeriod.start).toBe(new Date(2026, 2, 28).toISOString());
+    expect(springPeriod.endExclusive).toBe(new Date(2026, 2, 31).toISOString());
+    const springForward = calculateStats([
+      record('task.completed', new Date(2026, 2, 29, 23, 30).toISOString(), { durationMinutes: 10 }),
+    ], springPeriod);
     expect(springForward.daily.map((day) => day.date)).toEqual(['2026-03-28', '2026-03-29', '2026-03-30']);
+    expect(springForward.daily[1]).toMatchObject({ date: '2026-03-29', tasksCompleted: 1, completedMinutes: 10 });
 
-    const fallBackWeek = calculateStats([], resolveStatsPeriod('week', new Date(2026, 9, 25, 12)));
+    const monday = new Date(2026, 9, 19);
+    const nextMonday = new Date(2026, 9, 26);
+    const fallBackPeriod = resolveStatsPeriod('week', new Date(2026, 9, 25, 12));
+    expect(fallBackPeriod).toEqual({ start: monday.toISOString(), endExclusive: nextMonday.toISOString(), preset: 'week' });
+    const fallBackWeek = calculateStats([
+      record('task.completed', new Date(2026, 9, 25, 23, 30).toISOString(), { durationMinutes: 20 }),
+    ], fallBackPeriod);
     expect(fallBackWeek.daily.map((day) => day.date)).toEqual([
       '2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23', '2026-10-24', '2026-10-25',
     ]);
+    expect(fallBackWeek.daily[6]).toEqual({ date: '2026-10-25', tasksCompleted: 1, focusMinutes: 0, plannedMinutes: 0, completedMinutes: 20 });
+    expect(fallBackWeek.tasksCompleted).toBe(1);
 
     const beforeDst = previousPeriod(resolveStatsPeriod('week', new Date(2026, 2, 31, 12)));
     const previousStart = new Date(beforeDst.start);
@@ -256,7 +344,7 @@ describe('calculateStats', () => {
     expect(beforeDst.endExclusive).toBe(local(2026, 3, 30));
   });
 
-  it('distributes net completed tasks by category and normalized folder', () => {
+  it('distributes signed task deltas by category and normalized folder, with no folder last on ties', () => {
     const stats = calculateStats([
       record('task.completed', local(2026, 9, 2, 9), { durationMinutes: 30, category: 'work', folder: ' Estúdio ' }),
       record('task.completed', local(2026, 9, 2, 10), { durationMinutes: 20, category: 'work', folder: 'Estu\u0301dio' }),
@@ -266,16 +354,22 @@ describe('calculateStats', () => {
       record('task.reopened', local(2026, 9, 2, 14), { durationMinutes: 15, category: 'wellbeing', folder: 'Casa' }),
       record('task.reopened', local(2026, 9, 2, 15), { durationMinutes: 5, category: 'break', folder: 'Casa' }),
       record('focus.completed', local(2026, 9, 2, 16), { durationMinutes: 25, category: 'important', folder: 'Foco' }),
+      record('task.completed', local(2026, 9, 2, 17), { durationMinutes: 20, category: 'important', folder: 'Foco' }),
+      record('task.reopened', local(2026, 9, 2, 18), { durationMinutes: 15, category: 'important', folder: 'Foco' }),
     ], september);
 
     expect(stats.categories).toEqual([
       { key: 'work', tasksCompleted: 2, minutes: 50 },
       { key: 'learning', tasksCompleted: 1, minutes: 50 },
       { key: 'none', tasksCompleted: 1, minutes: 10 },
+      { key: 'important', tasksCompleted: 0, minutes: 5 },
+      { key: 'break', tasksCompleted: -1, minutes: -5 },
     ]);
     expect(stats.folders).toEqual([
-      { key: NO_FOLDER, tasksCompleted: 2, minutes: 60 },
       { key: 'Estúdio', tasksCompleted: 2, minutes: 50 },
+      { key: NO_FOLDER, tasksCompleted: 2, minutes: 60 },
+      { key: 'Foco', tasksCompleted: 0, minutes: 5 },
+      { key: 'Casa', tasksCompleted: -1, minutes: -5 },
     ]);
   });
 
@@ -289,6 +383,15 @@ describe('calculateStats', () => {
       record('goal.completed', local(2026, 9, 12, 12)),
       record('habit.completed', local(2026, 8, 1, 12)),
     ], week).partialHistory).toBe(false);
+  });
+
+  it('proves earlier history with valid unknown event types but not with seeded or malformed records', () => {
+    const week = resolveStatsPeriod('week', september10);
+    const inside = record('goal.completed', local(2026, 9, 8, 12));
+
+    expect(calculateStats([inside, record('task.archived', local(2026, 9, 1, 12))], week).partialHistory).toBe(false);
+    expect(calculateStats([inside, record('task.completed', local(2026, 9, 1, 12), { seeded: true })], week).partialHistory).toBe(true);
+    expect(calculateStats([inside, record('Not A Type', local(2026, 9, 1, 12))], week).partialHistory).toBe(true);
   });
 
   it('returns the period it was calculated for', () => {
