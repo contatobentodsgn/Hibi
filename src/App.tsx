@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LocalRepository } from './data/local-repository';
 import type { WorkspacePreferences } from './data/workspace-backup';
 import { createSeedData } from './data/seed-data';
@@ -38,6 +38,7 @@ import { applyImportDecision, type ImportCandidate, type ImportDecision } from '
 import { localApiTaskMutation, type LocalApiIntent } from './integrations/local-api-intents';
 import { useAssistantTurn } from './ui/useAssistantTurn';
 import { applyNotionMutations, type NotionLocalMutation } from './integrations/notion-apply';
+import { listFolders, NO_FOLDER, planFolderRename, renameApplied, type FolderRenamePlan } from './domain/folders';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 const AI_FALLBACK_POLICY_STORAGE_KEY = 'hibi-ai-fallback-policy';
@@ -62,6 +63,9 @@ export default function App() {
   });
   const [data, setData] = useState<StudyData>(() => repository.snapshot());
   const [route, setRoute] = useState<NavKey>('home');
+  // Filtro de pasta pedido junto com a navegação. O `nonce` muda a cada navegação e vira `key` das
+  // telas, então o filtro pedido é reaplicado mesmo quando se volta à mesma tela.
+  const [folderFilter, setFolderFilter] = useState<{ folder: string | null; nonce: number }>({ folder: null, nonce: 0 });
   const companionController = useRef<CompanionController | null>(null);
   if (!companionController.current) companionController.current = new CompanionController({ show: (presentation) => { void window.hibiDesktop?.showNotch?.(presentation); }, hide: (requestId) => { void window.hibiDesktop?.hideNotch?.(requestId); } });
   const dispatchCompanion = (event: CompanionEvent) => companionController.current!.dispatch(event);
@@ -132,9 +136,21 @@ export default function App() {
   const renameReminder = (id: string, title: string) => { repository.updateReminder(id, { title }); refreshData(); log('edit', title); };
   const deleteTask = (id: string) => { repository.deleteTask(id); refreshData(); log('delete', id); };
   const deleteReminder = (id: string) => { repository.deleteReminder(id); refreshData(); log('delete', id); };
-  const createNote = (title: string, content: string) => { repository.createNote({ title, content, folder: 'Bento', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); refreshData(); log('create', title); };
+  const createNote = (title: string, content: string, folder: string) => { repository.createNote({ title, content, folder, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); refreshData(); log('create', title); };
   const updateNote = (id: string, changes: Partial<import('./domain/models').Note>) => { repository.updateNote(id, changes); refreshData(); log('edit', id); };
   const deleteNote = (id: string) => { repository.deleteNote(id); refreshData(); log('delete', id); };
+  // Revalida contra o estado atual do repositório: a paleta pode ter planejado sobre um snapshot
+  // anterior. Também recusa quando a expectativa de junção da paleta não bate mais com o plano atual
+  // (a pasta de destino surgiu ou sumiu no meio) — nesses casos nada é aplicado.
+  const renameFolder = (from: string, to: string, expectMerge: boolean): FolderRenamePlan => {
+    const plan = planFolderRename(repository.snapshot(), from, to);
+    if (plan.ok && renameApplied(plan, expectMerge)) {
+      repository.renameFolder(plan.from, plan.to);
+      refreshData();
+      log('edit', `Folder · ${plan.from} → ${plan.to}`, plan.merge ? 'merged' : 'renamed');
+    }
+    return plan;
+  };
   const submitFeedback = (kind: string, text: string) => { repository.createNote({ title: `[${kind}] Feedback`, content: text, folder: 'Bento', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); refreshData(); log('feedback', kind, 'saved-local'); };
   const createHabit = (title: string, frequency: Habit['frequency'] = 'daily', targetPerWeek = 7) => { repository.createHabit({ title, frequency, targetPerWeek, completedDates: [], status: 'open' }); refreshData(); log('create', title); };
   const updateHabit = (id: string, changes: Partial<Omit<Habit, 'id'>>) => { repository.updateHabit(id, changes); refreshData(); log('edit', id); };
@@ -220,27 +236,37 @@ export default function App() {
     const interval = window.setInterval(() => dispatchCompanion({ type: 'time.elapsed', nowMs: Date.now() }), 1_000);
     return () => window.clearInterval(interval);
   }, []);
+  // Um modal do App (task/reminder/deadline) tem seu próprio listener de Escape na window; se a
+  // paleta também abrisse por cima dele, um único Escape chegaria aos dois e fecharia o modal junto,
+  // descartando o que estava sendo digitado. Cada Escape deve afetar só a camada mais no topo — e
+  // cada modal já cuida do seu próprio Escape — então a regra é não empilhar a paleta sobre um modal
+  // aberto, em toda forma de abrir a paleta (atalho, dock, captura rápida da Home).
+  const modalOpen = taskCreateOpen || reminderCreateOpen || deadlineEditTaskId !== null;
+  const openPalette = useCallback(() => { if (!modalOpen) setPaletteOpen(true); }, [modalOpen]);
   React.useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setPaletteOpen(true); }
-      else if (event.key === '/' && !typing) { event.preventDefault(); setPaletteOpen(true); }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); openPalette(); }
+      else if (event.key === '/' && !typing) { event.preventDefault(); openPalette(); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [openPalette]);
 
-  const navigate = (next: NavKey, source = 'navigation') => {
+  const navigate = (next: NavKey, source = 'navigation', options: { folder?: string } = {}) => {
+    // Só remonta a tela quando a rota muda ou um filtro é pedido, para que clicar no item do dock
+    // da tela atual nunca apague o que o usuário está digitando.
+    setFolderFilter((current) => ({ folder: options.folder ?? null, nonce: next !== route || options.folder !== undefined ? current.nonce + 1 : current.nonce }));
     setRoute(next);
-    log(source, `Opened ${next}`);
+    log(source, options.folder === undefined ? `Opened ${next}` : `Opened ${next} · folder`);
   };
 
   const content = useMemo(() => {
     const props = { onEvent: log, onNavigate: navigate };
     switch (route) {
-      case 'tasks': return <TasksView {...props} data={data} onTaskStatusChange={changeTaskStatus} onCreateTask={() => undefined} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
-      case 'notes': return <NotesView data={data} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
+      case 'tasks': return <TasksView key={`tasks-${folderFilter.nonce}`} {...props} data={data} initialFolder={folderFilter.folder} onTaskStatusChange={changeTaskStatus} onCreateTask={() => undefined} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
+      case 'notes': return <NotesView key={`notes-${folderFilter.nonce}`} data={data} initialFolder={folderFilter.folder} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
       case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={() => setReminderCreateOpen(true)} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
@@ -249,22 +275,30 @@ export default function App() {
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'agenda': case 'day': case 'week': return <AgendaView {...props} data={data} mode={route === 'agenda' ? undefined : route} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onModeChange={(mode) => setRoute(mode)} />;
-      case 'focus': return <FocusView {...props} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
+      case 'focus': case 'break': return <FocusView key={route} {...props} mode={route === 'break' ? 'break' : 'focus'} onModeChange={(next) => navigate(next)} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
       case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} />;
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} onClearAiHistory={clearAiHistory} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;
-      default: return <HomeView {...props} data={data} onOpenCommands={() => setPaletteOpen(true)} />;
+      default: return <HomeView {...props} data={data} onOpenCommands={openPalette} />;
     }
-  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state]);
+  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, folderFilter, openPalette]);
 
   return (
-    <AppShell active={route} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
+    <AppShell active={route} onNavigate={(key) => {
+      // O dock marca Foco como atual durante a pausa; clicar nele não pode descartar a pausa em
+      // andamento — clicar no item já atual nunca apaga o que o usuário está fazendo (ver navigate()).
+      // Vale de propósito também para uma pausa parada (ainda não iniciada): a rota já é "break" e o
+      // dock já mostra Foco como atual, então o clique em Foco continua sem efeito — "Voltar ao foco"
+      // (dentro da própria tela) é o caminho de volta, não o item do dock.
+      if (route === 'break' && key === 'focus') return;
+      navigate(key);
+    }} onOpenCommands={openPalette}>
       {validationError && <div role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '0 0 16px', padding: '13px 16px', border: '1px solid #e2a992', borderRadius: 12, background: '#fff0eb', color: '#984418' }}><span aria-hidden="true" style={{ fontWeight: 900 }}>!</span><div style={{ flex: 1, whiteSpace: 'pre-line' }}>{validationError}</div><button type="button" className="outline" onClick={() => setValidationError('')} aria-label="Dismiss validation error" style={{ padding: '7px 10px' }}>Dismiss</button></div>}
       {pendingLocalApiIntent && <div role="alert" className="notice" style={{ marginBottom: 16 }}><div><strong>Confirmação da API local</strong><p>Deseja criar “{typeof pendingLocalApiIntent.payload.title === 'string' ? pendingLocalApiIntent.payload.title : 'esta tarefa'}”?</p></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={() => void resolveLocalApiIntent(true)}>Confirmar</button><button className="outline" onClick={() => void resolveLocalApiIntent(false)}>Cancelar</button></div></div>}
       <div className="legacy-surface" onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } if (route === 'reminders' && button?.textContent?.trim() === '+ New reminder') { event.preventDefault(); event.stopPropagation(); setReminderCreateOpen(true); } }}>{content}</div>
-      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} turn={assistantTurn} />}
-      {taskCreateOpen && <TaskCreateModal onClose={() => setTaskCreateOpen(false)} onSubmit={createTask} />}
+      {paletteOpen && <CommandPalette data={data} onClose={() => setPaletteOpen(false)} onNavigate={(next, options) => { setPaletteOpen(false); navigate(next, 'command', options); }} onEvent={log} onRenameFolder={renameFolder} turn={assistantTurn} />}
+      {taskCreateOpen && <TaskCreateModal onClose={() => setTaskCreateOpen(false)} onSubmit={createTask} folders={listFolders(data).map((entry) => entry.name).filter((name) => name !== NO_FOLDER)} />}
       {reminderCreateOpen && <ReminderCreateModal defaultDate={planStartDate()} onClose={() => setReminderCreateOpen(false)} onSubmit={createReminder} />}
       {deadlineEditTaskId && (() => { const task = data.tasks.find((item) => item.id === deadlineEditTaskId); return task ? <DeadlineEditModal taskTitle={task.title} deadline={task.deadline} onClose={() => setDeadlineEditTaskId(null)} onSubmit={(deadline) => saveTaskDeadline(task.id, deadline)} /> : null; })()}
     </AppShell>

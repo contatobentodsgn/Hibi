@@ -1,4 +1,5 @@
 import type { Goal, Habit, Note, Reminder, ScheduleBlock, StudyData, Task } from '../domain/models';
+import { folderOf, NO_FOLDER } from '../domain/folders';
 
 type NewTask = Omit<Task, 'id'>;
 type NewHabit = Omit<Habit, 'id'>;
@@ -98,6 +99,17 @@ export class LocalRepository {
     return clone(task);
   }
   deleteTask(id: string): void { this.data.tasks = this.data.tasks.filter((task) => task.id !== id); }
+  // Aplica uma renomeação já validada por planFolderRename: só itens daquela pasta são tocados;
+  // recusa "Sem pasta" e um alvo vazio como guarda extra, caso o chamador não tenha validado antes.
+  renameFolder(from: string, to: string): { tasks: number; notes: number } {
+    const target = to.normalize('NFC').trim();
+    if (from === NO_FOLDER || !target) throw new Error('Invalid folder rename.');
+    let tasks = 0;
+    let notes = 0;
+    for (const task of this.data.tasks) if (folderOf(task) === from) { this.updateTask(task.id, { folder: target }); tasks += 1; }
+    for (const note of this.data.notes) if (folderOf(note) === from) { this.updateNote(note.id, { folder: target, updatedAt: this.now() }); notes += 1; }
+    return { tasks, notes };
+  }
   createReminder(input: Omit<Reminder, 'id'>): Reminder {
     const reminder = { ...input, id: `reminder-${Date.now()}-${this.data.reminders.length}` };
     this.data.reminders.push(reminder);

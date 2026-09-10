@@ -46,12 +46,34 @@ describe('paleta', () => {
   })
 
   it('renderiza o diálogo em modo comando com rótulos do dicionário', () => {
-    const markup = renderToStaticMarkup(<CommandPalette onClose={noop} onNavigate={noop} onEvent={noop} turn={idleTurn} />)
+    const markup = renderToStaticMarkup(<CommandPalette data={data} onClose={noop} onNavigate={noop} onEvent={noop} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} />)
     expect(markup).toContain('aria-label="Paleta de comandos"')
     expect(markup).toContain('placeholder="Digite um comando ou pergunte ao Taby"')
     expect(markup).toContain('Abrir agenda da semana')
     expect(markup).toContain('Acompanhar hábitos')
     expect(markup).not.toContain('role="alert"')
+  })
+
+  it('expõe o campo como combobox e os comandos como listbox de opções', () => {
+    const markup = renderToStaticMarkup(<CommandPalette data={data} onClose={noop} onNavigate={noop} onEvent={noop} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} />)
+    expect(markup).toContain('role="combobox"')
+    expect(markup).toContain('aria-expanded="true"')
+    expect(markup).toContain('aria-controls="palette-commands"')
+    expect(markup).toContain('role="listbox"')
+    expect(markup).toContain('role="option"')
+    expect(markup.match(/aria-selected="true"/g)).toHaveLength(1)
+  })
+
+  it('/folder troca a paleta para a vista de pastas em vez de navegar', () => {
+    const folder = PALETTE_COMMANDS.find((command) => command.key === '/folder')
+    expect(folder && 'action' in folder ? folder.action : null).toBe('folders')
+    const markup = renderToStaticMarkup(<CommandPalette data={data} onClose={noop} onNavigate={noop} onEvent={noop} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} />)
+    expect(markup).toContain('Navegar e renomear pastas')
+  })
+
+  it('/break abre o Foco em modo pausa', () => {
+    const command = PALETTE_COMMANDS.find((entry) => entry.key === '/break')
+    expect(command && 'route' in command ? command.route : null).toBe('break')
   })
 })
 

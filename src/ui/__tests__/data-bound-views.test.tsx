@@ -138,7 +138,7 @@ describe('study views', () => {
 
   it('exposes habits and goals through the dock menu and commands', () => {
     const menu = renderToStaticMarkup(<DockMoreMenu active="home" onSelect={onEvent} />);
-    const palette = renderToStaticMarkup(<CommandPalette onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} turn={idleTurn} />);
+    const palette = renderToStaticMarkup(<CommandPalette data={data} onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} />);
 
     expect(menu).toContain('Hábitos');
     expect(menu).toContain('Metas');
@@ -146,16 +146,25 @@ describe('study views', () => {
     expect(palette).toContain('Revisar metas');
   });
 
-  it('exposes selectable focus and break durations', () => {
-    const markup = renderToStaticMarkup(<FocusView onEvent={onEvent} />);
-    expect(markup).toContain('25m focus');
-    expect(markup).toContain('5m break');
-    expect(markup).toContain('15m break');
+  it('separates focus and break durations', () => {
+    const focus = renderToStaticMarkup(<FocusView onEvent={onEvent} />);
+    expect(focus).toContain('25m focus');
+    expect(focus).not.toContain('5m break');
+    expect(focus).toContain('Fazer uma pausa');
+
+    const pause = renderToStaticMarkup(<FocusView onEvent={onEvent} mode="break" />);
+    expect(pause).toContain('PAUSA · SESSÃO LOCAL');
+    expect(pause).toContain('>5m</button>');
+    expect(pause).toContain('>15m</button>');
+    expect(pause).toContain('5 min de pausa no relógio.');
+    expect(pause).toContain('Voltar ao foco');
+    expect(pause).not.toContain('Reminders are quiet during focus');
   });
 
   it('lists the release and hardware surfaces in Help', () => {
     const markup = renderToStaticMarkup(<HelpView onNavigate={onEvent} />);
     expect(markup).toContain('/updates');
     expect(markup).toContain('/hardware');
+    expect(markup).toContain('/break');
   });
 });

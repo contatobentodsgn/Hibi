@@ -42,6 +42,13 @@ describe('shell', () => {
     expect(MORE_ITEMS).toHaveLength(11)
   })
 
+  it('agrupa a pausa no item Foco do dock', () => {
+    expect(dockKeyFor('break')).toBe('focus')
+    expect(sectionLabelKey('break')).toBe('nav.focus')
+    const markup = renderToStaticMarkup(<Dock active="break" onNavigate={noop} onOpenCommands={noop} />)
+    expect(markup).toMatch(/aria-current="page"[^>]*>Foco</)
+  })
+
   it('envolve o conteúdo com a faixa do topo e a seção atual', () => {
     const markup = renderToStaticMarkup(<AppShell active="week" onNavigate={noop} onOpenCommands={noop}><p>conteúdo</p></AppShell>)
     expect(markup).toContain('HIBI')
