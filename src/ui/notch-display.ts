@@ -32,7 +32,7 @@ export const selectedNotchValue = (state: NotchDisplayState): string =>
 export const resolvedNotchDisplay = (state: NotchDisplayState): NotchDisplay | undefined =>
   state.displays.find((display) => display.id === state.resolvedDisplayId);
 
-export function notchDisplayOptions(state: NotchDisplayState, t: Translate): NotchDisplayOption[] {
+export function notchDisplayOptions(state: NotchDisplayState, t: Translate): readonly NotchDisplayOption[] {
   const resolved = resolvedNotchDisplay(state);
   const options: NotchDisplayOption[] = [
     { value: AUTO_NOTCH_VALUE, label: resolved ? `${t('settings.notch.auto')} · ${resolved.label}` : t('settings.notch.auto'), disabled: false },
@@ -48,5 +48,8 @@ export function notchDisplayOptions(state: NotchDisplayState, t: Translate): Not
   return options;
 }
 
+// Função como substituição: o nome vem do macOS e pode conter `$&`, que `replace` interpretaria.
+export const fillDisplay = (template: string, label: string): string => template.replace('{display}', () => label);
+
 export const notchTestMessage = (result: NotchTestResult, t: Translate): string =>
-  t(RESULT_KEYS[result.outcome]).replace('{display}', result.displayLabel || t('settings.notch.unknownDisplay'));
+  fillDisplay(t(RESULT_KEYS[result.outcome]), result.displayLabel || t('settings.notch.unknownDisplay'));

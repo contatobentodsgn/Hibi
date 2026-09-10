@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { translate, type DictionaryKey } from '../../i18n/dictionary';
-import { disconnectedPreference, notchDisplayOptions, notchTestMessage, selectedNotchValue, type NotchDisplay, type NotchDisplayState } from '../notch-display';
+import { disconnectedPreference, fillDisplay, notchDisplayOptions, notchTestMessage, selectedNotchValue, type NotchDisplay, type NotchDisplayState } from '../notch-display';
 
 const pt = (key: DictionaryKey) => translate('pt', key);
 const en = (key: DictionaryKey) => translate('en', key);
@@ -45,5 +45,12 @@ describe('mensagem do teste do notch', () => {
     expect(notchTestMessage({ outcome: 'busy', displayId: null, displayLabel: '' }, pt)).toBe('Há uma confirmação pendente no notch. Responda a ela e teste de novo.');
     expect(notchTestMessage({ outcome: 'interrupted', displayId: 2, displayLabel: 'LG ULTRAWIDE' }, pt)).toBe('O teste foi interrompido por outro aviso do Taby.');
     expect(notchTestMessage({ outcome: 'failed', displayId: null, displayLabel: '' }, en)).toBe('Could not show the test in the notch.');
+  });
+});
+
+describe('preenchimento do nome do monitor', () => {
+  it('insere o nome literalmente, mesmo com padrões especiais de replace', () => {
+    expect(fillDisplay('O notch usa {display} até ele voltar.', 'Monitor $& $\' $$')).toBe('O notch usa Monitor $& $\' $$ até ele voltar.');
+    expect(notchTestMessage({ outcome: 'confirmed', displayId: 3, displayLabel: 'Sala $&' }, pt)).toBe('Confirmado pelo notch em Sala $&.');
   });
 });
