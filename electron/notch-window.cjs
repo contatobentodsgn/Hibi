@@ -77,16 +77,22 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
         activeHost = 'native'; activePresentation = null;
         return { degraded: false, requestId: activeRequestId, host: activeHost };
       }
-      const target = ensure(); activeHost = 'electron'; activePresentation = presentation; position();
-      const capturesInput = presentation.interaction === 'capture';
-      target.setIgnoreMouseEvents?.(capturesInput ? false : true, capturesInput ? undefined : { forward: true });
-      target.setFocusable?.(capturesInput);
-      // Numa janela recém-criada este envio chega antes de a overlay assinar o canal e se perde;
-      // por isso a overlay também busca `activePresentation` ao montar.
-      target.webContents.send('hibi:companion:presentation', presentation);
-      target.showInactive?.();
-      if (capturesInput) target.focus?.();
-      return { degraded: true, requestId: activeRequestId, host: activeHost };
+      try {
+        const target = ensure(); activeHost = 'electron'; activePresentation = presentation; position();
+        const capturesInput = presentation.interaction === 'capture';
+        target.setIgnoreMouseEvents?.(capturesInput ? false : true, capturesInput ? undefined : { forward: true });
+        target.setFocusable?.(capturesInput);
+        // Numa janela recém-criada este envio chega antes de a overlay assinar o canal e se perde;
+        // por isso a overlay também busca `activePresentation` ao montar.
+        target.webContents.send('hibi:companion:presentation', presentation);
+        target.showInactive?.();
+        if (capturesInput) target.focus?.();
+        return { degraded: true, requestId: activeRequestId, host: activeHost };
+      } catch (error) {
+        // Sem janela, não pode ficar uma confirmação fantasma travando `activeInteractive`.
+        activeRequestId = null; activeActions = new Set(); activeHost = null; activePresentation = null;
+        throw error;
+      }
     },
     hide(requestId) {
       if (requestId !== activeRequestId) return false;

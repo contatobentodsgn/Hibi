@@ -249,6 +249,16 @@ test('describeDisplays informa rótulo, principal, câmera e o monitor resolvido
   assert.deepEqual({ ...manager.describeDisplays(), displays: undefined }, { resolvedDisplayId: 2, reason: 'preferred', displays: undefined });
 });
 
+test('uma falha ao criar a janela não deixa uma confirmação fantasma ativa', () => {
+  const manager = createNotchWindowManager({ BrowserWindowClass: class { constructor() { throw new Error('sem janela'); } }, screen, preloadPath: 'preload', load: () => {}, platform: 'darwin' });
+
+  assert.throws(() => manager.show({ requestId: 'ghost', kind: 'confirmation', text: 'Ok?', actions: [{ id: 'confirm', label: 'Confirmar' }], interaction: 'capture' }), /sem janela/);
+
+  assert.equal(manager.activeInteractive, false);
+  assert.equal(manager.activeRequestId, null);
+  assert.equal(manager.activePresentation, null);
+});
+
 test('activeInteractive só é verdadeiro enquanto há uma confirmação ativa', () => {
   const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, platform: 'darwin' });
 
