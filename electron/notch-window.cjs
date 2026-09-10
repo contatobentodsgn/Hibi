@@ -1,4 +1,4 @@
-const { notchBounds, actionBounds, selectDisplay } = require('./notch-geometry.cjs');
+const { notchBounds, actionBounds, resolveNotchDisplay } = require('./notch-geometry.cjs');
 
 const validPresentation = (value) => value && typeof value === 'object'
   && typeof value.requestId === 'string' && value.requestId.length <= 128
@@ -6,19 +6,25 @@ const validPresentation = (value) => value && typeof value === 'object'
   && (value.text === null || typeof value.text === 'string')
   && Array.isArray(value.actions) && value.actions.length <= 4;
 
-function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, onAction, platform = process.platform }) {
+function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, onAction, platform = process.platform, preferredDisplayId: initialPreferredDisplayId = null }) {
   let window = null;
   let activeRequestId = null;
   let activeActions = new Set();
   let activeHost = null;
   let activePresentation = null;
-  // When an external monitor is primary, keep the companion on the physical
-  // Mac display that exposes a camera housing (the real notch).
-  const nativeNotchDisplay = nativeBridge?.screenGeometry?.().find((display) => display?.hasCameraHousing && Number.isInteger(display.displayId));
-  let preferredDisplayId = nativeNotchDisplay?.displayId ?? null;
+  let preferredDisplayId = Number.isInteger(initialPreferredDisplayId) ? initialPreferredDisplayId : null;
   const getWindow = () => window && !window.isDestroyed() ? window : null;
   const makePassive = (target) => { target.setIgnoreMouseEvents?.(true, { forward: true }); target.setFocusable?.(false); };
-  const selectedDisplay = () => selectDisplay(screen, preferredDisplayId);
+  // Lido a cada posicionamento, e não só ao iniciar: um app aberto com a tampa fechada precisa
+  // passar para a tela com câmera quando ela aparece.
+  const cameraHousingIds = () => {
+    try {
+      const screens = nativeBridge?.screenGeometry?.();
+      return Array.isArray(screens) ? screens.filter((entry) => entry?.hasCameraHousing && Number.isInteger(entry.displayId)).map((entry) => entry.displayId) : [];
+    } catch { return []; }
+  };
+  const resolution = () => resolveNotchDisplay(screen.getAllDisplays(), screen.getPrimaryDisplay(), { preferredDisplayId, cameraHousingIds: cameraHousingIds() });
+  const selectedDisplay = () => resolution().display;
   const position = () => {
     const target = getWindow(); if (!target) return;
     const bounds = activeActions.size > 0 ? actionBounds(selectedDisplay()) : notchBounds(selectedDisplay());
@@ -91,10 +97,30 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     resolveAction,
     setPreferredDisplay(displayId) { preferredDisplayId = Number.isInteger(displayId) ? displayId : null; if (activeHost === 'native') nativeBridge?.repositionHost?.(selectedDisplayId()); else position(); },
     reposition() { if (activeHost === 'native') return nativeBridge?.repositionHost?.(selectedDisplayId()) === true; position(); return Boolean(getWindow()); },
+    describeDisplays() {
+      const displays = screen.getAllDisplays();
+      const primaryId = screen.getPrimaryDisplay().id;
+      const housing = cameraHousingIds();
+      const { display, reason } = resolveNotchDisplay(displays, screen.getPrimaryDisplay(), { preferredDisplayId, cameraHousingIds: housing });
+      return {
+        resolvedDisplayId: display.id,
+        reason,
+        displays: displays.map((entry, index) => ({
+          id: entry.id,
+          label: typeof entry.label === 'string' && entry.label.trim() ? entry.label.trim() : `Monitor ${index + 1}`,
+          primary: entry.id === primaryId,
+          internal: entry.internal === true,
+          hasCameraHousing: housing.includes(entry.id),
+          width: entry.bounds.width,
+          height: entry.bounds.height,
+        })),
+      };
+    },
     destroy() { const target = getWindow(); nativeBridge?.destroyHost?.(); nativeBridge?.teardown?.(); if (target) target.destroy(); window = null; activeRequestId = null; activeActions = new Set(); activeHost = null; activePresentation = null; },
     get activeRequestId() { return activeRequestId; },
     get activeHost() { return activeHost; },
     get activePresentation() { return activeHost === 'electron' ? activePresentation : null; },
+    get activeInteractive() { return activeRequestId !== null && activeActions.size > 0; },
     get diagnostics() {
       if (nativeBridge?.nativeHostAvailable?.() === true) return { ...nativeBridge.hostDiagnostics?.(), host: activeHost ?? 'native' };
       return { available: false, host: 'electron' };

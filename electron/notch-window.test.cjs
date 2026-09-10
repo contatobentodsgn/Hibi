@@ -172,3 +172,91 @@ test('a overlay consegue buscar a confirmação ativa que chegou antes de ela mo
   manager.hide('confirm-1');
   assert.equal(manager.activePresentation, null);
 });
+
+test('o automático é reavaliado a cada apresentação: a tampa aberta depois de iniciar passa a valer', () => {
+  const calls = [];
+  const external = { id: 2, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
+  const macbook = { id: 1, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
+  let lidOpen = false;
+  const multiScreen = { getAllDisplays: () => lidOpen ? [external, macbook] : [external], getPrimaryDisplay: () => external };
+  const nativeBridge = {
+    nativeHostAvailable: () => true,
+    createHost: () => true,
+    screenGeometry: () => lidOpen ? [{ displayId: 2, hasCameraHousing: false }, { displayId: 1, hasCameraHousing: true }] : [{ displayId: 2, hasCameraHousing: false }],
+    showHost: (_presentation, displayId) => { calls.push(displayId); return true; },
+  };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+
+  manager.show({ requestId: 'lid-closed', kind: 'result', text: 'a', actions: [], interaction: 'passthrough' });
+  lidOpen = true;
+  manager.show({ requestId: 'lid-open', kind: 'result', text: 'b', actions: [], interaction: 'passthrough' });
+
+  assert.deepEqual(calls, [2, 1]);
+});
+
+test('usa a preferência inicial e volta ao automático com setPreferredDisplay(null)', () => {
+  const calls = [];
+  const external = { id: 2, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
+  const macbook = { id: 1, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
+  const multiScreen = { getAllDisplays: () => [external, macbook], getPrimaryDisplay: () => external };
+  const nativeBridge = {
+    nativeHostAvailable: () => true,
+    createHost: () => true,
+    screenGeometry: () => [{ displayId: 2, hasCameraHousing: false }, { displayId: 1, hasCameraHousing: true }],
+    showHost: (_presentation, displayId) => { calls.push(displayId); return true; },
+    repositionHost: () => true,
+  };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin', preferredDisplayId: 2 });
+
+  manager.show({ requestId: 'preferred', kind: 'result', text: 'a', actions: [], interaction: 'passthrough' });
+  manager.setPreferredDisplay(null);
+  manager.show({ requestId: 'automatic', kind: 'result', text: 'b', actions: [], interaction: 'passthrough' });
+
+  assert.deepEqual(calls, [2, 1]);
+});
+
+test('uma falha ao ler as telas do addon cai para a tela principal', () => {
+  const calls = [];
+  const nativeBridge = {
+    nativeHostAvailable: () => true,
+    createHost: () => true,
+    screenGeometry: () => { throw new Error('addon indisponível'); },
+    showHost: (_presentation, displayId) => { calls.push(displayId); return true; },
+  };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+
+  manager.show(presentation);
+
+  assert.deepEqual(calls, [1]);
+});
+
+test('describeDisplays informa rótulo, principal, câmera e o monitor resolvido', () => {
+  const external = { id: 2, label: 'LG ULTRAWIDE', internal: false, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
+  const macbook = { id: 1, label: '', internal: true, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
+  const multiScreen = { getAllDisplays: () => [external, macbook], getPrimaryDisplay: () => external };
+  const nativeBridge = { screenGeometry: () => [{ displayId: 1, hasCameraHousing: true }] };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+
+  assert.deepEqual(manager.describeDisplays(), {
+    resolvedDisplayId: 1,
+    reason: 'camera-housing',
+    displays: [
+      { id: 2, label: 'LG ULTRAWIDE', primary: true, internal: false, hasCameraHousing: false, width: 2560, height: 1080 },
+      { id: 1, label: 'Monitor 2', primary: false, internal: true, hasCameraHousing: true, width: 1470, height: 956 },
+    ],
+  });
+  manager.setPreferredDisplay(2);
+  assert.deepEqual({ ...manager.describeDisplays(), displays: undefined }, { resolvedDisplayId: 2, reason: 'preferred', displays: undefined });
+});
+
+test('activeInteractive só é verdadeiro enquanto há uma confirmação ativa', () => {
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, platform: 'darwin' });
+
+  assert.equal(manager.activeInteractive, false);
+  manager.show(presentation);
+  assert.equal(manager.activeInteractive, false);
+  manager.show({ requestId: 'confirm-me', kind: 'confirmation', text: 'Ok?', actions: [{ id: 'confirm', label: 'Confirmar' }], interaction: 'capture' });
+  assert.equal(manager.activeInteractive, true);
+  manager.resolveAction('confirm-me', 'confirm');
+  assert.equal(manager.activeInteractive, false);
+});
