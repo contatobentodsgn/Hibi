@@ -1138,7 +1138,7 @@ Crie `src/ui/NotchDisplaySettings.tsx`:
 ```tsx
 import React, { useEffect, useState } from 'react';
 import { useLocale, useT } from '../i18n/LocaleProvider';
-import { AUTO_NOTCH_VALUE, disconnectedPreference, notchDisplayOptions, notchTestMessage, resolvedNotchDisplay, selectedNotchValue, type NotchDisplayState } from './notch-display';
+import { AUTO_NOTCH_VALUE, disconnectedPreference, fillDisplay, notchDisplayOptions, notchTestMessage, resolvedNotchDisplay, selectedNotchValue, type NotchDisplayState } from './notch-display';
 
 type Props = { onEvent: (action: string, detail: string, result?: string) => void };
 
@@ -1193,7 +1193,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   };
 
   const options = state ? notchDisplayOptions(state, t) : [{ value: AUTO_NOTCH_VALUE, label: t('settings.notch.auto'), disabled: false }];
-  const fallback = state && disconnectedPreference(state) ? t('settings.notch.fallback').replace('{display}', resolvedNotchDisplay(state)?.label ?? t('settings.notch.unknownDisplay')) : undefined;
+  const fallback = state && disconnectedPreference(state) ? fillDisplay(t('settings.notch.fallback'), resolvedNotchDisplay(state)?.label ?? t('settings.notch.unknownDisplay')) : undefined;
   return <>
     <Row title={t('settings.notch.title')} detail={t('settings.notch.detail')} note={fallback}>
       <select aria-label={t('settings.notch.title')} disabled={!state} value={state ? selectedNotchValue(state) : AUTO_NOTCH_VALUE} onChange={(event) => void choose(event.target.value)}>
