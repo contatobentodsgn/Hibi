@@ -1,6 +1,6 @@
 import type { DictionaryKey } from '../../i18n/dictionary'
 
-export type NavKey = 'home' | 'tasks' | 'agenda' | 'day' | 'week' | 'focus' | 'break' | 'taby' | 'notes' | 'reminders' | 'habits' | 'goals' | 'review' | 'settings' | 'help' | 'feedback' | 'instrumentation' | 'updates' | 'hardware'
+export type NavKey = 'home' | 'tasks' | 'agenda' | 'day' | 'week' | 'focus' | 'break' | 'taby' | 'notes' | 'reminders' | 'habits' | 'goals' | 'review' | 'stats' | 'settings' | 'help' | 'feedback' | 'instrumentation' | 'updates' | 'hardware'
 
 export type NavItem = Readonly<{ key: NavKey; label: DictionaryKey }>
 
@@ -18,6 +18,7 @@ export const MORE_ITEMS: readonly NavItem[] = [
   { key: 'habits', label: 'nav.habits' },
   { key: 'goals', label: 'nav.goals' },
   { key: 'review', label: 'nav.review' },
+  { key: 'stats', label: 'nav.stats' },
   { key: 'settings', label: 'nav.settings' },
   { key: 'help', label: 'nav.help' },
   { key: 'instrumentation', label: 'nav.instrumentation' },

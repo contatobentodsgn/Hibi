@@ -167,4 +167,9 @@ describe('study views', () => {
     expect(markup).toContain('/hardware');
     expect(markup).toContain('/break');
   });
+
+  it('lists /stats in Help', () => {
+    const markup = renderToStaticMarkup(<HelpView onNavigate={onEvent} />);
+    expect(markup).toContain('/stats');
+  });
 });

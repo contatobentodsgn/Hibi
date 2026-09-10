@@ -20,7 +20,7 @@ describe('shell', () => {
 
   it('lista o restante das seções no menu de mais', () => {
     const markup = renderToStaticMarkup(<DockMoreMenu active="settings" onSelect={noop} />)
-    for (const label of ['Lembretes', 'Notas', 'Hábitos', 'Metas', 'Revisão', 'Ajustes', 'Ajuda', 'Eventos', 'Feedback', 'Atualizações', 'Hardware']) expect(markup).toContain(label)
+    for (const label of ['Lembretes', 'Notas', 'Hábitos', 'Metas', 'Revisão', 'Estatísticas', 'Ajustes', 'Ajuda', 'Eventos', 'Feedback', 'Atualizações', 'Hardware']) expect(markup).toContain(label)
     expect(markup).toContain('role="menuitem"')
     expect(markup).toMatch(/aria-current="page"[^>]*>Ajustes</)
   })
@@ -38,8 +38,13 @@ describe('shell', () => {
     expect(dockKeyFor('settings')).toBe('settings')
     expect(sectionLabelKey('week')).toBe('nav.agenda')
     expect(sectionLabelKey('instrumentation')).toBe('nav.instrumentation')
+    expect(sectionLabelKey('stats')).toBe('nav.stats')
     expect(DOCK_ITEMS.map((item) => item.key)).toEqual(['home', 'tasks', 'agenda', 'focus', 'taby'])
-    expect(MORE_ITEMS).toHaveLength(11)
+    expect(MORE_ITEMS).toHaveLength(12)
+    expect(MORE_ITEMS.map((item) => item.key)).toContain('stats')
+    // /stats abre uma página dedicada, logo em seguida de Revisão no menu.
+    const reviewIndex = MORE_ITEMS.findIndex((item) => item.key === 'review')
+    expect(MORE_ITEMS[reviewIndex + 1]).toEqual({ key: 'stats', label: 'nav.stats' })
   })
 
   it('agrupa a pausa no item Foco do dock', () => {

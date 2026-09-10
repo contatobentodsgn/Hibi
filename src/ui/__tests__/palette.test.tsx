@@ -75,6 +75,13 @@ describe('paleta', () => {
     const command = PALETTE_COMMANDS.find((entry) => entry.key === '/break')
     expect(command && 'route' in command ? command.route : null).toBe('break')
   })
+
+  it('/stats abre a página dedicada de estatísticas, e /review continua abrindo a revisão', () => {
+    const stats = PALETTE_COMMANDS.find((entry) => entry.key === '/stats')
+    expect(stats && 'route' in stats ? stats.route : null).toBe('stats')
+    const review = PALETTE_COMMANDS.find((entry) => entry.key === '/review')
+    expect(review && 'route' in review ? review.route : null).toBe('review')
+  })
 })
 
 describe('PaletteTurn', () => {
