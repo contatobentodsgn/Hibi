@@ -125,6 +125,8 @@ try {
   await choose(page, String(external.id));
   await app.close();
 
+  // O primeiro app já fechou: se reabrir falhar, o `finally` não deve restaurar por ele. `page` volta a valer no app novo.
+  page = undefined;
   app = await launch();
   page = await openGeneral(app);
   const afterRestart = await page.evaluate(() => window.hibiDesktop.listNotchDisplays());
