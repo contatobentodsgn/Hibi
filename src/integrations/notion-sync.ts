@@ -34,13 +34,13 @@ export type NotionSyncPlan = Readonly<{
   summary: Readonly<{ push: number; pull: number; conflicts: number; unchanged: number }>
 }>
 
-type MappedTask = Pick<Task, 'title' | 'status' | 'deadline' | 'durationMinutes' | 'description'>
+type MappedTask = Readonly<{ title: string; status?: EntityStatus; deadline?: string; durationMinutes?: number; description?: string }>
 
 const mapped = (task: MappedTask) => ({
   title: task.title.trim(),
   status: task.status ?? 'open',
   deadline: task.deadline ?? null,
-  durationMinutes: Number.isFinite(task.durationMinutes) ? Math.max(0, Math.round(task.durationMinutes)) : 0,
+  durationMinutes: Number.isFinite(task.durationMinutes) ? Math.max(0, Math.round(task.durationMinutes!)) : 0,
   description: task.description?.trim() ?? '',
 })
 

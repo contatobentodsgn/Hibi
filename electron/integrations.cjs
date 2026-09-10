@@ -51,7 +51,8 @@ async function safeExecutionResult(value) {
     let body = {};
     try { body = await value.json(); } catch { /* a successful remote action does not require a JSON body */ }
     const remoteId = typeof body?.id === 'string' && body.id.length <= 240 ? body.id : undefined;
-    const revision = typeof body?.revision === 'string' && body.revision.length <= 240 ? body.revision : undefined;
+    const revisionValue = body?.revision ?? body?.last_edited_time;
+    const revision = typeof revisionValue === 'string' && revisionValue.length <= 240 ? revisionValue : undefined;
     return { ok: value.ok === true, status: value.status, ...(remoteId === undefined ? {} : { remoteId }), ...(revision === undefined ? {} : { revision }) };
   }
   if (value && typeof value === 'object') {
@@ -182,6 +183,17 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       appendAudit({ action: 'list-import-targets', connectorId: id, detail: `Listed ${safe.length} import targets.` });
       return safe;
     },
+    async discoverDataSource(id, databaseId) {
+      const connector = getConnector(id);
+      if (typeof connector.discoverDataSource !== 'function' || !boundedText(databaseId, 240)) throw new Error('This integration cannot discover a data source.');
+      const credential = await keychain.get(accountFor(id));
+      if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
+      const result = await connector.discoverDataSource({ credential, databaseId, request: safeFetchFor(connector) });
+      if (!boundedText(result?.databaseId, 240) || !boundedText(result?.dataSourceId, 240)) throw new Error('Integration returned an invalid data source.');
+      const safe = { databaseId: result.databaseId, dataSourceId: result.dataSourceId, label: boundedText(result?.label, 240) ? result.label : 'Hibi Tasks' };
+      appendAudit({ action: 'discover-data-source', connectorId: id, detail: 'Discovered one data source.' });
+      return safe;
+    },
     // Importação é leitura: busca nos alvos escolhidos e normaliza com o mesmo
     // normalizeImport já coberto por fixtures. Nada é gravado no workspace aqui;
     // a decisão por item continua sendo da pessoa usuária, na prévia.
@@ -195,7 +207,11 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       const raw = await connector.fetchImports({ credential, request: safeFetchFor(connector), targets });
       const candidates = (Array.isArray(raw) ? raw : []).slice(0, MAX_IMPORT_CANDIDATES).flatMap((item) => {
         const candidate = connector.normalizeImport(item);
-        return candidate && boundedText(candidate.remoteId, 240) && boundedText(candidate.title, 240) ? [{ remoteId: candidate.remoteId, title: candidate.title.slice(0, 240), kind: candidate.kind === 'email' ? 'email' : 'task', ...(boundedText(candidate.revision, 240) ? { revision: candidate.revision } : {}), ...(boundedText(candidate.source, 240) ? { source: candidate.source } : {}) }] : [];
+        if (!candidate || !boundedText(candidate.remoteId, 240) || !boundedText(candidate.title, 240)) return [];
+        const status = ['open', 'paused', 'completed'].includes(candidate.status) ? candidate.status : undefined;
+        const deadline = boundedText(candidate.deadline, 240) && !Number.isNaN(Date.parse(candidate.deadline)) ? candidate.deadline : undefined;
+        const durationMinutes = Number.isFinite(candidate.durationMinutes) && candidate.durationMinutes >= 0 && candidate.durationMinutes <= 525_600 ? Math.round(candidate.durationMinutes) : undefined;
+        return [{ remoteId: candidate.remoteId, title: candidate.title.slice(0, 240), kind: candidate.kind === 'email' ? 'email' : 'task', ...(boundedText(candidate.revision, 240) ? { revision: candidate.revision } : {}), ...(boundedText(candidate.source, 240) ? { source: candidate.source } : {}), ...(boundedText(candidate.hibiId, 240) ? { hibiId: candidate.hibiId } : {}), ...(status ? { status } : {}), ...(deadline ? { deadline } : {}), ...(durationMinutes === undefined ? {} : { durationMinutes }), ...(boundedText(candidate.description, 2_000) ? { description: candidate.description } : {}) }];
       });
       appendAudit({ action: 'import-read', connectorId: id, detail: `Read ${candidates.length} items from ${targets.length} selected sources.` });
       return candidates;

@@ -58,3 +58,6 @@ export type IntegrationAuthorization = Readonly<{
 }>
 
 export type IntegrationConnectionTest = Readonly<{ ok: boolean; detail: string }>
+export type IntegrationExecutionItem = Readonly<{ key: string; ok: boolean; status?: number; remoteId?: string; revision?: string; error?: string }>
+export type IntegrationExecutionResult = Readonly<{ ok: boolean; status?: number; remoteId?: string; revision?: string; items?: readonly IntegrationExecutionItem[] }>
+export type NotionDataSourceDiscovery = Readonly<{ databaseId: string; dataSourceId: string; label: string }>
