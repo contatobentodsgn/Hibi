@@ -23,7 +23,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
       return Array.isArray(screens) ? screens.filter((entry) => entry?.hasCameraHousing && Number.isInteger(entry.displayId)).map((entry) => entry.displayId) : [];
     } catch { return []; }
   };
-  const resolution = () => resolveNotchDisplay(screen.getAllDisplays(), screen.getPrimaryDisplay(), { preferredDisplayId, cameraHousingIds: cameraHousingIds() });
+  const resolution = ({ displays = screen.getAllDisplays(), primary = screen.getPrimaryDisplay(), housing = cameraHousingIds() } = {}) => resolveNotchDisplay(displays, primary, { preferredDisplayId, cameraHousingIds: housing });
   const selectedDisplay = () => resolution().display;
   const position = () => {
     const target = getWindow(); if (!target) return;
@@ -105,16 +105,16 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     reposition() { if (activeHost === 'native') return nativeBridge?.repositionHost?.(selectedDisplayId()) === true; position(); return Boolean(getWindow()); },
     describeDisplays() {
       const displays = screen.getAllDisplays();
-      const primaryId = screen.getPrimaryDisplay().id;
+      const primary = screen.getPrimaryDisplay();
       const housing = cameraHousingIds();
-      const { display, reason } = resolveNotchDisplay(displays, screen.getPrimaryDisplay(), { preferredDisplayId, cameraHousingIds: housing });
+      const { display, reason } = resolution({ displays, primary, housing });
       return {
         resolvedDisplayId: display.id,
         reason,
         displays: displays.map((entry, index) => ({
           id: entry.id,
           label: typeof entry.label === 'string' && entry.label.trim() ? entry.label.trim() : `Monitor ${index + 1}`,
-          primary: entry.id === primaryId,
+          primary: entry.id === primary.id,
           internal: entry.internal === true,
           hasCameraHousing: housing.includes(entry.id),
           width: entry.bounds.width,
