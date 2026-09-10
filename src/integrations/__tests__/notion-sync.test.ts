@@ -49,3 +49,17 @@ describe('Notion task reconciliation', () => {
     expect(duplicated.summary.conflicts).toBe(2)
   })
 })
+
+describe('Notion revisions rounded to the minute', () => {
+  it('detects a remote edit that kept the same minute-rounded revision', () => {
+    const base = checkpoint()
+    const sameMinute = remote({ title: 'Remote edit', revision: base.remoteRevision })
+    expect(buildNotionSyncPlan([local()], [sameMinute], [base]).items[0].state).toBe('remote-changed')
+    expect(buildNotionSyncPlan([local({ title: 'Local edit' })], [sameMinute], [base]).items[0].state).toBe('conflict')
+  })
+
+  it('treats the same instant written in another format as unchanged', () => {
+    const base = checkpoint()
+    expect(buildNotionSyncPlan([local()], [remote({ deadline: '2026-09-10T12:00:00.000Z' })], [base]).items[0].state).toBe('unchanged')
+  })
+})
