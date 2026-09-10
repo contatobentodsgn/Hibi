@@ -3,7 +3,6 @@ import { translate, type DictionaryKey } from './dictionary'
 import { formatDate, formatRange, formatTime, formatWeekday, type FormatOptions, type Locale } from './format'
 import { browserLocaleHost, readLanguage, readTwentyFourHour, writeLanguage, writeTwentyFourHour, type LocaleHost } from './locale-storage'
 
-export { LANGUAGE_STORAGE_KEY, TIME_FORMAT_STORAGE_KEY } from './locale-storage'
 
 type LocaleContextValue = Readonly<{
   language: Locale
