@@ -38,7 +38,10 @@ test('desloca o painel para baixo da câmera e centraliza o texto passivo sem co
   assert.match(source, /@property\(nonatomic\) CGFloat topInset;/);
   assert.match(source, /CGFloat inset = screen\.safeAreaInsets\.top;/);
   assert.match(source, /CGFloat height = \(gInteractive \? kInteractiveHeight : kPassiveHeight\) \+ inset;/);
-  assert.match(source, /view\.topInset = inset;/);
+  // `applyTopInset:` é o único lugar que grava o inset usado no desenho e nos cantos.
+  assert.match(source, /- \(void\)applyTopInset:\(CGFloat\)topInset \{\n  self\.topInset = topInset;/);
+  assert.match(source, /\[view applyTopInset:inset\];/);
+  assert.doesNotMatch(source, /view\.topInset = inset;/);
   assert.match(source, /\[view setNeedsDisplay:YES\];/);
   assert.match(source, /NSLineBreakByTruncatingTail/);
   assert.doesNotMatch(source, /self\.bounds\.size\.height - bottom - 14\.0/);

@@ -84,6 +84,7 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
   return self;
 }
 - (void)applyTopInset:(CGFloat)topInset {
+  self.topInset = topInset;
   // Com câmera, o topo fica colado na borda da tela: arredonda só embaixo (layer não invertida, MinY = baixo).
   self.layer.maskedCorners = topInset > 0.0 ? (kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner) : (kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner | kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner);
 }
@@ -197,7 +198,6 @@ BOOL PositionHost(uint64_t displayId) {
   NSRect frame = NSMakeRect(NSMidX(screen.frame) - kHostWidth / 2.0, NSMaxY(screen.frame) - height, kHostWidth, height);
   [gPanel setFrame:frame display:YES animate:NO];
   HibiNotchContentView *view = HostContentView();
-  view.topInset = inset;
   [view applyTopInset:inset];
   [view setNeedsDisplay:YES];
   gDisplayId = @(displayId);
