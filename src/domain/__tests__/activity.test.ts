@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { createActivityRecord, isActivityRecord } from '../activity';
+import { createActivityRecord, isActivityRecord, MAX_ACTIVITY_ENTITY_ID_LENGTH, MAX_ACTIVITY_FOLDER_LENGTH, MAX_ACTIVITY_TITLE_LENGTH } from '../activity';
 
 describe('activity records', () => {
+  it('exports the ledger text limits shared with the activity mappers', () => {
+    expect({ title: MAX_ACTIVITY_TITLE_LENGTH, folder: MAX_ACTIVITY_FOLDER_LENGTH, entityId: MAX_ACTIVITY_ENTITY_ID_LENGTH }).toEqual({ title: 240, folder: 240, entityId: 128 });
+  });
+
+  it('accepts an entity id at the limit and rejects a longer one', () => {
+    const at = '2026-09-08T12:00:00.000Z';
+    expect(() => createActivityRecord({ type: 'task.completed', at, entityId: 'a'.repeat(MAX_ACTIVITY_ENTITY_ID_LENGTH) })).not.toThrow();
+    expect(() => createActivityRecord({ type: 'task.completed', at, entityId: 'a'.repeat(MAX_ACTIVITY_ENTITY_ID_LENGTH + 1) })).toThrow();
+  });
+
   it('creates a versioned, valid activity record', () => {
     const record = createActivityRecord({
       type: 'task.completed',

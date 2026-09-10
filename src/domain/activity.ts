@@ -57,9 +57,10 @@ const EVENT_TYPE_PATTERN = /^[a-z][a-z0-9-]{0,31}\.[a-z][a-z0-9-]{0,31}$/;
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const ENTITY_TYPES = new Set<ActivityEntityType>(['task', 'focus', 'habit', 'goal', 'block']);
 const CATEGORIES = new Set<Category>(['work', 'break', 'learning', 'important', 'wellbeing']);
-const MAX_TITLE_LENGTH = 240;
-const MAX_FOLDER_LENGTH = 240;
-const MAX_ENTITY_ID_LENGTH = 128;
+// Exportados para os mapeadores de atividade cortarem textos no mesmo limite que o ledger aceita.
+export const MAX_ACTIVITY_TITLE_LENGTH = 240;
+export const MAX_ACTIVITY_FOLDER_LENGTH = 240;
+export const MAX_ACTIVITY_ENTITY_ID_LENGTH = 128;
 const ACTIVITY_RECORD_KEYS = new Set([
   'id',
   'schemaVersion',
@@ -114,11 +115,11 @@ function isNonNegativeFiniteNumber(value: unknown): value is number {
 
 function hasValidOptionalFields(value: Record<string, unknown>): boolean {
   return (value.entityType === undefined || ENTITY_TYPES.has(value.entityType as ActivityEntityType))
-    && (value.entityId === undefined || isBoundedString(value.entityId, MAX_ENTITY_ID_LENGTH))
-    && (value.title === undefined || isBoundedString(value.title, MAX_TITLE_LENGTH))
+    && (value.entityId === undefined || isBoundedString(value.entityId, MAX_ACTIVITY_ENTITY_ID_LENGTH))
+    && (value.title === undefined || isBoundedString(value.title, MAX_ACTIVITY_TITLE_LENGTH))
     && (value.durationMinutes === undefined || isNonNegativeFiniteNumber(value.durationMinutes))
     && (value.category === undefined || CATEGORIES.has(value.category as Category))
-    && (value.folder === undefined || isBoundedString(value.folder, MAX_FOLDER_LENGTH))
+    && (value.folder === undefined || isBoundedString(value.folder, MAX_ACTIVITY_FOLDER_LENGTH))
     && (value.value === undefined || isNonNegativeFiniteNumber(value.value))
     && (value.seeded === undefined || typeof value.seeded === 'boolean');
 }

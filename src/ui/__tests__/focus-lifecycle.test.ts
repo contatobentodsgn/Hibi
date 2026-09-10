@@ -1,97 +1,97 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { abandon, complete, IDLE_FOCUS_LIFECYCLE, ignoresDurationChoice, pause, start, stepFocusLifecycle, type FocusLifecycleAction, type FocusLifecycleState } from '../focus-lifecycle';
+import { abandonFocus, completeFocus, IDLE_FOCUS_LIFECYCLE, ignoresDurationChoice, pauseFocus, startFocus, stepFocusLifecycle, type FocusLifecycleAction, type FocusLifecycleState } from '../focus-lifecycle';
 
 const minute = 60_000;
 const limit = 25 * minute;
 
 describe('focus lifecycle', () => {
   it('starts an idle session and resumes a paused one', () => {
-    const started = start(IDLE_FOCUS_LIFECYCLE, 1_000, limit);
+    const started = startFocus(IDLE_FOCUS_LIFECYCLE, 1_000, limit);
     expect(started.event).toEqual({ type: 'started' });
     expect(started.state).toEqual({ phase: 'running', accumulatedMs: 0, runningSince: 1_000, limitMs: limit });
 
-    const paused = pause(started.state, 1_000 + 4 * minute);
+    const paused = pauseFocus(started.state, 1_000 + 4 * minute);
     expect(paused.event).toEqual({ type: 'paused' });
     expect(paused.state).toEqual({ phase: 'paused', accumulatedMs: 4 * minute, limitMs: limit });
 
-    const resumed = start(paused.state, 10 * minute, limit);
+    const resumed = startFocus(paused.state, 10 * minute, limit);
     expect(resumed.event).toEqual({ type: 'resumed' });
     expect(resumed.state).toEqual({ phase: 'running', accumulatedMs: 4 * minute, runningSince: 10 * minute, limitMs: limit });
   });
 
   it('ignores a start while running and a pause while not running', () => {
     const running: FocusLifecycleState = { phase: 'running', accumulatedMs: 0, runningSince: 0, limitMs: limit };
-    expect(start(running, 5, limit)).toEqual({ state: running });
-    expect(pause(IDLE_FOCUS_LIFECYCLE, 5)).toEqual({ state: IDLE_FOCUS_LIFECYCLE });
+    expect(startFocus(running, 5, limit)).toEqual({ state: running });
+    expect(pauseFocus(IDLE_FOCUS_LIFECYCLE, 5)).toEqual({ state: IDLE_FOCUS_LIFECYCLE });
     const paused: FocusLifecycleState = { phase: 'paused', accumulatedMs: minute, limitMs: limit };
-    expect(pause(paused, 5)).toEqual({ state: paused });
+    expect(pauseFocus(paused, 5)).toEqual({ state: paused });
   });
 
   it('completes with the measured minutes across pauses, excluding paused time', () => {
-    let state = start(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
-    state = pause(state, 10 * minute).state;
-    state = start(state, 30 * minute, limit).state;
-    const done = complete(state, 45 * minute);
+    let state = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+    state = pauseFocus(state, 10 * minute).state;
+    state = startFocus(state, 30 * minute, limit).state;
+    const done = completeFocus(state, 45 * minute);
     expect(done).toEqual({ state: IDLE_FOCUS_LIFECYCLE, event: { type: 'completed', focusedMinutes: 25 } });
   });
 
   it('rounds to the nearest minute', () => {
-    const running = start(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
-    expect(complete(running, 29_999).event).toEqual({ type: 'completed', focusedMinutes: 0 });
-    expect(complete(running, 30_000).event).toEqual({ type: 'completed', focusedMinutes: 1 });
-    expect(complete(running, 24 * minute + 40_000).event).toEqual({ type: 'completed', focusedMinutes: 25 });
+    const running = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+    expect(completeFocus(running, 29_999).event).toEqual({ type: 'completed', focusedMinutes: 0 });
+    expect(completeFocus(running, 30_000).event).toEqual({ type: 'completed', focusedMinutes: 1 });
+    expect(completeFocus(running, 24 * minute + 40_000).event).toEqual({ type: 'completed', focusedMinutes: 25 });
   });
 
   it('never measures negative time when the clock goes backwards', () => {
-    const running = start(IDLE_FOCUS_LIFECYCLE, 10 * minute, limit).state;
-    expect(pause(running, 0).state.accumulatedMs).toBe(0);
-    expect(complete(running, 0).event).toEqual({ type: 'completed', focusedMinutes: 0 });
-    expect(abandon(running, 0).event).toEqual({ type: 'cancelled', focusedMinutes: 0 });
+    const running = startFocus(IDLE_FOCUS_LIFECYCLE, 10 * minute, limit).state;
+    expect(pauseFocus(running, 0).state.accumulatedMs).toBe(0);
+    expect(completeFocus(running, 0).event).toEqual({ type: 'completed', focusedMinutes: 0 });
+    expect(abandonFocus(running, 0).event).toEqual({ type: 'cancelled', focusedMinutes: 0 });
   });
 
   // Com o notebook dormindo ou a janela estrangulada, Date.now() avança e a contagem regressiva não.
   it('caps the measured time at the session length after a long gap while running', () => {
-    const running = start(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
-    expect(complete(running, 480 * minute).event).toEqual({ type: 'completed', focusedMinutes: 25 });
-    expect(abandon(running, 480 * minute).event).toEqual({ type: 'cancelled', focusedMinutes: 25 });
-    expect(pause(running, 480 * minute).state.accumulatedMs).toBe(limit);
+    const running = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+    expect(completeFocus(running, 480 * minute).event).toEqual({ type: 'completed', focusedMinutes: 25 });
+    expect(abandonFocus(running, 480 * minute).event).toEqual({ type: 'cancelled', focusedMinutes: 25 });
+    expect(pauseFocus(running, 480 * minute).state.accumulatedMs).toBe(limit);
   });
 
   it('keeps the cap across a pause and a resume after a gap', () => {
-    let state = start(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
-    state = pause(state, 10 * minute).state;
-    state = start(state, 600 * minute, limit).state;
-    expect(complete(state, 900 * minute).event).toEqual({ type: 'completed', focusedMinutes: 25 });
+    let state = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+    state = pauseFocus(state, 10 * minute).state;
+    state = startFocus(state, 600 * minute, limit).state;
+    expect(completeFocus(state, 900 * minute).event).toEqual({ type: 'completed', focusedMinutes: 25 });
 
-    const gapBeforePause = pause(start(IDLE_FOCUS_LIFECYCLE, 0, limit).state, 300 * minute).state;
-    const resumed = start(gapBeforePause, 301 * minute, limit).state;
-    expect(abandon(resumed, 310 * minute).event).toEqual({ type: 'cancelled', focusedMinutes: 25 });
+    const gapBeforePause = pauseFocus(startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state, 300 * minute).state;
+    const resumed = startFocus(gapBeforePause, 301 * minute, limit).state;
+    expect(abandonFocus(resumed, 310 * minute).event).toEqual({ type: 'cancelled', focusedMinutes: 25 });
   });
 
   it('keeps the limit chosen when the session started when it is resumed', () => {
-    const paused = pause(start(IDLE_FOCUS_LIFECYCLE, 0, limit).state, 5 * minute).state;
-    const resumed = start(paused, 6 * minute, 60 * minute).state;
+    const paused = pauseFocus(startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state, 5 * minute).state;
+    const resumed = startFocus(paused, 6 * minute, 60 * minute).state;
     expect(resumed.limitMs).toBe(limit);
-    expect(complete(resumed, 120 * minute).event).toEqual({ type: 'completed', focusedMinutes: 25 });
+    expect(completeFocus(resumed, 120 * minute).event).toEqual({ type: 'completed', focusedMinutes: 25 });
   });
 
   it('cancels only a started, unfinished session', () => {
-    const running = start(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
-    expect(abandon(running, 7 * minute)).toEqual({ state: IDLE_FOCUS_LIFECYCLE, event: { type: 'cancelled', focusedMinutes: 7 } });
-    const paused = pause(running, 3 * minute).state;
-    expect(abandon(paused, 60 * minute)).toEqual({ state: IDLE_FOCUS_LIFECYCLE, event: { type: 'cancelled', focusedMinutes: 3 } });
-    expect(abandon(IDLE_FOCUS_LIFECYCLE, 60 * minute)).toEqual({ state: IDLE_FOCUS_LIFECYCLE });
+    const running = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+    expect(abandonFocus(running, 7 * minute)).toEqual({ state: IDLE_FOCUS_LIFECYCLE, event: { type: 'cancelled', focusedMinutes: 7 } });
+    const paused = pauseFocus(running, 3 * minute).state;
+    expect(abandonFocus(paused, 60 * minute)).toEqual({ state: IDLE_FOCUS_LIFECYCLE, event: { type: 'cancelled', focusedMinutes: 3 } });
+    expect(abandonFocus(IDLE_FOCUS_LIFECYCLE, 60 * minute)).toEqual({ state: IDLE_FOCUS_LIFECYCLE });
   });
 
   it('does not complete an idle session', () => {
-    expect(complete(IDLE_FOCUS_LIFECYCLE, minute)).toEqual({ state: IDLE_FOCUS_LIFECYCLE });
+    expect(completeFocus(IDLE_FOCUS_LIFECYCLE, minute)).toEqual({ state: IDLE_FOCUS_LIFECYCLE });
   });
 
   it('emits nothing after a completion is replayed', () => {
-    const done = complete(start(IDLE_FOCUS_LIFECYCLE, 0, limit).state, 25 * minute);
-    expect(complete(done.state, 25 * minute).event).toBeUndefined();
-    expect(abandon(done.state, 25 * minute).event).toBeUndefined();
+    const done = completeFocus(startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state, 25 * minute);
+    expect(completeFocus(done.state, 25 * minute).event).toBeUndefined();
+    expect(abandonFocus(done.state, 25 * minute).event).toBeUndefined();
   });
 });
 
@@ -136,13 +136,32 @@ describe('ignoresDurationChoice', () => {
   });
 });
 
+// Corpo de cada updater funcional `setAlgo((valor) => …)`, até o parêntese que fecha a chamada.
+const functionalUpdaters = (text: string) => [...text.matchAll(/set[A-Z]\w*\(\(/g)].map((match) => {
+  const open = match.index + match[0].length - 2;
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '(') depth += 1;
+    if (text[index] === ')' && (depth -= 1) === 0) return text.slice(match.index, index + 1);
+  }
+  return text.slice(match.index);
+});
+
 describe('FocusView lifecycle wiring', () => {
   const source = readFileSync(new URL('../FocusView.tsx', import.meta.url), 'utf8');
 
   it('emits lifecycle events only through the mode-aware step, limited to the selected duration', () => {
     expect(source.match(/onFocusLifecycleRef\.current\?\.\(/g)).toHaveLength(1);
     expect(source).toMatch(/const step = stepFocusLifecycle\(mode, action, lifecycle\.current, Date\.now\(\), duration \* 60_000\);/);
-    expect(source).not.toMatch(/setSeconds\(\(value\) => [^)]*emitLifecycle/);
+  });
+
+  // Updaters precisam ser puros: o StrictMode os chama duas vezes e a sessão viraria dois eventos.
+  it('never emits lifecycle events from inside a state updater', () => {
+    expect(functionalUpdaters("setSeconds((value) => { emitLifecycle('complete'); return Math.max(0, value - 1); })")[0]).toContain('emitLifecycle');
+    const updaters = functionalUpdaters(source);
+    expect(updaters).toContain('setSeconds((value) => Math.max(0, value - 1))');
+    for (const updater of updaters) expect(updater).not.toMatch(/emitLifecycle|onFocusLifecycle/);
+    expect(source.indexOf("emitLifecycle('complete')")).toBeGreaterThan(source.indexOf('if (!running || seconds > 0) return;'));
   });
 
   it('checks the duration choice before abandoning the paused session', () => {

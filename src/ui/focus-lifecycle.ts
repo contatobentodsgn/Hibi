@@ -32,7 +32,7 @@ const measuredMs = (state: FocusLifecycleState, nowMs: number) => {
 const focusedMinutes = (state: FocusLifecycleState, nowMs: number) => Math.max(0, Math.round(measuredMs(state, nowMs) / 60_000));
 const withLimit = (limitMs: number | undefined) => (limitMs !== undefined && Number.isFinite(limitMs) && limitMs >= 0 ? { limitMs } : {});
 
-export function start(state: FocusLifecycleState, nowMs: number, limitMs: number): FocusLifecycleStep {
+export function startFocus(state: FocusLifecycleState, nowMs: number, limitMs: number): FocusLifecycleStep {
   if (state.phase === 'running') return { state };
   const resuming = state.phase === 'paused';
   // A retomada mantém a duração com que a sessão começou.
@@ -42,17 +42,17 @@ export function start(state: FocusLifecycleState, nowMs: number, limitMs: number
   };
 }
 
-export function pause(state: FocusLifecycleState, nowMs: number): FocusLifecycleStep {
+export function pauseFocus(state: FocusLifecycleState, nowMs: number): FocusLifecycleStep {
   if (state.phase !== 'running') return { state };
   return { state: { phase: 'paused', accumulatedMs: measuredMs(state, nowMs), ...withLimit(state.limitMs) }, event: { type: 'paused' } };
 }
 
-export function complete(state: FocusLifecycleState, nowMs: number): FocusLifecycleStep {
+export function completeFocus(state: FocusLifecycleState, nowMs: number): FocusLifecycleStep {
   if (state.phase === 'idle') return { state };
   return { state: IDLE_FOCUS_LIFECYCLE, event: { type: 'completed', focusedMinutes: focusedMinutes(state, nowMs) } };
 }
 
-export function abandon(state: FocusLifecycleState, nowMs: number): FocusLifecycleStep {
+export function abandonFocus(state: FocusLifecycleState, nowMs: number): FocusLifecycleStep {
   if (state.phase === 'idle') return { state };
   return { state: IDLE_FOCUS_LIFECYCLE, event: { type: 'cancelled', focusedMinutes: focusedMinutes(state, nowMs) } };
 }
@@ -61,10 +61,10 @@ export function abandon(state: FocusLifecycleState, nowMs: number): FocusLifecyc
 export function stepFocusLifecycle(mode: 'focus' | 'break', action: FocusLifecycleAction, state: FocusLifecycleState, nowMs: number, limitMs: number): FocusLifecycleStep {
   if (mode === 'break') return { state: IDLE_FOCUS_LIFECYCLE };
   switch (action) {
-    case 'start': return start(state, nowMs, limitMs);
-    case 'pause': return pause(state, nowMs);
-    case 'complete': return complete(state, nowMs);
-    case 'abandon': return abandon(state, nowMs);
+    case 'start': return startFocus(state, nowMs, limitMs);
+    case 'pause': return pauseFocus(state, nowMs);
+    case 'complete': return completeFocus(state, nowMs);
+    case 'abandon': return abandonFocus(state, nowMs);
   }
 }
 

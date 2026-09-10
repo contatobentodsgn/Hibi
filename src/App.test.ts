@@ -55,10 +55,16 @@ describe('activity ledger wiring', () => {
     expect(handler.indexOf(mutation)).toBeLessThan(handler.indexOf(record));
   });
 
-  it('snapshots entities before mutating them', () => {
-    expect(body('changeTaskStatus').indexOf('const before = { ...task };')).toBeLessThan(body('changeTaskStatus').indexOf('repository.updateTask('));
-    expect(body('toggleHabitCompletion').indexOf('repository.getHabit(id)')).toBeLessThan(body('toggleHabitCompletion').indexOf('repository.setHabitCompletion('));
-    expect(body('setGoalProgress').indexOf('repository.getGoal(id)')).toBeLessThan(body('setGoalProgress').indexOf('repository.setGoalProgress('));
+  // O repositório devolve objetos vivos: sem a cópia (e a cópia da lista de datas do hábito), o "antes" mudaria junto.
+  it.each([
+    ['changeTaskStatus', 'const before = { ...task };', 'repository.updateTask('],
+    ['toggleHabitCompletion', 'const before = habit && { ...habit, completedDates: [...habit.completedDates] };', 'repository.setHabitCompletion('],
+    ['setGoalProgress', 'const before = goal && { ...goal };', 'repository.setGoalProgress('],
+  ])('%s copies its entity before mutating it', (name, copy, mutation) => {
+    const handler = body(name);
+    expect(handler).toContain(copy);
+    expect(handler).toContain(mutation);
+    expect(handler.indexOf(copy)).toBeLessThan(handler.indexOf(mutation));
   });
 
   it('records blocks only past validation and the delete confirmation', () => {

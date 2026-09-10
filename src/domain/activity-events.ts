@@ -1,24 +1,23 @@
-import type { ActivityEntityType, ActivityInput } from './activity';
+import { MAX_ACTIVITY_ENTITY_ID_LENGTH, MAX_ACTIVITY_FOLDER_LENGTH, MAX_ACTIVITY_TITLE_LENGTH, type ActivityEntityType, type ActivityInput } from './activity';
 import type { Category, EntityStatus, Goal, Habit, ScheduleBlock, Task } from './models';
 
 export type FocusActivityType = 'started' | 'paused' | 'resumed' | 'completed' | 'cancelled';
 
-const MAX_TEXT_LENGTH = 240;
-const MAX_ENTITY_ID_LENGTH = 128;
 const isMinutes = (value: number | undefined): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
 // O ledger recusa textos longos demais; o snapshot corta em vez de perder o registro inteiro.
+// Um id não pode ser cortado (deixaria de apontar para a entidade), então o longo demais fica de fora.
 function snapshot(entityType: ActivityEntityType, entity: { id: string; title: string }): Pick<ActivityInput, 'entityType' | 'entityId' | 'title'> {
-  const title = entity.title.slice(0, MAX_TEXT_LENGTH);
+  const title = entity.title.slice(0, MAX_ACTIVITY_TITLE_LENGTH);
   return {
     entityType,
-    ...(entity.id.length > 0 && entity.id.length <= MAX_ENTITY_ID_LENGTH ? { entityId: entity.id } : {}),
+    ...(entity.id.length > 0 && entity.id.length <= MAX_ACTIVITY_ENTITY_ID_LENGTH ? { entityId: entity.id } : {}),
     ...(title ? { title } : {}),
   };
 }
 
 function plannedDetails(durationMinutes: number | undefined, category: Category | undefined, folder?: string): Pick<ActivityInput, 'durationMinutes' | 'category' | 'folder'> {
-  const trimmedFolder = folder?.slice(0, MAX_TEXT_LENGTH);
+  const trimmedFolder = folder?.slice(0, MAX_ACTIVITY_FOLDER_LENGTH);
   return {
     ...(isMinutes(durationMinutes) ? { durationMinutes } : {}),
     ...(category ? { category } : {}),

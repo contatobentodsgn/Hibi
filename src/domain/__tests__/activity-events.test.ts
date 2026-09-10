@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createActivityRecord, type ActivityInput } from '../activity';
+import { createActivityRecord, MAX_ACTIVITY_ENTITY_ID_LENGTH, MAX_ACTIVITY_FOLDER_LENGTH, MAX_ACTIVITY_TITLE_LENGTH, type ActivityInput } from '../activity';
 import { blockActivity, focusActivity, goalProgressActivities, habitCompletionActivity, taskStatusActivity } from '../activity-events';
 import type { Goal, Habit, ScheduleBlock, Task } from '../models';
 
@@ -46,8 +46,19 @@ describe('taskStatusActivity', () => {
   });
 
   it('keeps an overlong title inside the ledger limit', () => {
-    const input = accepted(taskStatusActivity({ ...task, title: 'a'.repeat(300) }, 'completed', at));
-    expect(input.title).toHaveLength(240);
+    const input = accepted(taskStatusActivity({ ...task, title: 'a'.repeat(MAX_ACTIVITY_TITLE_LENGTH + 60) }, 'completed', at));
+    expect(input.title).toHaveLength(MAX_ACTIVITY_TITLE_LENGTH);
+  });
+
+  it('keeps an overlong folder inside the ledger limit', () => {
+    const input = accepted(taskStatusActivity({ ...task, folder: 'f'.repeat(MAX_ACTIVITY_FOLDER_LENGTH + 60) }, 'completed', at));
+    expect(input.folder).toHaveLength(MAX_ACTIVITY_FOLDER_LENGTH);
+  });
+
+  it('keeps an entity id at the ledger limit and omits a longer one', () => {
+    const atLimit = 'i'.repeat(MAX_ACTIVITY_ENTITY_ID_LENGTH);
+    expect(accepted(taskStatusActivity({ ...task, id: atLimit }, 'completed', at))).toHaveProperty('entityId', atLimit);
+    expect(accepted(taskStatusActivity({ ...task, id: `${atLimit}i` }, 'completed', at))).not.toHaveProperty('entityId');
   });
 });
 
