@@ -308,16 +308,17 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
                 <Distribution id={`${id}-folders`} title="stats.folders" column="stats.column.folder" entries={report.current.folders} label={(key) => (key === NO_FOLDER ? t('folders.none') : key)} />
               </div>
               <History id={id} records={report.periodRecords} typeFilter={typeFilter} onTypeFilterChange={onTypeFilterChange} />
-              <section className="stats-section" aria-labelledby={`${id}-export`}>
-                <h2 id={`${id}-export`} className="stats-section-title">{t('stats.export')}</h2>
-                <p className="muted">{t('stats.export.detail')}</p>
-                <div className="stats-actions">
-                  <button type="button" className="stats-button" onClick={() => onExport('csv', report.periodRecords)}>{t('stats.export.csv')}</button>
-                  <button type="button" className="stats-button" onClick={() => onExport('json', report.periodRecords)}>{t('stats.export.json')}</button>
-                </div>
-              </section>
             </>
           )}
+          {/* Um período vazio também é exportável: o arquivo sai só com o cabeçalho (CSV) ou `[]` (JSON). */}
+          <section className="stats-section" aria-labelledby={`${id}-export`}>
+            <h2 id={`${id}-export`} className="stats-section-title">{t('stats.export')}</h2>
+            <p className="muted">{t('stats.export.detail')}</p>
+            <div className="stats-actions">
+              <button type="button" className="stats-button" onClick={() => onExport('csv', report.periodRecords)}>{t('stats.export.csv')}</button>
+              <button type="button" className="stats-button" onClick={() => onExport('json', report.periodRecords)}>{t('stats.export.json')}</button>
+            </div>
+          </section>
         </>
       )}
     </div>

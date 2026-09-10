@@ -191,12 +191,15 @@ describe('StatsView', () => {
     expect(empty).toContain('Nenhuma atividade registrada neste período');
     expect(cards(empty)).toHaveLength(4);
     expect(empty).not.toContain('<table');
-    expect(empty).not.toContain('Exportar CSV');
     expect(empty).not.toContain('Histórico parcial');
+    expect(empty).toMatch(/<button[^>]*>Exportar CSV<\/button>/);
+    expect(empty).toMatch(/<button[^>]*>Exportar JSON<\/button>/);
 
     const blank = renderView([]);
     expect(blank).toContain('Nenhuma atividade registrada neste período');
     expect(blank).toContain('Histórico parcial');
+    expect(blank).toMatch(/<button[^>]*>Exportar CSV<\/button>/);
+    expect(blank).toMatch(/<button[^>]*>Exportar JSON<\/button>/);
   });
 });
 
@@ -294,6 +297,15 @@ describe('stats view helpers', () => {
     expect(json.fileName).toBe('hibi-stats-2026-09-10.json');
     expect(json.mimeType).toBe('application/json');
     expect(JSON.parse(json.content)).toEqual([{ at: at(9, 10), type: 'task.completed', title: 'Post' }]);
+  });
+
+  it('exports an empty period as a header-only CSV and an empty JSON list', () => {
+    const csv = buildStatsExport('csv', [], reference);
+    expect(csv.fileName).toBe('hibi-stats-2026-09-10.csv');
+    expect(csv.content).toBe('﻿at,type,entityType,entityId,title,durationMinutes,category,folder,value\r\n');
+    const json = buildStatsExport('json', [], reference);
+    expect(json.fileName).toBe('hibi-stats-2026-09-10.json');
+    expect(json.content).toBe('[]');
   });
 
   it('translates every statistics key in both languages', () => {
