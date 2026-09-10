@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useT } from '../i18n/LocaleProvider';
 import { CompanionAnimation } from './CompanionAnimation';
-import { IDLE_FOCUS_LIFECYCLE, stepFocusLifecycle, type FocusLifecycleAction, type FocusLifecycleEvent } from './focus-lifecycle';
+import { IDLE_FOCUS_LIFECYCLE, ignoresDurationChoice, stepFocusLifecycle, type FocusLifecycleAction, type FocusLifecycleEvent } from './focus-lifecycle';
 
 export type FocusMode = 'focus' | 'break';
 type Props = { onEvent: (action: string, detail: string, result?: string) => void; onFocusStarted?: () => void; onFocusCompleted?: () => void; onFocusLifecycle?: (event: FocusLifecycleEvent) => void; mode?: FocusMode; onModeChange?: (mode: FocusMode) => void };
@@ -21,8 +21,9 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
   const lifecycle = useRef(IDLE_FOCUS_LIFECYCLE);
   const onFocusLifecycleRef = useRef(onFocusLifecycle);
   useEffect(() => { onFocusLifecycleRef.current = onFocusLifecycle; });
+  // A duração escolhida limita o tempo medido: com o notebook dormindo, o relógio de parede corre e a contagem não.
   const emitLifecycle = (action: FocusLifecycleAction) => {
-    const step = stepFocusLifecycle(mode, action, lifecycle.current, Date.now());
+    const step = stepFocusLifecycle(mode, action, lifecycle.current, Date.now(), duration * 60_000);
     lifecycle.current = step.state;
     if (step.event) onFocusLifecycleRef.current?.(step.event);
   };
@@ -44,8 +45,9 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
     if (onBreak) onEvent('break-complete', 'Completed break', 'pass');
     else { emitLifecycle('complete'); onFocusCompleted?.(); onEvent('focus-complete', 'Completed focus session', 'pass'); }
   }, [running, seconds, duration, onBreak, onEvent, onFocusCompleted]);
-  // Escolher a duração com a sessão pausada zera o relógio: a sessão anterior foi abandonada.
-  const chooseDuration = (minutes: number) => { if (running) return; emitLifecycle('abandon'); setDuration(minutes); setSeconds(minutes * 60); onEvent(onBreak ? 'break-duration' : 'focus-duration', `${minutes} minute ${onBreak ? 'break' : 'session'}`, 'pass'); };
+  // Escolher outra duração com a sessão pausada zera o relógio: a sessão anterior foi abandonada.
+  // A mesma duração não muda nada, para um clique no botão já ativo não descartar a sessão.
+  const chooseDuration = (minutes: number) => { if (ignoresDurationChoice({ running, paused: lifecycle.current.phase === 'paused' || seconds < duration * 60, selectedMinutes: duration, nextMinutes: minutes })) return; emitLifecycle('abandon'); setDuration(minutes); setSeconds(minutes * 60); onEvent(onBreak ? 'break-duration' : 'focus-duration', `${minutes} minute ${onBreak ? 'break' : 'session'}`, 'pass'); };
   const toggle = () => {
     const starting = !running;
     setRunning(starting);
