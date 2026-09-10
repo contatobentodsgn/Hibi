@@ -11,12 +11,16 @@ function createNotchTest({ manager, setTimer = setTimeout, clearTimer = clearTim
   let sequence = 0;
   let pending = null;
   const wait = (ms) => new Promise((resolve) => { setTimer(resolve, ms); });
-  const awaitAnswer = (requestId) => new Promise((resolve) => {
+  const awaitAnswer = (requestId) => new Promise((resolve, reject) => {
     const timer = setTimer(() => {
       if (pending?.requestId !== requestId) return;
       pending = null;
-      // `hide` recusa um id que já não é o ativo: outra apresentação tomou o lugar.
-      resolve(manager.hide(requestId) ? 'timeout' : 'interrupted');
+      try {
+        // `hide` recusa um id que já não é o ativo: outra apresentação tomou o lugar.
+        resolve(manager.hide(requestId) ? 'timeout' : 'interrupted');
+      } catch (error) {
+        reject(error);
+      }
     }, answerMs);
     pending = { requestId, resolve, timer };
   });
@@ -37,7 +41,7 @@ function createNotchTest({ manager, setTimer = setTimeout, clearTimer = clearTim
     if (running || manager.activeInteractive) return empty('busy');
     running = true;
     try {
-      const texts = TEXTS[locale] ?? TEXTS.pt;
+      const texts = Object.hasOwn(TEXTS, locale) ? TEXTS[locale] : TEXTS.pt;
       const described = manager.describeDisplays();
       const target = described.displays.find((display) => display.id === described.resolvedDisplayId);
       const result = (outcome) => ({ outcome, displayId: target?.id ?? null, displayLabel: target?.label ?? '' });
@@ -51,8 +55,7 @@ function createNotchTest({ manager, setTimer = setTimeout, clearTimer = clearTim
       manager.show({ requestId: confirmId, kind: 'confirmation', text: texts.question, actions: [{ id: 'confirm', label: texts.confirm }, { id: 'cancel', label: texts.cancel }], interaction: 'capture' });
       return result(await answer);
     } catch {
-      // Se `show` falhar depois do `awaitAnswer` já ter registrado o timer, ele precisa ser cancelado aqui,
-      // senão dispara mais tarde e tenta resolver uma promessa que ninguém mais aguarda.
+      // `pending = null` e o guard de id já tornam esse timer um no-op; limpar só evita disparo à toa.
       if (pending) clearTimer(pending.timer);
       pending = null;
       return empty('failed');

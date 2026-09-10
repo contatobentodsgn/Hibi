@@ -158,3 +158,37 @@ test('handleAction só assume as ações do teste', async () => {
   assert.equal(notchTest.handleAction({ requestId: 'notch-test-confirm-7', actionId: 'confirm' }), true);
   assert.equal(notchTest.handleAction(null), false);
 });
+
+test('uma falha do gerenciador no timer de resposta devolve failed e libera um novo teste', async () => {
+  const timers = fakeTimers();
+  const manager = fakeManager();
+  const originalHide = manager.hide.bind(manager);
+  manager.hide = (requestId) => {
+    if (requestId.startsWith('notch-test-confirm-')) {
+      originalHide(requestId); // o notch já é derrubado; a falha ocorre depois (ex.: round-trip de IPC)
+      throw new Error('falha ao esconder a confirmação');
+    }
+    return originalHide(requestId);
+  };
+  const notchTest = createNotchTest({ manager, setTimer: timers.setTimer, clearTimer: timers.clearTimer });
+
+  const running = notchTest.run('pt');
+  await flush();
+  timers.fire(0);
+  await flush();
+  try { timers.fire(1); } catch { /* código antigo lança aqui */ }
+
+  const outcome = await Promise.race([running, flush().then(() => 'still-pending')]);
+  assert.deepEqual(outcome, { outcome: 'failed', displayId: null, displayLabel: '' });
+
+  void notchTest.run('pt');
+  await flush();
+  assert.equal(manager.shown[manager.shown.length - 1].requestId, 'notch-test-passive-2');
+});
+
+test('locale vindo do IPC não deve ler chaves do protótipo', async () => {
+  const { manager, notchTest } = setup();
+  void notchTest.run('constructor');
+  await flush();
+  assert.equal(manager.shown[0].text, 'Teste do notch');
+});
