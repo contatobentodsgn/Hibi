@@ -66,6 +66,7 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
 @property(nonatomic) CGFloat topInset;
 - (void)setPresentationMessage:(NSString *)message requestId:(NSString *)requestId actions:(NSArray<NSDictionary<NSString *, NSString *> *> *)actions;
 - (void)focusFirstAction;
+- (void)applyTopInset:(CGFloat)topInset;
 @end
 
 @implementation HibiNotchContentView
@@ -74,12 +75,17 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
   if (self) {
     self.wantsLayer = YES;
     self.layer.cornerRadius = 30.0;
+    self.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner | kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner;
     self.layer.masksToBounds = YES;
     self.layer.backgroundColor = NSColor.blackColor.CGColor;
     self.message = @"Hibi";
     self.actions = @[];
   }
   return self;
+}
+- (void)applyTopInset:(CGFloat)topInset {
+  // Com câmera, o topo fica colado na borda da tela: arredonda só embaixo (layer não invertida, MinY = baixo).
+  self.layer.maskedCorners = topInset > 0.0 ? (kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner) : (kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner | kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner);
 }
 - (void)setPresentationMessage:(NSString *)message requestId:(NSString *)requestId actions:(NSArray<NSDictionary<NSString *, NSString *> *> *)actions {
   self.message = message.length > 0 ? message : @"Hibi";
@@ -128,9 +134,11 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
   // A faixa coberta pela câmera fica no topo (view não invertida); o texto só usa o que sobra.
   CGFloat usable = self.bounds.size.height - self.topInset;
   if (passive) {
-    CGFloat lineHeight = ceil([self.message sizeWithAttributes:attributes].height);
+    // Mede uma linha de referência: self.message pode ter \n e "contar" como várias linhas, jogando y para negativo.
+    CGFloat lineHeight = ceil([@"Hg" sizeWithAttributes:attributes].height);
     CGFloat y = floor((usable - lineHeight) / 2.0);
-    [self.message drawInRect:NSMakeRect(16.0, y, self.bounds.size.width - 32.0, lineHeight) withAttributes:attributes];
+    NSString *singleLine = [self.message stringByReplacingOccurrencesOfString:@"\n" withString:@" "];
+    [singleLine drawInRect:NSMakeRect(16.0, y, self.bounds.size.width - 32.0, lineHeight) withAttributes:attributes];
     return;
   }
   CGFloat bottom = 66.0;
@@ -190,6 +198,7 @@ BOOL PositionHost(uint64_t displayId) {
   [gPanel setFrame:frame display:YES animate:NO];
   HibiNotchContentView *view = HostContentView();
   view.topInset = inset;
+  [view applyTopInset:inset];
   [view setNeedsDisplay:YES];
   gDisplayId = @(displayId);
   return YES;

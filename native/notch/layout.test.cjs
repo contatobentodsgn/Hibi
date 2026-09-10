@@ -43,3 +43,11 @@ test('desloca o painel para baixo da câmera e centraliza o texto passivo sem co
   assert.match(source, /NSLineBreakByTruncatingTail/);
   assert.doesNotMatch(source, /self\.bounds\.size\.height - bottom - 14\.0/);
 });
+
+test('arredonda só os cantos de baixo sob a câmera e mede a linha passiva num texto de referência', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'src/notch.mm'), 'utf8');
+
+  assert.match(source, /layer\.maskedCorners = kCALayerMinXMinYCorner \| kCALayerMaxXMinYCorner/);
+  assert.match(source, /@"Hg" sizeWithAttributes:attributes\]\.height/);
+  assert.doesNotMatch(source, /CGFloat lineHeight = ceil\(\[self\.message sizeWithAttributes:attributes\]\.height\)/);
+});
