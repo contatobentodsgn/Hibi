@@ -56,4 +56,78 @@ describe('AI turn runtime', () => {
     let release!: () => void; const delayed: AiProvider = { id: 'delay', label: 'Delayed', generate: () => new Promise((resolve) => { release = () => resolve({ reply: 'late', toolCalls: [], notchPresentation: null }); }) }; const runtime = setup(delayed);
     const pending = runtime.runTurn({ message: 'Wait', surface: 'desktop' }); runtime.cancel(); release(); await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
   });
+  it('returns actual provider, model, usage, and fallback provenance', async () => {
+    const runtime = setup(provider({ reply: 'Agenda', toolCalls: [], notchPresentation: null, providerMetadata: { requestId: 'provider-7', model: 'reported-model', usage: { inputTokens: 12, outputTokens: 5, totalTokens: 17 } } }, 'Remote provider'));
+
+    const result = await runtime.runTurn({ message: 'What is on my schedule?', surface: 'desktop' });
+
+    expect(result.provider).toEqual({ id: 'fake', label: 'Remote provider', requestId: 'provider-7', model: 'reported-model', usage: { inputTokens: 12, outputTokens: 5, totalTokens: 17 }, fallback: false });
+    expect(result.providerLabel).toBe('Remote provider');
+  });
+  it('forwards provider progress through a request-scoped live event channel', async () => {
+    const events: unknown[] = [];
+    const streaming: AiProvider = {
+      id: 'remote', label: 'Remote provider',
+      generate: async (request) => {
+        request.onStreamEvent?.({ type: 'started', requestId: 'provider-4', provider: 'Remote provider', model: 'gpt-test' });
+        request.onStreamEvent?.({ type: 'delta', delta: 'Hello' });
+        request.onStreamEvent?.({ type: 'usage', usage: { inputTokens: 2, outputTokens: 1, totalTokens: 3 } });
+        request.onStreamEvent?.({ type: 'completed' });
+        return { reply: 'Hello', toolCalls: [], notchPresentation: null, providerMetadata: { model: 'gpt-test' } };
+      },
+    };
+    const registry = new ToolRegistry();
+    const runtime = new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), context: {}, provider: streaming, onStreamEvent: (event) => events.push(event) });
+
+    await runtime.runTurn({ message: 'Hello', surface: 'desktop' });
+
+    expect(events).toEqual([
+      { requestId: 'ai-1', event: { type: 'started', requestId: 'provider-4', provider: 'Remote provider', model: 'gpt-test' } },
+      { requestId: 'ai-1', event: { type: 'delta', delta: 'Hello' } },
+      { requestId: 'ai-1', event: { type: 'usage', usage: { inputTokens: 2, outputTokens: 1, totalTokens: 3 } } },
+      { requestId: 'ai-1', event: { type: 'completed' } },
+    ]);
+  });
+  it('uses the local fallback only automatically for a safe temporary provider failure', async () => {
+    const unavailable = Object.assign(new Error('safe unavailable'), { failure: { code: 'unavailable', retryable: true } });
+    const remote: AiProvider = { id: 'remote', label: 'Remote provider', generate: vi.fn().mockRejectedValue(unavailable) };
+    const local = provider({ reply: 'Local agenda', toolCalls: [], notchPresentation: null, providerMetadata: { model: 'local-model' } }, 'Local provider');
+    const registry = new ToolRegistry();
+    const runtime = new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), context: {}, provider: remote, fallbackProvider: local, fallbackPolicy: 'automatic' });
+
+    const result = await runtime.runTurn({ message: 'Plan today', surface: 'desktop' });
+
+    expect(local.generate).toHaveBeenCalledOnce();
+    expect(result.provider).toMatchObject({ id: 'fake', label: 'Local provider', model: 'local-model', fallback: true });
+  });
+  it('uses the local provider directly only after an explicit fallback request', async () => {
+    const remote = provider({ reply: 'Remote response', toolCalls: [], notchPresentation: null }, 'Remote provider');
+    const local = provider({ reply: 'Local response', toolCalls: [], notchPresentation: null, providerMetadata: { model: 'local-model' } }, 'Local provider');
+    const registry = new ToolRegistry();
+    const runtime = new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), context: {}, provider: remote, fallbackProvider: local, fallbackPolicy: 'never' });
+
+    const result = await runtime.runTurn({ message: 'Plan today', surface: 'desktop', useLocalFallback: true });
+
+    expect(remote.generate).not.toHaveBeenCalled();
+    expect(local.generate).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ reply: 'Local response', provider: { label: 'Local provider', model: 'local-model', fallback: true } });
+  });
+  it('does not invoke fallback for non-retryable failures, cancellation, or a non-automatic policy', async () => {
+    const cases = [
+      { policy: 'ask', error: Object.assign(new Error('credentials'), { failure: { code: 'invalid_credentials', retryable: false } }) },
+      { policy: 'never', error: Object.assign(new Error('unavailable'), { failure: { code: 'unavailable', retryable: true } }) },
+      { policy: 'automatic', error: Object.assign(new Error('invalid response'), { failure: { code: 'invalid_response', retryable: false } }) },
+      { policy: 'automatic', error: Object.assign(new Error('not retryable'), { failure: { code: 'unavailable', retryable: false } }) },
+      { policy: 'automatic', error: Object.assign(new Error('cancelled'), { name: 'AbortError', failure: { code: 'cancelled', retryable: false } }) },
+    ] as const;
+    for (const { policy, error } of cases) {
+      const remote: AiProvider = { id: 'remote', label: 'Remote provider', generate: vi.fn().mockRejectedValue(error) };
+      const local = provider({ reply: 'Must not run', toolCalls: [], notchPresentation: null }, 'Local provider');
+      const registry = new ToolRegistry();
+      const runtime = new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), context: {}, provider: remote, fallbackProvider: local, fallbackPolicy: policy });
+
+      await expect(runtime.runTurn({ message: 'Plan today', surface: 'desktop' })).rejects.toThrow(error.message);
+      expect(local.generate).not.toHaveBeenCalled();
+    }
+  });
 });

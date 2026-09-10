@@ -29,11 +29,24 @@ import { ReminderCreateModal, type NewReminderForm } from './ui/ReminderCreateMo
 import { DeadlineEditModal } from './ui/DeadlineEditModal';
 import { createLocalHibiRuntime, LocalToolProvider } from './ai/local-runtime';
 import { ElectronConfiguredProvider } from './ai/electron-provider';
+import { HeuristicAiProvider } from './ai/heuristic-provider';
 import { CompanionController } from './companion/controller';
 import type { CompanionEvent } from './companion/contracts';
-import { appendAiAuditEvent, loadAiAuditHistory, type AiAuditEvent } from './ai/history';
+import { appendAiAuditEvent, appendAiUsageRecord, loadAiAuditHistory, loadAiUsageLedger, type AiAuditEvent, type AiUsageRecord } from './ai/history';
+import type { AiFallbackPolicy } from './ai/contracts';
+import { applyImportDecision, type ImportCandidate, type ImportDecision } from './integrations/imports';
+import { localApiTaskMutation, type LocalApiIntent } from './integrations/local-api-intents';
+import { applyNotionMutations, type NotionLocalMutation } from './integrations/notion-apply';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
+const AI_FALLBACK_POLICY_STORAGE_KEY = 'hibi-ai-fallback-policy';
+const AI_USAGE_LEDGER_STORAGE_KEY = 'hibi-ai-usage-ledger';
+const readAiFallbackPolicy = (): AiFallbackPolicy => {
+  try { const saved = window.localStorage.getItem(AI_FALLBACK_POLICY_STORAGE_KEY); return saved === 'ask' || saved === 'automatic' || saved === 'never' ? saved : 'automatic'; } catch { return 'automatic'; }
+};
+const readAiUsageLedger = (): AiUsageRecord[] => {
+  try { return loadAiUsageLedger(window.localStorage.getItem(AI_USAGE_LEDGER_STORAGE_KEY)); } catch { return []; }
+};
 
 const initialEvents: EventRecord[] = [
   { id: 1, at: '09:02:14', route: 'week', action: 'navigation', detail: 'Opened weekly schedule' },
@@ -53,12 +66,17 @@ export default function App() {
   const dispatchCompanion = (event: CompanionEvent) => companionController.current!.dispatch(event);
   const companionId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
   const [aiHistory, setAiHistory] = useState<AiAuditEvent[]>(() => loadAiAuditHistory(window.localStorage.getItem('hibi-ai-history')));
-  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskCompleted: (title: string) => dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${title}`, nowMs: Date.now(), expiresInMs: 3_000 }), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); }, onAudit: (event: AiAuditEvent) => setAiHistory((current) => appendAiAuditEvent(current, event)) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider(repository))); });
+  const [aiUsage, setAiUsage] = useState<AiUsageRecord[]>(readAiUsageLedger);
+  const [aiFallbackPolicy, setAiFallbackPolicy] = useState<AiFallbackPolicy>(readAiFallbackPolicy);
+  const aiFallbackPolicyRef = useRef(aiFallbackPolicy);
+  const updateAiFallbackPolicy = (policy: AiFallbackPolicy) => { aiFallbackPolicyRef.current = policy; setAiFallbackPolicy(policy); try { window.localStorage.setItem(AI_FALLBACK_POLICY_STORAGE_KEY, policy); } catch { /* unavailable storage */ } };
+  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskCompleted: (title: string) => dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${title}`, nowMs: Date.now(), expiresInMs: 3_000 }), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); }, onAudit: (event: AiAuditEvent) => setAiHistory((current) => appendAiAuditEvent(current, event)), onUsage: (event: { at: string; provider: string; model: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number }; outcome: 'completed'; fallback: boolean }) => setAiUsage((current) => appendAiUsageRecord(current, event)), ...(window.hibiDesktop?.prepareIntegrationAction && window.hibiDesktop?.executeApprovedIntegrationAction ? { integrations: { prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => window.hibiDesktop!.prepareIntegrationAction!(input), executeApproved: (input: { actionId: string; confirmationId: string }) => window.hibiDesktop!.executeApprovedIntegrationAction!(input) as Promise<{ ok: boolean; remoteId?: string }> } } : {}) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider(repository)), new HeuristicAiProvider(), () => aiFallbackPolicyRef.current); });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
   const [deadlineEditTaskId, setDeadlineEditTaskId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState('');
+  const [pendingLocalApiIntent, setPendingLocalApiIntent] = useState<LocalApiIntent | null>(null);
   const [events, setEvents] = useState<EventRecord[]>(() => { try { const saved = window.localStorage.getItem('hibi-events'); return saved ? JSON.parse(saved) as EventRecord[] : initialEvents; } catch { return initialEvents; } });
   const clearEvents = () => setEvents([]);
   const clearAiHistory = () => setAiHistory([]);
@@ -151,6 +169,30 @@ export default function App() {
     refreshData();
     log('import', `Restored ${restored.tasks.length} tasks, ${restored.blocks.length} calendar blocks`, `${preferences.language} · ${preferences.twentyFourHour ? '24h' : '12h'}`);
   };
+  const applyImportedTask = (candidate: ImportCandidate, decision: ImportDecision, localId?: string, connectorId = 'file-import') => {
+    const local = localId ? data.tasks.find((task) => task.id === localId) : undefined;
+    const mutation = applyImportDecision(local, candidate, decision, connectorId);
+    if (mutation.type === 'update') repository.updateTask(mutation.localId, { title: mutation.title, remoteRef: mutation.remoteRef });
+    if (mutation.type === 'create') repository.createTask({ title: mutation.title, durationMinutes: 60, category: 'work', folder: 'Bento', status: 'open', remoteRef: mutation.remoteRef });
+    if (mutation.type !== 'none') refreshData();
+    log('import', `${connectorId} · ${decision}: ${candidate.title}`, mutation.type);
+  };
+  const applyNotionSync = (mutations: readonly NotionLocalMutation[]) => {
+    const tasks = applyNotionMutations(repository, mutations);
+    refreshData();
+    log('notion-sync', `${mutations.length} local changes`, 'applied');
+    return tasks;
+  };
+  const resolveLocalApiIntent = async (approved: boolean) => {
+    const intent = pendingLocalApiIntent;
+    if (!intent) return;
+    setPendingLocalApiIntent(null);
+    if (approved) {
+      const mutation = localApiTaskMutation(intent);
+      if (mutation) { repository.createTask(mutation); refreshData(); log('local-api', mutation.title, 'approved'); }
+    }
+    await window.hibiDesktop?.resolveLocalApiWrite?.({ confirmationId: intent.confirmationId, approved });
+  };
 
   const testNativeNotification = async () => {
     const shown = await window.hibiDesktop?.showTestNotification?.();
@@ -159,7 +201,9 @@ export default function App() {
 
   React.useEffect(() => { window.localStorage.setItem('hibi-study-data', repository.exportJson()); }, [repository, data]);
   React.useEffect(() => { window.localStorage.setItem('hibi-events', JSON.stringify(events)); }, [events]);
-  React.useEffect(() => { window.localStorage.setItem('hibi-ai-history', JSON.stringify(loadAiAuditHistory(JSON.stringify(aiHistory)))); }, [aiHistory]);
+  React.useEffect(() => { try { window.localStorage.setItem('hibi-ai-history', JSON.stringify(loadAiAuditHistory(JSON.stringify(aiHistory)))); } catch { /* unavailable storage */ } }, [aiHistory]);
+  React.useEffect(() => { try { window.localStorage.setItem(AI_USAGE_LEDGER_STORAGE_KEY, JSON.stringify(loadAiUsageLedger(JSON.stringify(aiUsage)))); } catch { /* unavailable storage */ } }, [aiUsage]);
+  React.useEffect(() => { void window.hibiDesktop?.syncLocalApiWorkspace?.({ tasks: data.tasks, reminders: data.reminders, blocks: data.blocks }); }, [data]);
   React.useEffect(() => {
     const syncNotifications = window.hibiDesktop?.syncNotifications;
     if (syncNotifications) void syncNotifications(buildNotificationEntries(data)).catch(() => undefined);
@@ -167,6 +211,8 @@ export default function App() {
   React.useEffect(() => window.hibiDesktop?.onNotificationTriggered?.((entry) => {
     dispatchCompanion({ type: 'reminder.triggered', requestId: companionId('reminder'), text: entry.title, nowMs: Date.now(), expiresInMs: 7_000, animationId: entry.kind === 'deadline' ? 'warning_01' : undefined });
   }) ?? (() => undefined), []);
+  React.useEffect(() => window.hibiDesktop?.onLocalApiConfirmation?.((intent) => { setPendingLocalApiIntent(intent); dispatchCompanion({ type: 'confirmation.requested', requestId: intent.confirmationId, text: `A API local quer criar: ${typeof intent.payload.title === 'string' ? intent.payload.title : 'uma tarefa'}`, nowMs: Date.now(), expiresInMs: 60_000, actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] }); }) ?? (() => undefined), []);
+  React.useEffect(() => window.hibiDesktop?.onCompanionAction?.((action) => { if (action.requestId === pendingLocalApiIntent?.confirmationId) void resolveLocalApiIntent(action.actionId === 'confirm'); }) ?? (() => undefined), [pendingLocalApiIntent]);
   React.useEffect(() => {
     const interval = window.setInterval(() => dispatchCompanion({ type: 'time.elapsed', nowMs: Date.now() }), 1_000);
     return () => window.clearInterval(interval);
@@ -202,17 +248,18 @@ export default function App() {
       case 'day': return <DayView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;
       case 'week': return <WeekView {...props} data={data} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} />;
       case 'focus': return <FocusView {...props} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
-      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} />;
+      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} />;
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} onClearAiHistory={clearAiHistory} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;
       default: return <HomeView {...props} data={data} onOpenCommands={() => setPaletteOpen(true)} />;
     }
-  }, [route, events, aiHistory, data]);
+  }, [route, events, aiHistory, aiFallbackPolicy, data]);
 
   return (
     <AppShell active={route} taskCount={data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused').length} reminderCount={data.reminders.filter((reminder) => reminder.status !== 'paused').length} habitCount={data.habits.filter((habit) => habit.status !== 'completed' && habit.status !== 'paused').length} goalCount={data.goals.filter((goal) => goal.status !== 'completed' && goal.status !== 'paused').length} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
       {validationError && <div role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '0 0 16px', padding: '13px 16px', border: '1px solid #e2a992', borderRadius: 12, background: '#fff0eb', color: '#984418' }}><span aria-hidden="true" style={{ fontWeight: 900 }}>!</span><div style={{ flex: 1, whiteSpace: 'pre-line' }}>{validationError}</div><button type="button" className="outline" onClick={() => setValidationError('')} aria-label="Dismiss validation error" style={{ padding: '7px 10px' }}>Dismiss</button></div>}
+      {pendingLocalApiIntent && <div role="alert" className="notice" style={{ marginBottom: 16 }}><div><strong>Confirmação da API local</strong><p>Deseja criar “{typeof pendingLocalApiIntent.payload.title === 'string' ? pendingLocalApiIntent.payload.title : 'esta tarefa'}”?</p></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={() => void resolveLocalApiIntent(true)}>Confirmar</button><button className="outline" onClick={() => void resolveLocalApiIntent(false)}>Cancelar</button></div></div>}
       <div onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } if (route === 'reminders' && button?.textContent?.trim() === '+ New reminder') { event.preventDefault(); event.stopPropagation(); setReminderCreateOpen(true); } }}>{content}</div>
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} onNavigate={(next) => { setPaletteOpen(false); navigate(next, 'command'); }} onEvent={log} />}
       {taskCreateOpen && <TaskCreateModal onClose={() => setTaskCreateOpen(false)} onSubmit={createTask} />}

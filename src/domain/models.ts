@@ -19,6 +19,8 @@ export interface Task {
   status?: EntityStatus;
   folder?: string;
   deadline?: string;
+  updatedAt?: string;
+  remoteRef?: { connectorId: string; remoteId: string; revision?: string };
 }
 
 export interface Reminder {

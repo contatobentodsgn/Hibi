@@ -1,5 +1,7 @@
 import type { NotificationEntry } from './domain/notifications';
-import type { AiProviderRequest } from './ai/contracts';
+import type { ImportCandidate } from './integrations/imports';
+import type { AiNormalizedUsage, AiProviderRequest, AiProviderStreamEvent } from './ai/contracts';
+import type { ConnectorSettings, IntegrationAuditEvent, IntegrationAuthorization, IntegrationExecutionResult, IntegrationImportTarget, IntegrationStatus, NotionDataSourceDiscovery, PreparedIntegrationAction } from './integrations/contracts';
 
 declare global {
   interface Window {
@@ -9,18 +11,46 @@ declare global {
       setOpenAtLogin?: (enabled: boolean) => Promise<boolean>;
       syncNotifications?: (entries: NotificationEntry[]) => Promise<void>;
       showTestNotification?: () => Promise<boolean>;
-      runAiTurn?: (turn: { request: AiProviderRequest }) => Promise<{ content: string; providerLabel: string; model: string }>;
-      cancelAiTurn?: () => Promise<boolean>;
+      runAiTurn?: (turn: { request: AiProviderRequest; correlationId: string }) => Promise<{ content: string; providerLabel: string; model: string; requestId?: string; correlationId?: string; usage?: AiNormalizedUsage }>;
+      cancelAiTurn?: (request: { correlationId: string; requestId?: string }) => Promise<boolean>;
+      onAiStreamEvent?: (callback: (event: AiProviderStreamEvent & { requestId: string; correlationId: string }) => void) => () => void;
       getAiConfig?: () => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
       saveAiConfig?: (config: { provider: 'local' | 'openai-compatible'; endpoint: string; model: string; apiKey?: string }) => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
       deleteAiKey?: () => Promise<{ provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean }>;
+      listIntegrationStatus?: () => Promise<readonly IntegrationStatus[]>;
+      connectIntegration?: (connectorId: string, credential: string) => Promise<IntegrationStatus>;
+      listIntegrationAudit?: () => Promise<readonly IntegrationAuditEvent[]>;
+      revokeIntegration?: (connectorId: string) => Promise<IntegrationStatus>;
+      prepareIntegrationAction?: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => Promise<PreparedIntegrationAction>;
+      executeApprovedIntegrationAction?: (input: { actionId: string; confirmationId: string }) => Promise<IntegrationExecutionResult>;
+      syncLocalApiWorkspace?: (workspace: { tasks: readonly unknown[]; reminders: readonly unknown[]; blocks: readonly unknown[] }) => Promise<void>;
+      startLocalApi?: () => Promise<{ origin: string }>;
+      stopLocalApi?: () => Promise<{ running: false }>;
+      getLocalApiStatus?: () => Promise<{ running: boolean }>;
+      testIntegrationConnection?: (connectorId: string) => Promise<{ ok: boolean; detail: string }>;
+      listIntegrationImportTargets?: (connectorId: string) => Promise<readonly IntegrationImportTarget[]>;
+      listIntegrationImportCandidates?: (connectorId: string) => Promise<readonly ImportCandidate[]>;
+      discoverNotionDataSource?: (databaseId: string) => Promise<NotionDataSourceDiscovery>;
+      getConnectorSettings?: (connectorId: string) => Promise<ConnectorSettings>;
+      saveConnectorSettings?: (connectorId: string, patch: Partial<ConnectorSettings>) => Promise<ConnectorSettings>;
+      isOauthSupported?: (connectorId: string) => Promise<boolean>;
+      authorizeIntegration?: (connectorId: string) => Promise<IntegrationAuthorization>;
+      refreshIntegrationAuthorization?: (connectorId: string) => Promise<IntegrationAuthorization>;
+      cancelIntegrationAuthorization?: () => Promise<void>;
+      configureWebhook?: (secret: string) => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
+      startWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
+      stopWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
+      getWebhookStatus?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
+      resolveLocalApiWrite?: (input: { confirmationId: string; approved: boolean }) => Promise<{ resolved: boolean; approved?: boolean }>;
       showNotch?: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly unknown[]; interaction: 'passthrough' | 'capture' }) => Promise<{ degraded: boolean; requestId: string; host?: 'native' | 'electron' }>;
       hideNotch?: (requestId: string) => Promise<boolean>;
       resolveNotchAction?: (requestId: string, actionId: 'confirm' | 'cancel') => Promise<boolean>;
+      getNotchPresentation?: () => Promise<{ requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' } | null>;
       getNotchCapabilities?: () => Promise<{ adapter: 'public' | 'experimental'; experimental: boolean; reason: string | null; bridgeLoaded: boolean; nativePromotion: boolean; nativeHost: boolean; screens: readonly { index: number; displayId?: number; frame: { x: number; y: number; width: number; height: number }; safeAreaTop: number; hasCameraHousing: boolean }[]; host: { available: boolean; created?: boolean; visible?: boolean; interactive?: boolean; displayId?: number; host?: 'native' | 'electron' } }>;
       onCompanionPresentation?: (callback: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' }) => void) => () => void;
       onCompanionAction?: (callback: (action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void) => () => void;
       onNotificationTriggered?: (callback: (entry: NotificationEntry) => void) => () => void;
+      onLocalApiConfirmation?: (callback: (intent: { confirmationId: string; kind: string; payload: Record<string, unknown> }) => void) => () => void;
     };
   }
 }

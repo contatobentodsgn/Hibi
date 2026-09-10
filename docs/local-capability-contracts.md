@@ -52,3 +52,18 @@ This is the reconstructed contract surface for the Hibi study replica. It descri
 ## Non-contracts
 
 The current source does not establish contracts for cloud persistence, authentication, account sync, external calendar APIs, remote notifications, external AI, microphone/camera capture, notch hardware control, or executing extracted native/runtime assets. Treat UI labels or historical parity notes about those areas as availability statements, not implemented interfaces ([parity-audit.md](./parity-audit.md), [hey-taby-replica-design.md](./hey-taby-replica-design.md)). The weekly calendar does provide local ICS import/export through browser file/blob APIs; it is not external calendar synchronization.
+# AI and integration production boundary
+
+Configured AI requests stream through the Electron main process. Provider
+credentials remain in macOS Keychain; the renderer receives only safe provider,
+model, usage, retry, cancellation and failure metadata. The assistant can stop
+an in-flight request, retry a temporary failure, or explicitly use the local
+fallback. Tool proposals continue to require Hibi confirmation before mutation.
+
+External integrations are optional. Notion, Slack, email and remote-notification
+connectors store manually supplied access tokens only in Keychain. Every remote
+write is prepared, validated by its connector, assigned a one-time confirmation
+token, and then executed only by the main process. Import candidates are limited
+to metadata needed for review. Webhooks require signed, fresh, non-replayed
+payloads. The local API binds only to loopback and turns writes into confirmation
+intents.

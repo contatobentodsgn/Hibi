@@ -15,7 +15,7 @@ Module._load = function (request, parent, isMain) {
   if (request === "./notifications.cjs") return { createNotificationScheduler() { return { clear() {} }; } };
   return originalLoad.call(this, request, parent, isMain);
 };
-const { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery } = require("./main.cjs");
+const { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent } = require("./main.cjs");
 Module._load = originalLoad;
 
 test("allows only local development and packaged file navigation", () => {
@@ -35,6 +35,16 @@ test('allows only bounded confirmation action payloads', () => {
   assert.equal(isValidNotchAction('', 'confirm'), false);
   assert.equal(isValidNotchAction('x'.repeat(129), 'confirm'), false);
   assert.equal(isValidNotchAction('confirm-1', 'delete'), false);
+});
+
+test('forwards only bounded correlation and ownership ids on safe AI stream events', () => {
+  assert.deepEqual(
+    safeAiStreamEvent({ type: 'delta', correlationId: 'renderer-correlation', requestId: 'main-request', delta: 'safe', apiKey: 'secret-value' }),
+    { type: 'delta', correlationId: 'renderer-correlation', requestId: 'main-request', delta: 'safe' },
+  );
+  assert.equal(safeAiStreamEvent({ type: 'started', requestId: 'main-request' }), null);
+  assert.equal(safeAiStreamEvent({ type: 'started', correlationId: 'invalid correlation', requestId: 'main-request' }), null);
+  assert.equal(safeAiStreamEvent({ type: 'started', correlationId: 'x'.repeat(129), requestId: 'main-request' }), null);
 });
 
 test('reports the active native host through the narrow capabilities payload', () => {
