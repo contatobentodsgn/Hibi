@@ -179,3 +179,25 @@ test('recusa importar de um conector sem capacidade de importação', async () =
   const manager = createIntegrationManager({ keychain: store, connectors: [{ id: 'fixture', label: 'Fixture', allowedHosts: ['fixture.example.test'], capabilities: ['notify'] }] });
   await assert.rejects(manager.listImportCandidates('fixture', { targets: [{ id: 'x' }] }), /does not support importing/);
 });
+
+test('devolve resultados sanitizados por item em uma sincronização parcialmente concluída', async () => {
+  const store = keychain();
+  await store.set('integration:fixture', 'token');
+  const batchConnector = {
+    ...connector,
+    prepareWrite: ({ kind, payload }) => ({ kind, payload }),
+    executeApproved: async () => ({ ok: false, items: [
+      { key: 'task-1', ok: true, status: 201, remoteId: 'page-1', revision: 'v1', body: 'private' },
+      { key: 'task-2', ok: false, status: 429, error: 'Try later', token: 'secret' },
+    ] }),
+  };
+  const manager = createIntegrationManager({ connectors: [batchConnector], keychain: store });
+  const prepared = await manager.prepareAction({ connectorId: 'fixture', kind: 'notion.sync.batch', payload: { operations: [] } });
+  const result = await manager.executeApproved({ actionId: prepared.id, confirmationId: prepared.confirmationId });
+  assert.deepEqual(result, { ok: false, items: [
+    { key: 'task-1', ok: true, status: 201, remoteId: 'page-1', revision: 'v1' },
+    { key: 'task-2', ok: false, status: 429, error: 'Try later' },
+  ] });
+  assert.equal(JSON.stringify(result).includes('private'), false);
+  assert.equal(JSON.stringify(result).includes('secret'), false);
+});

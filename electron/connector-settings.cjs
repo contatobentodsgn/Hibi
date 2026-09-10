@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const MAX_TARGETS = 50;
+const MAX_CHECKPOINTS = 5_000;
 const isConnectorId = (value) => typeof value === 'string' && /^[a-z0-9-]{1,80}$/.test(value);
 const isTargetId = (value) => typeof value === 'string' && value.trim().length > 0 && value.length <= 240;
 
@@ -36,7 +37,40 @@ function normalizeTargets(value) {
   return [...unique.values()];
 }
 
-const normalizeEntry = (value) => ({ endpoint: normalizeEndpoint(value?.endpoint), clientId: normalizeClientId(value?.clientId), targets: normalizeTargets(value?.targets) });
+const optionalText = (value, maximum = 240) => value === undefined || value === null || value === '' ? '' : typeof value === 'string' && value.trim() && value.length <= maximum ? value.trim() : null;
+const isoOrEmpty = (value) => {
+  const text = optionalText(value);
+  if (text === null || (text && Number.isNaN(Date.parse(text)))) throw new Error('Notion sync settings are invalid.');
+  return text;
+};
+const count = (value) => Number.isInteger(value) && value >= 0 && value <= 100_000 ? value : 0;
+
+function normalizeNotion(value) {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== 'object') throw new Error('Notion sync settings are invalid.');
+  const workspaceLabel = optionalText(value.workspaceLabel, 240);
+  const parentPageId = optionalText(value.parentPageId);
+  const databaseId = optionalText(value.databaseId);
+  const dataSourceId = optionalText(value.dataSourceId);
+  if ([workspaceLabel, parentPageId, databaseId, dataSourceId].includes(null)) throw new Error('Notion sync settings are invalid.');
+  if (!Array.isArray(value.checkpoints ?? []) || (value.checkpoints ?? []).length > MAX_CHECKPOINTS) throw new Error('Notion sync settings are invalid.');
+  const checkpoints = (value.checkpoints ?? []).map((entry) => {
+    if (!entry || typeof entry !== 'object' || !isTargetId(entry.localId) || !isTargetId(entry.remoteId) || typeof entry.localHash !== 'string' || !/^[a-f0-9]{8,128}$/i.test(entry.localHash) || !isTargetId(entry.remoteRevision)) throw new Error('Notion sync settings are invalid.');
+    return { localId: entry.localId, remoteId: entry.remoteId, localHash: entry.localHash, remoteRevision: entry.remoteRevision };
+  });
+  const summary = value.lastSummary && typeof value.lastSummary === 'object' ? value.lastSummary : {};
+  return {
+    workspaceLabel, parentPageId, databaseId, dataSourceId,
+    lastSyncAt: isoOrEmpty(value.lastSyncAt),
+    lastSummary: { imported: count(summary.imported), pushed: count(summary.pushed), updated: count(summary.updated), skipped: count(summary.skipped), failed: count(summary.failed), conflicts: count(summary.conflicts) },
+    checkpoints,
+  };
+}
+
+const normalizeEntry = (value) => {
+  const notion = normalizeNotion(value?.notion);
+  return { endpoint: normalizeEndpoint(value?.endpoint), clientId: normalizeClientId(value?.clientId), targets: normalizeTargets(value?.targets), ...(notion ? { notion } : {}) };
+};
 
 function createConnectorSettings({ filePath } = {}) {
   if (typeof filePath !== 'string' || !filePath.trim() || filePath.length > 4_096) throw new Error('A connector settings file path is required.');
@@ -71,6 +105,7 @@ function createConnectorSettings({ filePath } = {}) {
         endpoint: patch?.endpoint === undefined ? current.endpoint : patch.endpoint,
         clientId: patch?.clientId === undefined ? current.clientId : patch.clientId,
         targets: patch?.targets === undefined ? current.targets : patch.targets,
+        notion: patch?.notion === undefined ? current.notion : patch.notion,
       });
       entries[connectorId] = next;
       write(entries);
@@ -79,4 +114,4 @@ function createConnectorSettings({ filePath } = {}) {
   };
 }
 
-module.exports = { MAX_TARGETS, createConnectorSettings, normalizeClientId, normalizeEndpoint, normalizeTargets };
+module.exports = { MAX_TARGETS, MAX_CHECKPOINTS, createConnectorSettings, normalizeClientId, normalizeEndpoint, normalizeTargets, normalizeNotion };

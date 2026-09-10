@@ -57,7 +57,15 @@ async function safeExecutionResult(value) {
   if (value && typeof value === 'object') {
     const remoteId = typeof value.remoteId === 'string' && value.remoteId.length <= 240 ? value.remoteId : undefined;
     const revision = typeof value.revision === 'string' && value.revision.length <= 240 ? value.revision : undefined;
-    return { ok: value.ok === true, ...(remoteId === undefined ? {} : { remoteId }), ...(revision === undefined ? {} : { revision }) };
+    const items = Array.isArray(value.items) ? value.items.slice(0, 500).flatMap((item) => {
+      if (!item || typeof item !== 'object' || !boundedText(item.key, 240)) return [];
+      const status = Number.isInteger(item.status) && item.status >= 100 && item.status <= 599 ? item.status : undefined;
+      const itemRemoteId = boundedText(item.remoteId, 240) ? item.remoteId : undefined;
+      const itemRevision = boundedText(item.revision, 240) ? item.revision : undefined;
+      const error = boundedText(item.error, 500) ? redact(item.error) : undefined;
+      return [{ key: item.key, ok: item.ok === true, ...(status === undefined ? {} : { status }), ...(itemRemoteId === undefined ? {} : { remoteId: itemRemoteId }), ...(itemRevision === undefined ? {} : { revision: itemRevision }), ...(error === undefined ? {} : { error }) }];
+    }) : undefined;
+    return { ok: value.ok === true, ...(remoteId === undefined ? {} : { remoteId }), ...(revision === undefined ? {} : { revision }), ...(items === undefined ? {} : { items }) };
   }
   return { ok: false };
 }

@@ -113,7 +113,17 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request 
       return pages;
     },
     prepareWrite(input) {
-      if (!input || !['notion.database.create', 'notion.page.create', 'notion.page.update'].includes(input.kind)) throw new Error('Unsupported Notion write action.');
+      if (!input || !['notion.database.create', 'notion.page.create', 'notion.page.update', 'notion.sync.batch'].includes(input.kind)) throw new Error('Unsupported Notion write action.');
+      if (input.kind === 'notion.sync.batch') {
+        const operations = input.payload?.operations;
+        if (!Array.isArray(operations) || operations.length === 0 || operations.length > 100) throw new Error('Notion sync batch is invalid.');
+        const safe = operations.map((operation) => {
+          if (!operation || !boundedId(operation.key) || !['notion.page.create', 'notion.page.update'].includes(operation.kind)) throw new Error('Notion sync operation is invalid.');
+          this.prepareWrite({ kind: operation.kind, payload: operation.payload });
+          return { key: operation.key, kind: operation.kind, payload: structuredClone(operation.payload) };
+        });
+        return { kind: input.kind, payload: { operations: safe } };
+      }
       if (input.kind === 'notion.database.create') {
         if (!boundedId(input.payload?.parentPageId)) throw new Error('Notion parent page identifier is invalid.');
         return { kind: input.kind, payload: { parent: { type: 'page_id', page_id: input.payload.parentPageId }, title: [{ type: 'text', text: { content: 'Hibi Tasks' } }], initial_data_source: { properties: databaseSchema() } } };
@@ -127,6 +137,19 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request 
     },
     async executeApproved({ kind, payload, credential, request: override }) {
       const prepared = this.prepareWrite({ kind, payload });
+      if (kind === 'notion.sync.batch') {
+        const items = [];
+        for (const operation of prepared.payload.operations) {
+          try {
+            const response = await this.executeApproved({ kind: operation.kind, payload: operation.payload, credential, request: override });
+            const body = await response.json().catch(() => ({}));
+            items.push({ key: operation.key, ok: response.ok === true, status: response.status, ...(boundedId(body?.id) ? { remoteId: body.id } : {}), ...(boundedId(body?.last_edited_time) ? { revision: body.last_edited_time } : {}), ...(response.ok === true ? {} : { error: 'Notion rejected this operation.' }) });
+          } catch {
+            items.push({ key: operation.key, ok: false, error: 'Notion operation failed.' });
+          }
+        }
+        return { ok: items.every((item) => item.ok), items };
+      }
       let path = 'pages'; let method = 'POST'; let body = prepared.payload;
       if (kind === 'notion.database.create') path = 'databases';
       if (kind === 'notion.page.update') { path = `pages/${encodeURIComponent(prepared.payload.id)}`; method = 'PATCH'; body = { properties: prepared.payload.properties }; }

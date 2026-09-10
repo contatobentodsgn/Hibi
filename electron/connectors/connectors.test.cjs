@@ -95,6 +95,21 @@ test('prepara a base Hibi Tasks sob a página Kizuna com o esquema exato', () =>
   assert.deepEqual(Object.keys(prepared.payload.initial_data_source.properties), ['Name', 'Status', 'Start', 'Duration minutes', 'Description', 'Hibi ID', 'Hibi updated at']);
 });
 
+test('executa lote do Notion e preserva êxitos quando um item falha', async () => {
+  const connector = createNotionConnector({ request: async (url) => {
+    if (url.endsWith('/pages/page-fail')) throw new Error('temporarily unavailable');
+    return new Response(JSON.stringify({ id: 'page-ok', last_edited_time: 'v2' }), { status: 200 });
+  } });
+  const result = await connector.executeApproved({ kind: 'notion.sync.batch', credential: 'token', payload: { operations: [
+    { key: 'create:task-1', kind: 'notion.page.create', payload: { dataSourceId: 'source-1', task: { id: 'task-1', title: 'One', status: 'open', durationMinutes: 60 } } },
+    { key: 'update:task-2', kind: 'notion.page.update', payload: { id: 'page-fail', task: { id: 'task-2', title: 'Two', status: 'open', durationMinutes: 60 } } },
+  ] } });
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.items[0], { key: 'create:task-1', ok: true, status: 200, remoteId: 'page-ok', revision: 'v2' });
+  assert.equal(result.items[1].key, 'update:task-2');
+  assert.equal(result.items[1].ok, false);
+});
+
 test('o Slack lê itens salvos e descarta canais fora da seleção', async () => {
   const connector = createSlackConnector({ request: async () => ({ ok: true, json: async () => ({ ok: true, items: [
     { channel: 'C1', message: { ts: '1.1', text: 'guardado' } },

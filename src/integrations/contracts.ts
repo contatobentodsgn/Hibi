@@ -31,10 +31,23 @@ export type IntegrationAuditEvent = Readonly<{
 
 export type IntegrationImportTarget = Readonly<{ id: string; label: string }>
 
+export type NotionSyncSummary = Readonly<{ imported: number; pushed: number; updated: number; skipped: number; failed: number; conflicts: number }>
+export type NotionSyncCheckpoint = Readonly<{ localId: string; remoteId: string; localHash: string; remoteRevision: string }>
+export type NotionConnectorState = Readonly<{
+  workspaceLabel: string
+  parentPageId: string
+  databaseId: string
+  dataSourceId: string
+  lastSyncAt: string
+  lastSummary: NotionSyncSummary
+  checkpoints: readonly NotionSyncCheckpoint[]
+}>
+
 export type ConnectorSettings = Readonly<{
   endpoint: string
   clientId: string
   targets: readonly IntegrationImportTarget[]
+  notion?: NotionConnectorState
 }>
 
 export type IntegrationAuthorization = Readonly<{

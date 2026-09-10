@@ -47,3 +47,22 @@ test('grava o arquivo apenas com permissão do dono e ignora entradas corrompida
   fs.writeFileSync(filePath, JSON.stringify({ notion: { clientId: 'client-1' }, slack: { endpoint: 'http://inseguro.test' }, 'ID INVÁLIDO': {} }));
   assert.deepEqual(Object.keys(createConnectorSettings({ filePath }).all()), ['notion']);
 });
+
+test('persiste o estado limitado da sincronização do Notion sem segredos', () => {
+  const settings = createConnectorSettings({ filePath: tempFile() });
+  const notion = {
+    workspaceLabel: "Kizuna Std's Notion", parentPageId: 'page-kizuna', databaseId: 'db-1', dataSourceId: 'source-1',
+    lastSyncAt: '2026-09-09T21:00:00.000Z', lastSummary: { imported: 2, pushed: 1, updated: 3, skipped: 0, failed: 1, conflicts: 1 },
+    checkpoints: [{ localId: 'task-1', remoteId: 'remote-1', localHash: '89abcdef', remoteRevision: '2026-09-09T20:00:00.000Z' }],
+  };
+  const saved = settings.save('notion', { notion });
+  assert.deepEqual(saved.notion, notion);
+  assert.equal(JSON.stringify(saved).includes('token'), false);
+});
+
+test('recusa estado do Notion corrompido e preserva configuração legada', () => {
+  const settings = createConnectorSettings({ filePath: tempFile() });
+  settings.save('notion', { clientId: 'legacy' });
+  assert.throws(() => settings.save('notion', { notion: { dataSourceId: 'x', checkpoints: [{ localId: '' }] } }), /Notion sync settings/);
+  assert.equal(settings.get('notion').clientId, 'legacy');
+});
