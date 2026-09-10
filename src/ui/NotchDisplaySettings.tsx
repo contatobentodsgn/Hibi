@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { AUTO_NOTCH_VALUE, disconnectedPreference, fillDisplay, notchDisplayOptions, notchTestMessage, resolvedNotchDisplay, selectedNotchValue, type NotchDisplayState } from './notch-display';
 
@@ -21,6 +21,9 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   const [saveFailed, setSaveFailed] = useState(false);
   const [testing, setTesting] = useState(false);
   const [notice, setNotice] = useState('');
+  // Leituras e gravações disputam o mesmo estado: uma resposta só vale se nenhuma requisição mais nova começou depois dela.
+  const sequence = useRef(0);
+  const refreshRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     const bridge = window.hibiDesktop;
@@ -28,28 +31,40 @@ export function NotchDisplaySettings({ onEvent }: Props) {
     if (!list) return undefined;
     let active = true;
     const refresh = () => {
+      const request = ++sequence.current;
       void list().then((next) => {
-        if (!active) return;
+        if (!active || request !== sequence.current) return;
         setState(next);
         setLoadFailed(false);
-      }).catch(() => { if (active) setLoadFailed(true); });
+      }).catch(() => { if (active && request === sequence.current) setLoadFailed(true); });
     };
+    refreshRef.current = refresh;
     refresh();
     const unsubscribe = bridge.onNotchDisplaysChanged?.(refresh) ?? (() => undefined);
     return () => { active = false; unsubscribe(); };
   }, []);
+
+  // Sem nenhuma leitura boa ainda, a linha ficaria travada até um monitor mudar; voltar à janela tenta de novo.
+  useEffect(() => {
+    if (!loadFailed || state) return undefined;
+    const retry = () => refreshRef.current();
+    window.addEventListener('focus', retry);
+    return () => window.removeEventListener('focus', retry);
+  }, [loadFailed, state]);
 
   if (!available) return <Row title={t('settings.notch.title')} detail={t('settings.notch.detail')}><span className="setting-value">{t('settings.notch.desktopOnly')}</span></Row>;
 
   const choose = async (value: string) => {
     const setDisplay = window.hibiDesktop?.setNotchDisplay;
     if (!setDisplay) return;
+    const request = ++sequence.current;
     try {
       const next = await setDisplay(value === AUTO_NOTCH_VALUE ? null : Number(value));
+      onEvent('edit', 'Notch display', value);
+      if (request !== sequence.current) return;
       setState(next);
       setSaveFailed(false);
-      onEvent('edit', 'Notch display', value);
-    } catch { setSaveFailed(true); }
+    } catch { if (request === sequence.current) setSaveFailed(true); }
   };
   const runTest = async () => {
     if (testing) return;
@@ -73,7 +88,8 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   const rowNote = saveFailed ? t('settings.notch.saveFailed') : loadFailed ? t('settings.notch.loadFailed') : fallback;
   return <>
     <Row title={t('settings.notch.title')} detail={t('settings.notch.detail')} note={rowNote} noteId={rowNote ? NOTE_ID : undefined}>
-      <select aria-label={t('settings.notch.title')} aria-describedby={rowNote ? NOTE_ID : undefined} disabled={!state} value={state ? selectedNotchValue(state) : AUTO_NOTCH_VALUE} onChange={(event) => void choose(event.target.value)}>
+      {/* Travado durante o teste: o resultado precisa nomear o monitor que foi testado. */}
+      <select aria-label={t('settings.notch.title')} aria-describedby={rowNote ? NOTE_ID : undefined} disabled={!state || testing} value={state ? selectedNotchValue(state) : AUTO_NOTCH_VALUE} onChange={(event) => void choose(event.target.value)}>
         {options.map((option) => <option key={option.value} value={option.value} disabled={option.disabled}>{option.label}</option>)}
       </select>
     </Row>
