@@ -8,6 +8,7 @@ const palette = (page: Page) => page.getByRole('dialog', { name: 'Paleta de coma
 // devolve o botão a "+ New task", que o App intercepta para abrir o TaskCreateModal.
 const openTaskCreateModal = async (page: Page) => {
   await go(page, 'Tarefas');
+  await expect(page.getByRole('form', { name: 'Create task' })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.getByRole('button', { name: '+ New task' }).click();
 };
@@ -36,8 +37,26 @@ test('/ fora de um campo de texto não abre a paleta por cima do modal de nova t
 
   // Tira o foco dos campos de texto do modal antes de testar o atalho "/", que só age fora deles.
   await modal.getByRole('heading', { name: 'Create task' }).click();
+  const title = modal.getByRole('textbox', { name: 'Title' });
+  await expect(title).not.toBeFocused();
 
   await page.keyboard.press('/');
+  await expect(palette(page)).toHaveCount(0);
+  await expect(modal).toBeVisible();
+  await expect(title).toHaveValue('');
+});
+
+test('Tab até "Comandos" no dock e Enter não abre a paleta com o modal de nova tarefa aberto', async ({ page }) => {
+  await page.goto('/');
+  await openTaskCreateModal(page);
+  const modal = page.getByRole('dialog', { name: 'Create task' });
+  await expect(modal).toBeVisible();
+
+  const commandsButton = dock(page).getByRole('button', { name: 'Comandos' });
+  await commandsButton.focus();
+  await expect(commandsButton).toBeFocused();
+
+  await page.keyboard.press('Enter');
   await expect(palette(page)).toHaveCount(0);
   await expect(modal).toBeVisible();
 });

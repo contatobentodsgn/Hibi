@@ -239,23 +239,20 @@ export default function App() {
   // Um modal do App (task/reminder/deadline) tem seu próprio listener de Escape na window; se a
   // paleta também abrisse por cima dele, um único Escape chegaria aos dois e fecharia o modal junto,
   // descartando o que estava sendo digitado. Cada Escape deve afetar só a camada mais no topo — e
-  // cada modal já cuida do seu próprio Escape — então aqui a regra é simplesmente não empilhar a
-  // paleta sobre um modal aberto. Os três estados precisam vir de uma ref: o handler é registrado
-  // uma vez (deps `[]`) para não reatar o listener a cada abertura/fechamento de modal, então uma
-  // closure sem ref ficaria presa nos valores da montagem.
-  const modalOpenRef = useRef(false);
-  modalOpenRef.current = taskCreateOpen || reminderCreateOpen || deadlineEditTaskId !== null;
+  // cada modal já cuida do seu próprio Escape — então a regra é não empilhar a paleta sobre um modal
+  // aberto, em toda forma de abrir a paleta (atalho, dock, captura rápida da Home).
+  const modalOpen = taskCreateOpen || reminderCreateOpen || deadlineEditTaskId !== null;
+  const openPalette = () => { if (!modalOpen) setPaletteOpen(true); };
   React.useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (modalOpenRef.current) return;
       const target = event.target as HTMLElement | null;
       const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setPaletteOpen(true); }
-      else if (event.key === '/' && !typing) { event.preventDefault(); setPaletteOpen(true); }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); openPalette(); }
+      else if (event.key === '/' && !typing) { event.preventDefault(); openPalette(); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [openPalette]);
 
   const navigate = (next: NavKey, source = 'navigation', options: { folder?: string } = {}) => {
     // Só remonta a tela quando a rota muda ou um filtro é pedido, para que clicar no item do dock
@@ -283,9 +280,9 @@ export default function App() {
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} onClearAiHistory={clearAiHistory} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;
-      default: return <HomeView {...props} data={data} onOpenCommands={() => setPaletteOpen(true)} />;
+      default: return <HomeView {...props} data={data} onOpenCommands={openPalette} />;
     }
-  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, folderFilter]);
+  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, folderFilter, modalOpen]);
 
   return (
     <AppShell active={route} onNavigate={(key) => {
@@ -296,7 +293,7 @@ export default function App() {
       // (dentro da própria tela) é o caminho de volta, não o item do dock.
       if (route === 'break' && key === 'focus') return;
       navigate(key);
-    }} onOpenCommands={() => setPaletteOpen(true)}>
+    }} onOpenCommands={openPalette}>
       {validationError && <div role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '0 0 16px', padding: '13px 16px', border: '1px solid #e2a992', borderRadius: 12, background: '#fff0eb', color: '#984418' }}><span aria-hidden="true" style={{ fontWeight: 900 }}>!</span><div style={{ flex: 1, whiteSpace: 'pre-line' }}>{validationError}</div><button type="button" className="outline" onClick={() => setValidationError('')} aria-label="Dismiss validation error" style={{ padding: '7px 10px' }}>Dismiss</button></div>}
       {pendingLocalApiIntent && <div role="alert" className="notice" style={{ marginBottom: 16 }}><div><strong>Confirmação da API local</strong><p>Deseja criar “{typeof pendingLocalApiIntent.payload.title === 'string' ? pendingLocalApiIntent.payload.title : 'esta tarefa'}”?</p></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={() => void resolveLocalApiIntent(true)}>Confirmar</button><button className="outline" onClick={() => void resolveLocalApiIntent(false)}>Cancelar</button></div></div>}
       <div className="legacy-surface" onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } if (route === 'reminders' && button?.textContent?.trim() === '+ New reminder') { event.preventDefault(); event.stopPropagation(); setReminderCreateOpen(true); } }}>{content}</div>
