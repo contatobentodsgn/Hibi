@@ -74,6 +74,12 @@ describe('activity ledger wiring', () => {
     expect(appSource).toContain('onFocusLifecycle={(event) => recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString()))}');
   });
 
+  it('records blocks created and deleted through Taby, but not block updates', () => {
+    expect(appSource).toContain("onBlockCreated: (block: ScheduleBlock) => recordActivity(blockActivity('created', block, new Date().toISOString()))");
+    expect(appSource).toContain("onBlockDeleted: (block: ScheduleBlock) => recordActivity(blockActivity('deleted', block, new Date().toISOString()))");
+    expect(appSource).not.toContain('onBlockUpdated');
+  });
+
   it('shows the task completion notch only on the transition to completed', () => {
     expect(appSource).toMatch(/onTaskStatusChanged: [^\n]*?if \(before\.status !== 'completed' && after\.status === 'completed'\) dispatchCompanion\(\{ type: 'task\.completed'/);
     const change = body('changeTaskStatus');

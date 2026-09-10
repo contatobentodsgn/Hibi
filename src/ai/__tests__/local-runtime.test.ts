@@ -4,7 +4,7 @@ import { HeuristicAiProvider } from '../heuristic-provider';
 import { LocalRepository } from '../../data/local-repository';
 import { createSeedData } from '../../data/seed-data';
 import type { AiProvider } from '../contracts';
-import type { Task } from '../../domain/models';
+import type { ScheduleBlock, Task } from '../../domain/models';
 
 const providerFor = (toolCalls: readonly { name: string; arguments: Record<string, unknown> }[]): AiProvider => ({ id: 'test', label: 'Test model', generate: async () => ({ reply: 'Ready', toolCalls: [...toolCalls], notchPresentation: null, providerMetadata: { model: 'test-model' } }) });
 
@@ -100,6 +100,42 @@ describe('local Hibi tool registry', () => {
 
     expect(repository.getTask(task.id)?.title).toBe('Renamed');
     expect(changes).toEqual([]);
+  });
+
+  it('reports a block created through an approved AI action as a copy', async () => {
+    const repository = new LocalRepository(createSeedData());
+    const created: ScheduleBlock[] = [];
+    const runtime = createLocalHibiRuntime(repository, { onBlockCreated: (block) => created.push(block) }, providerFor([{ name: 'block.create', arguments: { title: 'revisar pauta', start: '2026-09-07T22:00:00-03:00', end: '2026-09-07T23:00:00-03:00', category: 'work' } }]));
+
+    await confirmTurn(runtime);
+
+    const stored = repository.listBlocks().find((block) => block.title === 'revisar pauta');
+    expect(stored).toBeDefined();
+    expect(created).toEqual([stored]);
+    created[0]!.title = 'mutated by the hook';
+    expect(repository.listBlocks().some((block) => block.id === stored!.id && block.title === 'revisar pauta')).toBe(true);
+  });
+
+  it('reports a block deleted through an approved AI action', async () => {
+    const repository = new LocalRepository(createSeedData()); const block = repository.listBlocks()[0]!;
+    const deleted: ScheduleBlock[] = [];
+    const runtime = createLocalHibiRuntime(repository, { onBlockDeleted: (item) => deleted.push(item) }, providerFor([{ name: 'block.delete', arguments: { id: block.id } }]));
+
+    await confirmTurn(runtime);
+
+    expect(repository.listBlocks().some((item) => item.id === block.id)).toBe(false);
+    expect(deleted).toEqual([block]);
+  });
+
+  it('does not report block creation or deletion when an approved AI action updates a block', async () => {
+    const repository = new LocalRepository(createSeedData()); const block = repository.listBlocks()[0]!;
+    const reported: string[] = [];
+    const runtime = createLocalHibiRuntime(repository, { onBlockCreated: () => reported.push('created'), onBlockDeleted: () => reported.push('deleted') }, providerFor([{ name: 'block.update', arguments: { id: block.id, title: 'Bloco revisado' } }]));
+
+    await confirmTurn(runtime);
+
+    expect(repository.listBlocks().find((item) => item.id === block.id)?.title).toBe('Bloco revisado');
+    expect(reported).toEqual([]);
   });
 
   it('deletes a reminder only after an explicit confirmation', async () => {
