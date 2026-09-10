@@ -181,7 +181,7 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
         ? <PaletteFolders view={view} folders={folders} selectedIndex={selectedIndex} onHover={setSelectedIndex} onOpen={(index) => openFolder(index)} />
         : <>
           {showCommandList && <div role="listbox" id="palette-commands" aria-label={t('palette.commandsList')}>
-            {matches.map((item, index) => <button type="button" className="command-row" role="option" aria-selected={index === selectedIndex} tabIndex={-1} id={`command-${item.key.slice(1)}`} data-selected={index === selectedIndex} key={item.key} onMouseEnter={() => setSelectedIndex(index)} onClick={() => openCommand(index)}><kbd>{item.key}</kbd><span>{t(item.label)}</span><small>{t(item.group)}</small></button>)}
+            {matches.map((item, index) => <button type="button" className="command-row" role="option" aria-selected={index === selectedIndex} tabIndex={-1} id={`command-${item.key.slice(1)}`} data-selected={index === selectedIndex} key={item.key} onMouseEnter={() => setSelectedIndex(index)} onMouseDown={(event) => event.preventDefault()} onClick={() => openCommand(index)}><kbd>{item.key}</kbd><span>{t(item.label)}</span><small>{t(item.group)}</small></button>)}
           </div>}
           {mode === 'command' && !matches.length && <p className="empty">{t('palette.empty')}</p>}
           {submitted !== null && <PaletteTurn submitted={submitted} state={state} turn={turn} />}

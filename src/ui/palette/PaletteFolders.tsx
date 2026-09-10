@@ -24,7 +24,7 @@ export function PaletteFolders({ view, folders, selectedIndex, onHover, onOpen }
   </div>
   return <>
     {folders.length > 0 && <div role="listbox" id="palette-folders" aria-label={t('folders.list')}>
-      {folders.map((folder, index) => <button type="button" className="command-row folder-row" role="option" aria-selected={index === selectedIndex} tabIndex={-1} id={`folder-row-${index}`} key={`folder-${folder.name}`} data-selected={index === selectedIndex} data-folder={folder.name} onMouseEnter={() => onHover(index)} onClick={() => onOpen(index)}><span>{folderLabel(folder.name, t)}</span><small>{countsLabel(folder.tasks, folder.notes, t)}</small></button>)}
+      {folders.map((folder, index) => <button type="button" className="command-row folder-row" role="option" aria-selected={index === selectedIndex} tabIndex={-1} id={`folder-row-${index}`} key={`folder-${folder.name}`} data-selected={index === selectedIndex} data-folder={folder.name} onMouseEnter={() => onHover(index)} onMouseDown={(event) => event.preventDefault()} onClick={() => onOpen(index)}><span>{folderLabel(folder.name, t)}</span><small>{countsLabel(folder.tasks, folder.notes, t)}</small></button>)}
     </div>}
     {!folders.length && <p className="empty">{t('folders.empty')}</p>}
   </>

@@ -46,7 +46,7 @@ test('/ fora de um campo de texto não abre a paleta por cima do modal de nova t
   await expect(title).toHaveValue('');
 });
 
-test('Tab até "Comandos" no dock e Enter não abre a paleta com o modal de nova tarefa aberto', async ({ page }) => {
+test('botão Comandos do dock focado não abre a paleta por cima do modal', async ({ page }) => {
   await page.goto('/');
   await openTaskCreateModal(page);
   const modal = page.getByRole('dialog', { name: 'Create task' });

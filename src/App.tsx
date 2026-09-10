@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LocalRepository } from './data/local-repository';
 import type { WorkspacePreferences } from './data/workspace-backup';
 import { createSeedData } from './data/seed-data';
@@ -242,7 +242,7 @@ export default function App() {
   // cada modal já cuida do seu próprio Escape — então a regra é não empilhar a paleta sobre um modal
   // aberto, em toda forma de abrir a paleta (atalho, dock, captura rápida da Home).
   const modalOpen = taskCreateOpen || reminderCreateOpen || deadlineEditTaskId !== null;
-  const openPalette = () => { if (!modalOpen) setPaletteOpen(true); };
+  const openPalette = useCallback(() => { if (!modalOpen) setPaletteOpen(true); }, [modalOpen]);
   React.useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -282,7 +282,7 @@ export default function App() {
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;
       default: return <HomeView {...props} data={data} onOpenCommands={openPalette} />;
     }
-  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, folderFilter, modalOpen]);
+  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, folderFilter, openPalette]);
 
   return (
     <AppShell active={route} onNavigate={(key) => {
