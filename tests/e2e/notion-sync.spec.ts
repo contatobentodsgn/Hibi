@@ -99,10 +99,16 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
 
 const readRecorded = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: { recorded: Recorded } }).hibiE2E.recorded);
 
-async function openNotionPanel(page: Page) {
+// Mesma rota do dock que os outros specs de integrações usam: Ajustes vive atrás do "···".
+async function openIntegrations(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+}
+
+async function openNotionPanel(page: Page) {
+  await openIntegrations(page);
   await expect(page.getByRole('region', { name: 'Notion task synchronization' })).toBeVisible();
 }
 
@@ -179,9 +185,7 @@ test('cancelar pelo notch não escreve nada', async ({ page }) => {
 // setup se perde e "Sync now" vira um botão morto — sem nenhum erro visível.
 test('a base criada no setup fica utilizável na mesma sessão', async ({ page }) => {
   await installNotionBridge(page, { configured: false });
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await openIntegrations(page);
   await expect(page.getByRole('region', { name: 'Notion sync setup' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Prepare Hibi Tasks' }).click();

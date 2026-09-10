@@ -1,8 +1,13 @@
 import { test, expect } from '@playwright/test';
 
+async function goWeek(page: import('@playwright/test').Page) {
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Agenda', exact: true }).click();
+  await page.getByRole('tab', { name: 'Semana' }).click();
+}
+
 test('exporta o calendário local como ICS', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await goWeek(page);
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export .ics' }).click();
   const download = await downloadPromise;
@@ -13,7 +18,7 @@ test('exporta o calendário local como ICS', async ({ page }) => {
 
 test('importa um evento ICS na semana exibida', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await goWeek(page);
   const fileInput = page.locator('input[type="file"]');
   await fileInput.setInputFiles({
     name: 'estudo.ics',
@@ -35,7 +40,7 @@ test('importa um evento ICS na semana exibida', async ({ page }) => {
 
 test('mantém um evento ICS importado após recarregar o app', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await goWeek(page);
   await page.locator('input[type="file"]').setInputFiles({
     name: 'persistente.ics',
     mimeType: 'text/calendar',
@@ -44,6 +49,6 @@ test('mantém um evento ICS importado após recarregar o app', async ({ page }) 
   await expect(page.getByText('Evento persistente')).toBeVisible();
 
   await page.reload();
-  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await goWeek(page);
   await expect(page.getByText('Evento persistente')).toBeVisible();
 });

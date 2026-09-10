@@ -1,0 +1,104 @@
+/* Tokens semânticos do Hibi. O claro é o padrão; o escuro sobrescreve em [data-theme="dark"].
+   Nomes seguem o vocabulário do Bento Pro (Backgrounds/Text/Stroke/Depth); os valores são os do papel. */
+
+:root {
+  color-scheme: light;
+
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-7: 28px; --space-8: 32px;
+  --space-9: 36px; --space-10: 40px; --space-11: 44px; --space-12: 48px;
+
+  --radius-1: 8px; --radius-2: 12px; --radius-3: 16px; --radius-4: 24px;
+
+  --type-12: 12px; --leading-12: 16px;
+  --type-14: 14px; --leading-14: 20px;
+  --type-16: 16px; --leading-16: 24px;
+  --type-20: 20px; --leading-20: 24px;
+  --type-24: 24px; --leading-24: 28px;
+  --type-32: 32px; --leading-32: 40px;
+  --type-40: 40px; --leading-40: 48px;
+  --type-48: 48px; --leading-48: 56px;
+
+  --bg-canvas: #f3f2ef;
+  --bg-surface-1: #ffffff;
+  --bg-surface-2: #faf9f6;
+  --bg-surface-3: #ebe9e3;
+  --bg-subtle: #e6e3dc;
+  --bg-highlight: #fff4dd;
+
+  --text-primary: #151515;
+  --text-secondary: #5f5c56;
+  --text-tertiary: #6a675f;
+  --text-hero: #c4520f;      /* só para display ≥ 24px: 4.1:1 no canvas, AA para texto grande */
+  --text-on-accent: #151515; /* branco sobre o laranja fica em 2.8:1; tinta fica em 6.5:1 */
+
+  --stroke-subtle: #ebe9e5;
+  --stroke-default: #dedbd4;
+  --stroke-focus: #fb7017;
+
+  --accent: #fb7017;
+  --accent-soft: #ffe0ca;
+
+  --cat-work: #fb7017;      --cat-work-soft: #ffe0ca;      --cat-work-text: #99400e;
+  --cat-break: #3e8752;     --cat-break-soft: #b9e7bd;     --cat-break-text: #276c3f;
+  --cat-learning: #365f78;  --cat-learning-soft: #c9def0;  --cat-learning-text: #365f78;
+  --cat-important: #b8861f; --cat-important-soft: #f2c26b; --cat-important-text: #8c5d08;
+  --cat-wellbeing: #3e8752; --cat-wellbeing-soft: #d8f0da; --cat-wellbeing-text: #276c3f;
+
+  --depth-card: 0 1px 2px rgba(20, 18, 14, 0.06);
+  --depth-float: 0 24px 60px rgba(0, 0, 0, 0.28);
+
+  --bg-scrim: rgba(0, 0, 0, 0.55);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-canvas: #1a1917;
+  --bg-surface-1: #232220;
+  --bg-surface-2: #2a2926;
+  --bg-surface-3: #33312c;
+  --bg-subtle: #2d2b27;
+  --bg-highlight: #3a2f1a;
+
+  --text-primary: #f1efe9;
+  --text-secondary: #b5b0a6;
+  --text-tertiary: #a19c92;
+  --text-hero: #ff8a45;
+  --text-on-accent: #151515;
+
+  --stroke-subtle: #2d2b27;
+  --stroke-default: #3a3833;
+  --stroke-focus: #ff8a45;
+
+  --accent: #fb7017;
+  --accent-soft: #3a2416;
+
+  --cat-work: #ff8a45;      --cat-work-soft: #3a2416;      --cat-work-text: #ffb287;
+  --cat-break: #7fd493;     --cat-break-soft: #1f3a26;     --cat-break-text: #b9e7bd;
+  --cat-learning: #8fb8d6;  --cat-learning-soft: #1f2f3a;  --cat-learning-text: #c9def0;
+  --cat-important: #f2c26b; --cat-important-soft: #3a2e12; --cat-important-text: #ffe9ba;
+  --cat-wellbeing: #7fd493; --cat-wellbeing-soft: #1f3a26; --cat-wellbeing-text: #d8f0da;
+
+  --depth-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --depth-float: 0 24px 60px rgba(0, 0, 0, 0.6);
+
+  --bg-scrim: rgba(0, 0, 0, 0.68);
+}
+
+/* Ponte com theme.css: as 8 variáveis antigas seguem os tokens. Este arquivo é importado
+   depois de theme.css, então estas definições vencem as de lá. Some quando a última tela migrar. */
+:root /* aliases */ {
+  --paper: var(--bg-canvas);
+  --ink: var(--text-primary);
+  --muted: var(--text-secondary);
+  --line: var(--stroke-default);
+  --orange: var(--accent);
+  --green: var(--cat-break-soft);
+  --blue: var(--cat-learning-soft);
+  --amber: var(--cat-important-soft);
+}

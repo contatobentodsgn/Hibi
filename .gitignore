@@ -16,3 +16,6 @@ event-logs/
 native/notch/build/
 native/notch/node_modules/
 ._*
+
+# Relatórios locais do Vitest
+.vitest/

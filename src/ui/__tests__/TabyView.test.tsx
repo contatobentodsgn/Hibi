@@ -1,14 +1,28 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { createSeedData } from '../../data/seed-data';
-import { companionEventFor, confirmationPresentationFor, failurePresentationFor, modelLabelFor, provenanceLabelFor, TabyView } from '../TabyView';
-import { createLocalHibiRuntime } from '../../ai/local-runtime';
-import { LocalRepository } from '../../data/local-repository';
+import { initialAssistantTurnState } from '../../ai/assistant-turn';
+import { companionEventFor, confirmationPresentationFor, failurePresentationFor } from '../assistant-presentation';
+import { TabyView } from '../TabyView';
+import type { AssistantTurnControls } from '../useAssistantTurn';
+
+// Duplo inerte: nenhuma ação é chamada nestes testes, só o markup estático importa.
+const inertTurn: AssistantTurnControls = {
+  state: initialAssistantTurnState,
+  ask: async () => undefined,
+  confirm: async () => undefined,
+  cancelConfirmation: async () => undefined,
+  stop: () => undefined,
+  retry: async () => undefined,
+  useLocalFallback: async () => undefined,
+  dismiss: () => 'close',
+  reset: () => undefined,
+};
 
 describe('TabyView capability boundaries', () => {
   it('shows local capability statuses and unavailable surfaces', () => {
     const data = createSeedData();
-    const markup = renderToStaticMarkup(<TabyView data={data} runtime={createLocalHibiRuntime(new LocalRepository(data))} onEvent={() => undefined} />);
+    const markup = renderToStaticMarkup(<TabyView data={data} turn={inertTurn} />);
 
     expect(markup).toContain('What I can access');
     expect(markup).toContain('Tasks');
@@ -28,13 +42,7 @@ describe('TabyView capability boundaries', () => {
     });
   });
 
-  it('uses provider model metadata as the response provenance label', () => {
-    expect(modelLabelFor({ providerLabel: 'Compatible provider', proposal: { providerMetadata: { model: 'gpt-test' } } })).toBe('gpt-test');
-    expect(modelLabelFor({ providerLabel: 'Hibi local tools', proposal: {} })).toBe('Hibi local tools');
-  });
-
-  it('formats truthful per-response provenance and safe actionable provider failures', () => {
-    expect(provenanceLabelFor({ provider: { label: 'OpenAI-compatible', model: 'gpt-test', usage: { inputTokens: 12, outputTokens: 5, totalTokens: 17 }, fallback: false } })).toBe('OpenAI-compatible · gpt-test · 17 tokens');
+  it('formats safe actionable provider failures', () => {
     expect(failurePresentationFor({ code: 'invalid_credentials', retryable: false })).toEqual({
       title: 'Check the API key',
       detail: 'The configured provider rejected its credentials. Your key remains in Keychain.',
