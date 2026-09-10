@@ -277,7 +277,12 @@ export default function App() {
   }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, folderFilter]);
 
   return (
-    <AppShell active={route} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>
+    <AppShell active={route} onNavigate={(key) => {
+      // O dock marca Foco como atual durante a pausa; clicar nele não pode descartar a pausa em
+      // andamento — clicar no item já atual nunca apaga o que o usuário está fazendo (ver navigate()).
+      if (route === 'break' && key === 'focus') return;
+      navigate(key);
+    }} onOpenCommands={() => setPaletteOpen(true)}>
       {validationError && <div role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '0 0 16px', padding: '13px 16px', border: '1px solid #e2a992', borderRadius: 12, background: '#fff0eb', color: '#984418' }}><span aria-hidden="true" style={{ fontWeight: 900 }}>!</span><div style={{ flex: 1, whiteSpace: 'pre-line' }}>{validationError}</div><button type="button" className="outline" onClick={() => setValidationError('')} aria-label="Dismiss validation error" style={{ padding: '7px 10px' }}>Dismiss</button></div>}
       {pendingLocalApiIntent && <div role="alert" className="notice" style={{ marginBottom: 16 }}><div><strong>Confirmação da API local</strong><p>Deseja criar “{typeof pendingLocalApiIntent.payload.title === 'string' ? pendingLocalApiIntent.payload.title : 'esta tarefa'}”?</p></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={() => void resolveLocalApiIntent(true)}>Confirmar</button><button className="outline" onClick={() => void resolveLocalApiIntent(false)}>Cancelar</button></div></div>}
       <div className="legacy-surface" onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } if (route === 'reminders' && button?.textContent?.trim() === '+ New reminder') { event.preventDefault(); event.stopPropagation(); setReminderCreateOpen(true); } }}>{content}</div>

@@ -18,15 +18,19 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, mode = 'f
   const [seconds, setSeconds] = useState(initial * 60);
   useEffect(() => {
     if (!running) return;
-    const id = window.setInterval(() => setSeconds((value) => {
-      if (value > 1) return value - 1;
-      setRunning(false);
-      if (onBreak) onEvent('break-complete', 'Completed break', 'pass');
-      else { onFocusCompleted?.(); onEvent('focus-complete', 'Completed focus session', 'pass'); }
-      return duration * 60;
-    }), 1000);
+    const id = window.setInterval(() => setSeconds((value) => Math.max(0, value - 1)), 1000);
     return () => window.clearInterval(id);
-  }, [running, onEvent, onFocusCompleted, duration, onBreak]);
+  }, [running]);
+
+  // Conclusão fora do updater: updaters precisam ser puros (o StrictMode os chama duas vezes), e cada
+  // conclusão precisa virar exatamente um evento — o /stats conta sessões a partir deles.
+  useEffect(() => {
+    if (!running || seconds > 0) return;
+    setRunning(false);
+    setSeconds(duration * 60);
+    if (onBreak) onEvent('break-complete', 'Completed break', 'pass');
+    else { onFocusCompleted?.(); onEvent('focus-complete', 'Completed focus session', 'pass'); }
+  }, [running, seconds, duration, onBreak, onEvent, onFocusCompleted]);
   const chooseDuration = (minutes: number) => { if (running) return; setDuration(minutes); setSeconds(minutes * 60); onEvent(onBreak ? 'break-duration' : 'focus-duration', `${minutes} minute ${onBreak ? 'break' : 'session'}`, 'pass'); };
   const toggle = () => {
     const starting = !running;
@@ -39,5 +43,5 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, mode = 'f
   const heading = onBreak ? (running ? t('focus.breakTitle') : t('focus.breakReady')) : (running ? 'Post 1 — Kabrito digital' : 'Ready to focus.');
   const subhead = onBreak ? (running ? t('focus.breakRunning') : `${duration} ${t('focus.breakOnClock')}`) : (running ? 'One clear block. No back-to-back nudges.' : `Pick a task — ${duration}m on the clock.`);
   const action = onBreak ? (running ? t('focus.stopBreak') : t('focus.startBreak')) : (running ? 'Pause session' : 'Start focus');
-  return <div className="focus-view"><div className="eyebrow">{onBreak ? t('focus.breakEyebrow') : 'FOCUS MODE · LOCAL SESSION'}</div><CompanionAnimation state={running && !onBreak ? 'working' : 'idle'} label={onBreak ? t('focus.breakCompanion') : 'Focus companion'} /><div className={`focus-ring ${running ? 'is-running' : ''}`}><span>{time}</span><small>MINUTES</small></div><h1>{heading}</h1><p className="subhead">{subhead}</p><button className="primary focus-button" onClick={toggle}>{action}</button><div className="focus-options">{DURATIONS[mode].map((minutes) => <button key={minutes} className={`filter ${duration === minutes ? 'active' : ''}`} aria-pressed={duration === minutes} disabled={running} onClick={() => chooseDuration(minutes)}>{onBreak ? `${minutes}m` : `${minutes}m focus`}</button>)}<button className="outline" disabled={running} onClick={() => onModeChange?.(onBreak ? 'focus' : 'break')}>{onBreak ? t('focus.backToFocus') : t('focus.takeBreak')}</button></div><p className="muted">Reminders are quiet during focus unless marked Important.</p></div>;
+  return <div className="focus-view"><div className="eyebrow">{onBreak ? t('focus.breakEyebrow') : 'FOCUS MODE · LOCAL SESSION'}</div><CompanionAnimation state={running && !onBreak ? 'working' : 'idle'} label={onBreak ? t('focus.breakCompanion') : 'Focus companion'} /><div className={`focus-ring ${running ? 'is-running' : ''}`}><span>{time}</span><small>{t('focus.minutes')}</small></div><h1>{heading}</h1><p className="subhead">{subhead}</p><button className="primary focus-button" onClick={toggle}>{action}</button><div className="focus-options">{DURATIONS[mode].map((minutes) => <button key={minutes} className={`filter ${duration === minutes ? 'active' : ''}`} aria-pressed={DURATIONS[mode].length > 1 ? duration === minutes : undefined} disabled={running} onClick={() => chooseDuration(minutes)}>{onBreak ? `${minutes}m` : `${minutes}m focus`}</button>)}<button className="outline" disabled={running} onClick={() => onModeChange?.(onBreak ? 'focus' : 'break')}>{onBreak ? t('focus.backToFocus') : t('focus.takeBreak')}</button></div>{!onBreak && <p className="muted">Reminders are quiet during focus unless marked Important.</p>}</div>;
 }

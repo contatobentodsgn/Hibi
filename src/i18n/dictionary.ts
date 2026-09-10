@@ -112,6 +112,7 @@ const pt = {
   'focus.startBreak': 'Começar pausa',
   'focus.stopBreak': 'Encerrar pausa',
   'focus.breakCompanion': 'Companion em pausa',
+  'focus.minutes': 'MINUTOS',
 
   'settings.language.title': 'Idioma',
   'settings.language.detail': 'Idioma da interface',
@@ -235,6 +236,7 @@ const en: Record<DictionaryKey, string> = {
   'focus.startBreak': 'Start break',
   'focus.stopBreak': 'End break',
   'focus.breakCompanion': 'Companion on break',
+  'focus.minutes': 'MINUTES',
 
   'settings.language.title': 'Language',
   'settings.language.detail': 'Interface language',

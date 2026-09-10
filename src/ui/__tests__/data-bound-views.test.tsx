@@ -158,6 +158,7 @@ describe('study views', () => {
     expect(pause).toContain('>15m</button>');
     expect(pause).toContain('5 min de pausa no relógio.');
     expect(pause).toContain('Voltar ao foco');
+    expect(pause).not.toContain('Reminders are quiet during focus');
   });
 
   it('lists the release and hardware surfaces in Help', () => {
