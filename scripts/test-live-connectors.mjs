@@ -72,11 +72,14 @@ export function readNotionLifecycleConfig(environment = process.env) {
   return { dataSourceId }
 }
 
-const harnessTask = (durationMinutes, overrides = {}) => ({ id: 'harness-fixture', title: HARNESS_TITLE, durationMinutes, category: 'work', status: 'open', ...overrides })
+// Concluída de propósito: a tarefa fixa vive numa base real e não pode parecer demanda pendente.
+const harnessTask = (durationMinutes, overrides = {}) => ({ id: 'harness-fixture', title: HARNESS_TITLE, durationMinutes, category: 'work', status: 'completed', ...overrides })
 
 // create -> read -> update -> conflito, contra o serviço real. O conflito não é simulado:
 // a revisão remota muda porque a etapa anterior realmente editou a página no Notion.
-export async function runNotionLifecycle(manager, connectorId, dataSourceId) {
+// `adoptTitles` deixa uma tarefa de validação antiga virar a tarefa fixa: a atualização
+// a renomeia, então a base não ganha uma segunda página descartável.
+export async function runNotionLifecycle(manager, connectorId, dataSourceId, { adoptTitles = [] } = {}) {
   const readRecords = async () => (await manager.listImportCandidates(connectorId, { targets: [{ id: dataSourceId }] }))
     .map(notionRecordFromCandidate)
     .filter((record) => record !== null)
@@ -94,6 +97,10 @@ export async function runNotionLifecycle(manager, connectorId, dataSourceId) {
   let records = await readRecords()
   let fixture = records.find((record) => record.title === HARNESS_TITLE)
   steps.reusedExistingFixture = Boolean(fixture)
+  if (!fixture && adoptTitles.length > 0) {
+    fixture = records.find((record) => adoptTitles.includes(record.title))
+    steps.adoptedLegacyTask = Boolean(fixture)
+  }
 
   if (!fixture) {
     const created = await write('notion.page.create', { dataSourceId, task: harnessTask(30) })
@@ -104,7 +111,7 @@ export async function runNotionLifecycle(manager, connectorId, dataSourceId) {
   }
   if (!fixture) return { ...steps, outcome: 'fixture_not_readable' }
 
-  steps.read = { mappedTitle: fixture.title === HARNESS_TITLE, hasRevision: Boolean(fixture.revision), hasDuration: fixture.durationMinutes !== undefined }
+  steps.read = { mappedTitle: fixture.title === HARNESS_TITLE || steps.adoptedLegacyTask === true, hasRevision: Boolean(fixture.revision) }
 
   // Estado no último sync, antes da alteração remota desta rodada.
   const baselineDuration = fixture.durationMinutes ?? 30
@@ -118,7 +125,7 @@ export async function runNotionLifecycle(manager, connectorId, dataSourceId) {
   records = await readRecords()
   const after = records.find((record) => record.remoteId === fixture.remoteId)
   if (!after) return { ...steps, outcome: 'update_not_readable' }
-  steps.updateVisible = { durationApplied: after.durationMinutes === nextDuration, revisionChanged: after.revision !== baselineRevision }
+  steps.updateVisible = { durationApplied: after.durationMinutes === nextDuration, revisionChanged: after.revision !== baselineRevision, titleIsHarness: after.title === HARNESS_TITLE, completed: after.status === 'completed' }
 
   // Conflito real: o remoto mudou acima; aqui o local também muda desde o mesmo checkpoint.
   const atLastSync = harnessTask(baselineDuration, { remoteRef: { connectorId: 'notion', remoteId: fixture.remoteId, revision: baselineRevision } })
@@ -132,7 +139,7 @@ export async function runNotionLifecycle(manager, connectorId, dataSourceId) {
     writesNothingByDefault: item ? defaultDecisionFor(item) === 'skip' : false,
   }
 
-  const checks = [steps.read.mappedTitle, steps.read.hasRevision, steps.updateVisible.durationApplied, steps.updateVisible.revisionChanged, steps.conflict.detected, steps.conflict.writesNothingByDefault]
+  const checks = [steps.read.mappedTitle, steps.read.hasRevision, ...Object.values(steps.updateVisible), steps.conflict.detected, steps.conflict.writesNothingByDefault]
   return { ...steps, outcome: checks.every(Boolean) ? 'passed' : 'failed' }
 }
 

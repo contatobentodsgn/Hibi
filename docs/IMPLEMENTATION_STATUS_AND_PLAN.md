@@ -15,7 +15,7 @@ Atualizado em 2026-09-10. Este documento é a fonte operacional do status atual;
 | Provedor/modelo por resposta | Implementado | Proveniência exibida no assistente e nos eventos de streaming. |
 | Fallback | Implementado | Políticas perguntar/automático/nunca e fallback local somente em falhas elegíveis. |
 | Conectores (base comum) | Implementado localmente | Adaptadores, normalização, Keychain, allowlist, OAuth PKCE com callback em loopback, teste de conexão somente leitura, endpoint configurável e seleção de fontes importadas. |
-| **Notion Sync v1** | **Concluído, com validação ao vivo pendente de repetição** | Sincronização manual bidirecional: base dedicada Hibi Tasks, reconciliação determinística, prévia com decisão por item, confirmação no app e no notch, checkpoints persistidos, lote recuperável e retry só dos pendentes. Ida e volta real (criar, ler, atualizar) validada em 2026-09-09 no workspace Kizuna. Ver [registro de validação](validation/2026-09-10-notion-sync-v1.md). |
+| **Notion Sync v1** | **Concluído e validado ao vivo** | Sincronização manual bidirecional: base dedicada Hibi Tasks, reconciliação determinística, prévia com decisão por item, confirmação no app e no notch, checkpoints persistidos, lote recuperável e retry só dos pendentes. Validado em 2026-09-10 no workspace Kizuna, pelo app Electron real: setup, leitura, escrita remota e cancelamento confirmados pelo notch, e conflito de dois lados no mesmo minuto. A validação corrigiu quatro defeitos; ver o [registro de validação](validation/2026-09-10-notion-sync-v1.md). |
 | Slack | **Adiado** | Adaptador de leitura e escrita existe e é coberto por testes, mas o produto de sincronização foi adiado: o esforço foi concentrado no Notion. Nenhuma validação ao vivo planejada por ora. |
 | E-mail e notificações remotas | Implementado localmente | Adaptadores e confirmação prontos; entrega real exige credencial do serviço escolhido. |
 | Webhooks | Implementado localmente | HMAC, nonce, expiração, limite de corpo, loopback, Keychain e confirmação; ciclo iniciar/parar e estado após reinício cobertos por e2e; não é endpoint público. |
@@ -25,7 +25,7 @@ Atualizado em 2026-09-10. Este documento é a fonte operacional do status atual;
 | Nova UI — fundação | Implementado localmente | Tokens claro/escuro com contraste testado, i18n `pt`/`en` ao vivo, shell sem moldura com dock, paleta `⌘K` unificada com o Taby; telas ainda com o visual anterior dentro do shell novo. |
 | Notificações remotas | Implementado localmente | Adaptador, confirmação, endpoint HTTPS configurável e teste de conexão; entrega real exige credencial do serviço escolhido. |
 | Teste com provedor real | Bloqueado por configuração | Harness protegido criado; falta endpoint sandbox, modelo, credencial e opt-in explícito. |
-| Teste com conector real | Bloqueado por credencial | Harness protegido criado, com opt-ins separados para leitura, escrita e ciclo de vida do Notion. O ciclo `criar → ler → atualizar → conflito` está automatizado e coberto por testes contra um Notion falso; rodá-lo contra o workspace real depende do token, que fica no Keychain. |
+| Teste com conector real | Notion validado; demais bloqueados por credencial | `npm run test:notion:live` roda o ciclo `criar → ler → atualizar → conflito` com a credencial que o próprio Hibi guarda no Keychain, sem expor o token. Slack, e-mail e notificações remotas seguem sem credencial de sandbox. |
 
 ## Plano restante
 
@@ -68,6 +68,7 @@ Os dois harness recusam a execução até que o opt-in e os parâmetros seguros 
 | `HIBI_LIVE_CONNECTOR_WRITE_KIND` e `..._WRITE_PAYLOAD` | Ação e corpo JSON da escrita avulsa. Opcionais quando o ciclo de vida do Notion está ligado. |
 | `HIBI_LIVE_NOTION_LIFECYCLE=1` | Terceiro opt-in: roda `criar → ler → atualizar → conflito` no Notion. Exige também `HIBI_LIVE_CONNECTOR_WRITE_TEST=1`. |
 | `HIBI_LIVE_NOTION_DATA_SOURCE` | Fonte de dados da base Hibi Tasks usada pelo ciclo de vida. |
+| `HIBI_LIVE_NOTION_KEYCHAIN=1` | Opt-in de `npm run test:notion:live`: valida o Notion dentro do Electron com a credencial salva pelo Hibi, sem variável de token. |
 
 O relatório traz apenas contagens, resultados e o host autorizado: nenhum título, corpo, identificador remoto ou credencial.
 

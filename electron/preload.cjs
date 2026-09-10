@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,showNotch: (presentation) => ipcRenderer.invoke('hibi:notch:show', presentation)
   ,hideNotch: (requestId) => ipcRenderer.invoke('hibi:notch:hide', requestId)
   ,resolveNotchAction: (requestId, actionId) => ipcRenderer.invoke('hibi:notch:action', requestId, actionId)
+  ,getNotchPresentation: () => ipcRenderer.invoke('hibi:notch:current')
   ,getNotchCapabilities: () => ipcRenderer.invoke('hibi:notch:capabilities')
   ,onAiStreamEvent: (callback) => {
     if (typeof callback !== 'function') throw new TypeError('AI stream listener must be a function.');

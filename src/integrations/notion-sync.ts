@@ -36,10 +36,19 @@ export type NotionSyncPlan = Readonly<{
 
 type MappedTask = Readonly<{ title: string; status?: EntityStatus; deadline?: string; durationMinutes?: number; description?: string }>
 
+// Datas com hora viram o mesmo instante em ISO, para o hash não mudar só porque o Notion devolve
+// o horário em outro formato. Datas sem hora ficam como estão, sem deslocar o dia por fuso.
+const canonicalDeadline = (value?: string) => {
+  if (!value) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  const instant = Date.parse(value)
+  return Number.isNaN(instant) ? value : new Date(instant).toISOString()
+}
+
 const mapped = (task: MappedTask) => ({
   title: task.title.trim(),
   status: task.status ?? 'open',
-  deadline: task.deadline ?? null,
+  deadline: canonicalDeadline(task.deadline),
   durationMinutes: Number.isFinite(task.durationMinutes) ? Math.max(0, Math.round(task.durationMinutes!)) : 0,
   description: task.description?.trim() ?? '',
 })
@@ -90,7 +99,10 @@ export function buildNotionSyncPlan(localTasks: readonly Task[], remoteTasks: re
       continue
     }
     const localChanged = notionTaskHash(task) !== base.localHash
-    const remoteChanged = remote.revision !== base.remoteRevision
+    // O Notion arredonda `last_edited_time` para o minuto: uma edição no mesmo minuto da última
+    // sincronização mantém a revisão. Comparar também o conteúdo com o que foi sincronizado impede
+    // que essa edição passe por "só o local mudou" e seja sobrescrita em silêncio.
+    const remoteChanged = remote.revision !== base.remoteRevision || notionTaskHash(remote) !== base.localHash
     const state: NotionSyncState = localChanged && remoteChanged ? 'conflict' : localChanged ? 'local-changed' : remoteChanged ? 'remote-changed' : 'unchanged'
     items.push({ key: `linked:${task.id}`, state, localId: task.id, remoteId: remote.remoteId, local: task, remote })
   }

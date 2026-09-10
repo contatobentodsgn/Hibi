@@ -27,12 +27,14 @@ Núcleo implementado e acabamento concluído. O gate completo passou nesta data:
 - [x] **Defeito corrigido:** `prepareWrite` do Notion não era idempotente, e a criação da
       base falhava *depois* da aprovação do usuário. Detalhes no registro de validação.
 
-**Continua aberto, por depender de credencial ou de ação física:**
+**Fechado na validação ao vivo:**
 
-- [ ] Rodar o ciclo de vida contra o workspace Kizuna (token no Keychain, não extraído).
-- [ ] Conflito real de dois lados no serviço — cenário já automatizado, falta executar.
-- [ ] Fluxo manual no app Electron com o notch real.
-- [ ] Decidir o destino da tarefa de validação criada em 2026-09-09 no workspace Kizuna.
+- [x] Ciclo de vida contra o workspace Kizuna, com a credencial guardada pelo Hibi.
+- [x] Conflito real de dois lados — inclusive no mesmo minuto, o que revelou a revisão arredondada do Notion.
+- [x] Fluxo no app Electron real, com Confirmar e Cancelar clicados na overlay do notch.
+- [x] Tarefa de validação de 2026-09-09 adotada como tarefa fixa, renomeada e concluída.
+
+A validação encontrou e corrigiu quatro defeitos que as pontes simuladas não alcançavam. Detalhes no registro de validação.
 
 **Não refazer:** conector, mapeamento, reconciliação, persistência de configurações, ponte
 segura e interface de revisão estão implementados. O token nunca sai do Keychain.
@@ -150,9 +152,9 @@ segura e interface de revisão estão implementados. O token nunca sai do Keycha
 - [x] Executar `npm test`.
 - [x] Executar `npm run build`.
 - [x] Executar `npm run test:e2e`.
-- [x] Validar setup/estado na tela Integrações (servidor de desenvolvimento; o app Electron empacotado continua pendente).
-- [ ] Com opt-in de escrita, validar no workspace Kizuna Std's Notion: criar, ler, atualizar e produzir conflito em registros descartáveis.
-- [ ] Confirmar que cancelar não escreve e que retry não duplica êxitos.
-- [ ] Verificar Keychain, arquivos rastreados e logs sem imprimir o token.
+- [x] Validar setup/estado na tela Integrações, no app Electron real em modo de produção.
+- [x] Com opt-in de escrita, validar no workspace Kizuna Std's Notion: criar, ler, atualizar e produzir conflito em registros descartáveis.
+- [x] Confirmar que cancelar não escreve (ao vivo) e que retry não duplica êxitos (e2e).
+- [x] Verificar Keychain, arquivos rastreados e logs sem imprimir o token.
 - [x] Registrar evidências sanitizadas no documento de validação e atualizar a matriz oficial.
-- [ ] Commit: `docs: record Notion Sync v1 validation`.
+- [x] Commit: `docs: record Notion Sync v1 validation`.

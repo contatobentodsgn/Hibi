@@ -7,7 +7,13 @@ export const notchMediaFor = (kind: string) => ({ listening: companionAssets.ani
 
 export function NotchOverlay({ initialPresentation = null }: { initialPresentation?: OverlayPresentation | null }) {
   const [presentation, setPresentation] = useState<OverlayPresentation | null>(initialPresentation);
-  useEffect(() => window.hibiDesktop?.onCompanionPresentation?.(setPresentation) ?? (() => undefined), []);
+  useEffect(() => {
+    const unsubscribe = window.hibiDesktop?.onCompanionPresentation?.(setPresentation) ?? (() => undefined);
+    // A primeira apresentação é enviada enquanto esta janela ainda carrega e se perde. Buscar a
+    // ativa ao montar fecha essa corrida; um envio que chegue depois continua valendo.
+    void window.hibiDesktop?.getNotchPresentation?.().then((current) => { if (current) setPresentation((existing) => existing ?? current); }).catch(() => undefined);
+    return unsubscribe;
+  }, []);
   useEffect(() => { if (!presentation) return; const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && presentation.actions.length === 0) void window.hibiDesktop?.hideNotch?.(presentation.requestId); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [presentation]);
   if (!presentation) return <main className="notch-overlay" aria-live="polite" />;
   const media = notchMediaFor(presentation.kind);

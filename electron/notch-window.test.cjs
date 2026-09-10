@@ -125,3 +125,50 @@ test('makes a confirmation keyboard reachable, then restores passive behavior', 
   manager.resolveAction('keyboard-confirm', 'confirm');
   assert.ok(notch.calls.some((call) => call[0] === 'focusable' && call[1] === false));
 });
+
+// Regressão: o addon exige (handle, x, y, width, height). Com o objeto `bounds`, `show()` lançava
+// antes de enviar a apresentação, e toda confirmação do notch sumia em silêncio no app real.
+const nativePlace = (placed) => (handle, x, y, width, height) => {
+  if (!Buffer.isBuffer(handle) || ![x, y, width, height].every(Number.isFinite)) throw new TypeError('Expected native handle and x, y, width, height.');
+  placed.push([x, y, width, height]); return true;
+};
+class HandleWindow extends FakeWindow { getNativeWindowHandle() { return Buffer.alloc(8); } }
+const confirmation = { requestId: 'confirm-1', kind: 'confirmation', text: 'Aplicar?', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }], interaction: 'capture' };
+
+test('uma confirmação passa ao addon o handle e os quatro números da posição', () => {
+  const placed = []; let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: HandleWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge: { place: nativePlace(placed) }, platform: 'darwin' });
+
+  assert.equal(manager.show(confirmation).host, 'electron');
+
+  const bounds = notch.calls.filter(([name]) => name === 'bounds').at(-1)[1];
+  assert.deepEqual(placed.at(-1), [bounds.x, bounds.y, bounds.width, bounds.height]);
+  assert.ok(notch.calls.some(([name, channel]) => name === 'send' && channel === 'hibi:companion:presentation'));
+  assert.ok(notch.calls.some(([name]) => name === 'show'));
+});
+
+test('uma falha na colocação nativa não impede a confirmação de aparecer', () => {
+  let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: HandleWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge: { place: () => { throw new Error('native placement failed'); } }, platform: 'darwin' });
+
+  manager.show(confirmation);
+
+  assert.ok(notch.calls.some(([name, channel]) => name === 'send' && channel === 'hibi:companion:presentation'));
+  assert.ok(notch.calls.some(([name]) => name === 'show'));
+});
+
+// Regressão: a primeira confirmação é enviada enquanto a overlay recém-criada ainda carrega e se
+// perde, deixando um painel vazio sobre o notch. A overlay busca esta apresentação ao montar.
+test('a overlay consegue buscar a confirmação ativa que chegou antes de ela montar', () => {
+  const manager = createNotchWindowManager({ BrowserWindowClass: HandleWindow, screen, preloadPath: 'preload', load: () => {}, nativeBridge: { place: nativePlace([]) }, platform: 'darwin' });
+  assert.equal(manager.activePresentation, null);
+
+  manager.show(confirmation);
+  assert.deepEqual(manager.activePresentation, confirmation);
+  manager.resolveAction('confirm-1', 'confirm');
+  assert.equal(manager.activePresentation, null);
+
+  manager.show(confirmation);
+  manager.hide('confirm-1');
+  assert.equal(manager.activePresentation, null);
+});

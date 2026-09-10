@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readLiveConnectorConfig, readNotionLifecycleConfig, runLiveConnectorTest } from './test-live-connectors.mjs'
+import { readLiveConnectorConfig, readNotionLifecycleConfig, runLiveConnectorTest, runNotionLifecycle } from './test-live-connectors.mjs'
+import { createIntegrationManager } from '../electron/integrations.cjs'
+import { createNotionConnector } from '../electron/connectors/notion.cjs'
 
 const base = {
   HIBI_LIVE_CONNECTOR_TEST: '1',
@@ -80,8 +82,8 @@ test('a escrita real só acontece com o segundo opt-in e não ecoa a mensagem en
 // Notion em memória, fiel ao contrato que o conector usa: consulta por data source,
 // criação em `pages`, atualização em `pages/{id}` e `last_edited_time` que muda a cada
 // escrita — é essa mudança que produz o lado remoto do conflito.
-const fakeNotion = () => {
-  const pages = new Map()
+const fakeNotion = ({ seed = [] } = {}) => {
+  const pages = new Map(seed.map((page) => [page.id, page]))
   let clock = 0
   const stamp = () => `2026-09-10T00:00:${String(clock++).padStart(2, '0')}.000Z`
   const respond = (body) => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => body })
@@ -143,8 +145,8 @@ test('o ciclo de vida cria, lê de volta, atualiza e detecta um conflito real de
 
   assert.equal(lifecycle.reusedExistingFixture, false)
   assert.deepEqual(lifecycle.create, { ok: true, receivedRemoteId: true })
-  assert.deepEqual(lifecycle.read, { mappedTitle: true, hasRevision: true, hasDuration: true })
-  assert.deepEqual(lifecycle.updateVisible, { durationApplied: true, revisionChanged: true })
+  assert.deepEqual(lifecycle.read, { mappedTitle: true, hasRevision: true })
+  assert.deepEqual(lifecycle.updateVisible, { durationApplied: true, revisionChanged: true, titleIsHarness: true, completed: true })
   // O conflito é real: a revisão remota mudou porque a etapa anterior editou a página.
   assert.deepEqual(lifecycle.conflict, { detected: true, defaultDecision: 'skip', writesNothingByDefault: true })
   assert.equal(lifecycle.outcome, 'passed')
@@ -161,4 +163,29 @@ test('repetir o ciclo de vida reaproveita a mesma tarefa em vez de acumular lixo
   assert.equal(second.notionLifecycle.outcome, 'passed')
   assert.equal(notion.pages.size, 1)
   assert.deepEqual(notion.calls, { create: 1, update: 2 })
+})
+
+test('uma tarefa de validação antiga vira a tarefa fixa, renomeada e concluída, sem criar outra', async () => {
+  const legacy = { id: 'page-legacy', object: 'page', last_edited_time: '2026-09-09T12:00:00.000Z', properties: { Name: { title: [{ plain_text: 'Hibi validation task' }] }, Status: { select: { name: 'Open' } } } }
+  const notion = fakeNotion({ seed: [legacy] })
+  const keychain = { async get() { return 'token-secreto' }, async has() { return true }, async set() {}, async remove() {} }
+  const manager = createIntegrationManager({ connectors: [createNotionConnector({ baseUrl: 'https://api.notion.test/v1/' })], keychain, fetch: notion.fetchStub })
+
+  const lifecycle = await runNotionLifecycle(manager, 'notion', 'source-1', { adoptTitles: ['Hibi validation task'] })
+
+  assert.equal(lifecycle.adoptedLegacyTask, true)
+  assert.equal(lifecycle.outcome, 'passed')
+  assert.deepEqual(notion.calls, { create: 0, update: 1 })
+  assert.equal(notion.pages.size, 1)
+  const renamed = notion.pages.get('page-legacy').properties
+  assert.equal(renamed.Name.title[0].text.content, '[hibi-harness] disposable validation task')
+  assert.equal(renamed.Status.select.name, 'Completed')
+})
+
+test('sem adoção explícita, uma tarefa com outro título nunca é tocada', async () => {
+  const other = { id: 'page-real', object: 'page', last_edited_time: '2026-09-09T12:00:00.000Z', properties: { Name: { title: [{ plain_text: 'Hibi validation task' }] } } }
+  const notion = fakeNotion({ seed: [other] })
+  await runLiveConnectorTest(lifecycleEnv, notion.fetchStub)
+  assert.equal(notion.pages.get('page-real').properties.Name.title[0].plain_text, 'Hibi validation task')
+  assert.deepEqual(notion.calls, { create: 1, update: 1 })
 })
