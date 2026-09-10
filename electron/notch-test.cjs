@@ -67,4 +67,4 @@ function createNotchTest({ manager, setTimer = setTimeout, clearTimer = clearTim
   return { run, handleAction };
 }
 
-module.exports = { createNotchTest };
+module.exports = { createNotchTest, NOTCH_TEST_PREFIX: PREFIX };

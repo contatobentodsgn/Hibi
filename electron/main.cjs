@@ -13,9 +13,9 @@ const { createLocalApi, createLocalApiTokenStore } = require('./local-api.cjs');
 const { createWebhookService } = require('./webhooks.cjs');
 const { createOAuthService } = require('./oauth.cjs');
 const { createConnectorSettings } = require('./connector-settings.cjs');
-const { createNotchWindowManager } = require("./notch-window.cjs");
+const { createNotchWindowManager, validPresentation } = require("./notch-window.cjs");
 const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('./notch-settings.cjs');
-const { createNotchTest } = require('./notch-test.cjs');
+const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
 let mainWindow;
@@ -58,6 +58,18 @@ function isAllowedNavigation(rawUrl) {
 function isValidNotchAction(requestId, actionId) {
   return typeof requestId === 'string' && requestId.length > 0 && requestId.length <= 128
     && (actionId === 'confirm' || actionId === 'cancel');
+}
+
+// O teste do notch espera as próprias respostas aqui; repassá-las entregaria ao renderer respostas de confirmações que ele não abriu.
+function routeNotchAction(action, { notchTest, send }) {
+  if (notchTest?.handleAction(action)) return 'test';
+  send('hibi:companion:action', action);
+  return 'renderer';
+}
+
+// O prefixo é do teste do notch: uma apresentação do renderer com ele teria a resposta engolida pelo teste.
+function isRendererPresentationAllowed(presentation) {
+  return Boolean(validPresentation(presentation)) && !presentation.requestId.startsWith(NOTCH_TEST_PREFIX);
 }
 
 function notchCapabilities(adapter, manager) {
@@ -192,8 +204,7 @@ app.whenReady().then(async () => {
   webhookService = createWebhookService({ keychain: secureKeychain, prepare: async (event) => { const confirmationId = `webhook-${crypto.randomUUID()}`; mainWindow?.webContents.send('hibi:webhook:confirmation', { confirmationId, kind: 'webhook.received', payload: event }); return { confirmationId, requiresConfirmation: true }; } });
   replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
   notchSettings = createNotchSettings({ filePath: path.join(app.getPath('userData'), 'notch-settings.json') });
-  // O teste do notch espera as próprias respostas aqui; repassá-las entregaria ao renderer respostas de confirmações que ele não abriu.
-  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { if (notchTest?.handleAction(action)) return; sendToMainWindow('hibi:companion:action', action); } });
+  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
   notchTest = createNotchTest({ manager: notchWindow });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('hibi:notch:displays-changed') });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
@@ -270,7 +281,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:webhook:start', async () => { await webhookService.start(); return webhookService.status(); });
   ipcMain.handle('hibi:webhook:stop', async () => { await webhookService.stop(); return webhookService.status(); });
   ipcMain.handle('hibi:webhook:status', () => webhookService.status());
-  ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
+  ipcMain.handle('hibi:notch:show', (_event, presentation) => { if (!isRendererPresentationAllowed(presentation)) throw new Error('Invalid companion presentation.'); return notchWindow.show(presentation); });
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
   ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));
   ipcMain.handle('hibi:notch:current', () => notchWindow.activePresentation ?? null);
@@ -284,4 +295,4 @@ app.whenReady().then(async () => {
 app.on("before-quit", () => { detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
-module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent };
+module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent, routeNotchAction, isRendererPresentationAllowed };

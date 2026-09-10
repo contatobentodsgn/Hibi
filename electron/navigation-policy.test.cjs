@@ -15,8 +15,28 @@ Module._load = function (request, parent, isMain) {
   if (request === "./notifications.cjs") return { createNotificationScheduler() { return { clear() {} }; } };
   return originalLoad.call(this, request, parent, isMain);
 };
-const { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent } = require("./main.cjs");
+const { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent, routeNotchAction, isRendererPresentationAllowed } = require("./main.cjs");
 Module._load = originalLoad;
+
+test('respostas do teste do notch ficam no processo principal e as demais vão ao renderer', () => {
+  const sent = [];
+  const notchTest = { handleAction: (action) => action.requestId.startsWith('notch-test-') };
+  const send = (...args) => sent.push(args);
+
+  assert.equal(routeNotchAction({ requestId: 'notch-test-confirm-1', actionId: 'confirm' }, { notchTest, send }), 'test');
+  assert.deepEqual(sent, []);
+  assert.equal(routeNotchAction({ requestId: 'confirm-1', actionId: 'cancel' }, { notchTest, send }), 'renderer');
+  assert.deepEqual(sent, [['hibi:companion:action', { requestId: 'confirm-1', actionId: 'cancel' }]]);
+  assert.equal(routeNotchAction({ requestId: 'confirm-2', actionId: 'confirm' }, { notchTest: undefined, send }), 'renderer');
+  assert.equal(sent.length, 2);
+});
+
+test('o renderer não pode abrir apresentações com o prefixo reservado ao teste do notch', () => {
+  assert.equal(isRendererPresentationAllowed({ requestId: 'confirm-1', kind: 'confirmation', text: 'Ok?', actions: [] }), true);
+  assert.equal(isRendererPresentationAllowed({ requestId: 'notch-test-confirm-1', kind: 'confirmation', text: 'Ok?', actions: [] }), false);
+  assert.equal(isRendererPresentationAllowed(null), false);
+  assert.equal(isRendererPresentationAllowed({ requestId: 42, kind: 'result', text: null, actions: [] }), false);
+});
 
 test("allows only local development and packaged file navigation", () => {
   assert.equal(isAllowedNavigation("http://127.0.0.1:5173/"), true);
