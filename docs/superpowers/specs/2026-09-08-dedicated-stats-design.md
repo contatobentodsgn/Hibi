@@ -19,6 +19,48 @@ identify trends, and export evidence.
   external services.
 - `/stats` opens the dedicated statistics view. `/review` continues to open Review.
 
+## Decisions after implementation
+
+Settled while building `feat/dedicated-stats`; the full table is in the plan's
+"Decisions fixed by this revision". Where they differ from the sections below,
+these win.
+
+- **What records activity.** Pure mappers in `src/domain/activity-events.ts`;
+  `App.tsx` appends only after the mutation succeeded. Only actions a person
+  performs in Hibi, directly or by confirming a Taby action, record activity;
+  Notion pulls, imports, restores and resets record nothing. There is no backfill:
+  the ledger starts empty.
+- **Vocabulary in use.** Tasks and habits record completion and reopening only on
+  a real change. Goals record progress, completion and `goal.reopened` (added).
+  Blocks record creation (with minutes) and deletion; `block.moved` and
+  `block.completed` stay in the vocabulary but are not recorded yet.
+- **Focus.** Started, paused, resumed, completed (clock reaches zero) and
+  cancelled (a started session abandoned by leaving the screen or switching to
+  break). Only completed and cancelled carry measured minutes, capped at the
+  session length. Breaks never produce focus activity.
+- **Metrics.** Tasks and goals completed are net of reopenings and never below 0;
+  completed minutes are task minutes net of reopenings; planned minutes are created
+  minus deleted block minutes; `focusSessions` counts completed sessions only;
+  `focusMinutes` adds completed and cancelled minutes; habit check-ins are net.
+  Completion and habit rates, and streaks, are not shown in v1 (no provable
+  denominator).
+- **Daily series and distributions** use signed deltas: a reversal is negative on
+  its own day, category and folder, drawn below a zero baseline; only period totals
+  are clamped at 0.
+- **Periods.** Local timezone, half-open. Custom periods up to 366 days; invalid
+  input shows the invalid-period state. The previous period has the same number of
+  days, except Month, which compares with the previous calendar month.
+- **Partial history.** A period that starts before the earliest non-seeded record
+  (or with an empty ledger) is partial, and the notice is part of the period
+  announcement; a partial previous period shows the comparison as unavailable.
+- **Failure.** If appending fails, the action stays applied, a `fail`
+  instrumentation event is logged and an inline error is shown.
+- **Exports are available for empty periods too**: the CSV has only the header row
+  and the JSON is `[]`.
+- **Paused-focus duration guard.** Choosing the already selected duration while a
+  focus session is paused keeps the session. The guard applies only to focus mode:
+  breaks record no activity, so in break mode any duration choice resets the clock.
+
 ## Activity ledger
 
 Introduce a versioned `ActivityRecord` collection in local study data. Every record

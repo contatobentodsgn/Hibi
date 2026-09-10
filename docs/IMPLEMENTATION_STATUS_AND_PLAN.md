@@ -21,7 +21,7 @@ Atualizado em 2026-09-10, depois do merge do PR #4 (`main` em `2e4909a`). Este d
 | **Monitor do notch e "Testar notch"** | **Implementado e validado no app real** | Configurações › Geral escolhe Automático ou um monitor; o automático é reavaliado a cada posicionamento (antes ficava preso à tela principal quando o app abria com a tampa fechada). O teste mostra um cartão passivo e uma confirmação no monitor escolhido e nunca tampa uma confirmação real. A validação com a tela integrada e o LG ULTRAWIDE corrigiu: confirmação posicionada a partir da tela com foco, texto do cartão passivo cortado e escondido atrás da câmera, confirmação transbordando a janela e superfície anterior esquecida na tela ao trocar de host. Registro em [`notch-manual-results.md`](notch-manual-results.md). |
 | Comandos `/folder` e `/break` | Implementado localmente | Pastas derivadas dos itens (nomes comparados depois de aparar espaços e normalizar para NFC), com filtros reais em Tarefas e Notas e navegação e renomeação pela paleta; juntar pastas pede confirmação e só é anunciado quando aplicado. `/break` abre o Foco em modo pausa, com eventos `break-*` que nunca contam como foco, e cada conclusão de foco ou pausa é registrada exatamente uma vez. Paridade com os 21 comandos do original. |
 | Nova UI — fundação | Implementado localmente | Tokens claro/escuro com contraste testado, i18n `pt`/`en` ao vivo, shell sem moldura com dock, paleta `⌘K` unificada com o Taby; telas ainda com o visual anterior dentro do shell novo. |
-| Estatísticas dedicadas | **Em andamento, fora de `main`** | Branch `feat/dedicated-stats` (worktree `.worktrees/dedicated-stats`): Tasks 1–2 de 8 do [plano](superpowers/plans/2026-09-08-dedicated-stats.md) — contrato e persistência do registro de atividade. Faltam compatibilidade de backup, cálculos, registro único por ação, página, rota e verificação. Hoje `/stats` abre o Review. |
+| Estatísticas dedicadas | Implementado localmente | Página `/stats` (menu "Mais" do dock e paleta; `/review` continua no Review) sobre um registro local de atividade só de acréscimo, gravado uma vez por ação feita no Hibi — Tarefas, Hábitos, Metas, blocos, Foco e ações confirmadas do Taby; pausas nunca contam como foco. Resumo com comparação ao período anterior, tendência diária em SVG com tabela equivalente, planejado x concluído, categorias, pastas, histórico filtrável e exportação CSV/JSON só do período (também vazio); backup versão 2 leva o registro. Código: `src/domain/activity.ts`, `activity-events.ts`, `stats.ts`, `stats-export.ts`, `src/data/workspace-backup.ts`, `src/ui/focus-lifecycle.ts`, `StatsView.tsx`, `stats-format.ts`, `stats.css`. Testes: `stats.test.ts` (em `TZ=UTC` e `America/Sao_Paulo`), `stats-export.test.ts`, `activity-events.test.ts`, `activity.test.ts`, `workspace-backup.test.ts`, `focus-lifecycle.test.ts`, `StatsView.test.tsx`, `shell.test.tsx`, `palette.test.tsx`; e2e `tests/e2e/stats.spec.ts` — tarefa concluída em Hoje, persistência após recarregar, período personalizado sem a tarefa, CSV do período, teclado, foco concluído e cancelado com relógio simulado e pausa sem efeito. Bateria na branch `feat/dedicated-stats`: 503 Vitest, 176 `node --test`, 99 e2e, `tsc` e build de produção. Checagem no app Electron e PR ficam com o controlador ([plano](superpowers/plans/2026-09-08-dedicated-stats.md), Task 8). |
 | Slack | **Adiado** | Adaptador de leitura e escrita existe e é coberto por testes, mas o produto de sincronização foi adiado: o esforço foi concentrado no Notion. Nenhuma validação ao vivo planejada por ora. |
 | E-mail e notificações remotas | Implementado localmente | Adaptadores, confirmação, endpoint HTTPS configurável e teste de conexão; entrega real exige credencial do serviço escolhido. |
 | Webhooks | Implementado localmente | HMAC, nonce, expiração, limite de corpo, loopback, Keychain e confirmação; ciclo iniciar/parar e estado após reinício cobertos por e2e; não é endpoint público. |
@@ -43,6 +43,7 @@ Referência: Hey Taby 0.2.2 e 0.2.3, pelas auditorias em `/Volumes/SSD/app/node_
 | Visão diária e semanal | Blocos locais, conflitos, importação e exportação ICS. |
 | Comandos `/` | Os 21 do original, na paleta `⌘K`. |
 | Foco e pausa | Timer de 25 minutos e pausa de 5, 10 ou 15 minutos, com eventos separados. |
+| Estatísticas | Página dedicada `/stats` com resumo por período, tendência diária, planejado x concluído, categorias, pastas, histórico e exportação CSV/JSON, a partir de um registro local de atividade. Ver "Estatísticas dedicadas" acima. |
 | Taby | Assistente com provedor local ou compatível com OpenAI, confirmação antes de alterar dados e streaming. No original a tela ainda era "coming soon" (0.2.2) ou dependia do Brain não instalado (0.2.3). |
 | Integrações | Além do original (Codex e Claude sem conexão, Google Calendar "em breve"): Notion validado ao vivo, API local, webhooks, e-mail e notificações remotas. |
 | Notch | Host nativo público, confirmações no notch, escolha de monitor e botão de teste — ambos pedidos na auditoria do original —, validado com monitor externo. |
@@ -54,7 +55,6 @@ Referência: Hey Taby 0.2.2 e 0.2.3, pelas auditorias em `/Volumes/SSD/app/node_
 
 | Do original | Situação no Hibi | Observação |
 | --- | --- | --- |
-| Estatísticas | Branch em andamento | Ver "Estatísticas dedicadas" acima. |
 | Review da 0.2.3 com sugestões (`duplicate_task`, `missing_schedule`) | Ausente — o Review é um resumo | Evitar os defeitos auditados: números como identificadores, agrupar duplicidades, recalcular após mudanças, dispensa em lote, evidência da confiança. |
 | Tela de chats do Taby (várias conversas, busca, novo chat) | Ausente | A conversa vive só no estado da tela e se perde ao sair; só o histórico de ações da IA é salvo. |
 | Ajustes de Foco (horário ativo, ausência, inatividade, pomodoro, timeout de tela, loop visual, intensidade dos nudges) | Ausentes | A aba Foco mostra só a duração fixa de 25 minutos. |
@@ -135,7 +135,7 @@ lá entre as rodadas.
 
 Ordem recomendada, do que está mais adiantado e mais usado para o que depende de terceiros:
 
-1. [ ] Concluir as estatísticas dedicadas (`feat/dedicated-stats`, Tasks 3–8).
+1. [x] Concluir as estatísticas dedicadas (`feat/dedicated-stats`, Tasks 3–8; checagem no Electron e PR com o controlador).
 2. [ ] Salvar as conversas do Taby, com lista de chats, busca e novo chat.
 3. [ ] Ajustes de Foco: horário ativo, inatividade, pomodoro e intensidade dos nudges, com prévia de quantos alertas por dia.
 4. [ ] Review com sugestões de duplicata e de agenda ausente, sem os falsos positivos auditados no original.
