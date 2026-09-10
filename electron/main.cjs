@@ -259,6 +259,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:notch:show', (_event, presentation) => notchWindow.show(presentation));
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
   ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));
+  ipcMain.handle('hibi:notch:current', () => notchWindow.activePresentation ?? null);
   ipcMain.handle('hibi:notch:capabilities', () => notchCapabilities(notchAdapter, notchWindow));
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

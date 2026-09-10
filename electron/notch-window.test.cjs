@@ -156,3 +156,19 @@ test('uma falha na colocação nativa não impede a confirmação de aparecer', 
   assert.ok(notch.calls.some(([name, channel]) => name === 'send' && channel === 'hibi:companion:presentation'));
   assert.ok(notch.calls.some(([name]) => name === 'show'));
 });
+
+// Regressão: a primeira confirmação é enviada enquanto a overlay recém-criada ainda carrega e se
+// perde, deixando um painel vazio sobre o notch. A overlay busca esta apresentação ao montar.
+test('a overlay consegue buscar a confirmação ativa que chegou antes de ela montar', () => {
+  const manager = createNotchWindowManager({ BrowserWindowClass: HandleWindow, screen, preloadPath: 'preload', load: () => {}, nativeBridge: { place: nativePlace([]) }, platform: 'darwin' });
+  assert.equal(manager.activePresentation, null);
+
+  manager.show(confirmation);
+  assert.deepEqual(manager.activePresentation, confirmation);
+  manager.resolveAction('confirm-1', 'confirm');
+  assert.equal(manager.activePresentation, null);
+
+  manager.show(confirmation);
+  manager.hide('confirm-1');
+  assert.equal(manager.activePresentation, null);
+});
