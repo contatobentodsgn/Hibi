@@ -19,6 +19,7 @@ Atualizado em 2026-09-09. Este documento é a fonte operacional do status atual;
 | API pública | Implementado localmente | API HTTP loopback, token revogável no Keychain, OpenAPI, leituras e escritas com confirmação. |
 | Importação | Implementado localmente | CSV/JSON/ICS e leitura por conector a partir das fontes escolhidas, com prévia, deduplicação por referência remota, conflitos e aplicação local da decisão. |
 | Compartilhamento | Implementado localmente | Convites somente leitura assinados e expirados. |
+| Nova UI — fundação | Implementado localmente | Tokens claro/escuro com contraste testado, i18n `pt`/`en` ao vivo, shell sem moldura com dock, paleta `⌘K` unificada com o Taby; telas ainda com o visual anterior dentro do shell novo. |
 | Notificações remotas | Implementado localmente | Adaptador, confirmação, endpoint HTTPS configurável e teste de conexão; entrega real exige credencial do serviço escolhido. |
 | Teste com provedor real | Bloqueado por configuração | Harness protegido criado; falta endpoint sandbox, modelo, credencial e opt-in explícito. |
 | Teste com conector real | Bloqueado por configuração | Harness protegido criado, com opt-ins separados para leitura e escrita; falta endpoint sandbox, token e alvos. |
