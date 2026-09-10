@@ -101,6 +101,30 @@ test('nota criada em pasta nova ganha filtro próprio, e trocar de filtro não a
   await expect(form.getByLabel('Folder')).toHaveValue('Outra');
 });
 
+test('editar uma nota troca e limpa a pasta', async ({ page }) => {
+  await page.goto('/');
+  await goMore(page, 'Notas');
+  const form = page.getByRole('form', { name: 'Create note' });
+  await form.getByLabel('Title').fill('Nota para editar');
+  await form.getByLabel('Folder').fill('Clientes');
+  await form.getByRole('button', { name: 'Add note' }).click();
+  await expect(page.getByText('Nota para editar')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Edit Nota para editar' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit note' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Folder').fill('');
+  await dialog.getByRole('button', { name: 'Save note' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText('Nota para editar').locator('..').getByText(/Sem pasta$/)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Edit Nota para editar' }).click();
+  await dialog.getByLabel('Folder').fill('Arquivo');
+  await dialog.getByRole('button', { name: 'Save note' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Pasta · Arquivo 1' })).toBeVisible();
+});
+
 test('abas de Settings alternam conteúdo funcional', async ({ page }) => {
   await page.goto('/');
   await goMore(page, 'Ajustes');

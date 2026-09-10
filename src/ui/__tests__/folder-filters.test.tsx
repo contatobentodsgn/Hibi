@@ -78,4 +78,20 @@ describe('filtros de pasta', () => {
     expect(markup).toContain('No notes match this search.')
     expect(markup).not.toContain('Briefing')
   })
+
+  // Sem initialFolder cada tela só oferece chips das pastas do seu próprio tipo — "Só notas" (sem
+  // tarefa nenhuma) não pode aparecer em Tarefas, e "Só tarefas" (sem nota nenhuma) não pode aparecer
+  // em Notas. Também prova que as pastas reais saem em ordem alfabética, com "Sem pasta" por último.
+  it('cada tela só lista chips de pastas do seu próprio tipo, em ordem alfabética com "Sem pasta" por último', () => {
+    const tasksMarkup = renderToStaticMarkup(<TasksView data={withFolders()} onEvent={noop} onTaskStatusChange={noop} />)
+    expect(tasksMarkup).not.toContain('Pasta · Só notas')
+
+    const notesMarkup = renderToStaticMarkup(<NotesView data={withFolders()} onCreate={noop} onUpdate={noop} onDelete={noop} />)
+    expect(notesMarkup).not.toContain('Pasta · Só tarefas')
+
+    const indexOfChip = (markup: string, name: string) => markup.indexOf(`Pasta · ${name} `)
+    const tasksOrder = ['Bento', 'Clientes', 'Só tarefas', 'Sem pasta'].map((name) => indexOfChip(tasksMarkup, name))
+    expect(tasksOrder.every((index) => index !== -1)).toBe(true)
+    expect(tasksOrder).toEqual([...tasksOrder].sort((a, b) => a - b))
+  })
 })
