@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { ActivityRecord } from '../../domain/activity';
 import { MAX_CUSTOM_PERIOD_DAYS, resolveStatsPeriod } from '../../domain/stats';
 import { dictionary, translate, type DictionaryKey } from '../../i18n/dictionary';
+import { StatsContent, StatsView, type StatsContentProps } from '../StatsView';
 import {
   buildStatsExport,
   comparisonText,
@@ -13,10 +14,8 @@ import {
   historyTypeOptions,
   MINUS,
   resolvePeriodChoice,
-  StatsContent,
-  StatsView,
-  type StatsContentProps,
-} from '../StatsView';
+  UTF8_BOM,
+} from '../stats-format';
 
 // Horários sempre construídos a partir de datas locais, para o teste valer em qualquer fuso.
 const at = (month: number, day: number, hour = 9, minute = 0) => new Date(2026, month - 1, day, hour, minute).toISOString();
@@ -291,7 +290,7 @@ describe('stats view helpers', () => {
     const csv = buildStatsExport('csv', records, new Date(2026, 8, 10, 23, 30));
     expect(csv.fileName).toBe('hibi-stats-2026-09-10.csv');
     expect(csv.mimeType).toBe('text/csv;charset=utf-8');
-    expect(csv.content.startsWith('﻿at,type,')).toBe(true);
+    expect(csv.content.startsWith(`${UTF8_BOM}at,type,`)).toBe(true);
     expect(csv.content).toContain('Post');
     const json = buildStatsExport('json', records, new Date(2026, 8, 10, 0, 5));
     expect(json.fileName).toBe('hibi-stats-2026-09-10.json');
@@ -302,7 +301,7 @@ describe('stats view helpers', () => {
   it('exports an empty period as a header-only CSV and an empty JSON list', () => {
     const csv = buildStatsExport('csv', [], reference);
     expect(csv.fileName).toBe('hibi-stats-2026-09-10.csv');
-    expect(csv.content).toBe('﻿at,type,entityType,entityId,title,durationMinutes,category,folder,value\r\n');
+    expect(csv.content).toBe(`${UTF8_BOM}at,type,entityType,entityId,title,durationMinutes,category,folder,value\r\n`);
     const json = buildStatsExport('json', [], reference);
     expect(json.fileName).toBe('hibi-stats-2026-09-10.json');
     expect(json.content).toBe('[]');

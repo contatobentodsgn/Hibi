@@ -6,7 +6,6 @@ import {
   compareStats,
   MAX_CUSTOM_PERIOD_DAYS,
   previousPeriod,
-  resolveStatsPeriod,
   type DailyMetric,
   type DistributionMetric,
   type StatsComparison,
@@ -14,21 +13,28 @@ import {
   type StatsPreset,
   type StatsSummary,
 } from '../domain/stats';
-import { activityToCsv, activityToJson, recordsForPeriod } from '../domain/stats-export';
+import { recordsForPeriod } from '../domain/stats-export';
 import type { DictionaryKey } from '../i18n/dictionary';
-import type { Locale } from '../i18n/format';
 import { useLocale, useT } from '../i18n/LocaleProvider';
+import {
+  buildStatsExport,
+  comparisonText,
+  fillTemplate,
+  formatDayKey,
+  formatLocalDateTime,
+  formatMinutes,
+  formatValue,
+  historyTypeOptions,
+  periodDayKeys,
+  periodRange,
+  resolvePeriodChoice,
+  type CustomRange,
+  type PeriodChoice,
+  type StatsExportFormat,
+} from './stats-format';
 import './stats.css';
 
-type Translate = (key: DictionaryKey) => string;
-type Unit = (magnitude: number) => string;
 type OnEvent = (action: string, detail: string, result?: string) => void;
-export type StatsExportFormat = 'csv' | 'json';
-export interface CustomRange { start: string; end: string }
-export type PeriodChoice = { period: StatsPeriod; error?: undefined } | { period?: undefined; error: DictionaryKey };
-
-// Sinal de menos tipográfico (U+2212): o hífen costuma ser lido como "traço" por leitores de tela.
-export const MINUS = '−';
 
 const PRESETS: readonly StatsPreset[] = ['today', 'week', 'month', 'custom'];
 const PRESET_KEYS: Record<StatsPreset, DictionaryKey> = {
@@ -47,99 +53,9 @@ const CATEGORY_KEYS = new Map<string, DictionaryKey>([
 ]);
 // Um ano de atividade pode ter milhares de linhas: a lista mostra as mais recentes e a exportação traz todas.
 const HISTORY_LIMIT = 200;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const DAY_MS = 86_400_000;
 
 const typeKey = (type: KnownActivityType): DictionaryKey => `stats.type.${type}`;
 const isKnownType = (type: string): type is KnownActivityType => (ACTIVITY_TYPES as readonly string[]).includes(type);
-
-const pad = (value: number) => String(value).padStart(2, '0');
-const localDateKey = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-const utcDay = (key: string) => {
-  const [year, month, day] = key.split('-').map(Number);
-  return Date.UTC(year, month - 1, day);
-};
-const isCalendarDate = (key: string) => DATE_PATTERN.test(key) && new Date(utcDay(key)).toISOString().slice(0, 10) === key;
-
-export function formatSigned(value: number, unit: Unit = String): string {
-  if (value > 0) return `+${unit(value)}`;
-  if (value < 0) return `${MINUS}${unit(-value)}`;
-  return unit(0);
-}
-
-export const formatValue = (value: number): string => (value < 0 ? `${MINUS}${-value}` : String(value));
-
-export function formatMinutes(minutes: number): string {
-  const total = Math.round(minutes);
-  if (total < 0) return `${MINUS}${formatMinutes(-total)}`;
-  const hours = Math.floor(total / 60);
-  const rest = total % 60;
-  if (hours === 0) return `${rest} min`;
-  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
-}
-
-// Função como substituição: nomes de arquivo e títulos podem conter `$&`, que `replace` interpretaria.
-export const fillTemplate = (template: string, values: Readonly<Record<string, string>>): string =>
-  template.replace(/\{(\w+)\}/g, (match, name: string) => (Object.hasOwn(values, name) ? values[name] : match));
-
-export function comparisonText(delta: number, previousPartial: boolean, t: Translate, unit?: Unit): string {
-  if (previousPartial) return t('stats.comparison.unavailable');
-  return fillTemplate(t('stats.comparison'), { delta: formatSigned(delta, unit) });
-}
-
-export function resolvePeriodChoice(preset: StatsPreset, reference: Date, custom: CustomRange): PeriodChoice {
-  try {
-    return { period: resolveStatsPeriod(preset, reference, preset === 'custom' ? custom : undefined) };
-  } catch (error) {
-    if (!(error instanceof RangeError)) throw error;
-    // Quem valida é o domínio; aqui só se escolhe a mensagem que explica o motivo.
-    if (preset !== 'custom' || !isCalendarDate(custom.start) || !isCalendarDate(custom.end)) return { error: 'stats.error.invalid' };
-    if (custom.end < custom.start) return { error: 'stats.error.order' };
-    const days = (utcDay(custom.end) - utcDay(custom.start)) / DAY_MS + 1;
-    return { error: days > MAX_CUSTOM_PERIOD_DAYS ? 'stats.error.length' : 'stats.error.invalid' };
-  }
-}
-
-export const historyTypeOptions = (records: readonly ActivityRecord[]): KnownActivityType[] => {
-  const present = new Set(records.map((record) => record.type));
-  return ACTIVITY_TYPES.filter((type) => present.has(type));
-};
-
-export function buildStatsExport(format: StatsExportFormat, records: readonly ActivityRecord[], referenceDate: Date) {
-  const fileName = `hibi-stats-${localDateKey(referenceDate)}.${format}`;
-  if (format === 'json') return { fileName, mimeType: 'application/json', content: activityToJson(records) };
-  // BOM: sem ele o Excel abre o CSV em outra codificação e estraga os acentos.
-  return { fileName, mimeType: 'text/csv;charset=utf-8', content: `﻿${activityToCsv(records)}` };
-}
-
-const tagFor = (locale: Locale) => (locale === 'pt' ? 'pt-BR' : 'en-US');
-
-// `useFormat` fixa o fuso do workspace, mas as estatísticas agrupam pelo fuso local; os rótulos seguem o agrupamento.
-// Chaves de dia são datas de calendário: a meia-noite UTC formatada em UTC devolve o mesmo dia em qualquer fuso.
-export const formatDayKey = (key: string, locale: Locale) =>
-  new Intl.DateTimeFormat(tagFor(locale), { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(utcDay(key));
-
-export const formatDayRange = (startKey: string, endKey: string, locale: Locale) =>
-  new Intl.DateTimeFormat(tagFor(locale), { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).formatRange(utcDay(startKey), utcDay(endKey));
-
-const formatLocalDateTime = (iso: string, locale: Locale, twentyFourHour: boolean) =>
-  new Intl.DateTimeFormat(tagFor(locale), {
-    day: 'numeric',
-    month: 'short',
-    hour: twentyFourHour ? '2-digit' : 'numeric',
-    minute: '2-digit',
-    hourCycle: twentyFourHour ? 'h23' : 'h12',
-  }).format(new Date(iso));
-
-const periodDayKeys = (period: StatsPeriod): CustomRange => {
-  const end = new Date(period.endExclusive);
-  return { start: localDateKey(new Date(period.start)), end: localDateKey(new Date(end.getFullYear(), end.getMonth(), end.getDate() - 1)) };
-};
-
-const periodRange = (period: StatsPeriod, locale: Locale) => {
-  const keys = periodDayKeys(period);
-  return formatDayRange(keys.start, keys.end, locale);
-};
 
 interface StatsReport {
   current: StatsSummary;
