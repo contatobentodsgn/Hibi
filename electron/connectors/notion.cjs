@@ -132,16 +132,21 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request 
         });
         return { kind: input.kind, payload: { operations: safe } };
       }
+      // `prepareWrite` precisa ser idempotente: o gerenciador guarda o que ela devolve e
+      // `executeApproved` a chama de novo sobre esse valor. Por isso ela valida e normaliza
+      // sem trocar de forma; o corpo da API é montado só na hora de enviar.
       if (input.kind === 'notion.database.create') {
         if (!boundedId(input.payload?.parentPageId)) throw new Error('Notion parent page identifier is invalid.');
-        return { kind: input.kind, payload: { parent: { type: 'page_id', page_id: input.payload.parentPageId }, title: [{ type: 'text', text: { content: 'Hibi Tasks' } }], initial_data_source: { properties: databaseSchema() } } };
+        return { kind: input.kind, payload: { parentPageId: input.payload.parentPageId } };
       }
       if (input.kind === 'notion.page.create') {
         if (!boundedId(input.payload?.dataSourceId)) throw new Error('Notion data source identifier is invalid.');
-        return { kind: input.kind, payload: { parent: { type: 'data_source_id', data_source_id: input.payload.dataSourceId }, properties: taskProperties(input.payload.task) } };
+        taskProperties(input.payload?.task);
+        return { kind: input.kind, payload: { dataSourceId: input.payload.dataSourceId, task: structuredClone(input.payload.task) } };
       }
       if (!boundedId(input.payload?.id)) throw new Error('Notion page identifier is invalid.');
-      return { kind: input.kind, payload: { id: input.payload.id, properties: taskProperties(input.payload.task) } };
+      taskProperties(input.payload?.task);
+      return { kind: input.kind, payload: { id: input.payload.id, task: structuredClone(input.payload.task) } };
     },
     async executeApproved({ kind, payload, credential, request: override }) {
       const prepared = this.prepareWrite({ kind, payload });
@@ -158,9 +163,16 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request 
         }
         return { ok: items.every((item) => item.ok), items };
       }
-      let path = 'pages'; let method = 'POST'; let body = prepared.payload;
-      if (kind === 'notion.database.create') path = 'databases';
-      if (kind === 'notion.page.update') { path = `pages/${encodeURIComponent(prepared.payload.id)}`; method = 'PATCH'; body = { properties: prepared.payload.properties }; }
+      let path = 'pages'; let method = 'POST'; let body;
+      if (kind === 'notion.database.create') {
+        path = 'databases';
+        body = { parent: { type: 'page_id', page_id: prepared.payload.parentPageId }, title: [{ type: 'text', text: { content: 'Hibi Tasks' } }], initial_data_source: { properties: databaseSchema() } };
+      } else if (kind === 'notion.page.create') {
+        body = { parent: { type: 'data_source_id', data_source_id: prepared.payload.dataSourceId }, properties: taskProperties(prepared.payload.task) };
+      } else {
+        path = `pages/${encodeURIComponent(prepared.payload.id)}`; method = 'PATCH';
+        body = { properties: taskProperties(prepared.payload.task) };
+      }
       return call(path, { method, headers: headers(credential, true), body: JSON.stringify(body) }, override);
     },
   };

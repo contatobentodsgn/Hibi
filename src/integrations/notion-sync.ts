@@ -115,3 +115,31 @@ export function buildNotionSyncPlan(localTasks: readonly Task[], remoteTasks: re
     },
   }
 }
+
+export type NotionDecision = 'keep-local' | 'keep-remote' | 'duplicate' | 'skip'
+
+// A decisão sugerida para cada item. Um lado alterado sozinho segue esse lado; qualquer
+// coisa ambígua — conflito de dois lados, duplicata, remoto sumido — cai em `skip`, que
+// não escreve em lugar nenhum. O harness ao vivo verifica esta mesma função contra um
+// conflito real, então a regra da interface e a validada no serviço são a mesma.
+export const defaultDecisionFor = (item: NotionSyncPlanItem): NotionDecision =>
+  item.state === 'local-new' || item.state === 'local-changed' ? 'keep-local'
+    : item.state === 'remote-new' || item.state === 'remote-changed' ? 'keep-remote'
+      : 'skip'
+
+// A mesma conversão que a interface usa para transformar um candidato de importação
+// no registro comparável. Exportada para o harness ao vivo poder validar contra o
+// serviço real exatamente o mapeamento que o app aplica, sem uma segunda cópia.
+export const notionRecordFromCandidate = (candidate: import('./imports').ImportCandidate): NotionTaskRecord | null =>
+  candidate.kind === 'task' && candidate.revision
+    ? {
+      remoteId: candidate.remoteId,
+      revision: candidate.revision,
+      title: candidate.title,
+      ...(candidate.hibiId ? { hibiId: candidate.hibiId } : {}),
+      ...(candidate.status ? { status: candidate.status } : {}),
+      ...(candidate.deadline ? { deadline: candidate.deadline } : {}),
+      ...(candidate.durationMinutes === undefined ? {} : { durationMinutes: candidate.durationMinutes }),
+      ...(candidate.description ? { description: candidate.description } : {}),
+    }
+    : null

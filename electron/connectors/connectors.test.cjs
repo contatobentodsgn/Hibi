@@ -87,12 +87,33 @@ test('o Notion descobre a fonte de dados de uma base', async () => {
   assert.equal(requests[0].url, 'https://api.notion.com/v1/databases/db-1');
 });
 
-test('prepara a base Hibi Tasks sob a página Kizuna com o esquema exato', () => {
-  const connector = createNotionConnector();
+test('cria a base Hibi Tasks sob a página Kizuna com o esquema exato', async () => {
+  let sent;
+  const connector = createNotionConnector({ request: async (url, init) => { sent = { url, body: JSON.parse(init.body) }; return new Response(JSON.stringify({ id: 'db-1' }), { status: 200 }); } });
   const prepared = connector.prepareWrite({ kind: 'notion.database.create', payload: { parentPageId: 'dd22241d14e14b298e6802525af7d2a7' } });
-  assert.equal(prepared.payload.parent.page_id, 'dd22241d14e14b298e6802525af7d2a7');
-  assert.equal(prepared.payload.title[0].text.content, 'Hibi Tasks');
-  assert.deepEqual(Object.keys(prepared.payload.initial_data_source.properties), ['Name', 'Status', 'Start', 'Duration minutes', 'Description', 'Hibi ID', 'Hibi updated at']);
+  await connector.executeApproved({ ...prepared, credential: 'tok' });
+
+  assert.ok(sent.url.endsWith('/databases'));
+  assert.equal(sent.body.parent.page_id, 'dd22241d14e14b298e6802525af7d2a7');
+  assert.equal(sent.body.title[0].text.content, 'Hibi Tasks');
+  assert.deepEqual(Object.keys(sent.body.initial_data_source.properties), ['Name', 'Status', 'Start', 'Duration minutes', 'Description', 'Hibi ID', 'Hibi updated at']);
+});
+
+// O gerenciador guarda o resultado de `prepareWrite` e `executeApproved` a prepara de
+// novo. Se preparar duas vezes não der o mesmo valor, confirmar uma ação falha depois
+// de o usuário já ter aprovado — foi o que quebrava a criação da base e a escrita avulsa.
+test('preparar uma escrita do Notion duas vezes dá o mesmo resultado', () => {
+  const connector = createNotionConnector();
+  const task = { id: 'task-1', title: 'Escrever', durationMinutes: 30, status: 'open' };
+  for (const input of [
+    { kind: 'notion.database.create', payload: { parentPageId: 'page-kizuna' } },
+    { kind: 'notion.page.create', payload: { dataSourceId: 'source-1', task } },
+    { kind: 'notion.page.update', payload: { id: 'page-1', task } },
+    { kind: 'notion.sync.batch', payload: { operations: [{ key: 'local:task-1', kind: 'notion.page.create', payload: { dataSourceId: 'source-1', task } }] } },
+  ]) {
+    const once = connector.prepareWrite(input);
+    assert.deepEqual(connector.prepareWrite(once), once, `${input.kind} não é idempotente`);
+  }
 });
 
 test('executa lote do Notion e preserva êxitos quando um item falha', async () => {

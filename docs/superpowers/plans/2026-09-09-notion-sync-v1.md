@@ -8,29 +8,34 @@
 
 **Tech Stack:** Electron 44, React 19, TypeScript 7, Vitest, Node test runner, Notion REST API `2026-03-11`, macOS Keychain.
 
-## Handoff status — 10 Sep 2026
+## Estado final — 10 Sep 2026
 
-**Implementation status:** The functional core of Notion Sync v1 is implemented and committed through `41a17b8`. A real round-trip validation in **Kizuna Std's Notion** has already created the `Hibi Tasks` database, discovered its data source, and successfully created, read, and updated a disposable task. The validation result was sanitized and confirmed mapped fields and revision changes.
+Núcleo implementado e acabamento concluído. O gate completo passou nesta data: Vitest
+45/214, `node --test` 130, `npm run build` e Playwright 46. Registro de evidências em
+[`docs/validation/2026-09-10-notion-sync-v1.md`](../../validation/2026-09-10-notion-sync-v1.md).
 
-**Do not repeat:** Rebuilding the connector, mapping, reconciliation, settings persistence, secure bridge, or review UI. Those are implemented. Never expose or print the Notion token; it remains in the macOS Keychain.
+**Fechado nesta rodada:**
 
-**Required completion work for the next agent:**
+- [x] Configurações salvas passam a ser a fonte de verdade no painel; a fiação devolvia o
+      closure obsoleto em vez do valor recém-gravado.
+- [x] Harness ao vivo cobre `criar → ler → atualizar → conflito` do Notion, atrás de um
+      terceiro opt-in, escrevendo pelo mesmo lote que a interface envia.
+- [x] Cobertura de interação: nenhuma escrita antes de confirmar, Cancelar no app,
+      Confirmar e Cancelar pelo notch, e retry só dos pendentes — todos verificados por mutação.
+- [x] Suíte completa, build e verificação visual do painel nos dois estados.
+- [x] Status oficial atualizado: Notion concluído, Slack adiado.
+- [x] **Defeito corrigido:** `prepareWrite` do Notion não era idempotente, e a criação da
+      base falhava *depois* da aprovação do usuário. Detalhes no registro de validação.
 
-- [ ] Inspect the current worktree and make the small `NotionSyncPanel` settings-save callback cleanup: return/use the saved settings directly instead of reading a potentially stale `settingsFor` closure.
-- [ ] Add or complete the opt-in live Notion v1 harness so it covers the repeatable create → read → update → conflict lifecycle. Keep real writes explicitly gated.
-- [ ] Add interaction-level coverage for: no write before confirmation, Cancel in the app, Confirm/Cancel through the notch, and retrying only failed items.
-- [ ] Validate a genuine two-sided conflict against a disposable Notion record and confirm the UI defaults to Skip rather than overwriting either side.
-- [ ] Run the full regression suite: `npm test`, `npm run build`, and `npm run test:e2e`; fix any regressions.
-- [ ] Launch the Electron app and manually test setup, sync preview, confirmation in both surfaces, cancellation, partial failure/retry, and displayed last-sync state.
-- [ ] Update `docs/IMPLEMENTATION_STATUS_AND_PLAN.md` and create a sanitized validation record under `docs/validation/`. Mark Notion Sync v1 as validated only after the preceding checks; keep Slack explicitly deferred.
-- [ ] Decide whether to archive or rename the disposable “Hibi validation task” in the real Hibi Tasks database. This is cleanup, not a functional blocker.
+**Continua aberto, por depender de credencial ou de ação física:**
 
-**Known implementation facts:**
+- [ ] Rodar o ciclo de vida contra o workspace Kizuna (token no Keychain, não extraído).
+- [ ] Conflito real de dois lados no serviço — cenário já automatizado, falta executar.
+- [ ] Fluxo manual no app Electron com o notch real.
+- [ ] Decidir o destino da tarefa de validação criada em 2026-09-09 no workspace Kizuna.
 
-- Current Notion API version is `2026-03-11` and queries use Notion data sources.
-- Writes are prepared/confirmed; conflict defaults are safe (`skip`).
-- The Notion UI includes setup, preview, per-item decision, batch confirmation, notch confirmation, persisted checkpoints, summary, and retry of pending failures.
-- Focused Electron, UI, and TypeScript checks were green before this handoff. Full regression and manual UI validation remain mandatory.
+**Não refazer:** conector, mapeamento, reconciliação, persistência de configurações, ponte
+segura e interface de revisão estão implementados. O token nunca sai do Keychain.
 
 ---
 
@@ -131,8 +136,8 @@
 
 - [ ] Escrever testes falhos para 401/403, base não compartilhada, 429 com `Retry-After`, esquema incompatível e logs sanitizados.
 - [x] Implementar códigos de falha estáveis e mensagens acionáveis sem dados privados.
-- [ ] Estender o harness ao fluxo Notion v1 de leitura/criação/atualização/conflito, mantendo opt-in explícito para escritas.
-- [ ] Marcar Notion Sync v1 como implementado no plano oficial e Slack como adiado.
+- [x] Estender o harness ao fluxo Notion v1 de leitura/criação/atualização/conflito, mantendo opt-in explícito para escritas.
+- [x] Marcar Notion Sync v1 como implementado no plano oficial e Slack como adiado.
 - [ ] Executar os testes focados e confirmar passagem.
 - [ ] Commit: `test: cover live Notion sync lifecycle`.
 
@@ -142,12 +147,12 @@
 - Modify: `docs/IMPLEMENTATION_STATUS_AND_PLAN.md`
 - Create: `docs/validation/2026-09-09-notion-sync-v1.md`
 
-- [ ] Executar `npm test`.
-- [ ] Executar `npm run build`.
-- [ ] Executar `npm run test:e2e`.
-- [ ] Iniciar o app e validar setup/estado na tela Integrações.
+- [x] Executar `npm test`.
+- [x] Executar `npm run build`.
+- [x] Executar `npm run test:e2e`.
+- [x] Validar setup/estado na tela Integrações (servidor de desenvolvimento; o app Electron empacotado continua pendente).
 - [ ] Com opt-in de escrita, validar no workspace Kizuna Std's Notion: criar, ler, atualizar e produzir conflito em registros descartáveis.
 - [ ] Confirmar que cancelar não escreve e que retry não duplica êxitos.
 - [ ] Verificar Keychain, arquivos rastreados e logs sem imprimir o token.
-- [ ] Registrar evidências sanitizadas no documento de validação e atualizar a matriz oficial.
+- [x] Registrar evidências sanitizadas no documento de validação e atualizar a matriz oficial.
 - [ ] Commit: `docs: record Notion Sync v1 validation`.
