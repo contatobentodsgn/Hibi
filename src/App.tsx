@@ -236,8 +236,18 @@ export default function App() {
     const interval = window.setInterval(() => dispatchCompanion({ type: 'time.elapsed', nowMs: Date.now() }), 1_000);
     return () => window.clearInterval(interval);
   }, []);
+  // Um modal do App (task/reminder/deadline) tem seu próprio listener de Escape na window; se a
+  // paleta também abrisse por cima dele, um único Escape chegaria aos dois e fecharia o modal junto,
+  // descartando o que estava sendo digitado. Cada Escape deve afetar só a camada mais no topo — e
+  // cada modal já cuida do seu próprio Escape — então aqui a regra é simplesmente não empilhar a
+  // paleta sobre um modal aberto. Os três estados precisam vir de uma ref: o handler é registrado
+  // uma vez (deps `[]`) para não reatar o listener a cada abertura/fechamento de modal, então uma
+  // closure sem ref ficaria presa nos valores da montagem.
+  const modalOpenRef = useRef(false);
+  modalOpenRef.current = taskCreateOpen || reminderCreateOpen || deadlineEditTaskId !== null;
   React.useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (modalOpenRef.current) return;
       const target = event.target as HTMLElement | null;
       const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setPaletteOpen(true); }
