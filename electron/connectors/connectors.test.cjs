@@ -1,15 +1,18 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createNotionConnector } = require('./notion.cjs');
+const { createNotionConnector, NOTION_VERSION } = require('./notion.cjs');
 const { createSlackConnector } = require('./slack.cjs');
 const { createEmailConnector } = require('./email.cjs');
 const { createRemoteNotificationConnector } = require('./remote-notifications.cjs');
 
 test('normalizes a Notion page without copying its body', () => {
   const notion = createNotionConnector();
-  const candidate = notion.normalizeImport({ id: 'page-1', last_edited_time: '2026-09-09T12:00:00Z', properties: { Name: { title: [{ plain_text: 'Project brief' }] } }, children: [{ text: 'private body' }] });
+  const candidate = notion.normalizeImport({ id: 'page-1', last_edited_time: '2026-09-09T12:00:00Z', properties: {
+    Name: { title: [{ plain_text: 'Project brief' }] }, Status: { select: { name: 'Paused' } }, Start: { date: { start: '2026-09-10T09:00:00-03:00' } },
+    'Duration minutes': { number: 45 }, Description: { rich_text: [{ plain_text: 'Context' }] }, 'Hibi ID': { rich_text: [{ plain_text: 'task-1' }] },
+  }, children: [{ text: 'private body' }] });
 
-  assert.deepEqual(candidate, { remoteId: 'page-1', revision: '2026-09-09T12:00:00Z', title: 'Project brief', kind: 'task' });
+  assert.deepEqual(candidate, { remoteId: 'page-1', revision: '2026-09-09T12:00:00Z', hibiId: 'task-1', title: 'Project brief', status: 'paused', deadline: '2026-09-10T09:00:00-03:00', durationMinutes: 45, description: 'Context', kind: 'task' });
   assert.equal(JSON.stringify(candidate).includes('private body'), false);
 });
 
@@ -17,9 +20,14 @@ test('sends an approved Notion write to its versioned API path only', async () =
   const calls = [];
   const notion = createNotionConnector({ request: async (url, init) => { calls.push([url, init]); return new Response('{}', { status: 200 }); } });
 
-  await notion.executeApproved({ kind: 'notion.page.create', payload: { parent: { database_id: 'db-1' } }, credential: 'token' });
+  await notion.executeApproved({ kind: 'notion.page.create', payload: { dataSourceId: 'source-1', task: { id: 'task-1', title: 'Task', status: 'open', durationMinutes: 60, deadline: '2026-09-10T09:00:00-03:00', description: 'Context', updatedAt: '2026-09-09T12:00:00.000Z' } }, credential: 'token' });
 
   assert.equal(calls[0][0], 'https://api.notion.com/v1/pages');
+  assert.equal(calls[0][1].headers['Notion-Version'], NOTION_VERSION);
+  const body = JSON.parse(calls[0][1].body);
+  assert.deepEqual(body.parent, { type: 'data_source_id', data_source_id: 'source-1' });
+  assert.equal(body.properties.Name.title[0].text.content, 'Task');
+  assert.equal(body.properties['Hibi ID'].rich_text[0].text.content, 'task-1');
 });
 
 test('prepares a Slack message without posting it', async () => {
@@ -55,15 +63,36 @@ test('delivers a remote notification only through an approved action', async () 
   assert.equal(calls[0][1].headers.Authorization, 'Bearer token');
 });
 
-test('o Notion busca apenas as bases escolhidas e devolve páginas para normalizar', async () => {
+test('o Notion consulta fontes de dados escolhidas com paginação opaca', async () => {
   const requests = [];
-  const connector = createNotionConnector({ request: async (url, init) => { requests.push({ url, method: init.method, body: init.body }); return { ok: true, json: async () => ({ results: [{ id: `page-${requests.length}`, last_edited_time: 'v1', properties: { Name: { title: [{ plain_text: 'Página' }] } } }] }) }; } });
+  const connector = createNotionConnector({ request: async (url, init) => {
+    requests.push({ url, method: init.method, body: init.body, headers: init.headers });
+    const page = requests.length;
+    return { ok: true, json: async () => ({ results: [{ id: `page-${page}`, last_edited_time: `v${page}`, properties: { Name: { title: [{ plain_text: 'Página' }] } } }], has_more: page === 1, next_cursor: page === 1 ? 'opaque cursor/+=' : null }) };
+  } });
 
-  const pages = await connector.fetchImports({ credential: 'token', targets: [{ id: 'db 1' }, { id: 'db2' }] });
+  const pages = await connector.fetchImports({ credential: 'token', targets: [{ id: 'source 1' }] });
   assert.equal(requests.length, 2);
-  assert.equal(requests[0].url, 'https://api.notion.com/v1/databases/db%201/query');
+  assert.equal(requests[0].url, 'https://api.notion.com/v1/data_sources/source%201/query');
   assert.equal(requests[0].method, 'POST');
+  assert.equal(JSON.parse(requests[1].body).start_cursor, 'opaque cursor/+=');
+  assert.equal(requests[0].headers['Notion-Version'], '2026-03-11');
   assert.deepEqual(pages.map((page) => connector.normalizeImport(page).title), ['Página', 'Página']);
+});
+
+test('o Notion descobre a fonte de dados de uma base', async () => {
+  const requests = [];
+  const connector = createNotionConnector({ request: async (url, init) => { requests.push({ url, init }); return { ok: true, json: async () => ({ id: 'db-1', data_sources: [{ id: 'source-1', name: 'Hibi Tasks' }] }) }; } });
+  assert.deepEqual(await connector.discoverDataSource({ credential: 'token', databaseId: 'db-1' }), { databaseId: 'db-1', dataSourceId: 'source-1', label: 'Hibi Tasks' });
+  assert.equal(requests[0].url, 'https://api.notion.com/v1/databases/db-1');
+});
+
+test('prepara a base Hibi Tasks sob a página Kizuna com o esquema exato', () => {
+  const connector = createNotionConnector();
+  const prepared = connector.prepareWrite({ kind: 'notion.database.create', payload: { parentPageId: 'dd22241d14e14b298e6802525af7d2a7' } });
+  assert.equal(prepared.payload.parent.page_id, 'dd22241d14e14b298e6802525af7d2a7');
+  assert.equal(prepared.payload.title[0].text.content, 'Hibi Tasks');
+  assert.deepEqual(Object.keys(prepared.payload.initial_data_source.properties), ['Name', 'Status', 'Start', 'Duration minutes', 'Description', 'Hibi ID', 'Hibi updated at']);
 });
 
 test('o Slack lê itens salvos e descarta canais fora da seleção', async () => {
