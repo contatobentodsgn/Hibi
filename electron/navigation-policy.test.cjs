@@ -107,16 +107,36 @@ test('avisa a janela principal quando um monitor entra, sai ou muda, depois de r
   assert.deepEqual(order, ['display-added', 'reposition', 'changed', 'display-removed', 'reposition', 'changed', 'display-metrics-changed', 'reposition', 'changed', 'resume', 'reposition']);
 });
 
-test('avisa a janela principal mesmo quando reposicionar falha', () => {
+test('loga a falha ao reposicionar em vez de lançar, e ainda avisa a janela principal', () => {
   const registered = [];
   const eventSource = { on: (event, listener) => registered.push([event, listener]), removeListener: () => {} };
   let changed = 0;
-  attachNotchLifecycle({ displayService: eventSource, powerService: eventSource, manager: { reposition: () => { throw new Error('reposition failed'); } }, onDisplaysChanged: () => { changed += 1; } });
+  const logs = [];
+  const log = (message, error) => logs.push([message, error]);
+  attachNotchLifecycle({ displayService: eventSource, powerService: eventSource, manager: { reposition: () => { throw new Error('reposition failed'); } }, onDisplaysChanged: () => { changed += 1; }, log });
 
   const displayAdded = registered.find(([event]) => event === 'display-added')[1];
-  assert.throws(() => displayAdded(), /reposition failed/);
+  assert.doesNotThrow(() => displayAdded());
 
   assert.equal(changed, 1);
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0][0], '[notch] reposition failed');
+  assert.ok(logs[0][1] instanceof Error);
+});
+
+test('loga a falha ao reposicionar no resume sem lançar', () => {
+  const registered = [];
+  const eventSource = { on: (event, listener) => registered.push([event, listener]), removeListener: () => {} };
+  const logs = [];
+  const log = (message, error) => logs.push([message, error]);
+  attachNotchLifecycle({ displayService: eventSource, powerService: eventSource, manager: { reposition: () => { throw new Error('resume reposition failed'); } }, log });
+
+  const resume = registered.find(([event]) => event === 'resume')[1];
+  assert.doesNotThrow(() => resume());
+
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0][0], '[notch] reposition failed');
+  assert.ok(logs[0][1] instanceof Error);
 });
 
 test('recovers a crashed renderer once and resets the guard after a successful load', () => {

@@ -124,10 +124,12 @@ function safeAiStreamEvent(value) {
   return null;
 }
 
-function attachNotchLifecycle({ displayService, powerService, manager, onDisplaysChanged }) {
-  const reposition = () => manager?.reposition();
-  // Os Ajustes precisam reler os monitores mesmo se reposicionar falhar; o erro segue adiante, como no `resume`.
-  const displaysChanged = () => { try { reposition(); } finally { onDisplaysChanged?.(); } };
+function attachNotchLifecycle({ displayService, powerService, manager, onDisplaysChanged, log = (message, error) => console.error(message, error) }) {
+  // Um throw aqui derruba o diálogo modal de erro do Electron, e `display-metrics-changed`
+  // dispara com frequência: uma falha persistente empilharia diálogos. Loga em vez de propagar.
+  const reposition = () => { try { manager?.reposition(); } catch (error) { log('[notch] reposition failed', error); } };
+  // Os Ajustes precisam reler os monitores mesmo se reposicionar falhar.
+  const displaysChanged = () => { reposition(); onDisplaysChanged?.(); };
   const displayEvents = ['display-added', 'display-removed', 'display-metrics-changed'];
   for (const event of displayEvents) displayService?.on?.(event, displaysChanged);
   powerService?.on?.('resume', reposition);
