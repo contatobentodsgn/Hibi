@@ -19,6 +19,7 @@
     "test:e2e": "playwright test",
     "test:providers:live": "node scripts/test-live-providers.mjs",
     "test:connectors:live": "node scripts/test-live-connectors.mjs",
+    "test:notion:live": "electron scripts/notion-live-keychain.cjs",
     "release:preflight": "node scripts/release-preflight.mjs",
     "release:mac": "npm run release:preflight && npm run build && electron-builder --mac"
   },
