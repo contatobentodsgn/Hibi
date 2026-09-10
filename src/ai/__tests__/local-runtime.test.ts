@@ -57,15 +57,29 @@ describe('local Hibi tool registry', () => {
 
   it('emits a completion event when an approved AI update completes a task', async () => {
     const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
-    const completed: string[] = [];
-    const runtime = createLocalHibiRuntime(repository, { onTaskCompleted: (title) => completed.push(title) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'completed' } }]));
+    const completed: Array<[string, string]> = [];
+    const runtime = createLocalHibiRuntime(repository, { onTaskCompleted: (title, taskId) => completed.push([title, taskId]) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'completed' } }]));
 
     const pending = await runtime.runTurn({ message: 'Complete it', surface: 'desktop' });
     if (!pending.confirmation) throw new Error('Expected confirmation');
     await runtime.confirm(pending.confirmation);
 
     expect(repository.getTask(task.id)?.status).toBe('completed');
-    expect(completed).toEqual([task.title]);
+    expect(completed).toEqual([[task.title, task.id]]);
+  });
+
+  it('does not emit a completion when an approved AI update touches an already completed task', async () => {
+    const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
+    repository.updateTask(task.id, { status: 'completed' });
+    const completed: string[] = [];
+    const runtime = createLocalHibiRuntime(repository, { onTaskCompleted: (_title, taskId) => completed.push(taskId) }, providerFor([{ name: 'task.update', arguments: { id: task.id, title: 'Renamed', status: 'completed' } }]));
+
+    const pending = await runtime.runTurn({ message: 'Rename it', surface: 'desktop' });
+    if (!pending.confirmation) throw new Error('Expected confirmation');
+    await runtime.confirm(pending.confirmation);
+
+    expect(repository.getTask(task.id)?.title).toBe('Renamed');
+    expect(completed).toEqual([]);
   });
 
   it('deletes a reminder only after an explicit confirmation', async () => {
