@@ -8,7 +8,7 @@ import { TasksView } from '../TasksView';
 import { WeekView } from '../WeekView';
 import { HabitsView } from '../HabitsView';
 import { GoalsView } from '../GoalsView';
-import { AppShell } from '../AppShell';
+import { DockMoreMenu } from '../shell/Dock';
 import { CommandPalette } from '../CommandPalette';
 import { FocusView } from '../FocusView';
 import { HelpView } from '../HelpView';
@@ -134,13 +134,12 @@ describe('study views', () => {
     expect(markup).not.toContain('window.prompt');
   });
 
-  it('exposes habits and goals through primary navigation and commands', () => {
-    const shell = renderToStaticMarkup(<AppShell active="home" taskCount={0} reminderCount={0} onNavigate={onEvent} onOpenCommands={onEvent}>content</AppShell>);
+  it('exposes habits and goals through the dock menu and commands', () => {
+    const menu = renderToStaticMarkup(<DockMoreMenu active="home" onSelect={onEvent} />);
     const palette = renderToStaticMarkup(<CommandPalette onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} />);
 
-    expect(shell).toContain('aria-label="Habits"');
-    expect(shell).toContain('aria-label="Goals"');
-    expect(shell).toContain('aria-current="page"');
+    expect(menu).toContain('Hábitos');
+    expect(menu).toContain('Metas');
     expect(palette).toContain('Track habits');
     expect(palette).toContain('Review goals');
   });

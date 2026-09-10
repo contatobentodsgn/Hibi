@@ -139,7 +139,8 @@ function replaceAiRuntime(runtime) {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 820, minWidth: 960, minHeight: 620,
-    title: "Hibi", backgroundColor: "#050505",
+    title: "Hibi", backgroundColor: "#f3f2ef",
+    titleBarStyle: "hiddenInset", trafficLightPosition: { x: 14, y: 12 },
     webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   mainWindow.webContents.on("will-navigate", (event, url) => {

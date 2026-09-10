@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavKey } from './AppShell';
+import type { NavKey } from './shell/routes';
 type Props = { onClose: () => void; onNavigate: (key: NavKey) => void; onEvent: (action: string, detail: string) => void };
 const commands: { key: string; label: string; group: string; route?: NavKey }[] = [
   { key: '/day', label: 'Open today schedule', group: 'Navigate', route: 'day' }, { key: '/week', label: 'Open weekly schedule', group: 'Navigate', route: 'week' },

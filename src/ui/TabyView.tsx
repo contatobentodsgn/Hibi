@@ -1,19 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { LOCAL_CAPABILITIES } from '../domain/capabilities';
 import type { StudyData } from '../domain/models';
-import { AiTurnRuntime } from '../ai/runtime';
 import { provenanceLabel } from '../ai/assistant-turn';
-import type { CompanionEvent } from '../companion/contracts';
 import { failurePresentationFor } from './assistant-presentation';
-import { useAssistantTurn } from './useAssistantTurn';
+import type { AssistantTurnControls } from './useAssistantTurn';
 
-type Props = { data: StudyData; runtime: AiTurnRuntime; onEvent: (action: string, detail: string, result?: string) => void; onCompanionError?: (text: string) => void; onCompanionEvent?: (event: CompanionEvent) => void };
+type Props = { data: StudyData; turn: AssistantTurnControls };
 type Message = Readonly<{ role: 'user' | 'assistant'; text: string; provenance?: string }>;
 
-export function TabyView({ data, runtime, onEvent, onCompanionError, onCompanionEvent }: Props) {
+export function TabyView({ data, turn }: Props) {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([{ role: 'assistant', text: 'Olá! Sou o assistente local do Hibi. Posso consultar e organizar seu espaço de trabalho.', provenance: 'Hibi local tools · local-tool-provider' }]);
-  const turn = useAssistantTurn({ runtime, data, onEvent, onCompanionEvent, onCompanionError });
   const { state } = turn;
   const handled = useRef('');
 

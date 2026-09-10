@@ -1,15 +1,28 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { createSeedData } from '../../data/seed-data';
+import { initialAssistantTurnState } from '../../ai/assistant-turn';
 import { companionEventFor, confirmationPresentationFor, failurePresentationFor } from '../assistant-presentation';
 import { TabyView } from '../TabyView';
-import { createLocalHibiRuntime } from '../../ai/local-runtime';
-import { LocalRepository } from '../../data/local-repository';
+import type { AssistantTurnControls } from '../useAssistantTurn';
+
+// Duplo inerte: nenhuma ação é chamada nestes testes, só o markup estático importa.
+const inertTurn: AssistantTurnControls = {
+  state: initialAssistantTurnState,
+  ask: async () => undefined,
+  confirm: async () => undefined,
+  cancelConfirmation: async () => undefined,
+  stop: () => undefined,
+  retry: async () => undefined,
+  useLocalFallback: async () => undefined,
+  dismiss: () => 'close',
+  reset: () => undefined,
+};
 
 describe('TabyView capability boundaries', () => {
   it('shows local capability statuses and unavailable surfaces', () => {
     const data = createSeedData();
-    const markup = renderToStaticMarkup(<TabyView data={data} runtime={createLocalHibiRuntime(new LocalRepository(data))} onEvent={() => undefined} />);
+    const markup = renderToStaticMarkup(<TabyView data={data} turn={inertTurn} />);
 
     expect(markup).toContain('What I can access');
     expect(markup).toContain('Tasks');

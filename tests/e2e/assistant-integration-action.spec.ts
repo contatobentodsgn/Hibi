@@ -6,10 +6,12 @@ async function installActionBridge(page: Page, { ok = true }: { ok?: boolean } =
   await page.addInitScript((accepted) => {
     const calls: string[] = [];
     const notch: unknown[] = [];
-    let companionAction: ((action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void) | null = null;
+    // ipcRenderer.on aceita múltiplos ouvintes ao mesmo tempo (o preload real usa isso);
+    // o dublê precisa fazer o mesmo, já que o turno do assistente e a intenção da API local escutam juntos.
+    const companionActionListeners: ((action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void)[] = [];
     (window as unknown as { hibiE2E: unknown }).hibiE2E = {
       calls, notch,
-      companionConfirm: (requestId: string) => companionAction?.({ requestId, actionId: 'confirm' }),
+      companionConfirm: (requestId: string) => companionActionListeners.forEach((listener) => listener({ requestId, actionId: 'confirm' })),
     };
     (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
       info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
@@ -23,7 +25,7 @@ async function installActionBridge(page: Page, { ok = true }: { ok?: boolean } =
       },
       showNotch: async (presentation: unknown) => { notch.push(presentation); return { degraded: false, requestId: (presentation as { requestId: string }).requestId }; },
       hideNotch: async () => true,
-      onCompanionAction: (callback: (action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void) => { companionAction = callback; return () => { companionAction = null; }; },
+      onCompanionAction: (callback: (action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void) => { companionActionListeners.push(callback); return () => { const index = companionActionListeners.indexOf(callback); if (index >= 0) companionActionListeners.splice(index, 1); }; },
     };
   }, ok);
 }

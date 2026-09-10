@@ -54,7 +54,8 @@ async function installDesktopBridge(page: Page) {
 
 async function openIntegrations(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Integrations', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Integrations' })).toBeVisible();
 }

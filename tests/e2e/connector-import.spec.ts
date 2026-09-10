@@ -30,7 +30,8 @@ async function installImportBridge(page: Page) {
 
 async function openIntegrations(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Integrations', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Integrations' })).toBeVisible();
 }
@@ -67,7 +68,7 @@ test('lê do conector para a prévia sem importar nada antes da decisão', async
 
   // O item aparece como novo e o workspace segue intocado até aplicar.
   await expect(page.getByText('Reunião de segunda')).toBeVisible();
-  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Tarefas', exact: true }).click();
   await expect(page.getByText('Reunião de segunda')).toHaveCount(0);
 });
 
@@ -80,11 +81,12 @@ test('aplicar a decisão cria a tarefa e uma segunda leitura reconhece a duplica
   await page.getByRole('button', { name: 'Apply' }).click();
   await expect(page.getByText('Import decision applied to the local workspace.')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Tarefas', exact: true }).click();
   await expect(page.getByText('Reunião de segunda')).toBeVisible();
 
   // A referência remota precisa ter gravado o conector, senão o item voltaria como novo.
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Integrations', exact: true }).click();
   const reopened = page.locator('[data-connector="slack"]');
   await reopened.getByRole('button', { name: 'Configure' }).click();
