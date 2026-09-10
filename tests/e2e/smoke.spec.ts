@@ -61,6 +61,31 @@ test('filtro de pasta funciona em Tarefas e Notas', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Pasta · Todas' })).toBeVisible();
 });
 
+test('clicar no item do dock da tela atual não apaga o que está sendo digitado', async ({ page }) => {
+  await page.goto('/');
+  await go(page, 'Tarefas');
+  await page.getByLabel('New task title').fill('Rascunho de tarefa');
+  await go(page, 'Tarefas');
+  await expect(page.getByLabel('New task title')).toHaveValue('Rascunho de tarefa');
+});
+
+test('nota criada em pasta nova ganha filtro próprio, e trocar de filtro não apaga o rascunho', async ({ page }) => {
+  await page.goto('/');
+  await goMore(page, 'Notas');
+  const form = page.getByRole('form', { name: 'Create note' });
+  await form.getByLabel('Title').fill('Briefing Clientes');
+  await form.getByLabel('Folder').fill('Clientes');
+  await form.getByRole('button', { name: 'Add note' }).click();
+  await expect(page.getByRole('button', { name: 'Pasta · Clientes 1' })).toBeVisible();
+  await expect(form.getByLabel('Title')).toHaveValue('');
+
+  await form.getByLabel('Title').fill('Rascunho');
+  await page.getByRole('button', { name: 'Pasta · Clientes 1' }).click();
+  await expect(form.getByLabel('Title')).toHaveValue('Rascunho');
+  await expect(form.getByLabel('Folder')).toHaveValue('Clientes');
+  await expect(page.getByText('Briefing Clientes')).toBeVisible();
+});
+
 test('abas de Settings alternam conteúdo funcional', async ({ page }) => {
   await page.goto('/');
   await goMore(page, 'Ajustes');

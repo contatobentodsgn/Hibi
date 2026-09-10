@@ -47,4 +47,10 @@ describe('filtros de pasta', () => {
     expect(markup).toContain('<option value="Bento">')
     expect(markup).toContain('<option value="Clientes">')
   })
+
+  it('um initialFolder sem pasta correspondente cai para "Todas" em vez de lista vazia', () => {
+    const markup = renderToStaticMarkup(<TasksView data={withFolders()} onEvent={noop} onTaskStatusChange={noop} initialFolder="Fantasma" />)
+    expect(markup).toContain('Kabrito Post 01')
+    expect(markup).toMatch(/aria-pressed="true"[^>]*>Pasta · Todas</)
+  })
 })

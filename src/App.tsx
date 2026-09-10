@@ -236,7 +236,9 @@ export default function App() {
   }, []);
 
   const navigate = (next: NavKey, source = 'navigation', options: { folder?: string } = {}) => {
-    setFolderFilter((current) => ({ folder: options.folder ?? null, nonce: current.nonce + 1 }));
+    // Só remonta a tela quando a rota muda ou um filtro é pedido, para que clicar no item do dock
+    // da tela atual nunca apague o que o usuário está digitando.
+    setFolderFilter((current) => ({ folder: options.folder ?? null, nonce: next !== route || options.folder !== undefined ? current.nonce + 1 : current.nonce }));
     setRoute(next);
     log(source, options.folder === undefined ? `Opened ${next}` : `Opened ${next} · folder`);
   };

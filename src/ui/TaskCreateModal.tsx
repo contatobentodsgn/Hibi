@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { FOLDER_NAME_MAX } from '../domain/folders';
 
 export type NewTaskForm = { title: string; durationMinutes: number; folder: string };
 
@@ -32,7 +33,7 @@ export function TaskCreateModal({ onClose, onSubmit, folders = [] }: Props) {
         <div style={{ display: 'grid', gap: 16, padding: '22px 20px' }}>
           <label style={{ display: 'grid', gap: 7 }}>Title<input ref={titleRef} value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What needs doing?" required /></label>
           <label style={{ display: 'grid', gap: 7 }}>Duration (minutes)<input type="number" min="1" step="1" value={duration} onChange={(event) => setDuration(event.target.value)} required /></label>
-          <label style={{ display: 'grid', gap: 7 }}>Folder<input value={folder} list="task-create-folders" onChange={(event) => setFolder(event.target.value)} placeholder="Bento" /></label>
+          <label style={{ display: 'grid', gap: 7 }}>Folder<input value={folder} list="task-create-folders" maxLength={FOLDER_NAME_MAX} onChange={(event) => setFolder(event.target.value)} placeholder="Bento" /></label>
           <datalist id="task-create-folders">{folders.map((name) => <option key={name} value={name} />)}</datalist>
         </div>
         <div className="palette-footer" style={{ justifyContent: 'flex-end', gap: 9 }}><button type="button" className="outline" onClick={onClose}>Cancel</button><button type="submit" className="primary">Create task</button></div>

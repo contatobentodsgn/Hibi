@@ -12,6 +12,8 @@ describe('createSeedData', () => {
 
     expect(second.tasks).toHaveLength(8);
     expect(second.tasks[0].title).toBe('Kabrito Post 01');
+    // `reminder` was already built fresh per call before this fix, so this assertion doesn't guard
+    // anything today; kept as future-proofing. `tasks` above is what the independent-copies fix protects.
     expect(second.reminders[0].schedule.at).toBe('2026-09-08T09:00:00-03:00');
   });
 });
