@@ -75,6 +75,17 @@ test('repositions the companion after display changes and wake then unregisters 
   assert.deepEqual(removed.map(([event]) => event), ['display-added', 'display-removed', 'display-metrics-changed', 'resume']);
 });
 
+test('avisa a janela principal quando um monitor entra, sai ou muda, depois de reposicionar, e não ao acordar', () => {
+  const registered = [];
+  const eventSource = { on: (event, listener) => registered.push([event, listener]), removeListener: () => {} };
+  const order = [];
+  attachNotchLifecycle({ displayService: eventSource, powerService: eventSource, manager: { reposition: () => order.push('reposition') }, onDisplaysChanged: () => order.push('changed') });
+
+  for (const [event, listener] of registered) { order.push(event); listener(); }
+
+  assert.deepEqual(order, ['display-added', 'reposition', 'changed', 'display-removed', 'reposition', 'changed', 'display-metrics-changed', 'reposition', 'changed', 'resume', 'reposition']);
+});
+
 test('recovers a crashed renderer once and resets the guard after a successful load', () => {
   const listeners = new Map();
   let reloads = 0;
