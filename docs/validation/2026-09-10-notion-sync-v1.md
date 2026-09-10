@@ -2,102 +2,92 @@
 
 Data: 2026-09-10. Branch: `feat/ai-production-integrations`.
 
-Este documento separa o que foi **executado e observado** do que continua **pendente**.
+**Resultado: concluído e validado ao vivo** no workspace Kizuna, pelo app Electron real. A
+validação encontrou quatro defeitos que os testes com pontes simuladas não alcançavam; os
+quatro estão corrigidos e cobertos por testes de regressão verificados por mutação.
+
+Este documento separa o que foi **executado e observado** do que continua **fora do alcance**.
 Nada aqui é marcado como validado por inferência a partir de teste automatizado.
 
-## Gate automatizado — executado em 2026-09-10
+## Gate automatizado — final
 
 | Verificação | Resultado |
 | --- | --- |
-| `npm test` (Vitest) | 45 arquivos, 214 testes, verde |
-| `npm test` (`node --test`) | 130 testes, verde |
+| `npm test` (Vitest) | 45 arquivos, 216 testes, verde |
+| `npm test` (`node --test`) | 135 testes, verde |
 | `npm run build` (addon nativo + `tsc` + `vite build`) | verde |
 | `npm run test:e2e` (Playwright) | 46 testes, verde |
 
-## Comportamento coberto por teste de interação
+## Validação ao vivo com a credencial guardada pelo Hibi
 
-Os testes de unidade rodam sem DOM, então estes vivem em `tests/e2e/notion-sync.spec.ts`,
-sobre uma ponte que registra tudo que sairia para o Notion:
+`HIBI_LIVE_NOTION_KEYCHAIN=1 npm run test:notion:live` roda dentro do Electron, porque só o
+addon nativo do app lê o item do Keychain. O token nunca foi para variável de ambiente,
+histórico de shell ou relatório.
 
-| Garantia | Como é provada |
+| Verificação | Observado |
 | --- | --- |
-| Nenhuma escrita antes de confirmar | Preparar o lote deixa `writes` vazio |
-| Cancelar no app não escreve | `writes` vazio e o cartão do notch é retirado |
-| Confirmar pelo notch aplica o lote preparado | A execução usa o mesmo `confirmationId` apresentado |
-| Cancelar pelo notch não escreve | `writes` vazio |
-| Retry reenvia só o pendente | O segundo lote contém exatamente a chave que falhou |
-| A base criada no setup fica usável na mesma sessão | Regressão da correção de configurações abaixo |
+| Conexão | Aceita pelo Notion |
+| Base Hibi Tasks | Exatamente uma fonte de dados |
+| Caminho do setup | A criação contra uma página inexistente **chegou ao Notion** e voltou 404; nada foi criado |
+| Tarefa de validação de 2026-09-09 | Adotada como tarefa fixa: renomeada e concluída, sem página nova |
+| Leitura e atualização | Duração aplicada e revisão alterada |
+| Conflito de dois lados | Detectado, com `skip` como decisão padrão |
 
-Cada um foi verificado por mutação: desligar a proteção correspondente no código faz o
-teste falhar. Os testes não são vacuosos.
+## App Electron real, com a confirmação do notch
 
-## Ciclo de vida ao vivo — automatizado, ainda não executado contra o Notion real
+Modo de produção, dirigido por automação sobre as janelas reais do Electron. Os cliques de
+Confirmar e Cancelar foram feitos **na janela real da overlay do notch**, não por IPC simulado.
+Todos os demais itens da prévia ficaram em Ignorar; a única escrita remota foi na tarefa fixa.
 
-`scripts/test-live-connectors.mjs` ganhou o ciclo `criar → ler → atualizar → conflito`,
-atrás de um **terceiro** opt-in (`HIBI_LIVE_NOTION_LIFECYCLE=1`), acima dos opt-ins de
-leitura e de escrita. Ele usa o reconciliador e o mapeamento reais do app, e escreve pelo
-mesmo `notion.sync.batch` que a interface envia — não por um atalho do harness.
-
-O conflito que ele valida **não é simulado**: a revisão remota muda porque a etapa
-anterior editou de fato a página no Notion; o lado local muda a partir do mesmo
-checkpoint. O harness então confere que o plano classifica como `conflict` e que a
-decisão padrão é `skip`, isto é, que o padrão não escreve em nenhum dos dois lados.
-
-Está coberto por teste contra um Notion falso fiel ao contrato (`scripts/test-live-connectors.test.mjs`),
-incluindo a repetição, que reaproveita a mesma tarefa descartável em vez de acumular páginas.
-
-**Não executado contra o workspace Kizuna.** O token vive no Keychain do macOS e não foi
-extraído. Para rodar:
-
-```bash
-HIBI_LIVE_CONNECTOR_TEST=1 HIBI_LIVE_CONNECTOR_WRITE_TEST=1 HIBI_LIVE_NOTION_LIFECYCLE=1 \
-HIBI_LIVE_CONNECTOR_ID=notion HIBI_LIVE_CONNECTOR_ENDPOINT=https://api.notion.com/v1/ \
-HIBI_LIVE_CONNECTOR_ALLOW_HOSTS=api.notion.com HIBI_LIVE_CONNECTOR_TOKEN=<token> \
-HIBI_LIVE_CONNECTOR_TARGETS=<dataSourceId> HIBI_LIVE_NOTION_DATA_SOURCE=<dataSourceId> \
-npm run test:connectors:live
-```
-
-## Defeito encontrado durante esta rodada
-
-**A criação da base falhava depois da aprovação do usuário.** `prepareAction` guarda o que
-`prepareWrite` devolve, e `executeApproved` prepara esse valor outra vez — logo, preparar
-precisa ser idempotente. Todos os outros conectores satisfazem isso porque validam e
-normalizam; o do Notion transformava o payload no corpo da API.
-
-O efeito era direto: "Prepare Hibi Tasks" seguido de Confirmar terminava em
-`Notion parent page identifier is invalid`, **depois** de o usuário já ter aprovado a
-escrita. Escritas avulsas de página falhavam do mesmo jeito. Só `notion.sync.batch`
-funcionava, por preservar os payloads originais das operações — que é exatamente por que
-a ida e volta de 2026-09-09 passou apesar do defeito: ela não passou pelo caminho do setup.
-
-Corrigido em `96a889b`. A garantia de allowlist de propriedades não mudou: o corpo continua
-sendo montado por `taskProperties`, só que na hora do envio.
-
-Consequência para o registro anterior: a afirmação de que o setup estava validado ao vivo
-**não se sustenta**. A base Hibi Tasks existe, mas não foi criada por este caminho.
-
-## Verificação visual — executada
-
-Servidor Vite da worktree, tela Integrações. O painel foi observado nos dois estados:
-
-- **Sem configuração**: cartão de setup, campo da página Kizuna, aviso de que a escrita
-  remota exige confirmação.
-- **Configurado**: workspace, base, última sincronização, contadores e a prévia com decisão
-  por item — `local new` cai em Manter Hibi, `remote new` em Manter Notion, como esperado.
-
-Sem transbordo de layout. Captura em `notion-panel.png` (não versionada).
-
-## Pendente — exige credencial ou ação física
-
-| Item | Por que continua aberto |
+| Fase | Observado |
 | --- | --- |
-| Ciclo de vida contra o workspace Kizuna | O token está no Keychain e não foi lido |
-| Conflito real de dois lados no serviço | Mesma dependência; o cenário já está automatizado |
-| Fluxo manual no app Electron com notch real | Exige o app empacotado, credencial e observação do compositor |
-| Renomear ou arquivar a tarefa de validação criada em 2026-09-09 | Está no workspace Kizuna; o MCP do Notion disponível aqui está conectado a outro workspace (Kabrito Digital) e não a alcança |
+| Primeira confirmação depois de abrir o app | A overlay renderizou "Confirmar" e "Cancelar" |
+| Cancelar pelo notch | Nenhuma escrita remota; o item continuou pendente na releitura |
+| Confirmar pelo notch uma importação | Tarefa importada e vinculada; checkpoint e última sincronização gravados |
+| Confirmar pelo notch uma escrita remota | Uma execução no Notion, aviso de sucesso, releitura em dia |
+| Edição no Notion **2 s** depois da nossa escrita | `conflict`, padrão `skip`; resolvido com Manter Notion pelo notch |
 
-## Acabamento conhecido, não bloqueante
+Como os lados foram alterados: a edição local foi feita no armazenamento do workspace seguida
+de recarga, no lugar de preencher a tela de Tarefas; a edição do lado do Notion foi uma escrita
+direta pela ponte do app, no lugar de alguém editando no Notion. As confirmações e a leitura
+do conflito foram o fluxo real da interface.
 
-A data de última sincronização usa `toLocaleString()` e sai em 12 horas mesmo com a
-preferência de 24 h ligada. Os formatadores por locale foram construídos na branch
-`feat/ui-foundation`; o ajuste natural é quando as duas se encontrarem.
+## Defeitos encontrados e corrigidos
+
+| Defeito | Efeito para quem usa | Correção |
+| --- | --- | --- |
+| `prepareWrite` do Notion não era idempotente | "Prepare Hibi Tasks" → Confirmar falhava **depois** da aprovação | `96a889b`; agora chega ao Notion ao vivo |
+| `place` recebia o objeto `bounds` em vez de quatro números | **Nenhuma** confirmação interativa aparecia no notch — só o cartão dentro do app | `8b9dc94`; quebrado desde `197da2e` (2026-09-06) |
+| A primeira apresentação chegava antes de a overlay assinar o canal | A primeira confirmação depois de abrir o app era um painel vazio capturando o mouse | `af65c10`; a overlay busca a apresentação ativa ao montar |
+| O Notion arredonda `last_edited_time` para o minuto | Uma edição no Notion no mesmo minuto da última sincronização aparecia como "local changed" com padrão Manter Hibi — **sobrescrita silenciosa** | `37c7d6a`; conteúdo comparado com o que foi sincronizado |
+
+Por que escaparam: nenhuma ponte falsa dos testes do notch implementava `place`, e o optional
+chaining pulava a chamada; o e2e simula a ponte inteira; e o Notion falso do harness gera
+revisões com segundos, então nunca reproduzia o arredondamento.
+
+A validação corrige também o registro anterior: a ida e volta de 2026-09-09 passou pelo lote
+e não pelo setup, por isso não esbarrou no primeiro defeito.
+
+## Estado deixado
+
+- **Notion:** o único item da base Hibi Tasks é `[hibi-harness] disposable validation task`,
+  concluído. As próximas rodadas do harness reaproveitam essa mesma página.
+- **App nesta máquina:** a configuração do Notion foi salva apontando para a Hibi Tasks
+  existente, sem o identificador da base, que só o setup usa. A tarefa fixa está importada,
+  vinculada e concluída no workspace local.
+
+## Fora do alcance desta validação
+
+| Item | Situação |
+| --- | --- |
+| Retry de um item que falhou no serviço real | Não provocado ao vivo, porque exigiria forçar uma falha real no Notion; coberto pelo e2e |
+| Clique humano no painel físico | Os cliques foram na janela real da overlay, por automação |
+| Monitor externo, Spaces, tela cheia, sono | Seguem no plano de validação do notch |
+
+## Acabamentos conhecidos, não bloqueantes
+
+- A data da última sincronização sai em 12 h mesmo com a preferência de 24 h ligada. Os
+  formatadores por locale estão na branch `feat/ui-foundation`.
+- A confirmação diz "Aplicar 1 alterações" — falta a concordância no singular.
+- `node scripts/renderer-safety-check.mjs` falha com 2 ocorrências em `src/global.d.ts`. O
+  resultado é o mesmo no código anterior a esta rodada: não foi introduzido por ela.
