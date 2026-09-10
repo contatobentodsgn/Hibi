@@ -233,7 +233,8 @@ describe('StatsView', () => {
     expect(items[0]).toMatch(/4:00\sPM/);
     expect(items.at(-1)).toContain('Block created');
     expect(items.at(-1)).toMatch(/8:00\sAM/);
-    expect(english).not.toContain('16:00');
+    // Só o texto visível: o atributo dateTime do <time> é ISO em UTC e contém "16:00" num fuso UTC+0.
+    expect(items.map((item) => item.replace(/<[^>]*>/g, '')).join(' ')).not.toContain('16:00');
     expect(english).not.toContain('Tarefa concluída');
   });
 });
