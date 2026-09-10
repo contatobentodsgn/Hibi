@@ -55,7 +55,7 @@ test('captura rápida da Home abre a paleta de comandos', async ({ page }) => {
 test('filtro de pasta funciona em Tarefas e Notas', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Tarefas');
-  await page.getByRole('button', { name: 'Pasta · Bento 8' }).click();
+  await page.getByRole('button', { name: /^Pasta · Bento \d+$/ }).click();
   await expect(page.getByText('Kabrito Post 01')).toBeVisible();
   await goMore(page, 'Notas');
   await expect(page.getByRole('button', { name: 'Pasta · Todas' })).toBeVisible();

@@ -46,3 +46,9 @@ export function planFolderRename(data: FolderSource, from: string, to: string): 
   if (!source) return { ok: false, reason: 'missing' }
   return { ok: true, from, to: target, tasks: source.tasks, notes: source.notes, merge: folders.some((folder) => folder.name === target) }
 }
+
+// Diz se uma renomeação foi de fato aplicada: o plano precisa ter sido aceito e a junção precisa
+// bater com o que quem chamou esperava.
+export function renameApplied(plan: FolderRenamePlan, expectMerge: boolean): boolean {
+  return plan.ok && plan.merge === expectMerge
+}

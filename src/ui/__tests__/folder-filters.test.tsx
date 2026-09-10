@@ -7,11 +7,21 @@ import { TasksView } from '../TasksView'
 
 const noop = () => undefined
 const stamp = '2026-09-10T00:00:00.000Z'
-// A seed traz 8 tarefas em "Bento" e nenhuma nota; somamos uma pasta nova e itens sem pasta.
+// A seed traz 8 tarefas em "Bento" e nenhuma nota; somamos uma pasta nova e itens sem pasta, mais uma
+// pasta só de tarefa ("Só tarefas") e uma só de nota ("Só notas") para exercitar pastas sem itens do
+// tipo de uma das telas.
 const withFolders = (): StudyData => {
   const data = createSeedData()
-  data.tasks.push({ id: 'c1', title: 'Cliente A', durationMinutes: 30, category: 'work', folder: 'Clientes' }, { id: 'u1', title: 'Solta', durationMinutes: 30, category: 'work' })
-  data.notes.push({ id: 'n1', title: 'Briefing', content: 'x', folder: 'Clientes', createdAt: stamp, updatedAt: stamp }, { id: 'n2', title: 'Rascunho', content: '', createdAt: stamp, updatedAt: stamp })
+  data.tasks.push(
+    { id: 'c1', title: 'Cliente A', durationMinutes: 30, category: 'work', folder: 'Clientes' },
+    { id: 'u1', title: 'Solta', durationMinutes: 30, category: 'work' },
+    { id: 't-only', title: 'Só tarefa', durationMinutes: 30, category: 'work', folder: 'Só tarefas' },
+  )
+  data.notes.push(
+    { id: 'n1', title: 'Briefing', content: 'x', folder: 'Clientes', createdAt: stamp, updatedAt: stamp },
+    { id: 'n2', title: 'Rascunho', content: '', createdAt: stamp, updatedAt: stamp },
+    { id: 'n-only', title: 'Só nota', content: '', folder: 'Só notas', createdAt: stamp, updatedAt: stamp },
+  )
   return data
 }
 
@@ -52,5 +62,20 @@ describe('filtros de pasta', () => {
     const markup = renderToStaticMarkup(<TasksView data={withFolders()} onEvent={noop} onTaskStatusChange={noop} initialFolder="Fantasma" />)
     expect(markup).toContain('Kabrito Post 01')
     expect(markup).toMatch(/aria-pressed="true"[^>]*>Pasta · Todas</)
+  })
+
+  it('Tarefas mantém ativa uma pasta sem tarefas nesta tela, com chip de contagem 0 e lista vazia', () => {
+    const markup = renderToStaticMarkup(<TasksView data={withFolders()} onEvent={noop} onTaskStatusChange={noop} initialFolder="Só notas" />)
+    expect(markup).toMatch(/aria-pressed="true"[^>]*>Pasta · Só notas 0</)
+    expect(markup).toContain('No tasks match these filters.')
+    expect(markup).not.toContain('Kabrito Post 01')
+  })
+
+  it('Notas mantém ativa uma pasta sem notas nesta tela, e o formulário de nota nova pré-preenche com ela', () => {
+    const markup = renderToStaticMarkup(<NotesView data={withFolders()} onCreate={noop} onUpdate={noop} onDelete={noop} initialFolder="Só tarefas" />)
+    expect(markup).toMatch(/aria-pressed="true"[^>]*>Pasta · Só tarefas 0</)
+    expect(markup).toMatch(/id="new-note-title-folder"[^>]*value="Só tarefas"/)
+    expect(markup).toContain('No notes match this search.')
+    expect(markup).not.toContain('Briefing')
   })
 })

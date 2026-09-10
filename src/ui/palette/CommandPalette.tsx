@@ -115,6 +115,9 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
     if (view.kind === 'merge') setView({ kind: 'rename', from: view.from, error: null })
     else if (view.kind === 'rename' && view.error) setView({ ...view, error: null })
     else if (view.kind === 'commands' && turnActive && value.trimStart().startsWith('/')) { turn.dismiss(); turn.reset(); setSubmitted(null) }
+    // Um aviso de sucesso ("Pasta renomeada.") não deve sobreviver a uma nova digitação numa vista de
+    // pastas — senão parece se referir à ação que o usuário está prestes a fazer agora.
+    if (view.kind !== 'commands') setNotice(null)
     setQuery(value)
   }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Note, Task } from '../models'
-import { FOLDER_NAME_MAX, listFolders, NO_FOLDER, planFolderRename } from '../folders'
+import { FOLDER_NAME_MAX, listFolders, NO_FOLDER, planFolderRename, renameApplied } from '../folders'
 
 const task = (id: string, folder?: string): Task => ({ id, title: id, durationMinutes: 30, category: 'work', ...(folder === undefined ? {} : { folder }) })
 const note = (id: string, folder?: string): Note => ({ id, title: id, content: '', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z', ...(folder === undefined ? {} : { folder }) })
@@ -60,5 +60,18 @@ describe('planFolderRename', () => {
     const nfd = nfc.normalize('NFD')
     const withEstudio = { tasks: [...data.tasks, task('t5', nfc)], notes: data.notes }
     expect(planFolderRename(withEstudio, 'Clientes', nfd)).toEqual({ ok: true, from: 'Clientes', to: 'Estúdio', tasks: 2, notes: 1, merge: true })
+  })
+})
+
+describe('renameApplied', () => {
+  it('diz que aplicou quando o plano foi aceito e a junção bate com o esperado', () => {
+    expect(renameApplied({ ok: true, from: 'Clientes', to: 'Estúdio', tasks: 2, notes: 1, merge: false }, false)).toBe(true)
+    expect(renameApplied({ ok: true, from: 'Clientes', to: 'Bento', tasks: 2, notes: 1, merge: true }, true)).toBe(true)
+  })
+
+  it('diz que não aplicou quando o plano foi recusado, ou quando a junção não bate com o esperado', () => {
+    expect(renameApplied({ ok: false, reason: 'missing' }, false)).toBe(false)
+    expect(renameApplied({ ok: true, from: 'Clientes', to: 'Bento', tasks: 2, notes: 1, merge: true }, false)).toBe(false)
+    expect(renameApplied({ ok: true, from: 'Clientes', to: 'Estúdio', tasks: 2, notes: 1, merge: false }, true)).toBe(false)
   })
 })

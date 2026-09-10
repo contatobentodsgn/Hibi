@@ -1,4 +1,4 @@
-import { NO_FOLDER, planFolderRename, type FolderRenamePlan, type FolderRenameRefusal, type FolderSummary } from '../../domain/folders'
+import { NO_FOLDER, planFolderRename, renameApplied, type FolderRenamePlan, type FolderRenameRefusal, type FolderSummary } from '../../domain/folders'
 import type { StudyData } from '../../domain/models'
 import type { DictionaryKey } from '../../i18n/dictionary'
 
@@ -71,9 +71,7 @@ export type RenameResult = Readonly<{ view: PaletteView; query: string; applied:
 // esperada não bater mais (a pasta de destino surgiu ou sumiu no meio), nada foi aplicado e a
 // paleta volta a pedir uma decisão com os dados atuais em vez de anunciar sucesso.
 export function afterRename(result: FolderRenamePlan, from: string, to: string, expectMerge: boolean): RenameResult {
-  // Essa condição de sucesso tem que ficar idêntica à de `App.renameFolder` em src/App.tsx, senão a
-  // paleta pode anunciar uma renomeação que o App não aplicou.
-  if (result.ok && result.merge === expectMerge) return { view: { kind: 'folders' }, query: '', applied: true }
+  if (result.ok && renameApplied(result, expectMerge)) return { view: { kind: 'folders' }, query: '', applied: true }
   if (!result.ok) return { view: { kind: 'rename', from, error: result.reason }, query: to, applied: false }
   if (result.merge && !expectMerge) return { view: { kind: 'merge', from: result.from, to: result.to, tasks: result.tasks, notes: result.notes }, query: to, applied: false }
   return { view: { kind: 'rename', from, error: null }, query: to, applied: false }

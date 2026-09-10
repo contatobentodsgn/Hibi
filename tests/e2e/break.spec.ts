@@ -40,8 +40,8 @@ test('terminar uma pausa registra break-complete e nunca conta como foco', async
   await expect.poll(async () => countOf(await recordedActions(page), 'break-complete')).toBe(1);
   await expect(page.getByText('05:00')).toBeVisible();
   await page.clock.runFor(3000);
-  // Lê de novo com poll, e não na hora: React renderiza e persiste no seu próprio agendamento, então
-  // uma leitura imediata do armazenamento poderia não pegar uma duplicata tardia.
+  // Quem pega uma duplicata tardia é avançar o relógio 3s e ler de novo; o poll só espera o React
+  // renderizar e persistir no seu próprio agendamento antes de olhar o armazenamento.
   await expect.poll(async () => countOf(await recordedActions(page), 'break-complete')).toBe(1);
   const actions = await recordedActions(page);
   expect(actions).toContain('break-start');
@@ -62,8 +62,8 @@ test('terminar uma sessão de foco registra exatamente um focus-complete', async
   await expect.poll(async () => countOf(await recordedActions(page), 'focus-complete')).toBe(1);
   await expect(page.getByText('25:00')).toBeVisible();
   await page.clock.runFor(3000);
-  // Lê de novo com poll, e não na hora: React renderiza e persiste no seu próprio agendamento, então
-  // uma leitura imediata do armazenamento poderia não pegar uma duplicata tardia.
+  // Quem pega uma duplicata tardia é avançar o relógio 3s e ler de novo; o poll só espera o React
+  // renderizar e persistir no seu próprio agendamento antes de olhar o armazenamento.
   await expect.poll(async () => countOf(await recordedActions(page), 'focus-complete')).toBe(1);
   const actions = await recordedActions(page);
   expect(actions).not.toContain('break-complete');

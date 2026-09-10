@@ -33,7 +33,7 @@ para ser refeito depois, e a ordem de reconstrução das telas pelo dock é pres
 
 - `NO_FOLDER = ''` identifica o grupo "Sem pasta". Como todo nome real é não vazio depois de
   aparado, a chave vazia nunca colide com uma pasta.
-- `folderOf(item)` devolve o nome aparado ou `NO_FOLDER`.
+- `folderOf(item)` devolve o nome aparado e normalizado para NFC, ou `NO_FOLDER`.
 - `listFolders(data)` devolve `{ name, tasks, notes }[]`: nomes reais em ordem alfabética
   (`localeCompare` com `pt-BR`), e o grupo "Sem pasta" por último, só quando existir.
 - Igualdade de pastas é exata depois de aparar espaços e normalizar para NFC: "bento" e "Bento" são
@@ -73,7 +73,9 @@ renomear não gera sincronização), API local e ferramentas do Taby.
 **Navegação com filtro:** `navigate(key, { folder })`, em que `folder` é o nome da pasta ou
 `NO_FOLDER` para "Sem pasta". O `App` guarda o filtro pedido e o passa como `initialFolder` para
 `TasksView` e `NotesView`, com `key` que muda a cada pedido para que o filtro seja reaplicado mesmo
-voltando à mesma tela. Navegar sem `folder` limpa o filtro (`null`, todas as pastas).
+voltando à mesma tela. Navegar sem `folder` limpa o filtro (`null`, todas as pastas). Clicar no item
+do dock da tela que já está aberta não remonta a tela (o `nonce` só avança quando a rota muda ou um
+`folder` é pedido), então o filtro atual e os rascunhos em digitação são preservados.
 
 ## 3. Telas de Tarefas e Notas
 
@@ -81,7 +83,9 @@ As duas telas continuam no visual antigo; muda só o necessário para as pastas 
 
 - **Filtros derivados:** "Todas" mais uma opção por pasta que tenha itens daquele tipo, com
   contagem, mais "Sem pasta" quando houver. Substitui o botão fixo "Folder · Bento".
-- **`initialFolder`** define o filtro inicial; `null` significa todas.
+- **`initialFolder`** define o filtro inicial; `null` significa todas. Uma pasta pedida que não tem
+  itens do tipo desta tela continua ativa mesmo assim, com um chip de contagem 0 e a lista vazia; só
+  cai para "Todas" quando a pasta pedida não existe em lugar nenhum (nem em tarefas, nem em notas).
 - **Criação de tarefa:** o campo de pasta ganha sugestões das pastas existentes (`datalist`).
 - **Notas:** o editor ganha um campo de pasta com as mesmas sugestões. O padrão é a pasta do filtro
   ativo quando for uma pasta real, senão "Bento". `onCreate` passa a receber a pasta, e editar uma
