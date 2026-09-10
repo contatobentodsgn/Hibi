@@ -47,6 +47,13 @@ test('desloca o painel para baixo da câmera e centraliza o texto passivo sem co
   assert.doesNotMatch(source, /self\.bounds\.size\.height - bottom - 14\.0/);
 });
 
+test('achata quebras de linha (\\n, \\r, \\r\\n, U+2028) no texto passivo em vez de só trocar \\n', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'src/notch.mm'), 'utf8');
+
+  assert.match(source, /componentsSeparatedByCharactersInSet:NSCharacterSet\.newlineCharacterSet\]/);
+  assert.doesNotMatch(source, /stringByReplacingOccurrencesOfString:@"\\n" withString:@" "\]/);
+});
+
 test('arredonda só os cantos de baixo sob a câmera e mede a linha passiva num texto de referência', () => {
   const source = fs.readFileSync(path.join(__dirname, 'src/notch.mm'), 'utf8');
 

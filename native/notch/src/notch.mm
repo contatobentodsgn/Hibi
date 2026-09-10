@@ -138,7 +138,9 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
     // Mede uma linha de referência: self.message pode ter \n e "contar" como várias linhas, jogando y para negativo.
     CGFloat lineHeight = ceil([@"Hg" sizeWithAttributes:attributes].height);
     CGFloat y = floor((usable - lineHeight) / 2.0);
-    NSString *singleLine = [self.message stringByReplacingOccurrencesOfString:@"\n" withString:@" "];
+    // \r, \r\n e U+2028 também quebram a linha e não são pegos por um replace só de \n.
+    NSArray<NSString *> *messageLines = [self.message componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet];
+    NSString *singleLine = [messageLines componentsJoinedByString:@" "];
     [singleLine drawInRect:NSMakeRect(16.0, y, self.bounds.size.width - 32.0, lineHeight) withAttributes:attributes];
     return;
   }
