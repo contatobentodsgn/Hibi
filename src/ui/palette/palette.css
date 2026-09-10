@@ -34,3 +34,4 @@
 .palette-folder-line { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-5); color: var(--text-primary); }
 .palette-folder-line span { color: var(--text-secondary); }
 .palette-folder-notice { margin: 0; padding: var(--space-2) var(--space-5); color: var(--text-secondary); }
+.palette-folder-notice:empty { padding: 0; }

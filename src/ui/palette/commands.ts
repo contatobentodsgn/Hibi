@@ -1,7 +1,10 @@
 import type { DictionaryKey } from '../../i18n/dictionary'
 import type { NavKey } from '../shell/routes'
 
-export type PaletteCommand = Readonly<{ key: string; label: DictionaryKey; group: 'palette.group.navigate' | 'palette.group.work' | 'palette.group.system'; route: NavKey }>
+type CommandBase = Readonly<{ key: string; label: DictionaryKey; group: 'palette.group.navigate' | 'palette.group.work' | 'palette.group.system' }>
+
+// Um comando abre uma rota ou troca a paleta para outra vista. `/folder` é o único do segundo tipo.
+export type PaletteCommand = (CommandBase & Readonly<{ route: NavKey }>) | (CommandBase & Readonly<{ action: 'folders' }>)
 
 export const PALETTE_COMMANDS: readonly PaletteCommand[] = [
   { key: '/day', label: 'command.day', group: 'palette.group.navigate', route: 'day' },
@@ -11,6 +14,7 @@ export const PALETTE_COMMANDS: readonly PaletteCommand[] = [
   { key: '/habits', label: 'command.habits', group: 'palette.group.navigate', route: 'habits' },
   { key: '/goals', label: 'command.goals', group: 'palette.group.navigate', route: 'goals' },
   { key: '/notes', label: 'command.notes', group: 'palette.group.navigate', route: 'notes' },
+  { key: '/folder', label: 'command.folder', group: 'palette.group.navigate', action: 'folders' },
   { key: '/review', label: 'command.review', group: 'palette.group.navigate', route: 'review' },
   { key: '/stats', label: 'command.stats', group: 'palette.group.navigate', route: 'review' },
   { key: '/taby', label: 'command.taby', group: 'palette.group.navigate', route: 'taby' },

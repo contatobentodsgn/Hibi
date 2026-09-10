@@ -20,6 +20,7 @@ describe('vista de pastas da paleta', () => {
     expect(countsLabel(8, 0, t)).toBe('8 tarefas')
     expect(countsLabel(1, 1, t)).toBe('1 tarefa · 1 nota')
     expect(countsLabel(0, 2, t)).toBe('2 notas')
+    expect(countsLabel(0, 0, t)).toBe('')
   })
 
   it('filtra pelo nome exibido, inclusive "Sem pasta"', () => {
@@ -36,6 +37,9 @@ describe('vista de pastas da paleta', () => {
     expect(folderIntent(key({ metaKey: true }), folders[2])).toEqual({ type: 'none' })
     expect(folderIntent(key({ key: 'a' }), folders[1])).toEqual({ type: 'none' })
     expect(folderIntent(key(), undefined)).toEqual({ type: 'none' })
+    expect(folderIntent(key(), folders[2])).toEqual({ type: 'open', route: 'tasks', folder: '' })
+    expect(folderIntent(key({ shiftKey: true }), folders[2])).toEqual({ type: 'open', route: 'notes', folder: '' })
+    expect(folderIntent(key({ metaKey: true, shiftKey: true }), folders[1])).toEqual({ type: 'rename', from: 'Clientes' })
   })
 
   it('aplica renomeação livre, pede confirmação para juntar e recusa com motivo', () => {
@@ -63,5 +67,8 @@ describe('vista de pastas da paleta', () => {
 
     const refused = renderToStaticMarkup(<PaletteFolders view={{ kind: 'rename', from: 'Clientes', error: 'unchanged' }} folders={folders} selectedIndex={0} notice={null} onHover={noop} onOpen={noop} />)
     expect(refused).toContain('Esse já é o nome da pasta.')
+
+    const clean = renderToStaticMarkup(<PaletteFolders view={{ kind: 'rename', from: 'Clientes', error: null }} folders={folders} selectedIndex={0} notice={null} onHover={noop} onOpen={noop} />)
+    expect(clean).toContain('<span role="alert"></span>')
   })
 })
