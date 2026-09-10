@@ -22,7 +22,10 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     const target = getWindow(); if (!target) return;
     const bounds = activeActions.size > 0 ? actionBounds(selectedDisplay()) : notchBounds(selectedDisplay());
     target.setBounds(bounds);
-    nativeBridge?.place?.(target.getNativeWindowHandle?.(), bounds);
+    // O addon recebe o handle e os quatro números separados, não o objeto. A colocação nativa
+    // só eleva o nível e junta a janela aos Spaces: se falhar, a janela Electron já está
+    // posicionada e a confirmação precisa aparecer mesmo assim.
+    try { nativeBridge?.place?.(target.getNativeWindowHandle?.(), bounds.x, bounds.y, bounds.width, bounds.height); } catch { /* colocação nativa indisponível */ }
   };
   const selectedDisplayId = () => selectedDisplay().id;
   const useNativeHost = () => {
