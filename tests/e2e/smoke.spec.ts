@@ -227,14 +227,16 @@ test('filtros do calendário usam as categorias reais dos blocos', async ({ page
   await expect(page.getByRole('button', { name: 'Delete Aula de inglês' }).first()).toBeVisible();
 });
 
-test('Focus aplica a duração escolhida antes de iniciar', async ({ page }) => {
+test('Foco e pausa aplicam a duração escolhida antes de iniciar', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Foco');
-  await page.getByRole('button', { name: '5m break', exact: true }).click();
-  await expect(page.getByText('Pick a task — 5m on the clock.')).toBeVisible();
-  await expect(page.getByText('05:00')).toBeVisible();
-  await page.getByRole('button', { name: 'Start focus' }).click();
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await expect(page.getByText('25:00')).toBeVisible();
+  await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
+  await page.getByRole('button', { name: '10m', exact: true }).click();
+  await expect(page.getByText('10 min de pausa no relógio.')).toBeVisible();
+  await expect(page.getByText('10:00')).toBeVisible();
+  await page.getByRole('button', { name: 'Começar pausa' }).click();
+  await expect(page.getByRole('button', { name: 'Encerrar pausa' })).toBeVisible();
 });
 
 test('filtros do Day exibem blocos fixos e pausas', async ({ page }) => {

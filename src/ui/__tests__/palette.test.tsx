@@ -60,6 +60,11 @@ describe('paleta', () => {
     const markup = renderToStaticMarkup(<CommandPalette data={data} onClose={noop} onNavigate={noop} onEvent={noop} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} />)
     expect(markup).toContain('Navegar e renomear pastas')
   })
+
+  it('/break abre o Foco em modo pausa', () => {
+    const command = PALETTE_COMMANDS.find((entry) => entry.key === '/break')
+    expect(command && 'route' in command ? command.route : null).toBe('break')
+  })
 })
 
 describe('PaletteTurn', () => {

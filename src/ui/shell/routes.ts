@@ -1,6 +1,6 @@
 import type { DictionaryKey } from '../../i18n/dictionary'
 
-export type NavKey = 'home' | 'tasks' | 'agenda' | 'day' | 'week' | 'focus' | 'taby' | 'notes' | 'reminders' | 'habits' | 'goals' | 'review' | 'settings' | 'help' | 'feedback' | 'instrumentation' | 'updates' | 'hardware'
+export type NavKey = 'home' | 'tasks' | 'agenda' | 'day' | 'week' | 'focus' | 'break' | 'taby' | 'notes' | 'reminders' | 'habits' | 'goals' | 'review' | 'settings' | 'help' | 'feedback' | 'instrumentation' | 'updates' | 'hardware'
 
 export type NavItem = Readonly<{ key: NavKey; label: DictionaryKey }>
 
@@ -28,10 +28,10 @@ export const MORE_ITEMS: readonly NavItem[] = [
 
 export const isAgendaRoute = (key: NavKey) => key === 'agenda' || key === 'day' || key === 'week'
 
-// Dia e Semana são a mesma seção para o dock.
-export const dockKeyFor = (route: NavKey): NavKey => isAgendaRoute(route) ? 'agenda' : route
+// Dia e Semana são a mesma seção para o dock; a pausa é um modo do Foco.
+export const dockKeyFor = (route: NavKey): NavKey => isAgendaRoute(route) ? 'agenda' : route === 'break' ? 'focus' : route
 
-export const sectionLabelKey = (route: NavKey): DictionaryKey => isAgendaRoute(route) ? 'nav.agenda' : `nav.${route}`
+export const sectionLabelKey = (route: NavKey): DictionaryKey => isAgendaRoute(route) ? 'nav.agenda' : route === 'break' ? 'nav.focus' : `nav.${route}`
 
 export type FocusMoveKey = 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown' | 'Home' | 'End'
 

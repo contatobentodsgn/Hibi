@@ -23,6 +23,7 @@ export const PALETTE_COMMANDS: readonly PaletteCommand[] = [
   { key: '/bug', label: 'command.bug', group: 'palette.group.system', route: 'feedback' },
   { key: '/idea', label: 'command.idea', group: 'palette.group.system', route: 'feedback' },
   { key: '/focus', label: 'command.focus', group: 'palette.group.work', route: 'focus' },
+  { key: '/break', label: 'command.break', group: 'palette.group.work', route: 'break' },
   { key: '/settings', label: 'command.settings', group: 'palette.group.system', route: 'settings' },
   { key: '/tools', label: 'command.tools', group: 'palette.group.system', route: 'settings' },
   { key: '/events', label: 'command.events', group: 'palette.group.system', route: 'instrumentation' },
