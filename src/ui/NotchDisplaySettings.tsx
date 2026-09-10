@@ -23,6 +23,9 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   const [notice, setNotice] = useState('');
   // Leituras e gravações disputam o mesmo estado: uma resposta só vale se nenhuma requisição mais nova começou depois dela.
   const sequence = useRef(0);
+  // A nota de falha ao salvar segue só a gravação mais recente: uma leitura que chega no meio
+  // não pode apagar nem manter essa nota, senão uma gravação bem-sucedida fica com a nota travada.
+  const saveSequence = useRef(0);
   const refreshRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
@@ -58,13 +61,16 @@ export function NotchDisplaySettings({ onEvent }: Props) {
     const setDisplay = window.hibiDesktop?.setNotchDisplay;
     if (!setDisplay) return;
     const request = ++sequence.current;
+    const saveRequest = ++saveSequence.current;
     try {
       const next = await setDisplay(value === AUTO_NOTCH_VALUE ? null : Number(value));
+      // A preferência foi salva independentemente do que o estado exibido mostra agora.
       onEvent('edit', 'Notch display', value);
+      if (saveRequest === saveSequence.current) setSaveFailed(false);
       if (request !== sequence.current) return;
       setState(next);
-      setSaveFailed(false);
-    } catch { if (request === sequence.current) setSaveFailed(true); }
+      setLoadFailed(false);
+    } catch { if (saveRequest === saveSequence.current) setSaveFailed(true); }
   };
   const runTest = async () => {
     if (testing) return;

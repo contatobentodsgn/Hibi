@@ -229,6 +229,34 @@ test.describe('com o bridge do desktop', () => {
     await expect(select).toBeEnabled();
   });
 
+  test('uma gravação que sucede depois de uma leitura mais nova ainda limpa a nota de falha', async ({ page }) => {
+    // Gravação A falha primeiro, para deixar a nota de falha visível.
+    await failNext(page, 'set');
+    const select = page.getByRole('combobox', { name: 'Monitor do notch' });
+    await select.selectOption('2');
+    await expect(page.getByText('Não foi possível trocar o monitor do notch.')).toBeVisible();
+
+    // Segura a próxima leitura para poder liberá-la depois da gravação B ter concluído.
+    await holdList(page);
+    // O disparo do change e o notifyChanged precisam estar na mesma volta síncrona do
+    // event loop: assim a leitura carimba um número de sequência mais novo que o da
+    // gravação B antes da gravação B resolver — reproduzindo a corrida do bug (b).
+    // selectOption() do Playwright faz um round-trip por CDP entre os passos, o que
+    // deixaria os microtasks da gravação B esvaziarem antes do notifyChanged rodar.
+    await page.evaluate(() => {
+      const el = document.querySelector('select[aria-label="Monitor do notch"]') as HTMLSelectElement;
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!;
+      setter.call(el, '1');
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.notifyChanged();
+    });
+
+    await releaseList(page);
+
+    await expect(page.getByText('Não foi possível trocar o monitor do notch.')).toHaveCount(0);
+    await expect(select).toHaveValue('1');
+  });
+
   test('uma leitura antiga que chega depois de trocar o monitor não desfaz a escolha', async ({ page }) => {
     const select = page.getByRole('combobox', { name: 'Monitor do notch' });
     await expect(select.locator('option')).toHaveCount(3);
