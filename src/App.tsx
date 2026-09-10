@@ -144,6 +144,8 @@ export default function App() {
   // (a pasta de destino surgiu ou sumiu no meio) — nesses casos nada é aplicado.
   const renameFolder = (from: string, to: string, expectMerge: boolean): FolderRenamePlan => {
     const plan = planFolderRename(repository.snapshot(), from, to);
+    // Essa condição de sucesso tem que ficar idêntica à de `afterRename` em ui/palette/folder-view.ts,
+    // senão a paleta pode anunciar uma renomeação que o App não aplicou.
     if (!plan.ok || plan.merge !== expectMerge) return plan;
     repository.renameFolder(plan.from, plan.to);
     refreshData();
@@ -280,6 +282,9 @@ export default function App() {
     <AppShell active={route} onNavigate={(key) => {
       // O dock marca Foco como atual durante a pausa; clicar nele não pode descartar a pausa em
       // andamento — clicar no item já atual nunca apaga o que o usuário está fazendo (ver navigate()).
+      // Vale de propósito também para uma pausa parada (ainda não iniciada): a rota já é "break" e o
+      // dock já mostra Foco como atual, então o clique em Foco continua sem efeito — "Voltar ao foco"
+      // (dentro da própria tela) é o caminho de volta, não o item do dock.
       if (route === 'break' && key === 'focus') return;
       navigate(key);
     }} onOpenCommands={() => setPaletteOpen(true)}>

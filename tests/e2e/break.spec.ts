@@ -38,8 +38,11 @@ test('terminar uma pausa registra break-complete e nunca conta como foco', async
   await expect(page.getByRole('button', { name: 'Começar pausa' })).toBeVisible();
   // Contagem exata: o StrictMode dobra updaters impuros, então "contém" não bastaria para pegar duplicatas.
   await expect.poll(async () => countOf(await recordedActions(page), 'break-complete')).toBe(1);
+  await expect(page.getByText('05:00')).toBeVisible();
   await page.clock.runFor(3000);
-  expect(countOf(await recordedActions(page), 'break-complete')).toBe(1);
+  // Lê de novo com poll, e não na hora: React renderiza e persiste no seu próprio agendamento, então
+  // uma leitura imediata do armazenamento poderia não pegar uma duplicata tardia.
+  await expect.poll(async () => countOf(await recordedActions(page), 'break-complete')).toBe(1);
   const actions = await recordedActions(page);
   expect(actions).toContain('break-start');
   expect(actions).not.toContain('focus-start');
@@ -57,8 +60,11 @@ test('terminar uma sessão de foco registra exatamente um focus-complete', async
 
   await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
   await expect.poll(async () => countOf(await recordedActions(page), 'focus-complete')).toBe(1);
+  await expect(page.getByText('25:00')).toBeVisible();
   await page.clock.runFor(3000);
-  expect(countOf(await recordedActions(page), 'focus-complete')).toBe(1);
+  // Lê de novo com poll, e não na hora: React renderiza e persiste no seu próprio agendamento, então
+  // uma leitura imediata do armazenamento poderia não pegar uma duplicata tardia.
+  await expect.poll(async () => countOf(await recordedActions(page), 'focus-complete')).toBe(1);
   const actions = await recordedActions(page);
   expect(actions).not.toContain('break-complete');
 });

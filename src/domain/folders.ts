@@ -5,9 +5,6 @@ import type { Note, StudyData, Task } from './models'
 export const NO_FOLDER = ''
 export const FOLDER_NAME_MAX = 120
 
-// Nomes são comparados depois de aparar espaços e normalizar para NFC, para que uma "Estúdio" colada
-// do macOS (que vem em NFD) não vire uma pasta duplicada e visualmente idêntica à existente.
-
 export type FolderSummary = Readonly<{ name: string; tasks: number; notes: number }>
 export type FolderRenameRefusal = 'empty' | 'unchanged' | 'too-long' | 'no-folder' | 'missing'
 export type FolderRenamePlan =
@@ -16,6 +13,8 @@ export type FolderRenamePlan =
 
 type FolderSource = Pick<StudyData, 'tasks' | 'notes'>
 
+// Nomes são comparados depois de aparar espaços e normalizar para NFC, para que uma "Estúdio" colada
+// do macOS (que vem em NFD) não vire uma pasta duplicada e visualmente idêntica à existente.
 export const folderOf = (item: Pick<Task, 'folder'> | Pick<Note, 'folder'>): string => item.folder?.normalize('NFC').trim() ?? NO_FOLDER
 
 export function listFolders(data: FolderSource): FolderSummary[] {

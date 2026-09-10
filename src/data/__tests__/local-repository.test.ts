@@ -98,14 +98,18 @@ describe('LocalRepository', () => {
   });
 
   it('renomeia uma pasta só nos itens dela e devolve as contagens', () => {
-    repository.createTask({ title: 'Cliente A', durationMinutes: 30, category: 'work', folder: 'Clientes' });
-    repository.createNote({ title: 'Briefing', content: '', folder: ' Clientes ', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' });
-    repository.createNote({ title: 'Nota arquivada', content: '', folder: 'Arquivo', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' });
-    const semPasta = repository.createTask({ title: 'Sem pasta', durationMinutes: 30, category: 'work' });
+    // Relógio injetado (como no teste de carimbo acima) para que o updatedAt da nota renomeada seja
+    // uma asserção exata, e não dependa de quando o teste de fato rodou.
+    const moments = ['2026-09-10T01:00:00.000Z', '2026-09-10T02:00:00.000Z', '2026-09-10T03:00:00.000Z', '2026-09-10T04:00:00.000Z'];
+    const stamped = new LocalRepository(createSeedData(), () => moments.shift() ?? 'unexpected');
+    stamped.createTask({ title: 'Cliente A', durationMinutes: 30, category: 'work', folder: 'Clientes' });
+    stamped.createNote({ title: 'Briefing', content: '', folder: ' Clientes ', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' });
+    stamped.createNote({ title: 'Nota arquivada', content: '', folder: 'Arquivo', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' });
+    const semPasta = stamped.createTask({ title: 'Sem pasta', durationMinutes: 30, category: 'work' });
 
-    expect(repository.renameFolder('Clientes', ' Estúdio ')).toEqual({ tasks: 1, notes: 1 });
+    expect(stamped.renameFolder('Clientes', ' Estúdio ')).toEqual({ tasks: 1, notes: 1 });
 
-    const data = repository.snapshot();
+    const data = stamped.snapshot();
     expect(data.tasks.filter((task) => task.folder === 'Estúdio')).toHaveLength(1);
     expect(data.tasks.filter((task) => task.folder === 'Bento')).toHaveLength(8);
     expect(data.tasks.find((task) => task.id === semPasta.id)?.folder).toBeUndefined();
@@ -116,7 +120,25 @@ describe('LocalRepository', () => {
 
     const renamedNote = data.notes.find((note) => note.title === 'Briefing');
     expect(renamedNote?.folder).toBe('Estúdio');
-    expect(renamedNote?.updatedAt).not.toBe('2026-09-10T00:00:00.000Z');
+    expect(renamedNote?.updatedAt).toBe('2026-09-10T04:00:00.000Z');
+  });
+
+  it('compara e grava pastas em NFC mesmo quando o item chega em NFD', () => {
+    // "Estúdio" colado do macOS chega em NFD (forma decomposta); o `from` digitado pelo usuário, como
+    // este literal, chega em NFC (forma composta) — a comparação tem que atravessar essa diferença.
+    const from = 'Estúdio'.normalize('NFC');
+    const storedFolder = 'Estúdio'.normalize('NFD');
+    expect(storedFolder).not.toBe(from);
+    repository.createTask({ title: 'Projeto NFD', durationMinutes: 30, category: 'work', folder: storedFolder });
+
+    const to = 'Ateliê'.normalize('NFD');
+    const expectedTarget = 'Ateliê'.normalize('NFC');
+    expect(to).not.toBe(expectedTarget);
+
+    expect(repository.renameFolder(from, to)).toEqual({ tasks: 1, notes: 0 });
+
+    const renamed = repository.snapshot().tasks.find((task) => task.title === 'Projeto NFD');
+    expect(renamed?.folder).toBe(expectedTarget);
   });
 
   it('recusa renomear "Sem pasta" ou para um nome que fica vazio depois de aparado', () => {

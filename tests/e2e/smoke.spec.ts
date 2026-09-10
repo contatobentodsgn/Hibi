@@ -84,6 +84,12 @@ test('nota criada em pasta nova ganha filtro próprio, e trocar de filtro não a
   await expect(form.getByLabel('Title')).toHaveValue('Rascunho');
   await expect(form.getByLabel('Folder')).toHaveValue('Clientes');
   await expect(page.getByText('Briefing Clientes')).toBeVisible();
+
+  // O chip clicado acima bate com a pasta já digitada, o que não provaria nada sobre folderTouched.
+  // Digitar uma pasta diferente e trocar de filtro é o que de fato mostra que o rascunho sobrevive.
+  await form.getByLabel('Folder').fill('Outra');
+  await page.getByRole('button', { name: 'Pasta · Todas' }).click();
+  await expect(form.getByLabel('Folder')).toHaveValue('Outra');
 });
 
 test('abas de Settings alternam conteúdo funcional', async ({ page }) => {

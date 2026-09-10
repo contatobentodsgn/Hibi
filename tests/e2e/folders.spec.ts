@@ -5,24 +5,36 @@ const palette = (page: Page) => page.getByRole('dialog', { name: 'Paleta de coma
 const field = (page: Page) => palette(page).getByRole('textbox');
 const row = (page: Page, name: string) => palette(page).locator(`.folder-row[data-folder="${name}"]`);
 
+// Mesmas regras de pluralização que src/ui/palette/folder-view.ts#countsLabel, para montar o texto
+// esperado da linha da pasta a partir das contagens em vez de embutir números fixos no teste.
+function countsLabel(tasks: number, notes: number): string {
+  return [
+    tasks > 0 ? `${tasks} ${tasks === 1 ? 'tarefa' : 'tarefas'}` : '',
+    notes > 0 ? `${notes} ${notes === 1 ? 'nota' : 'notas'}` : '',
+  ].filter(Boolean).join(' · ');
+}
+
 // A seed só tem a pasta "Bento". O app grava o workspace no primeiro render; acrescentamos uma pasta
-// nova e itens sem pasta direto no armazenamento e recarregamos. Devolve a contagem de tarefas já
-// existentes em "Bento" antes de acrescentar nada, para as asserções não dependerem do tamanho da seed.
-async function openWithFolders(page: Page): Promise<number> {
+// nova e itens sem pasta direto no armazenamento e recarregamos. Devolve as contagens de tarefas e
+// notas já existentes em "Bento" antes de acrescentar nada, para as asserções não dependerem do
+// tamanho da seed.
+async function openWithFolders(page: Page): Promise<{ bentoTasks: number; bentoNotes: number }> {
   await page.goto('/');
   await expect(dock(page)).toBeVisible();
-  const bento = await page.evaluate(() => {
+  const counts = await page.evaluate(() => {
     const data = JSON.parse(window.localStorage.getItem('hibi-study-data') ?? '{}');
     const stamp = '2026-09-10T12:00:00.000Z';
-    const bento = (data.tasks ?? []).filter((task: { folder?: string }) => (task.folder ?? '').trim() === 'Bento').length;
+    const inBento = (item: { folder?: string }) => (item.folder ?? '').trim() === 'Bento';
+    const bentoTasks = (data.tasks ?? []).filter(inBento).length;
+    const bentoNotes = (data.notes ?? []).filter(inBento).length;
     data.tasks.push({ id: 'e2e-client', title: 'Cliente A', durationMinutes: 30, category: 'work', folder: 'Clientes' }, { id: 'e2e-loose', title: 'Tarefa solta', durationMinutes: 30, category: 'work' });
     data.notes.push({ id: 'e2e-brief', title: 'Briefing do cliente', content: 'x', folder: 'Clientes', createdAt: stamp, updatedAt: stamp });
     window.localStorage.setItem('hibi-study-data', JSON.stringify(data));
-    return bento;
+    return { bentoTasks, bentoNotes };
   });
   await page.reload();
   await expect(dock(page)).toBeVisible();
-  return bento;
+  return counts;
 }
 
 async function openFolders(page: Page) {
@@ -34,9 +46,9 @@ async function openFolders(page: Page) {
 }
 
 test('/folder lista as pastas com contagens e ↵ abre Tarefas filtrada', async ({ page }) => {
-  const bento = await openWithFolders(page);
+  const { bentoTasks, bentoNotes } = await openWithFolders(page);
   await openFolders(page);
-  await expect(row(page, 'Bento')).toContainText(`${bento} tarefas`);
+  await expect(row(page, 'Bento')).toContainText(countsLabel(bentoTasks, bentoNotes));
   await expect(row(page, 'Clientes')).toContainText('1 tarefa · 1 nota');
   await expect(row(page, '')).toContainText('Sem pasta');
 
@@ -74,7 +86,7 @@ test('renomear para um nome livre aplica na hora', async ({ page }) => {
 });
 
 test('juntar pede um segundo ↵ com a contagem, e esc volta sem aplicar', async ({ page }) => {
-  const bento = await openWithFolders(page);
+  const { bentoTasks, bentoNotes } = await openWithFolders(page);
   await openFolders(page);
   await field(page).fill('cli');
   await page.keyboard.press('Meta+Enter');
@@ -95,7 +107,7 @@ test('juntar pede um segundo ↵ com a contagem, e esc volta sem aplicar', async
   await page.keyboard.press('Enter');
   await expect(merge).toBeVisible();
   await page.keyboard.press('Enter');
-  await expect(row(page, 'Bento')).toContainText(`${bento + 1} tarefas · 1 nota`);
+  await expect(row(page, 'Bento')).toContainText(countsLabel(bentoTasks + 1, bentoNotes + 1));
   await expect(row(page, 'Clientes')).toHaveCount(0);
 });
 
@@ -151,5 +163,8 @@ test('digitar /folder com uma confirmação pendente cancela a confirmação', a
   await expect(palette(page)).toHaveCount(0);
 
   await dock(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
+  // Garante que a lista já renderizou antes de checar a ausência — senão a contagem zero passaria
+  // mesmo que a tela ainda estivesse vazia por não ter terminado de montar.
+  await expect(page.getByText('Kabrito Post 01')).toBeVisible();
   await expect(page.getByText('Revisar briefing')).toHaveCount(0);
 });
