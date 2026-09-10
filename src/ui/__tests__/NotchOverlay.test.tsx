@@ -45,9 +45,12 @@ describe('NotchOverlay', () => {
 
   it('lets the base 100vh height apply to the capture card instead of an auto height from #root', () => {
     const css = readFileSync(new URL('../notch-overlay.css', import.meta.url), 'utf8');
-    const captureRuleMatch = css.match(/\.notch-overlay\[data-interaction=capture\]\{([^}]*)\}/);
-    expect(captureRuleMatch).not.toBeNull();
-    expect(captureRuleMatch![1]).not.toMatch(/height:\s*\d+%/);
+    // Tira os blocos @media antes de casar a regra base: senão uma regex não-global pega a
+    // primeira ocorrência de qualquer jeito, inclusive uma cópia dentro de media query.
+    const cssWithoutMediaBlocks = css.replace(/@media[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');
+    const captureRuleMatches = [...cssWithoutMediaBlocks.matchAll(/\.notch-overlay\[data-interaction=capture\]\{([^}]*)\}/g)];
+    expect(captureRuleMatches).toHaveLength(1);
+    expect(captureRuleMatches[0][1]).not.toMatch(/height:\s*\d+%/);
     expect(css).toMatch(/\.notch-overlay\{[^}]*height:100vh/);
   });
 });
