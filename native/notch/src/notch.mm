@@ -63,6 +63,7 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
 @property(nonatomic, copy) NSString *message;
 @property(nonatomic, copy) NSString *requestId;
 @property(nonatomic, strong) NSArray<NSDictionary<NSString *, NSString *> *> *actions;
+@property(nonatomic) CGFloat topInset;
 - (void)setPresentationMessage:(NSString *)message requestId:(NSString *)requestId actions:(NSArray<NSDictionary<NSString *, NSString *> *> *)actions;
 - (void)focusFirstAction;
 @end
@@ -121,9 +122,19 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
   [super drawRect:dirtyRect];
   NSMutableParagraphStyle *paragraph = [NSMutableParagraphStyle new];
   paragraph.alignment = NSTextAlignmentCenter;
+  BOOL passive = self.actions.count == 0;
+  if (passive) paragraph.lineBreakMode = NSLineBreakByTruncatingTail;
   NSDictionary *attributes = @{ NSFontAttributeName: [NSFont systemFontOfSize:15 weight:NSFontWeightMedium], NSForegroundColorAttributeName: NSColor.whiteColor, NSParagraphStyleAttributeName: paragraph };
-  CGFloat bottom = self.actions.count > 0 ? 66.0 : 14.0;
-  [self.message drawInRect:NSMakeRect(16.0, bottom, self.bounds.size.width - 32.0, self.bounds.size.height - bottom - 14.0) withAttributes:attributes];
+  // A faixa coberta pela câmera fica no topo (view não invertida); o texto só usa o que sobra.
+  CGFloat usable = self.bounds.size.height - self.topInset;
+  if (passive) {
+    CGFloat lineHeight = ceil([self.message sizeWithAttributes:attributes].height);
+    CGFloat y = floor((usable - lineHeight) / 2.0);
+    [self.message drawInRect:NSMakeRect(16.0, y, self.bounds.size.width - 32.0, lineHeight) withAttributes:attributes];
+    return;
+  }
+  CGFloat bottom = 66.0;
+  [self.message drawInRect:NSMakeRect(16.0, bottom, self.bounds.size.width - 32.0, usable - bottom - 14.0) withAttributes:attributes];
 }
 @end
 
@@ -171,9 +182,15 @@ BOOL PositionHost(uint64_t displayId) {
   if (!gPanel) return NO;
   NSScreen *screen = ScreenForDisplayId(displayId);
   if (!screen) return NO;
-  CGFloat height = gInteractive ? kInteractiveHeight : kPassiveHeight;
+  // safeAreaInsets.top é a faixa coberta pela câmera (0 em telas sem notch); somamos à altura
+  // para o painel nascer abaixo da câmera em vez de escondido atrás dela.
+  CGFloat inset = screen.safeAreaInsets.top;
+  CGFloat height = (gInteractive ? kInteractiveHeight : kPassiveHeight) + inset;
   NSRect frame = NSMakeRect(NSMidX(screen.frame) - kHostWidth / 2.0, NSMaxY(screen.frame) - height, kHostWidth, height);
   [gPanel setFrame:frame display:YES animate:NO];
+  HibiNotchContentView *view = HostContentView();
+  view.topInset = inset;
+  [view setNeedsDisplay:YES];
   gDisplayId = @(displayId);
   return YES;
 }

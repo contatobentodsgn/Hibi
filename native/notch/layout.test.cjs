@@ -31,3 +31,15 @@ test('converte a posição do Electron a partir da tela principal, não da tela 
   assert.match(source, /NSMaxY\(primary\.frame\) - electronY - height/);
   assert.doesNotMatch(source, /NSScreen\.mainScreen/);
 });
+
+test('desloca o painel para baixo da câmera e centraliza o texto passivo sem cortar', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'src/notch.mm'), 'utf8');
+
+  assert.match(source, /@property\(nonatomic\) CGFloat topInset;/);
+  assert.match(source, /CGFloat inset = screen\.safeAreaInsets\.top;/);
+  assert.match(source, /CGFloat height = \(gInteractive \? kInteractiveHeight : kPassiveHeight\) \+ inset;/);
+  assert.match(source, /view\.topInset = inset;/);
+  assert.match(source, /\[view setNeedsDisplay:YES\];/);
+  assert.match(source, /NSLineBreakByTruncatingTail/);
+  assert.doesNotMatch(source, /self\.bounds\.size\.height - bottom - 14\.0/);
+});
