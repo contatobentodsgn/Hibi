@@ -1,5 +1,11 @@
 # Auditoria de paridade funcional
 
+> **Substituído em 2026-09-10.** Este registro descreve o estado de 07/09 e ficou desatualizado:
+> integrações, confirmações no notch e validação com monitor externo mudaram depois. A paridade
+> atual com o app original está na seção "Paridade com o app original" de
+> [`IMPLEMENTATION_STATUS_AND_PLAN.md`](IMPLEMENTATION_STATUS_AND_PLAN.md); a validação do notch está
+> em [`notch-manual-results.md`](notch-manual-results.md). Mantido como histórico.
+
 Referência: inventário local do aplicativo original e auditorias disponíveis em `/Volumes/SSD/app/node_modules/@hey-taby/`.
 
 ## Situação atual
