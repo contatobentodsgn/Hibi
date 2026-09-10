@@ -4,11 +4,11 @@ import { activityToCsv, activityToJson } from '../domain/stats-export';
 import type { DictionaryKey } from '../i18n/dictionary';
 import type { Locale } from '../i18n/format';
 
-export type Translate = (key: DictionaryKey) => string;
-export type Unit = (magnitude: number) => string;
+type Translate = (key: DictionaryKey) => string;
+type Unit = (magnitude: number) => string;
 export type StatsExportFormat = 'csv' | 'json';
 export interface CustomRange { start: string; end: string }
-export type PeriodChoice = { period: StatsPeriod; error?: undefined } | { period?: undefined; error: DictionaryKey };
+type PeriodChoice = { period: StatsPeriod; error?: undefined } | { period?: undefined; error: DictionaryKey };
 
 // Sinal de menos tipográfico (U+2212): o hífen costuma ser lido como "traço" por leitores de tela.
 export const MINUS = '−';
@@ -90,7 +90,7 @@ const tagFor = (locale: Locale) => (locale === 'pt' ? 'pt-BR' : 'en-US');
 export const formatDayKey = (key: string, locale: Locale) =>
   new Intl.DateTimeFormat(tagFor(locale), { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(utcDay(key));
 
-export const formatDayRange = (startKey: string, endKey: string, locale: Locale) =>
+const formatDayRange = (startKey: string, endKey: string, locale: Locale) =>
   new Intl.DateTimeFormat(tagFor(locale), { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).formatRange(utcDay(startKey), utcDay(endKey));
 
 export const formatLocalDateTime = (iso: string, locale: Locale, twentyFourHour: boolean) =>
@@ -102,7 +102,7 @@ export const formatLocalDateTime = (iso: string, locale: Locale, twentyFourHour:
     hourCycle: twentyFourHour ? 'h23' : 'h12',
   }).format(new Date(iso));
 
-export const periodDayKeys = (period: StatsPeriod): CustomRange => {
+const periodDayKeys = (period: StatsPeriod): CustomRange => {
   const end = new Date(period.endExclusive);
   return { start: localDateKey(new Date(period.start)), end: localDateKey(new Date(end.getFullYear(), end.getMonth(), end.getDate() - 1)) };
 };
@@ -113,7 +113,7 @@ export const periodRange = (period: StatsPeriod, locale: Locale) => {
 };
 
 export interface PeriodSelection { preset: StatsPreset; custom: CustomRange }
-export interface PeriodEvent { detail: string; result?: 'pass' | 'fail' }
+interface PeriodEvent { detail: string; result?: 'pass' | 'fail' }
 /** Próxima seleção, a escolha resolvida para anunciar e o evento de instrumentação, quando houver. */
 export interface PeriodStep { selection: PeriodSelection; choice: PeriodChoice; event?: PeriodEvent }
 
