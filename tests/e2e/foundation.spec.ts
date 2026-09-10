@@ -57,6 +57,29 @@ test('fechar a paleta com confirmação pendente cancela em vez de executar', as
   await expect(page.getByText('Revisar briefing')).toHaveCount(0);
 });
 
+test('confirmação levantada na página Taby não é descartada ao abrir e fechar a paleta', async ({ page }) => {
+  await page.goto('/');
+  // Mesma cautela do askTaby: esperar o dock hidratar antes de qualquer atalho ou clique.
+  await expect(dock(page)).toBeVisible();
+  await dock(page).getByRole('button', { name: 'Taby', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' }).fill('crie uma tarefa: Revisar briefing');
+  await page.keyboard.press('Enter');
+  const pageConfirmation = page.getByRole('alert');
+  await expect(pageConfirmation.getByRole('button', { name: 'Confirmar' })).toBeVisible();
+
+  await page.keyboard.press('Meta+K');
+  await expect(palette(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(palette(page)).toHaveCount(0);
+  // A confirmação nunca apareceu na paleta (ela não a levantou) e continua intacta na página.
+  await expect(pageConfirmation.getByRole('button', { name: 'Confirmar' })).toBeVisible();
+
+  await pageConfirmation.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(page.getByText('Tarefa criada: Revisar briefing')).toBeVisible();
+  await dock(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
+  await expect(page.getByText('Revisar briefing')).toBeVisible();
+});
+
 test('⌘K responde consultas sem sair da tela', async ({ page }) => {
   await askTaby(page, 'qual a agenda de hoje?');
   await expect(palette(page).getByText(/\d+ blocos na agenda/)).toBeVisible();

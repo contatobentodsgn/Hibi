@@ -18,6 +18,12 @@ export function CommandPalette({ onClose, onNavigate, onEvent, turn }: Props) {
   const paletteRef = useRef<HTMLElement>(null)
   const turnRef = useRef(turn)
   turnRef.current = turn
+  // O turno é compartilhado com a página Taby (ver App.tsx); "submitted !== null" é o que distingue
+  // um turno que ESTA instância da paleta pediu de um turno levantado alhures (ex.: confirmação na
+  // página Taby enquanto a paleta está com o campo vazio). Precisa de ref porque o cleanup de
+  // unmount roda com deps `[]` e, sem isso, veria sempre o valor da montagem.
+  const startedByThisRef = useRef(submitted !== null)
+  startedByThisRef.current = submitted !== null
   const { state } = turn
   // Um turno "ativo" cobre qualquer status além de idle enquanto submitted !== null: streaming,
   // resposta, confirmação pendente, falha, executado ou cancelado ainda contam — a paleta só
@@ -28,12 +34,19 @@ export function CommandPalette({ onClose, onNavigate, onEvent, turn }: Props) {
   const settled = state.status === 'replied' || state.status === 'executed' || state.status === 'cancelled' || state.status === 'failure'
 
   useEffect(() => { setSelectedIndex(0) }, [query])
-  // Fechar nunca executa nada: uma confirmação pendente é cancelada e um stream é parado.
-  useEffect(() => () => { turnRef.current.dismiss() }, [])
+  // Fechar nunca executa nada: uma confirmação pendente é cancelada e um stream é parado — mas só
+  // quando o turno em voo foi pedido por ESTA instância. Um turno levantado pela página Taby (ou por
+  // uma montagem anterior da paleta) não é nosso para descartar: unmount aqui deve deixá-lo intacto.
+  useEffect(() => () => { if (startedByThisRef.current) turnRef.current.dismiss() }, [])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.preventDefault(); if (turnRef.current.dismiss() === 'close') onClose(); return }
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        if (!startedByThisRef.current) { onClose(); return }
+        if (turnRef.current.dismiss() === 'close') onClose()
+        return
+      }
       if (event.key !== 'Tab') return
       const root = paletteRef.current
       if (!root) return
