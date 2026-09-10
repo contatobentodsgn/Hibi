@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,testIntegrationConnection: (connectorId) => ipcRenderer.invoke('hibi:integrations:test-connection', connectorId)
   ,listIntegrationImportTargets: (connectorId) => ipcRenderer.invoke('hibi:integrations:import-targets', connectorId)
   ,listIntegrationImportCandidates: (connectorId) => ipcRenderer.invoke('hibi:integrations:import-candidates', connectorId)
+  ,discoverNotionDataSource: (databaseId) => ipcRenderer.invoke('hibi:notion:discover-data-source', databaseId)
   ,getConnectorSettings: (connectorId) => ipcRenderer.invoke('hibi:integrations:get-settings', connectorId)
   ,saveConnectorSettings: (connectorId, patch) => ipcRenderer.invoke('hibi:integrations:save-settings', connectorId, patch)
   ,isOauthSupported: (connectorId) => ipcRenderer.invoke('hibi:oauth:supported', connectorId)

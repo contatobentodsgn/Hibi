@@ -37,6 +37,7 @@ import type { AiFallbackPolicy } from './ai/contracts';
 import { applyImportDecision, type ImportCandidate, type ImportDecision } from './integrations/imports';
 import { localApiTaskMutation, type LocalApiIntent } from './integrations/local-api-intents';
 import { useAssistantTurn } from './ui/useAssistantTurn';
+import { applyNotionMutations, type NotionLocalMutation } from './integrations/notion-apply';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 const AI_FALLBACK_POLICY_STORAGE_KEY = 'hibi-ai-fallback-policy';
@@ -179,6 +180,12 @@ export default function App() {
     if (mutation.type !== 'none') refreshData();
     log('import', `${connectorId} · ${decision}: ${candidate.title}`, mutation.type);
   };
+  const applyNotionSync = (mutations: readonly NotionLocalMutation[]) => {
+    const tasks = applyNotionMutations(repository, mutations);
+    refreshData();
+    log('notion-sync', `${mutations.length} local changes`, 'applied');
+    return tasks;
+  };
   const resolveLocalApiIntent = async (approved: boolean) => {
     const intent = pendingLocalApiIntent;
     if (!intent) return;
@@ -243,7 +250,7 @@ export default function App() {
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'agenda': case 'day': case 'week': return <AgendaView {...props} data={data} mode={route === 'agenda' ? undefined : route} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onModeChange={(mode) => setRoute(mode)} />;
       case 'focus': return <FocusView {...props} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
-      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} />;
+      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} />;
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} onClearAiHistory={clearAiHistory} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;

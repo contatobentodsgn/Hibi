@@ -1,6 +1,6 @@
 export type RemoteReference = Readonly<{ connectorId: string; remoteId: string; revision?: string }>
 export type LocalImportRecord = Readonly<{ id: string; title: string; remoteRef?: RemoteReference }>
-export type ImportCandidate = Readonly<{ remoteId: string; revision?: string; title: string; kind: 'task' | 'email'; source?: string }>
+export type ImportCandidate = Readonly<{ remoteId: string; revision?: string; hibiId?: string; title: string; kind: 'task' | 'email'; source?: string; status?: 'open' | 'paused' | 'completed'; deadline?: string; durationMinutes?: number; description?: string }>
 export type ImportPreviewItem = ImportCandidate & Readonly<{ state: 'new' | 'duplicate' | 'conflict'; localId?: string }>
 export type ImportDecision = 'keep-local' | 'keep-remote' | 'duplicate' | 'skip'
 export type ImportMutation = Readonly<{ type: 'none' }> | Readonly<{ type: 'update'; localId: string; title: string; remoteRef: RemoteReference }> | Readonly<{ type: 'create'; title: string; remoteRef: RemoteReference }>

@@ -8,10 +8,12 @@ const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 export class LocalRepository {
   private readonly seed: StudyData;
   private data: StudyData;
+  private readonly now: () => string;
 
-  constructor(seed: StudyData) {
+  constructor(seed: StudyData, now: () => string = () => new Date().toISOString()) {
     this.seed = clone(seed);
     this.data = clone(seed);
+    this.now = now;
   }
 
   static fromJson(seed: StudyData, json: string): LocalRepository {
@@ -85,14 +87,14 @@ export class LocalRepository {
   listBlocks(): ScheduleBlock[] { return clone(this.data.blocks); }
   getTask(id: string): Task | undefined { return this.data.tasks.find((task) => task.id === id); }
   createTask(input: NewTask): Task {
-    const task = { ...input, id: `task-${Date.now()}-${this.data.tasks.length}` };
+    const task = { ...input, id: `task-${Date.now()}-${this.data.tasks.length}`, updatedAt: this.now() };
     this.data.tasks.push(task);
     return clone(task);
   }
   updateTask(id: string, changes: Partial<NewTask>): Task {
     const task = this.getTask(id);
     if (!task) throw new Error(`Task not found: ${id}`);
-    Object.assign(task, changes);
+    Object.assign(task, changes, { updatedAt: this.now() });
     return clone(task);
   }
   deleteTask(id: string): void { this.data.tasks = this.data.tasks.filter((task) => task.id !== id); }

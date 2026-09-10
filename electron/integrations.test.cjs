@@ -179,3 +179,60 @@ test('recusa importar de um conector sem capacidade de importação', async () =
   const manager = createIntegrationManager({ keychain: store, connectors: [{ id: 'fixture', label: 'Fixture', allowedHosts: ['fixture.example.test'], capabilities: ['notify'] }] });
   await assert.rejects(manager.listImportCandidates('fixture', { targets: [{ id: 'x' }] }), /does not support importing/);
 });
+
+test('devolve resultados sanitizados por item em uma sincronização parcialmente concluída', async () => {
+  const store = keychain();
+  await store.set('integration:fixture', 'token');
+  const batchConnector = {
+    ...connector,
+    prepareWrite: ({ kind, payload }) => ({ kind, payload }),
+    executeApproved: async () => ({ ok: false, items: [
+      { key: 'task-1', ok: true, status: 201, remoteId: 'page-1', revision: 'v1', body: 'private' },
+      { key: 'task-2', ok: false, status: 429, error: 'Try later', token: 'secret' },
+    ] }),
+  };
+  const manager = createIntegrationManager({ connectors: [batchConnector], keychain: store });
+  const prepared = await manager.prepareAction({ connectorId: 'fixture', kind: 'notion.sync.batch', payload: { operations: [] } });
+  const result = await manager.executeApproved({ actionId: prepared.id, confirmationId: prepared.confirmationId });
+  assert.deepEqual(result, { ok: false, items: [
+    { key: 'task-1', ok: true, status: 201, remoteId: 'page-1', revision: 'v1' },
+    { key: 'task-2', ok: false, status: 429, error: 'Try later' },
+  ] });
+  assert.equal(JSON.stringify(result).includes('private'), false);
+  assert.equal(JSON.stringify(result).includes('secret'), false);
+});
+
+test('preserva apenas os campos mapeados de uma tarefa Notion importada', async () => {
+  const store = keychain();
+  await store.set('integration:fixture', 'token');
+  const manager = createIntegrationManager({ keychain: store, connectors: [{
+    id: 'fixture', label: 'Fixture', allowedHosts: ['fixture.example.test'], capabilities: ['import'],
+    async fetchImports() { return [{ id: 'page-1' }]; },
+    normalizeImport() { return { remoteId: 'page-1', revision: 'v1', hibiId: 'task-1', title: 'Mapped', status: 'paused', deadline: '2026-09-10T09:00:00-03:00', durationMinutes: 45, description: 'Safe description', kind: 'task', rawBody: 'private' }; },
+  }] });
+  const [candidate] = await manager.listImportCandidates('fixture', { targets: [{ id: 'source-1' }] });
+  assert.deepEqual(candidate, { remoteId: 'page-1', revision: 'v1', hibiId: 'task-1', title: 'Mapped', status: 'paused', deadline: '2026-09-10T09:00:00-03:00', durationMinutes: 45, description: 'Safe description', kind: 'task' });
+  assert.equal(JSON.stringify(candidate).includes('private'), false);
+});
+
+test('descobre uma fonte de dados sem devolver credencial ao renderer', async () => {
+  const store = keychain();
+  await store.set('integration:fixture', 'token-secret');
+  let receivedCredential;
+  const manager = createIntegrationManager({ keychain: store, connectors: [{
+    id: 'fixture', label: 'Fixture', allowedHosts: ['fixture.example.test'], capabilities: ['import'],
+    async discoverDataSource({ credential, databaseId }) { receivedCredential = credential; return { databaseId, dataSourceId: 'source-1', label: 'Hibi Tasks', token: credential }; },
+  }] });
+  const result = await manager.discoverDataSource('fixture', 'db-1');
+  assert.equal(receivedCredential, 'token-secret');
+  assert.deepEqual(result, { databaseId: 'db-1', dataSourceId: 'source-1', label: 'Hibi Tasks' });
+  assert.equal(JSON.stringify(result).includes('secret'), false);
+});
+
+test('extrai a revisão segura da resposta de página do Notion', async () => {
+  const responseConnector = { ...connector, id: 'revision', executeApproved: async () => new Response(JSON.stringify({ id: 'page-1', last_edited_time: '2026-09-10T01:00:00.000Z' }), { status: 200 }) };
+  const manager = createIntegrationManager({ connectors: [responseConnector], keychain: keychain() });
+  await manager.connect('revision', { credential: 'token' });
+  const prepared = await manager.prepareAction({ connectorId: 'revision', kind: 'remote.write', payload: {} });
+  assert.deepEqual(await manager.executeApproved({ actionId: prepared.id, confirmationId: prepared.confirmationId }), { ok: true, status: 200, remoteId: 'page-1', revision: '2026-09-10T01:00:00.000Z' });
+});

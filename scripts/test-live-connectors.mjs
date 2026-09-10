@@ -64,19 +64,19 @@ export async function runLiveConnectorTest(environment = process.env, fetch = gl
   const report = { connectorId: safe.connectorId, endpointHost: safe.host, connection: null, importTargets: null, importRead: null, write: { attempted: false } }
 
   const connection = await manager.testConnection(safe.connectorId)
-  report.connection = { ok: connection.ok, detail: connection.detail }
+  report.connection = { ok: connection.ok }
   if (!connection.ok) return report
 
   if (typeof connector.listImportTargets === 'function') {
     try { report.importTargets = { count: (await manager.listImportTargets(safe.connectorId)).length } }
-    catch (error) { report.importTargets = { error: error instanceof Error ? error.message : 'Listing import targets failed.' } }
+    catch { report.importTargets = { error: 'listing_failed' } }
   }
 
   if (typeof connector.fetchImports === 'function') {
     try {
       const candidates = await manager.listImportCandidates(safe.connectorId, { targets: safe.targets })
       report.importRead = { count: candidates.length, kinds: [...new Set(candidates.map((candidate) => candidate.kind))].sort(), withRevision: candidates.filter((candidate) => candidate.revision !== undefined).length }
-    } catch (error) { report.importRead = { error: error instanceof Error ? error.message : 'Reading import candidates failed.' } }
+    } catch { report.importRead = { error: 'read_failed' } }
   }
 
   if (safe.write) {
@@ -85,7 +85,7 @@ export async function runLiveConnectorTest(environment = process.env, fetch = gl
     report.write = { attempted: true, kind: safe.write.kind, ok: result.ok === true, ...(typeof result.status === 'number' ? { status: result.status } : {}), receivedRemoteId: typeof result.remoteId === 'string' }
   }
 
-  report.audit = (await manager.audit()).map(({ at, action, connectorId, detail }) => ({ at, action, connectorId, detail }))
+  report.audit = (await manager.audit()).map(({ at, action, connectorId }) => ({ at, action, connectorId }))
   return report
 }
 

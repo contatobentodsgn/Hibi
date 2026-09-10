@@ -1,7 +1,7 @@
 import type { NotificationEntry } from './domain/notifications';
 import type { ImportCandidate } from './integrations/imports';
 import type { AiNormalizedUsage, AiProviderRequest, AiProviderStreamEvent } from './ai/contracts';
-import type { ConnectorSettings, IntegrationAuditEvent, IntegrationAuthorization, IntegrationImportTarget, IntegrationStatus, PreparedIntegrationAction } from './integrations/contracts';
+import type { ConnectorSettings, IntegrationAuditEvent, IntegrationAuthorization, IntegrationExecutionResult, IntegrationImportTarget, IntegrationStatus, NotionDataSourceDiscovery, PreparedIntegrationAction } from './integrations/contracts';
 
 declare global {
   interface Window {
@@ -22,7 +22,7 @@ declare global {
       listIntegrationAudit?: () => Promise<readonly IntegrationAuditEvent[]>;
       revokeIntegration?: (connectorId: string) => Promise<IntegrationStatus>;
       prepareIntegrationAction?: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => Promise<PreparedIntegrationAction>;
-      executeApprovedIntegrationAction?: (input: { actionId: string; confirmationId: string }) => Promise<unknown>;
+      executeApprovedIntegrationAction?: (input: { actionId: string; confirmationId: string }) => Promise<IntegrationExecutionResult>;
       syncLocalApiWorkspace?: (workspace: { tasks: readonly unknown[]; reminders: readonly unknown[]; blocks: readonly unknown[] }) => Promise<void>;
       startLocalApi?: () => Promise<{ origin: string }>;
       stopLocalApi?: () => Promise<{ running: false }>;
@@ -30,6 +30,7 @@ declare global {
       testIntegrationConnection?: (connectorId: string) => Promise<{ ok: boolean; detail: string }>;
       listIntegrationImportTargets?: (connectorId: string) => Promise<readonly IntegrationImportTarget[]>;
       listIntegrationImportCandidates?: (connectorId: string) => Promise<readonly ImportCandidate[]>;
+      discoverNotionDataSource?: (databaseId: string) => Promise<NotionDataSourceDiscovery>;
       getConnectorSettings?: (connectorId: string) => Promise<ConnectorSettings>;
       saveConnectorSettings?: (connectorId: string, patch: Partial<ConnectorSettings>) => Promise<ConnectorSettings>;
       isOauthSupported?: (connectorId: string) => Promise<boolean>;
