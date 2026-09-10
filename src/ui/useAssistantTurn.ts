@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { assistantTurnReducer, dismissIntent, initialAssistantTurnState, type AssistantProvenance, type AssistantTurnState, type DismissIntent } from '../ai/assistant-turn';
 import type { AiProviderFailure } from '../ai/contracts';
 import { classifyProviderFailure } from '../ai/production';
@@ -54,7 +54,7 @@ export function useAssistantTurn({ runtime, data, onEvent, onCompanionEvent, onC
     if (event.type === 'usage') dispatch({ type: 'stream.usage', requestId, totalTokens: event.usage.totalTokens });
   }), [runtime]);
 
-  const resolve = async (actionId: 'confirm' | 'cancel') => {
+  const resolve = useCallback(async (actionId: 'confirm' | 'cancel') => {
     const current = stateRef.current;
     if (current.status !== 'confirmation') return;
     const { confirmation, requestId } = current;
@@ -80,11 +80,14 @@ export function useAssistantTurn({ runtime, data, onEvent, onCompanionEvent, onC
       onCompanionError?.(text);
       onCompanionEvent?.(companionEventFor('error', confirmation.id, text, Date.now()));
     }
-  };
+  }, [runtime, onEvent, onCompanionEvent, onCompanionError]);
 
-  useEffect(() => window.hibiDesktop?.onCompanionAction?.((action) => { if (state.status === 'confirmation' && action.requestId === state.confirmation.id) void resolve(action.actionId); }) ?? (() => undefined), [state]);
+  useEffect(() => window.hibiDesktop?.onCompanionAction?.((action) => {
+    const current = stateRef.current;
+    if (current.status === 'confirmation' && action.requestId === current.confirmation.id) void resolve(action.actionId);
+  }) ?? (() => undefined), []);
 
-  const ask = async (message: string, options: { useLocalFallback?: boolean } = {}) => {
+  const ask = useCallback(async (message: string, options: { useLocalFallback?: boolean } = {}) => {
     const trimmed = message.trim();
     if (!trimmed || stateRef.current.status === 'streaming') return;
     const useLocalFallback = options.useLocalFallback === true;
@@ -126,12 +129,34 @@ export function useAssistantTurn({ runtime, data, onEvent, onCompanionEvent, onC
     } finally {
       if (activeRequestId.current === requestId) activeRequestId.current = null;
     }
-  };
+  }, [runtime, data, onEvent, onCompanionEvent, onCompanionError]);
 
-  const stop = () => { const current = stateRef.current; if (current.status !== 'streaming') return; dispatch({ type: 'cancel.requested', requestId: current.requestId }); runtime.cancel(); };
-  const dismiss = (): DismissIntent => { const intent = dismissIntent(stateRef.current); if (intent === 'cancel-confirmation') void resolve('cancel'); if (intent === 'stop-stream') stop(); return intent; };
-  const retry = () => stateRef.current.status === 'failure' ? ask(lastMessage.current) : Promise.resolve();
-  const useLocalFallback = () => stateRef.current.status === 'failure' ? ask(lastMessage.current, { useLocalFallback: true }) : Promise.resolve();
+  const stop = useCallback(() => {
+    const current = stateRef.current;
+    if (current.status !== 'streaming') return;
+    dispatch({ type: 'cancel.requested', requestId: current.requestId });
+    runtime.cancel();
+  }, [runtime]);
 
-  return { state, ask, confirm: () => resolve('confirm'), cancelConfirmation: () => resolve('cancel'), stop, retry, useLocalFallback, dismiss, reset: () => dispatch({ type: 'reset' }) };
+  const dismiss = useCallback((): DismissIntent => {
+    const intent = dismissIntent(stateRef.current);
+    if (intent === 'cancel-confirmation') void resolve('cancel');
+    if (intent === 'stop-stream') stop();
+    return intent;
+  }, [resolve, stop]);
+
+  const retry = useCallback(() => stateRef.current.status === 'failure' ? ask(lastMessage.current) : Promise.resolve(), [ask]);
+  const useLocalFallback = useCallback(() => stateRef.current.status === 'failure' ? ask(lastMessage.current, { useLocalFallback: true }) : Promise.resolve(), [ask]);
+
+  return useMemo<AssistantTurnControls>(() => ({
+    state,
+    ask,
+    confirm: () => resolve('confirm'),
+    cancelConfirmation: () => resolve('cancel'),
+    stop,
+    retry,
+    useLocalFallback,
+    dismiss,
+    reset: () => dispatch({ type: 'reset' }),
+  }), [state, ask, resolve, stop, retry, useLocalFallback, dismiss]);
 }

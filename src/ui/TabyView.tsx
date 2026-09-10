@@ -7,8 +7,6 @@ import type { CompanionEvent } from '../companion/contracts';
 import { failurePresentationFor } from './assistant-presentation';
 import { useAssistantTurn } from './useAssistantTurn';
 
-export { companionEventFor, confirmationPresentationFor, failurePresentationFor, modelLabelFor, provenanceLabelFor } from './assistant-presentation';
-
 type Props = { data: StudyData; runtime: AiTurnRuntime; onEvent: (action: string, detail: string, result?: string) => void; onCompanionError?: (text: string) => void; onCompanionEvent?: (event: CompanionEvent) => void };
 type Message = Readonly<{ role: 'user' | 'assistant'; text: string; provenance?: string }>;
 
