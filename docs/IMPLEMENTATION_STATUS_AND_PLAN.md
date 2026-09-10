@@ -1,6 +1,8 @@
 # Hibi — status de implementação e plano consolidado
 
-Atualizado em 2026-09-10. Este documento é a fonte operacional do status atual; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução.
+Atualizado em 2026-09-10, depois do merge do PR #4 (`main` em `2e4909a`). Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
+
+Última bateria completa em `main`: 321 testes Vitest, 176 `node --test`, 91 e2e Playwright, `tsc` sem erros e build de produção com o addon nativo.
 
 ## Status atual
 
@@ -16,18 +18,60 @@ Atualizado em 2026-09-10. Este documento é a fonte operacional do status atual;
 | Fallback | Implementado | Políticas perguntar/automático/nunca e fallback local somente em falhas elegíveis. |
 | Conectores (base comum) | Implementado localmente | Adaptadores, normalização, Keychain, allowlist, OAuth PKCE com callback em loopback, teste de conexão somente leitura, endpoint configurável e seleção de fontes importadas. |
 | **Notion Sync v1** | **Concluído e validado ao vivo** | Sincronização manual bidirecional: base dedicada Hibi Tasks, reconciliação determinística, prévia com decisão por item, confirmação no app e no notch, checkpoints persistidos, lote recuperável e retry só dos pendentes. Validado em 2026-09-10 no workspace Kizuna, pelo app Electron real: setup, leitura, escrita remota e cancelamento confirmados pelo notch, e conflito de dois lados no mesmo minuto. A validação corrigiu quatro defeitos; ver o [registro de validação](validation/2026-09-10-notion-sync-v1.md). |
-| Monitor do notch e "Testar notch" | Implementado localmente | Configurações › Geral escolhe Automático ou um monitor; o automático é reavaliado a cada posicionamento (antes ficava preso à tela principal quando o app abria com a tampa fechada). O teste mostra um cartão passivo e uma confirmação no monitor escolhido e nunca tampa uma confirmação real. A confirmação passou a ser posicionada a partir da tela principal, e não da tela com foco. Validação em [`notch-manual-results.md`](notch-manual-results.md). |
+| **Monitor do notch e "Testar notch"** | **Implementado e validado no app real** | Configurações › Geral escolhe Automático ou um monitor; o automático é reavaliado a cada posicionamento (antes ficava preso à tela principal quando o app abria com a tampa fechada). O teste mostra um cartão passivo e uma confirmação no monitor escolhido e nunca tampa uma confirmação real. A validação com a tela integrada e o LG ULTRAWIDE corrigiu: confirmação posicionada a partir da tela com foco, texto do cartão passivo cortado e escondido atrás da câmera, confirmação transbordando a janela e superfície anterior esquecida na tela ao trocar de host. Registro em [`notch-manual-results.md`](notch-manual-results.md). |
+| Comandos `/folder` e `/break` | Implementado localmente | Pastas derivadas dos itens (nomes comparados depois de aparar espaços e normalizar para NFC), com filtros reais em Tarefas e Notas e navegação e renomeação pela paleta; juntar pastas pede confirmação e só é anunciado quando aplicado. `/break` abre o Foco em modo pausa, com eventos `break-*` que nunca contam como foco, e cada conclusão de foco ou pausa é registrada exatamente uma vez. Paridade com os 21 comandos do original. |
+| Nova UI — fundação | Implementado localmente | Tokens claro/escuro com contraste testado, i18n `pt`/`en` ao vivo, shell sem moldura com dock, paleta `⌘K` unificada com o Taby; telas ainda com o visual anterior dentro do shell novo. |
+| Estatísticas dedicadas | **Em andamento, fora de `main`** | Branch `feat/dedicated-stats` (worktree `.worktrees/dedicated-stats`): Tasks 1–2 de 8 do [plano](superpowers/plans/2026-09-08-dedicated-stats.md) — contrato e persistência do registro de atividade. Faltam compatibilidade de backup, cálculos, registro único por ação, página, rota e verificação. Hoje `/stats` abre o Review. |
 | Slack | **Adiado** | Adaptador de leitura e escrita existe e é coberto por testes, mas o produto de sincronização foi adiado: o esforço foi concentrado no Notion. Nenhuma validação ao vivo planejada por ora. |
-| E-mail e notificações remotas | Implementado localmente | Adaptadores e confirmação prontos; entrega real exige credencial do serviço escolhido. |
+| E-mail e notificações remotas | Implementado localmente | Adaptadores, confirmação, endpoint HTTPS configurável e teste de conexão; entrega real exige credencial do serviço escolhido. |
 | Webhooks | Implementado localmente | HMAC, nonce, expiração, limite de corpo, loopback, Keychain e confirmação; ciclo iniciar/parar e estado após reinício cobertos por e2e; não é endpoint público. |
 | API pública | Implementado localmente | API HTTP loopback, token revogável no Keychain, OpenAPI, leituras e escritas com confirmação. |
 | Importação | Implementado localmente | CSV/JSON/ICS e leitura por conector a partir das fontes escolhidas, com prévia, deduplicação por referência remota, conflitos e aplicação local da decisão. |
 | Compartilhamento | Implementado localmente | Convites somente leitura assinados e expirados. |
-| Nova UI — fundação | Implementado localmente | Tokens claro/escuro com contraste testado, i18n `pt`/`en` ao vivo, shell sem moldura com dock, paleta `⌘K` unificada com o Taby; telas ainda com o visual anterior dentro do shell novo. |
-| Comandos `/folder` e `/break` | Implementado localmente | Pastas derivadas dos itens (nomes comparados depois de aparar espaços e normalizar para NFC), com filtros reais em Tarefas e Notas e navegação e renomeação pela paleta; juntar pastas pede confirmação e só é anunciado quando aplicado. `/break` abre o Foco em modo pausa, com eventos `break-*` que nunca contam como foco, e cada conclusão de foco ou pausa é registrada exatamente uma vez. Paridade com os 21 comandos do original. |
-| Notificações remotas | Implementado localmente | Adaptador, confirmação, endpoint HTTPS configurável e teste de conexão; entrega real exige credencial do serviço escolhido. |
 | Teste com provedor real | Bloqueado por configuração | Harness protegido criado; falta endpoint sandbox, modelo, credencial e opt-in explícito. |
 | Teste com conector real | Notion validado; demais bloqueados por credencial | `npm run test:notion:live` roda o ciclo `criar → ler → atualizar → conflito` com a credencial que o próprio Hibi guarda no Keychain, sem expor o token. Slack, e-mail e notificações remotas seguem sem credencial de sandbox. |
+
+## Paridade com o app original
+
+Referência: Hey Taby 0.2.2 e 0.2.3, pelas auditorias em `/Volumes/SSD/app/node_modules/@hey-taby/` (`HEY_TABY_AUDIT_2026-07-30.md` e `HEY_TABY_AUDIT_0.2.3_2026-07-30.md`). O Hibi é uma implementação própria, não uma cópia: "pronto" significa a mesma capacidade para quem usa, não o mesmo visual.
+
+### Já coberto
+
+| Área do original | No Hibi |
+| --- | --- |
+| Tarefas, Notas, Hábitos, Metas, Lembretes | Funcionais localmente, com pastas reais, recorrência de lembretes e notificações macOS. |
+| Visão diária e semanal | Blocos locais, conflitos, importação e exportação ICS. |
+| Comandos `/` | Os 21 do original, na paleta `⌘K`. |
+| Foco e pausa | Timer de 25 minutos e pausa de 5, 10 ou 15 minutos, com eventos separados. |
+| Taby | Assistente com provedor local ou compatível com OpenAI, confirmação antes de alterar dados e streaming. No original a tela ainda era "coming soon" (0.2.2) ou dependia do Brain não instalado (0.2.3). |
+| Integrações | Além do original (Codex e Claude sem conexão, Google Calendar "em breve"): Notion validado ao vivo, API local, webhooks, e-mail e notificações remotas. |
+| Notch | Host nativo público, confirmações no notch, escolha de monitor e botão de teste — ambos pedidos na auditoria do original —, validado com monitor externo. |
+| Configurações gerais | Idioma, tema, formato de hora, abrir ao iniciar o Mac (ausente no original) e monitor do notch. |
+| Dados | Exportação e restauração de backup JSON sem segredos (ausente no original). |
+| Feedback e diagnóstico | Parcial: feedback, bug e ideia viram nota local; pacote de diagnóstico JSON exportável. |
+
+### Falta
+
+| Do original | Situação no Hibi | Observação |
+| --- | --- | --- |
+| Estatísticas | Branch em andamento | Ver "Estatísticas dedicadas" acima. |
+| Review da 0.2.3 com sugestões (`duplicate_task`, `missing_schedule`) | Ausente — o Review é um resumo | Evitar os defeitos auditados: números como identificadores, agrupar duplicidades, recalcular após mudanças, dispensa em lote, evidência da confiança. |
+| Tela de chats do Taby (várias conversas, busca, novo chat) | Ausente | A conversa vive só no estado da tela e se perde ao sair; só o histórico de ações da IA é salvo. |
+| Ajustes de Foco (horário ativo, ausência, inatividade, pomodoro, timeout de tela, loop visual, intensidade dos nudges) | Ausentes | A aba Foco mostra só a duração fixa de 25 minutos. |
+| Ajustes gerais: tint, tamanho do Taby, local de exibição, atalho global, atividade de apps | Ausentes | No original o atalho global aparecia desabilitado. |
+| Zona invisível no topo que abre o Taby | Ausente | A auditoria aponta que ela é pouco descobrível; se entrar, precisa de indicação visível. |
+| Dados em SQLite com restore points automáticos | Ausente — `localStorage` com backup JSON manual | O original declarava restore points, mas não criava nenhum. |
+| Atualização automática, assinatura e notarização | Ausentes — `/updates` informa build offline | Também na Fase 4. |
+| Feedback remoto com captura de tela e pacote ZIP | Parcial | Ver "Já coberto". |
+| Brain local (~5,2 GB) e voz (Kokoro) | Ausentes | No original a voz falhava por dependência não empacotada. |
+| Dispositivo físico Taby (USB, firmware) | Ausente — adaptador marcado como indisponível | Depende de hardware e protocolo do dispositivo. |
+| Animações em Rive | Parcial | Os estados do companion usam vídeos; `study-reference/rive/talk/taby-talk.riv` só é listado na galeria de assets e não anima o companion. |
+| Sincronização com Google Calendar ou iCloud | Ausente | No original também "em breve". Também na Fase 4. |
+| Visual novo das telas | Parcial | Só o shell, o dock e a paleta usam a nova UI. |
+
+### Fora do escopo por decisão
+
+- **Desenhar sobre a câmera.** O original eleva a janela com interfaces privadas do WindowServer. O Hibi usa só APIs públicas: o cartão fica abaixo da câmera. Ver `docs/notch-reference-analysis.md`.
 
 ## Plano restante
 
@@ -84,7 +128,24 @@ lá entre as rodadas.
 - [ ] Decidir e implementar conta, nuvem e backup remoto.
 - [ ] Decidir sincronização bidirecional com Google Calendar/iCloud e resolução de conflitos.
 - [ ] Adicionar atualizador, assinatura, notarização, crash recovery e acessibilidade manual.
-- [ ] Validar macOS com notch, sem notch, monitor externo, Spaces, tela cheia e reconexão de display.
+- [x] Validar o notch na tela com câmera e em monitor externo, com a janela do Hibi em cada tela (app real, cliques automatizados; 2026-09-10).
+- [ ] Validar o notch em Mac sem câmera, em Spaces e tela cheia, na reconexão do monitor externo, após o sono e com clique e leitura humanos — roteiro em [`notch-manual-results.md`](notch-manual-results.md).
+
+### Fase 5 — paridade com o original
+
+Ordem recomendada, do que está mais adiantado e mais usado para o que depende de terceiros:
+
+1. [ ] Concluir as estatísticas dedicadas (`feat/dedicated-stats`, Tasks 3–8).
+2. [ ] Salvar as conversas do Taby, com lista de chats, busca e novo chat.
+3. [ ] Ajustes de Foco: horário ativo, inatividade, pomodoro e intensidade dos nudges, com prévia de quantos alertas por dia.
+4. [ ] Review com sugestões de duplicata e de agenda ausente, sem os falsos positivos auditados no original.
+5. [ ] Persistência em SQLite com restore points antes de lotes e migrações.
+6. [ ] Ajustes gerais restantes: atalho global, tamanho e local de exibição do Taby, tint e atividade de apps.
+7. [ ] Visual novo nas telas, na ordem do dock.
+8. [ ] Voz e modelo local, depois de decidir motor, tamanho de download e empacotamento.
+9. [ ] Dispositivo físico, quando houver protocolo e hardware para teste.
+
+Pendências já registradas fora desta lista: confirmações da API local respondidas continuam reaparecendo no notch por até um minuto, e a janela do notch usa o preload completo do app.
 
 ## Critério de conclusão
 
@@ -95,7 +156,7 @@ O projeto só deve ser considerado completo quando as fases 1–3 tiverem evidê
 ```text
 npm test
 npx tsc --noEmit
-npx vite build
+npm run build
 npx playwright test
 npm run test:providers:live
 npm run test:connectors:live
