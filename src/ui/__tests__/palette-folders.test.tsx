@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { NO_FOLDER } from '../../domain/folders'
 import { translate, type DictionaryKey } from '../../i18n/dictionary'
-import { countsLabel, filterFolders, folderIntent, previousView, renameOutcome } from '../palette/folder-view'
+import { afterRename, countsLabel, filterFolders, folderIntent, previousView, renameOutcome } from '../palette/folder-view'
 import { PaletteFolders } from '../palette/PaletteFolders'
 
 const t = (key: DictionaryKey) => translate('pt', key)
@@ -56,19 +56,43 @@ describe('vista de pastas da paleta', () => {
   })
 
   it('renderiza linhas com contagens, a linha de junção e o motivo de recusa', () => {
-    const list = renderToStaticMarkup(<PaletteFolders view={{ kind: 'folders' }} folders={folders} selectedIndex={1} notice={null} onHover={noop} onOpen={noop} />)
+    const list = renderToStaticMarkup(<PaletteFolders view={{ kind: 'folders' }} folders={folders} selectedIndex={1} onHover={noop} onOpen={noop} />)
     expect(list).toContain('>Sem pasta</span>')
     expect(list).toMatch(/data-selected="true"[^>]*data-folder="Clientes"/)
     expect(list).toContain('1 tarefa · 1 nota')
 
-    const merge = renderToStaticMarkup(<PaletteFolders view={{ kind: 'merge', from: 'Clientes', to: 'Bento', tasks: 1, notes: 1 }} folders={folders} selectedIndex={0} notice={null} onHover={noop} onOpen={noop} />)
+    const merge = renderToStaticMarkup(<PaletteFolders view={{ kind: 'merge', from: 'Clientes', to: 'Bento', tasks: 1, notes: 1 }} folders={folders} selectedIndex={0} onHover={noop} onOpen={noop} />)
     expect(merge).toContain('role="alert"')
     expect(merge).toContain('Juntar “Clientes” em “Bento”: 1 tarefa · 1 nota')
 
-    const refused = renderToStaticMarkup(<PaletteFolders view={{ kind: 'rename', from: 'Clientes', error: 'unchanged' }} folders={folders} selectedIndex={0} notice={null} onHover={noop} onOpen={noop} />)
+    const refused = renderToStaticMarkup(<PaletteFolders view={{ kind: 'rename', from: 'Clientes', error: 'unchanged' }} folders={folders} selectedIndex={0} onHover={noop} onOpen={noop} />)
     expect(refused).toContain('Esse já é o nome da pasta.')
 
-    const clean = renderToStaticMarkup(<PaletteFolders view={{ kind: 'rename', from: 'Clientes', error: null }} folders={folders} selectedIndex={0} notice={null} onHover={noop} onOpen={noop} />)
+    const clean = renderToStaticMarkup(<PaletteFolders view={{ kind: 'rename', from: 'Clientes', error: null }} folders={folders} selectedIndex={0} onHover={noop} onOpen={noop} />)
     expect(clean).toContain('<span role="alert"></span>')
+  })
+})
+
+describe('afterRename', () => {
+  it('volta à lista e marca "aplicado" quando o plano do App bate com o que a paleta esperava', () => {
+    expect(afterRename({ ok: true, from: 'Clientes', to: 'Estúdio', tasks: 1, notes: 1, merge: false }, 'Clientes', 'Estúdio', false))
+      .toEqual({ view: { kind: 'folders' }, query: '', applied: true })
+    expect(afterRename({ ok: true, from: 'Clientes', to: 'Bento', tasks: 1, notes: 1, merge: true }, 'Clientes', 'Bento', true))
+      .toEqual({ view: { kind: 'folders' }, query: '', applied: true })
+  })
+
+  it('volta a pedir a renomeação com o motivo quando o App recusa', () => {
+    expect(afterRename({ ok: false, reason: 'empty' }, 'Clientes', '', false))
+      .toEqual({ view: { kind: 'rename', from: 'Clientes', error: 'empty' }, query: '', applied: false })
+  })
+
+  it('pede confirmação de junção quando ela passou a ser necessária', () => {
+    expect(afterRename({ ok: true, from: 'Clientes', to: 'Bento', tasks: 1, notes: 1, merge: true }, 'Clientes', 'Bento', false))
+      .toEqual({ view: { kind: 'merge', from: 'Clientes', to: 'Bento', tasks: 1, notes: 1 }, query: 'Bento', applied: false })
+  })
+
+  it('volta à renomeação simples quando a junção deixou de ser necessária', () => {
+    expect(afterRename({ ok: true, from: 'Clientes', to: 'Estúdio', tasks: 1, notes: 1, merge: false }, 'Clientes', 'Estúdio', true))
+      .toEqual({ view: { kind: 'rename', from: 'Clientes', error: null }, query: 'Estúdio', applied: false })
   })
 })

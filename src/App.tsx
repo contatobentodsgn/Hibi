@@ -38,7 +38,7 @@ import { applyImportDecision, type ImportCandidate, type ImportDecision } from '
 import { localApiTaskMutation, type LocalApiIntent } from './integrations/local-api-intents';
 import { useAssistantTurn } from './ui/useAssistantTurn';
 import { applyNotionMutations, type NotionLocalMutation } from './integrations/notion-apply';
-import { listFolders, NO_FOLDER, planFolderRename } from './domain/folders';
+import { listFolders, NO_FOLDER, planFolderRename, type FolderRenamePlan } from './domain/folders';
 
 export type EventRecord = { id: number; at: string; route: string; action: string; detail: string; result?: string };
 const AI_FALLBACK_POLICY_STORAGE_KEY = 'hibi-ai-fallback-policy';
@@ -139,8 +139,17 @@ export default function App() {
   const createNote = (title: string, content: string, folder: string) => { repository.createNote({ title, content, folder, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); refreshData(); log('create', title); };
   const updateNote = (id: string, changes: Partial<import('./domain/models').Note>) => { repository.updateNote(id, changes); refreshData(); log('edit', id); };
   const deleteNote = (id: string) => { repository.deleteNote(id); refreshData(); log('delete', id); };
-  // Revalida contra o estado atual do repositório: a paleta pode ter planejado sobre um snapshot anterior.
-  const renameFolder = (from: string, to: string) => { const plan = planFolderRename(repository.snapshot(), from, to); if (!plan.ok) return; repository.renameFolder(plan.from, plan.to); refreshData(); log('edit', `Folder · ${plan.from} → ${plan.to}`, plan.merge ? 'merged' : 'renamed'); };
+  // Revalida contra o estado atual do repositório: a paleta pode ter planejado sobre um snapshot
+  // anterior. Também recusa quando a expectativa de junção da paleta não bate mais com o plano atual
+  // (a pasta de destino surgiu ou sumiu no meio) — nesses casos nada é aplicado.
+  const renameFolder = (from: string, to: string, expectMerge: boolean): FolderRenamePlan => {
+    const plan = planFolderRename(repository.snapshot(), from, to);
+    if (!plan.ok || plan.merge !== expectMerge) return plan;
+    repository.renameFolder(plan.from, plan.to);
+    refreshData();
+    log('edit', `Folder · ${plan.from} → ${plan.to}`, plan.merge ? 'merged' : 'renamed');
+    return plan;
+  };
   const submitFeedback = (kind: string, text: string) => { repository.createNote({ title: `[${kind}] Feedback`, content: text, folder: 'Bento', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }); refreshData(); log('feedback', kind, 'saved-local'); };
   const createHabit = (title: string, frequency: Habit['frequency'] = 'daily', targetPerWeek = 7) => { repository.createHabit({ title, frequency, targetPerWeek, completedDates: [], status: 'open' }); refreshData(); log('create', title); };
   const updateHabit = (id: string, changes: Partial<Omit<Habit, 'id'>>) => { repository.updateHabit(id, changes); refreshData(); log('edit', id); };

@@ -1,4 +1,4 @@
-import { NO_FOLDER, planFolderRename, type FolderRenameRefusal, type FolderSummary } from '../../domain/folders'
+import { NO_FOLDER, planFolderRename, type FolderRenamePlan, type FolderRenameRefusal, type FolderSummary } from '../../domain/folders'
 import type { StudyData } from '../../domain/models'
 import type { DictionaryKey } from '../../i18n/dictionary'
 
@@ -63,4 +63,16 @@ export function renameOutcome(data: Pick<StudyData, 'tasks' | 'notes'>, from: st
   if (!plan.ok) return { type: 'refuse', reason: plan.reason }
   if (plan.merge) return { type: 'confirm-merge', view: { kind: 'merge', from: plan.from, to: plan.to, tasks: plan.tasks, notes: plan.notes } }
   return { type: 'apply', from: plan.from, to: plan.to }
+}
+
+export type RenameResult = Readonly<{ view: PaletteView; query: string; applied: boolean }>
+
+// O App revalida contra o repositório atual antes de aplicar. Se ele recusar, ou se a junção
+// esperada não bater mais (a pasta de destino surgiu ou sumiu no meio), nada foi aplicado e a
+// paleta volta a pedir uma decisão com os dados atuais em vez de anunciar sucesso.
+export function afterRename(result: FolderRenamePlan, from: string, to: string, expectMerge: boolean): RenameResult {
+  if (result.ok && result.merge === expectMerge) return { view: { kind: 'folders' }, query: '', applied: true }
+  if (!result.ok) return { view: { kind: 'rename', from, error: result.reason }, query: to, applied: false }
+  if (result.merge && !expectMerge) return { view: { kind: 'merge', from: result.from, to: result.to, tasks: result.tasks, notes: result.notes }, query: to, applied: false }
+  return { view: { kind: 'rename', from, error: null }, query: to, applied: false }
 }

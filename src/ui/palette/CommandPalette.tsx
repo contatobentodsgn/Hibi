@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { FOLDER_NAME_MAX, listFolders } from '../../domain/folders'
+import { FOLDER_NAME_MAX, listFolders, type FolderRenamePlan } from '../../domain/folders'
 import type { StudyData } from '../../domain/models'
 import { useT } from '../../i18n/LocaleProvider'
 import type { NavKey } from '../shell/routes'
 import type { AssistantTurnControls } from '../useAssistantTurn'
 import { filterCommands } from './commands'
-import { filterFolders, folderIntent, previousView, renameOutcome, type PaletteView } from './folder-view'
+import { afterRename, filterFolders, folderIntent, previousView, renameOutcome, type PaletteView } from './folder-view'
 import { paletteModeFor } from './mode'
 import { PaletteFolders } from './PaletteFolders'
 import { PaletteTurn } from './PaletteTurn'
@@ -16,7 +16,7 @@ type Props = Readonly<{
   onClose: () => void
   onNavigate: (key: NavKey, options?: { folder?: string }) => void
   onEvent: (action: string, detail: string) => void
-  onRenameFolder: (from: string, to: string) => void
+  onRenameFolder: (from: string, to: string, expectMerge: boolean) => FolderRenamePlan
   turn: AssistantTurnControls
 }>
 
@@ -59,6 +59,8 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // Confirmar uma composição de IME com Esc não deve também voltar um passo e descartar o nome digitado.
+      if (event.isComposing || event.keyCode === 229) return
       if (event.key === 'Escape') {
         event.preventDefault()
         // Nas vistas de pastas, `esc` volta um passo; da renomeação de uma junção, volta com o nome digitado.
@@ -93,10 +95,16 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
   const openFolder = (index: number, route: 'tasks' | 'notes' = 'tasks') => {
     const folder = folders[index]
     if (!folder) return
-    onEvent('folder', route)
+    onEvent('folder', `${route} · ${folder.name || 'none'}`)
     onNavigate(route, { folder: folder.name })
   }
-  const applyRename = (from: string, to: string) => { onRenameFolder(from, to); setView({ kind: 'folders' }); setQuery(''); setNotice(t('folders.renamed')) }
+  const applyRename = (from: string, to: string, expectMerge: boolean) => {
+    const result = onRenameFolder(from, to, expectMerge)
+    const outcome = afterRename(result, from, to, expectMerge)
+    setView(outcome.view)
+    setQuery(outcome.query)
+    setNotice(outcome.applied ? t('folders.renamed') : null)
+  }
   const send = () => { const message = query.trim(); if (!message) return; setSubmitted(message); setQuery(''); void turn.ask(message) }
 
   // Digitar "/" com um turno na tela é o usuário pedindo comandos de volta explicitamente.
@@ -129,13 +137,13 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
       const outcome = renameOutcome(data, view.from, query)
       if (outcome.type === 'refuse') setView({ ...view, error: outcome.reason })
       else if (outcome.type === 'confirm-merge') setView(outcome.view)
-      else applyRename(outcome.from, outcome.to)
+      else applyRename(outcome.from, outcome.to, false)
       return
     }
     if (view.kind === 'merge') {
       if (event.key !== 'Enter') return
       event.preventDefault()
-      applyRename(view.from, view.to)
+      applyRename(view.from, view.to, true)
       return
     }
     if (mode === 'command') {
@@ -158,8 +166,9 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
   return <div className="overlay" onMouseDown={onClose}><section ref={paletteRef} className="palette" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('palette.title')}>
     <div className="palette-search"><span>{view.kind !== 'commands' ? '▤' : mode === 'command' ? '/' : '✦'}</span><input autoFocus value={query} onChange={(event) => handleQueryChange(event.target.value)} onKeyDown={handleKeyDown} placeholder={placeholder} aria-label={placeholder} aria-activedescendant={activeDescendant} maxLength={view.kind === 'rename' || view.kind === 'merge' ? FOLDER_NAME_MAX : undefined} /></div>
     <div className="palette-body">
+      {view.kind !== 'commands' && <p className="palette-folder-notice" role="status">{notice ?? ''}</p>}
       {view.kind !== 'commands'
-        ? <PaletteFolders view={view} folders={folders} selectedIndex={selectedIndex} notice={notice} onHover={setSelectedIndex} onOpen={(index) => openFolder(index)} />
+        ? <PaletteFolders view={view} folders={folders} selectedIndex={selectedIndex} onHover={setSelectedIndex} onOpen={(index) => openFolder(index)} />
         : <>
           {mode === 'command' && matches.map((item, index) => <button type="button" className="command-row" id={`command-${item.key.slice(1)}`} data-selected={index === selectedIndex} key={item.key} onMouseEnter={() => setSelectedIndex(index)} onClick={() => openCommand(index)}><kbd>{item.key}</kbd><span>{t(item.label)}</span><small>{t(item.group)}</small></button>)}
           {mode === 'command' && !matches.length && <p className="empty">{t('palette.empty')}</p>}
