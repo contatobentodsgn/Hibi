@@ -27,4 +27,30 @@ describe('NotchOverlay', () => {
     expect(css).toContain('prefers-reduced-transparency:reduce');
     expect(css).toContain('forced-colors:active');
   });
+
+  it('groups confirmation buttons in a dedicated actions row so both fit inside the window', () => {
+    const markup = renderToStaticMarkup(<NotchOverlay initialPresentation={{ requestId: 'confirm-1', kind: 'confirmation', text: 'Este cartão apareceu no monitor escolhido?', interaction: 'capture', actions: [{ id: 'confirm', label: 'Apareceu' }, { id: 'cancel', label: 'Não apareceu' }] }} />);
+    const actionsMatch = markup.match(/<div class="notch-overlay-actions">([\s\S]*?)<\/div>/);
+    expect(actionsMatch).not.toBeNull();
+    expect(actionsMatch![1]).toContain('Apareceu');
+    expect(actionsMatch![1]).toContain('Não apareceu');
+  });
+
+  it('resets the overlay document chrome and hides the idle video during a capture confirmation', () => {
+    const css = readFileSync(new URL('../notch-overlay.css', import.meta.url), 'utf8');
+    expect(css).toMatch(/html:has\(\.notch-overlay\)[^{]*,\s*html:has\(\.notch-overlay\)\s*body\s*\{[^}]*background:\s*transparent[^}]*min-width:\s*0/);
+    expect(css).toMatch(/\.notch-overlay\{[^}]*width:\s*100%[^}]*height:\s*100vh[^}]*overflow:\s*hidden/);
+    expect(css).toMatch(/\.notch-overlay\[data-interaction=capture\]\s*video\s*\{\s*display:\s*none/);
+  });
+
+  it('lets the base 100vh height apply to the capture card instead of an auto height from #root', () => {
+    const css = readFileSync(new URL('../notch-overlay.css', import.meta.url), 'utf8');
+    // Tira os blocos @media antes de casar a regra base: senão uma regex não-global pega a
+    // primeira ocorrência de qualquer jeito, inclusive uma cópia dentro de media query.
+    const cssWithoutMediaBlocks = css.replace(/@media[^{]*\{(?:[^{}]*\{[^}]*\})*[^}]*\}/g, '');
+    const captureRuleMatches = [...cssWithoutMediaBlocks.matchAll(/\.notch-overlay\[data-interaction=capture\]\{([^}]*)\}/g)];
+    expect(captureRuleMatches).toHaveLength(1);
+    expect(captureRuleMatches[0][1]).not.toMatch(/height:\s*\d+%/);
+    expect(css).toMatch(/\.notch-overlay\{[^}]*height:100vh/);
+  });
 });

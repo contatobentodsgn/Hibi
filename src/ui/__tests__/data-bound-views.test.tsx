@@ -8,13 +8,15 @@ import { TasksView } from '../TasksView';
 import { WeekView } from '../WeekView';
 import { HabitsView } from '../HabitsView';
 import { GoalsView } from '../GoalsView';
-import { AppShell } from '../AppShell';
-import { CommandPalette } from '../CommandPalette';
+import { DockMoreMenu } from '../shell/Dock';
+import { CommandPalette } from '../palette/CommandPalette';
+import type { AssistantTurnControls } from '../useAssistantTurn';
 import { FocusView } from '../FocusView';
 import { HelpView } from '../HelpView';
 
 const data = createSeedData();
 const onEvent = () => undefined;
+const idleTurn: AssistantTurnControls = { state: { status: 'idle' }, ask: async () => undefined, confirm: async () => undefined, cancelConfirmation: async () => undefined, stop: onEvent, retry: async () => undefined, useLocalFallback: async () => undefined, dismiss: () => 'close', reset: onEvent };
 
 describe('study views', () => {
   it('renders tasks from the study snapshot', () => {
@@ -134,27 +136,35 @@ describe('study views', () => {
     expect(markup).not.toContain('window.prompt');
   });
 
-  it('exposes habits and goals through primary navigation and commands', () => {
-    const shell = renderToStaticMarkup(<AppShell active="home" taskCount={0} reminderCount={0} onNavigate={onEvent} onOpenCommands={onEvent}>content</AppShell>);
-    const palette = renderToStaticMarkup(<CommandPalette onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} />);
+  it('exposes habits and goals through the dock menu and commands', () => {
+    const menu = renderToStaticMarkup(<DockMoreMenu active="home" onSelect={onEvent} />);
+    const palette = renderToStaticMarkup(<CommandPalette data={data} onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} />);
 
-    expect(shell).toContain('aria-label="Habits"');
-    expect(shell).toContain('aria-label="Goals"');
-    expect(shell).toContain('aria-current="page"');
-    expect(palette).toContain('Track habits');
-    expect(palette).toContain('Review goals');
+    expect(menu).toContain('Hábitos');
+    expect(menu).toContain('Metas');
+    expect(palette).toContain('Acompanhar hábitos');
+    expect(palette).toContain('Revisar metas');
   });
 
-  it('exposes selectable focus and break durations', () => {
-    const markup = renderToStaticMarkup(<FocusView onEvent={onEvent} />);
-    expect(markup).toContain('25m focus');
-    expect(markup).toContain('5m break');
-    expect(markup).toContain('15m break');
+  it('separates focus and break durations', () => {
+    const focus = renderToStaticMarkup(<FocusView onEvent={onEvent} />);
+    expect(focus).toContain('25m focus');
+    expect(focus).not.toContain('5m break');
+    expect(focus).toContain('Fazer uma pausa');
+
+    const pause = renderToStaticMarkup(<FocusView onEvent={onEvent} mode="break" />);
+    expect(pause).toContain('PAUSA · SESSÃO LOCAL');
+    expect(pause).toContain('>5m</button>');
+    expect(pause).toContain('>15m</button>');
+    expect(pause).toContain('5 min de pausa no relógio.');
+    expect(pause).toContain('Voltar ao foco');
+    expect(pause).not.toContain('Reminders are quiet during focus');
   });
 
   it('lists the release and hardware surfaces in Help', () => {
     const markup = renderToStaticMarkup(<HelpView onNavigate={onEvent} />);
     expect(markup).toContain('/updates');
     expect(markup).toContain('/hardware');
+    expect(markup).toContain('/break');
   });
 });

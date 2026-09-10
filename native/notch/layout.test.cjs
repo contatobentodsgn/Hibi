@@ -23,3 +23,41 @@ test('keeps the native mascot host passive and rejects interactive presentations
   assert.match(source, /- \(NSAccessibilityRole\)accessibilityRole \{ return NSAccessibilityGroupRole; \}/);
   assert.match(source, /- \(NSString \*\)accessibilityLabel \{ return self\.message; \}/);
 });
+
+test('converte a posição do Electron a partir da tela principal, não da tela com foco', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'src/notch.mm'), 'utf8');
+
+  assert.match(source, /NSScreen \*primary = NSScreen\.screens\.firstObject;/);
+  assert.match(source, /NSMaxY\(primary\.frame\) - electronY - height/);
+  assert.doesNotMatch(source, /NSScreen\.mainScreen/);
+});
+
+test('desloca o painel para baixo da câmera e centraliza o texto passivo sem cortar', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'src/notch.mm'), 'utf8');
+
+  assert.match(source, /@property\(nonatomic\) CGFloat topInset;/);
+  assert.match(source, /CGFloat inset = screen\.safeAreaInsets\.top;/);
+  assert.match(source, /CGFloat height = \(gInteractive \? kInteractiveHeight : kPassiveHeight\) \+ inset;/);
+  // `applyTopInset:` é o único lugar que grava o inset usado no desenho e nos cantos.
+  assert.match(source, /- \(void\)applyTopInset:\(CGFloat\)topInset \{\n  self\.topInset = topInset;/);
+  assert.match(source, /\[view applyTopInset:inset\];/);
+  assert.doesNotMatch(source, /view\.topInset = inset;/);
+  assert.match(source, /\[view setNeedsDisplay:YES\];/);
+  assert.match(source, /NSLineBreakByTruncatingTail/);
+  assert.doesNotMatch(source, /self\.bounds\.size\.height - bottom - 14\.0/);
+});
+
+test('achata quebras de linha (\\n, \\r, \\r\\n, U+2028) no texto passivo em vez de só trocar \\n', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'src/notch.mm'), 'utf8');
+
+  assert.match(source, /componentsSeparatedByCharactersInSet:NSCharacterSet\.newlineCharacterSet\]/);
+  assert.doesNotMatch(source, /stringByReplacingOccurrencesOfString:@"\\n" withString:@" "\]/);
+});
+
+test('arredonda só os cantos de baixo sob a câmera e mede a linha passiva num texto de referência', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'src/notch.mm'), 'utf8');
+
+  assert.match(source, /layer\.maskedCorners = kCALayerMinXMinYCorner \| kCALayerMaxXMinYCorner/);
+  assert.match(source, /@"Hg" sizeWithAttributes:attributes\]\.height/);
+  assert.doesNotMatch(source, /CGFloat lineHeight = ceil\(\[self\.message sizeWithAttributes:attributes\]\.height\)/);
+});

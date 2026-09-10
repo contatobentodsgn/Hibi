@@ -141,6 +141,17 @@ describe('LocalRepository', () => {
     expect(repository.snapshot().blocks.length).toBeGreaterThan(0);
   });
 
+  it('stamps task creation and edits with a local revision while accepting legacy tasks', () => {
+    const moments = ['2026-09-09T12:00:00.000Z', '2026-09-09T12:01:00.000Z'];
+    const stamped = new LocalRepository(createSeedData(), () => moments.shift() ?? 'unexpected');
+    const task = stamped.createTask({ title: 'Sincronizar', durationMinutes: 60, category: 'work' });
+    expect(task.updatedAt).toBe('2026-09-09T12:00:00.000Z');
+    expect(stamped.updateTask(task.id, { title: 'Sincronizado' }).updatedAt).toBe('2026-09-09T12:01:00.000Z');
+
+    const legacy = LocalRepository.fromJson(createSeedData(), JSON.stringify(createSeedData()));
+    expect(legacy.listTasks().some((entry) => entry.updatedAt === undefined)).toBe(true);
+  });
+
   it('exports and resets to a fresh copy of seed data', () => {
     const task = repository.createTask({ title: 'Temporário', durationMinutes: 60, category: 'work' });
     const exported = JSON.parse(repository.exportJson());
@@ -201,5 +212,54 @@ describe('LocalRepository', () => {
     expect(repository.snapshot()).toEqual(imported);
     expect(() => repository.replace({ ...imported, tasks: null as never })).toThrow('Invalid study data');
     expect(repository.snapshot()).toEqual(imported);
+  });
+
+  it('renomeia uma pasta só nos itens dela e devolve as contagens', () => {
+    // Relógio injetado (como no teste de carimbo acima) para que o updatedAt da nota renomeada seja
+    // uma asserção exata, e não dependa de quando o teste de fato rodou.
+    const moments = ['2026-09-10T01:00:00.000Z', '2026-09-10T02:00:00.000Z', '2026-09-10T03:00:00.000Z', '2026-09-10T04:00:00.000Z'];
+    const stamped = new LocalRepository(createSeedData(), () => moments.shift() ?? 'unexpected');
+    stamped.createTask({ title: 'Cliente A', durationMinutes: 30, category: 'work', folder: 'Clientes' });
+    stamped.createNote({ title: 'Briefing', content: '', folder: ' Clientes ', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' });
+    stamped.createNote({ title: 'Nota arquivada', content: '', folder: 'Arquivo', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' });
+    const semPasta = stamped.createTask({ title: 'Sem pasta', durationMinutes: 30, category: 'work' });
+
+    expect(stamped.renameFolder('Clientes', ' Estúdio ')).toEqual({ tasks: 1, notes: 1 });
+
+    const data = stamped.snapshot();
+    expect(data.tasks.filter((task) => task.folder === 'Estúdio')).toHaveLength(1);
+    expect(data.tasks.filter((task) => task.folder === 'Bento')).toHaveLength(8);
+    expect(data.tasks.find((task) => task.id === semPasta.id)?.folder).toBeUndefined();
+
+    const arquivoNote = data.notes.find((note) => note.title === 'Nota arquivada');
+    expect(arquivoNote?.folder).toBe('Arquivo');
+    expect(arquivoNote?.updatedAt).toBe('2026-09-10T00:00:00.000Z');
+
+    const renamedNote = data.notes.find((note) => note.title === 'Briefing');
+    expect(renamedNote?.folder).toBe('Estúdio');
+    expect(renamedNote?.updatedAt).toBe('2026-09-10T04:00:00.000Z');
+  });
+
+  it('compara e grava pastas em NFC mesmo quando o item chega em NFD', () => {
+    // "Estúdio" colado do macOS chega em NFD (forma decomposta); o `from` digitado pelo usuário, como
+    // este literal, chega em NFC (forma composta) — a comparação tem que atravessar essa diferença.
+    const from = 'Estúdio'.normalize('NFC');
+    const storedFolder = 'Estúdio'.normalize('NFD');
+    expect(storedFolder).not.toBe(from);
+    repository.createTask({ title: 'Projeto NFD', durationMinutes: 30, category: 'work', folder: storedFolder });
+
+    const to = 'Ateliê'.normalize('NFD');
+    const expectedTarget = 'Ateliê'.normalize('NFC');
+    expect(to).not.toBe(expectedTarget);
+
+    expect(repository.renameFolder(from, to)).toEqual({ tasks: 1, notes: 0 });
+
+    const renamed = repository.snapshot().tasks.find((task) => task.title === 'Projeto NFD');
+    expect(renamed?.folder).toBe(expectedTarget);
+  });
+
+  it('recusa renomear "Sem pasta" ou para um nome que fica vazio depois de aparado', () => {
+    expect(() => repository.renameFolder('', 'X')).toThrow('Invalid folder rename.');
+    expect(() => repository.renameFolder('Clientes', '   ')).toThrow('Invalid folder rename.');
   });
 });

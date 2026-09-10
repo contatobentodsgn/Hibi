@@ -28,5 +28,7 @@ export function createSeedData(): StudyData {
     id: 'horizontes', title: 'vaga/inglês - Horizontes', category: 'important', status: 'open',
     schedule: { at: at('2026-09-08', '09:00'), recurrence: { frequency: 'weekly', weekdays: [2, 3], timesByWeekday: { 2: '09:00', 3: '20:00' }, startDate: '2026-09-07' } },
   };
-  return { activity: [], tasks, reminders: [reminder], habits: [], goals: [], notes: [], blocks: weekdays.flatMap(addBlocks), telemetry: [] };
+  // Deep-clone the shared seed objects so each caller gets its own copies: tests and workspace
+  // resets mutate what they receive, and callers must not leak changes into later calls.
+  return { activity: [], tasks: structuredClone(tasks), reminders: [structuredClone(reminder)], habits: [], goals: [], notes: [], blocks: weekdays.flatMap(addBlocks), telemetry: [] };
 }

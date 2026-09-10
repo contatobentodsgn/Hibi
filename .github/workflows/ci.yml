@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Os testes de lembretes usam horários de parede em -03:00; os runners rodam em UTC.
+  TZ: America/Sao_Paulo
+
+jobs:
+  linux:
+    name: Testes, tipos, build web e e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # Os testes não abrem o Electron: o binário só seria baixado à toa.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: npm
+      - run: npm ci
+      # Vitest e node --test; os testes do addon nativo funcionam sem o binário compilado.
+      - run: npm test
+      - run: npx tsc --noEmit
+      # `npm run build` compila o addon, que só existe no macOS; aqui só o build web.
+      - run: npx vite build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: /tmp/hibi-playwright-results
+          retention-days: 7
+          if-no-files-found: ignore
+
+  macos-native:
+    name: Addon nativo (macOS)
+    # Runner macOS consome 10x a cota de minutos em repositório privado: roda no main e sob demanda.
+    if: github.event_name != 'pull_request'
+    runs-on: macos-latest
+    timeout-minutes: 25
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix native/notch ci
+      - run: npm run native:build
+      - run: node --test native/notch/*.test.cjs electron/*.test.cjs

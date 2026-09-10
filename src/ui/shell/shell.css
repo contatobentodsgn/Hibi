@@ -1,0 +1,92 @@
+/* Shell sem moldura: canvas em papel, faixa fina no topo, dock flutuante. Só tokens. */
+body:has(.shell) { background: var(--bg-canvas); min-width: 960px; }
+
+.shell { min-height: 100vh; background: var(--bg-canvas); color: var(--text-primary); font-family: var(--font-sans); display: grid; grid-template-rows: auto 1fr; }
+
+/* A faixa do topo é a região arrastável da janela; os semáforos do macOS ficam à esquerda (hiddenInset). */
+.shell-topbar { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: var(--space-2); height: 38px; padding: 0 var(--space-4) 0 84px; font-size: var(--type-12); letter-spacing: .14em; font-weight: 800; color: var(--text-tertiary); background: color-mix(in srgb, var(--bg-canvas) 88%, transparent); backdrop-filter: blur(8px); -webkit-app-region: drag; }
+.shell-brand { -webkit-app-region: no-drag; font: inherit; letter-spacing: .18em; background: none; border: 0; color: var(--text-primary); cursor: pointer; }
+.shell-brand:focus-visible, .dock-item:focus-visible, .dock-menu button:focus-visible { outline: 2px solid var(--stroke-focus); outline-offset: 2px; }
+
+.shell-content { padding: var(--space-6) clamp(24px, 6vw, 96px) 120px; }
+
+/* Cores do dock: propositalmente invariantes ao tema (o chrome flutuante fica sempre escuro,
+   claro ou escuro que seja o app) — NÃO gate-ar sob [data-theme]. Nomeadas aqui para que a
+   próxima tarefa (paleta de comandos, no mesmo shell) não copie "hex direto em shell.css" como
+   padrão da casa: a paleta deve seguir o tema real via tokens.css. */
+:root {
+  --dock-surface: #0c0c0c;
+  --dock-ink: #f4f3ef;
+  --dock-ink-muted: #9a9791;
+  --dock-active-surface: #f2f0ea;
+  --dock-active-ink: #111;
+  --dock-menu-surface: #161616;
+  --dock-menu-ink: #d8d5cd;
+  --dock-menu-hover-surface: #2a2a2a;
+  --dock-menu-hover-ink: #fff;
+  --dock-kbd-surface: #2d2d2d;
+}
+
+.dock { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-3); background: var(--dock-surface); color: var(--dock-ink); box-shadow: var(--depth-float); -webkit-app-region: no-drag; }
+.dock-item { font: 800 var(--type-12) / 1 var(--font-sans); letter-spacing: .06em; background: none; border: 0; color: var(--dock-ink-muted); padding: 10px 12px; border-radius: var(--radius-2); cursor: pointer; }
+.dock-item[aria-current="page"], .dock-item[data-active="true"] { background: var(--dock-active-surface); color: var(--dock-active-ink); }
+.dock-more { position: relative; }
+.dock-menu { position: absolute; bottom: calc(100% + var(--space-2)); left: 50%; transform: translateX(-50%); min-width: 180px; display: grid; padding: var(--space-1); border-radius: var(--radius-2); background: var(--dock-menu-surface); box-shadow: var(--depth-float); }
+.dock-menu button { text-align: left; font: 600 var(--type-14) / var(--leading-14) var(--font-sans); background: none; border: 0; color: var(--dock-menu-ink); padding: 8px 10px; border-radius: var(--radius-1); cursor: pointer; }
+.dock-menu button:hover, .dock-menu button:focus-visible { background: var(--dock-menu-hover-surface); color: var(--dock-menu-hover-ink); }
+.dock-menu button[aria-current="page"] { color: var(--accent); }
+.dock-commands kbd { font: inherit; color: var(--dock-menu-hover-ink); background: var(--dock-kbd-surface); border-radius: 6px; padding: 3px 6px; }
+
+@media (prefers-reduced-motion: no-preference) { .dock-item { transition: background-color 140ms ease, color 140ms ease; } }
+
+/* Ilha clara temporária: theme.css (o CSS legado das telas ainda não reconstruídas) fixa
+   146 cores literais que não seguem tema — ex. `background:#fff` em .list-card/.panel/
+   .settings-card. As 8 variáveis antigas (--paper/--ink/--muted/--line/--orange/--green/
+   --blue/--amber) SEGUEM o tema via tokens.css, então no escuro o texto virava quase-branco
+   (--ink) sobre esses fundos brancos fixos — 1.15:1 de contraste, ilegível. Até cada tela ser
+   reconstruída num sub-projeto futuro, `.legacy-surface` força os valores CLAROS dos tokens
+   por trás dessas 8 variáveis, nos dois temas, mantendo a legibilidade de hoje (18.26:1).
+   Isso NÃO afeta a paleta de comandos (renderizada fora deste wrapper) nem o shell novo
+   (topo/dock), que continuam seguindo o tema real. Cada tela migrada some desta ilha
+   conforme é reconstruída; o bloco inteiro é removido quando a última tela sair dela.
+
+   theme.css consome as 8 variáveis antigas diretamente (var(--ink), var(--paper)...), não os
+   tokens semânticos. Um custom property só é recalculado onde é DECLARADO: como --ink é
+   declarado apenas em :root (tokens.css), seu valor computado já fica congelado lá (usando o
+   --text-primary do :root, que é escuro) e desce por herança sem se reavaliar — redeclarar só
+   --text-primary aqui dentro não muda o --ink herdado. Por isso as 8 aliases também são
+   redeclaradas abaixo, agora resolvendo contra os tokens claros já fixados nesta ilha.
+
+   Pelo mesmo motivo, `color` (propriedade real, herdada) já vinha resolvido e congelado em
+   `.shell` (escuro) antes de chegar aqui — a maioria dos elementos legados não redeclara
+   `color` (herdam do texto ao redor), então também é preciso redeclarar `color` aqui para
+   que a herança recomece a partir de um valor claro.
+
+   `background` não é herdado, então também precisa de valor próprio: trechos legados sem
+   cartão (ex. o hero da Home, texto direto sobre o "canvas") não fixam fundo — hoje contam
+   com o canvas do documento inteiro sendo claro. Sem isso aqui, esse texto (agora claro)
+   ficaria sobre o canvas ESCURO real do shell (texto quase preto sobre fundo quase preto).
+   `.legacy-surface` recria o papel claro atrás de si, exatamente como o app já parece hoje:
+   chrome escuro (faixa do topo, dock) por cima de conteúdo em papel. */
+.legacy-surface {
+  color-scheme: light;
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+  --bg-canvas: #f3f2ef;
+  --text-primary: #151515;
+  --text-secondary: #5f5c56;
+  --stroke-default: #dedbd4;
+  --accent: #fb7017;
+  --cat-break-soft: #b9e7bd;
+  --cat-learning-soft: #c9def0;
+  --cat-important-soft: #f2c26b;
+
+  --paper: var(--bg-canvas);
+  --ink: var(--text-primary);
+  --muted: var(--text-secondary);
+  --line: var(--stroke-default);
+  --orange: var(--accent);
+  --green: var(--cat-break-soft);
+  --blue: var(--cat-learning-soft);
+  --amber: var(--cat-important-soft);
+}

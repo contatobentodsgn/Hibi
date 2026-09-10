@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createLocalHibiRuntime } from '../local-runtime';
+import { HeuristicAiProvider } from '../heuristic-provider';
 import { LocalRepository } from '../../data/local-repository';
 import { createSeedData } from '../../data/seed-data';
 import type { AiProvider } from '../contracts';
@@ -22,6 +23,17 @@ describe('local Hibi tool registry', () => {
     const result = await runtime.runTurn({ message: 'qual a minha agenda hoje?', surface: 'desktop' });
     expect(result.confirmation).toBeUndefined();
     expect(result.toolResults[0]?.summary).toContain('bloco');
+  });
+
+  it('wires a separate local heuristic fallback under the explicit automatic policy', async () => {
+    const remoteFailure = Object.assign(new Error('temporary outage'), { failure: { code: 'unavailable' as const, retryable: true } });
+    const remote: AiProvider = { id: 'remote', label: 'Configured remote', generate: async () => { throw remoteFailure; } };
+    const fallback = new HeuristicAiProvider();
+    const runtime = createLocalHibiRuntime(new LocalRepository(createSeedData()), {}, remote, fallback, 'automatic');
+
+    const result = await runtime.runTurn({ message: 'qual a minha agenda hoje?', surface: 'desktop' });
+
+    expect(result.provider).toMatchObject({ id: 'heuristic', label: 'Hibi local heuristic', fallback: true });
   });
 
   it('creates a conflict-free schedule block after confirmation', async () => {

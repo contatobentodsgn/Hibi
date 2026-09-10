@@ -1,6 +1,7 @@
 import type { Goal, Habit, Note, Reminder, ScheduleBlock, StudyData, Task } from '../domain/models';
 import { createActivityRecord, isActivityRecord } from '../domain/activity';
 import type { ActivityInput, ActivityRecord } from '../domain/activity';
+import { folderOf, NO_FOLDER } from '../domain/folders';
 
 type NewTask = Omit<Task, 'id'>;
 type NewHabit = Omit<Habit, 'id'>;
@@ -10,10 +11,12 @@ const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 export class LocalRepository {
   private readonly seed: StudyData;
   private data: StudyData;
+  private readonly now: () => string;
 
-  constructor(seed: StudyData) {
+  constructor(seed: StudyData, now: () => string = () => new Date().toISOString()) {
     this.seed = clone(seed);
     this.data = clone(seed);
+    this.now = now;
   }
 
   static fromJson(seed: StudyData, json: string): LocalRepository {
@@ -102,17 +105,28 @@ export class LocalRepository {
   listBlocks(): ScheduleBlock[] { return clone(this.data.blocks); }
   getTask(id: string): Task | undefined { return this.data.tasks.find((task) => task.id === id); }
   createTask(input: NewTask): Task {
-    const task = { ...input, id: `task-${Date.now()}-${this.data.tasks.length}` };
+    const task = { ...input, id: `task-${Date.now()}-${this.data.tasks.length}`, updatedAt: this.now() };
     this.data.tasks.push(task);
     return clone(task);
   }
   updateTask(id: string, changes: Partial<NewTask>): Task {
     const task = this.getTask(id);
     if (!task) throw new Error(`Task not found: ${id}`);
-    Object.assign(task, changes);
+    Object.assign(task, changes, { updatedAt: this.now() });
     return clone(task);
   }
   deleteTask(id: string): void { this.data.tasks = this.data.tasks.filter((task) => task.id !== id); }
+  // Aplica uma renomeação já validada por planFolderRename: só itens daquela pasta são tocados;
+  // recusa "Sem pasta" e um alvo vazio como guarda extra, caso o chamador não tenha validado antes.
+  renameFolder(from: string, to: string): { tasks: number; notes: number } {
+    const target = to.normalize('NFC').trim();
+    if (from === NO_FOLDER || !target) throw new Error('Invalid folder rename.');
+    let tasks = 0;
+    let notes = 0;
+    for (const task of this.data.tasks) if (folderOf(task) === from) { this.updateTask(task.id, { folder: target }); tasks += 1; }
+    for (const note of this.data.notes) if (folderOf(note) === from) { this.updateNote(note.id, { folder: target, updatedAt: this.now() }); notes += 1; }
+    return { tasks, notes };
+  }
   createReminder(input: Omit<Reminder, 'id'>): Reminder {
     const reminder = { ...input, id: `reminder-${Date.now()}-${this.data.reminders.length}` };
     this.data.reminders.push(reminder);

@@ -1,30 +1,41 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+const dock = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
+const go = (page: Page, name: string) => dock(page).getByRole('button', { name, exact: true }).click();
+const goMore = async (page: Page, name: string) => { await dock(page).getByRole('button', { name: 'Mais seções' }).click(); await page.getByRole('menuitem', { name, exact: true }).click(); };
+const goWeek = async (page: Page) => { await go(page, 'Agenda'); await page.getByRole('tab', { name: 'Semana' }).click(); };
+const goDay = async (page: Page) => { await go(page, 'Agenda'); await page.getByRole('tab', { name: 'Dia' }).click(); };
+const openCommands = (page: Page) => dock(page).getByRole('button', { name: 'Comandos' }).click();
 
 test('navega pelo calendário e abre comandos', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Make room for')).toBeVisible();
-  await page.getByRole('button', { name: 'Week' }).click();
+  await goWeek(page);
   await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
   await page.keyboard.press('Meta+K');
-  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Paleta de comandos' })).toBeVisible();
 });
 
 test('todas as seções principais são navegáveis', async ({ page }) => {
   await page.goto('/');
-  for (const section of ['Tasks', 'Notes', 'Reminders', 'Habits', 'Goals', 'Review', 'Taby', 'Help', 'Day', 'Week', 'Focus', 'Settings', 'Events']) {
-    await page.getByRole('button', { name: section, exact: true }).click();
+  for (const section of ['Tarefas', 'Agenda', 'Foco', 'Taby', 'Home']) {
+    await go(page, section);
+    await expect(page.locator('main')).toBeVisible();
+  }
+  for (const section of ['Lembretes', 'Notas', 'Hábitos', 'Metas', 'Revisão', 'Ajustes', 'Ajuda', 'Eventos', 'Feedback', 'Atualizações', 'Hardware']) {
+    await goMore(page, section);
     await expect(page.locator('main')).toBeVisible();
   }
 });
 
 test('paleta de comandos permite navegação por teclado', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /commands/ }).click();
-  const palette = page.getByRole('dialog', { name: 'Command palette' });
+  await openCommands(page);
+  const palette = page.getByRole('dialog', { name: 'Paleta de comandos' });
   await expect(palette).toBeVisible();
   const input = palette.locator('input');
   await input.fill('/week');
-  await expect(palette.getByRole('button', { name: /Open weekly schedule/ })).toHaveAttribute('data-selected', 'true');
+  await expect(palette.getByRole('option', { name: /Abrir agenda da semana/ })).toHaveAttribute('data-selected', 'true');
   await input.press('Enter');
   await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
 });
@@ -32,28 +43,91 @@ test('paleta de comandos permite navegação por teclado', async ({ page }) => {
 test('atalho barra abre comandos fora de campos de texto', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true })));
-  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Paleta de comandos' })).toBeVisible();
 });
 
 test('captura rápida da Home abre a paleta de comandos', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open quick capture' }).click();
-  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Paleta de comandos' })).toBeVisible();
 });
 
-test('filtro Bento funciona em Tasks e Notes', async ({ page }) => {
+test('filtro de pasta funciona em Tarefas e Notas', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
-  await page.getByRole('button', { name: 'Folder · Bento' }).click();
-  await expect(page.getByText('Kabrito Post 01')).toBeVisible();
-  await page.getByRole('button', { name: 'Notes', exact: true }).click();
-  await page.getByRole('button', { name: 'Folder · Bento' }).click();
-  await expect(page.locator('main')).toBeVisible();
+  await go(page, 'Tarefas');
+  const chip = page.getByRole('button', { name: /^Pasta · Bento \d+$/ });
+  await chip.click();
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.task-row').first()).toBeVisible();
+  await goMore(page, 'Notas');
+  await expect(page.getByRole('button', { name: 'Pasta · Todas' })).toBeVisible();
+});
+
+test('+ New note leva o foco para o formulário de nota nova', async ({ page }) => {
+  await page.goto('/');
+  await goMore(page, 'Notas');
+  await page.getByRole('button', { name: '+ New note' }).click();
+  await expect(page.getByRole('form', { name: 'Create note' }).getByLabel('Title')).toBeFocused();
+});
+
+test('clicar no item do dock da tela atual não apaga o que está sendo digitado', async ({ page }) => {
+  await page.goto('/');
+  await go(page, 'Tarefas');
+  await page.getByLabel('New task title').fill('Rascunho de tarefa');
+  await go(page, 'Tarefas');
+  await expect(page.getByLabel('New task title')).toHaveValue('Rascunho de tarefa');
+});
+
+test('nota criada em pasta nova ganha filtro próprio, e trocar de filtro não apaga o rascunho', async ({ page }) => {
+  await page.goto('/');
+  await goMore(page, 'Notas');
+  const form = page.getByRole('form', { name: 'Create note' });
+  await form.getByLabel('Title').fill('Briefing Clientes');
+  await form.getByLabel('Folder').fill('Clientes');
+  await form.getByRole('button', { name: 'Add note' }).click();
+  await expect(page.getByRole('button', { name: 'Pasta · Clientes 1' })).toBeVisible();
+  await expect(form.getByLabel('Title')).toHaveValue('');
+
+  await form.getByLabel('Title').fill('Rascunho');
+  await page.getByRole('button', { name: 'Pasta · Clientes 1' }).click();
+  await expect(form.getByLabel('Title')).toHaveValue('Rascunho');
+  await expect(form.getByLabel('Folder')).toHaveValue('Clientes');
+  await expect(page.getByText('Briefing Clientes')).toBeVisible();
+
+  // O chip clicado acima bate com a pasta já digitada, o que não provaria nada sobre folderTouched.
+  // Digitar uma pasta diferente e trocar de filtro é o que de fato mostra que o rascunho sobrevive.
+  await form.getByLabel('Folder').fill('Outra');
+  await page.getByRole('button', { name: 'Pasta · Todas' }).click();
+  await expect(form.getByLabel('Folder')).toHaveValue('Outra');
+});
+
+test('editar uma nota troca e limpa a pasta', async ({ page }) => {
+  await page.goto('/');
+  await goMore(page, 'Notas');
+  const form = page.getByRole('form', { name: 'Create note' });
+  await form.getByLabel('Title').fill('Nota para editar');
+  await form.getByLabel('Folder').fill('Clientes');
+  await form.getByRole('button', { name: 'Add note' }).click();
+  await expect(page.getByText('Nota para editar')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Edit Nota para editar' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit note' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Folder').fill('');
+  await dialog.getByRole('button', { name: 'Save note' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText('Nota para editar').locator('..').getByText(/Sem pasta$/)).toBeVisible();
+
+  await page.getByRole('button', { name: 'Edit Nota para editar' }).click();
+  await dialog.getByLabel('Folder').fill('Arquivo');
+  await dialog.getByRole('button', { name: 'Save note' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Pasta · Arquivo 1' })).toBeVisible();
 });
 
 test('abas de Settings alternam conteúdo funcional', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await goMore(page, 'Ajustes');
   await expect(page.getByRole('heading', { name: 'General' })).toBeVisible();
   await page.getByRole('button', { name: 'Notifications', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
@@ -72,26 +146,26 @@ test('restaura um backup completo pela interface sem incluir dados do Keychain',
     data.blocks.push({ id: 'backup-block', title: 'Bloco restaurado', start: '2026-09-07T08:00:00-03:00', end: '2026-09-07T09:00:00-03:00', category: 'important' });
     return JSON.stringify({ app: 'Hibi', version: 1, exportedAt: '2026-09-08T12:00:00.000Z', data, preferences: { language: 'pt', twentyFourHour: true } });
   });
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await goMore(page, 'Ajustes');
   await page.getByRole('button', { name: 'Data', exact: true }).click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByLabel('Choose Hibi workspace backup').setInputFiles({ name: 'hibi-workspace-backup.json', mimeType: 'application/json', buffer: Buffer.from(backup) });
   await expect(page.getByText('Workspace restored from hibi-workspace-backup.json.')).toBeVisible();
-  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await go(page, 'Tarefas');
   await expect(page.getByText('Tarefa restaurada')).toBeVisible();
-  await page.getByRole('button', { name: 'Notes', exact: true }).click();
+  await goMore(page, 'Notas');
   await expect(page.getByText('Nota restaurada')).toBeVisible();
-  await page.getByRole('button', { name: 'Day', exact: true }).click();
+  await goDay(page);
   await expect(page.getByText('Bloco restaurado')).toBeVisible();
 });
 
 test('navegação diária e semanal atualiza o período', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Day', exact: true }).click();
+  await goDay(page);
   await expect(page.getByText('MONDAY · 07 SEPTEMBER 2026')).toBeVisible();
   await page.getByRole('button', { name: 'Next day' }).click();
   await expect(page.getByText('TUESDAY · 08 SEPTEMBER 2026')).toBeVisible();
-  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await page.getByRole('tab', { name: 'Semana' }).click();
   await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
   await page.getByRole('button', { name: 'Next week' }).click();
   await expect(page.getByText('Mon 14 — Sun 20')).toBeVisible();
@@ -99,7 +173,7 @@ test('navegação diária e semanal atualiza o período', async ({ page }) => {
 
 test('filtros de lembretes alteram a lista', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Reminders', exact: true }).click();
+  await goMore(page, 'Lembretes');
   await expect(page.getByText('vaga/inglês - Horizontes')).toBeVisible();
   await page.getByRole('button', { name: /Wellbeing 0/ }).click();
   await expect(page.getByText('No reminders match this filter.')).toBeVisible();
@@ -109,7 +183,7 @@ test('filtros de lembretes alteram a lista', async ({ page }) => {
 
 test('criação de lembrete diário preserva a recorrência', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Reminders', exact: true }).click();
+  await goMore(page, 'Lembretes');
   await page.getByRole('button', { name: '+ New reminder' }).click();
   const form = page.getByRole('dialog', { name: 'Create reminder' });
   await form.getByRole('textbox', { name: 'Title' }).fill('Revisar agenda');
@@ -122,7 +196,7 @@ test('criação de lembrete diário preserva a recorrência', async ({ page }) =
 
 test('criação semanal preseleciona o dia do início e permite escolher categoria', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Reminders', exact: true }).click();
+  await goMore(page, 'Lembretes');
   await page.getByRole('button', { name: '+ New reminder' }).click();
   const form = page.getByRole('dialog', { name: 'Create reminder' });
   await form.getByRole('textbox', { name: 'Title' }).fill('Caminhar');
@@ -137,7 +211,7 @@ test('criação semanal preseleciona o dia do início e permite escolher categor
 
 test('edição de lembrete semanal mantém dias e horários configurados', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Reminders', exact: true }).click();
+  await goMore(page, 'Lembretes');
   await page.getByRole('button', { name: 'Edit vaga/inglês - Horizontes' }).click();
   const form = page.getByRole('form', { name: 'Edit vaga/inglês - Horizontes' });
   await form.getByRole('combobox', { name: 'Type' }).selectOption('weekly');
@@ -150,7 +224,7 @@ test('edição de lembrete semanal mantém dias e horários configurados', async
 
 test('edição de lembrete pelo formulário persiste o novo horário', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Reminders', exact: true }).click();
+  await goMore(page, 'Lembretes');
   await page.getByRole('button', { name: 'Edit vaga/inglês - Horizontes' }).click();
   const form = page.getByRole('form', { name: 'Edit vaga/inglês - Horizontes' });
   await form.getByRole('textbox', { name: 'Time' }).fill('10:30');
@@ -160,7 +234,7 @@ test('edição de lembrete pelo formulário persiste o novo horário', async ({ 
 
 test('filtros e ordenação de Tasks são interativos', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await go(page, 'Tarefas');
   await page.getByRole('button', { name: /All 8/ }).click();
   await expect(page.getByRole('button', { name: /All 8/ })).toHaveClass(/active/);
   await page.getByRole('button', { name: /Deadline/ }).click();
@@ -169,7 +243,7 @@ test('filtros e ordenação de Tasks são interativos', async ({ page }) => {
 
 test('edita deadline de uma task por formulário acessível e permite remover', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await go(page, 'Tarefas');
   await page.getByRole('button', { name: 'Deadline for Kabrito Post 01' }).click();
   const dialog = page.getByRole('dialog', { name: 'Edit task deadline' });
   await expect(dialog).toBeVisible();
@@ -185,26 +259,28 @@ test('edita deadline de uma task por formulário acessível e permite remover', 
 
 test('filtros do calendário usam as categorias reais dos blocos', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await goWeek(page);
   await page.getByRole('button', { name: 'Wellbeing', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Delete Almoço' }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Important', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Delete Aula de inglês' }).first()).toBeVisible();
 });
 
-test('Focus aplica a duração escolhida antes de iniciar', async ({ page }) => {
+test('Foco e pausa aplicam a duração escolhida antes de iniciar', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Focus', exact: true }).click();
-  await page.getByRole('button', { name: '5m break', exact: true }).click();
-  await expect(page.getByText('Pick a task — 5m on the clock.')).toBeVisible();
-  await expect(page.getByText('05:00')).toBeVisible();
-  await page.getByRole('button', { name: 'Start focus' }).click();
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await go(page, 'Foco');
+  await expect(page.getByText('25:00')).toBeVisible();
+  await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
+  await page.getByRole('button', { name: '10m', exact: true }).click();
+  await expect(page.getByText('10 min de pausa no relógio.')).toBeVisible();
+  await expect(page.getByText('10:00')).toBeVisible();
+  await page.getByRole('button', { name: 'Começar pausa' }).click();
+  await expect(page.getByRole('button', { name: 'Encerrar pausa' })).toBeVisible();
 });
 
 test('filtros do Day exibem blocos fixos e pausas', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Day', exact: true }).click();
+  await goDay(page);
   await page.getByRole('button', { name: 'Wellbeing', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Delete Almoço' })).toBeVisible();
   await page.getByRole('button', { name: 'Important', exact: true }).click();
@@ -213,23 +289,23 @@ test('filtros do Day exibem blocos fixos e pausas', async ({ page }) => {
 
 test('updates e hardware são acessíveis pela paleta', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /commands/ }).click();
-  await page.getByRole('textbox', { name: 'Type a command' }).fill('/hardware');
+  await openCommands(page);
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/hardware');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Hardware' })).toBeVisible();
-  await page.getByRole('button', { name: /commands/ }).click();
-  await page.getByRole('textbox', { name: 'Type a command' }).fill('/events');
+  await openCommands(page);
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/events');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Instrumentation' })).toBeVisible();
-  await page.getByRole('button', { name: /commands/ }).click();
-  await page.getByRole('textbox', { name: 'Type a command' }).fill('/updates');
+  await openCommands(page);
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/updates');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Updates' })).toBeVisible();
 });
 
 test('assistente local responde sobre a agenda', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Taby', exact: true }).click();
+  await go(page, 'Taby');
   const input = page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
   await input.fill('qual a agenda de hoje?');
   await page.getByRole('button', { name: 'Send' }).click();
@@ -238,13 +314,13 @@ test('assistente local responde sobre a agenda', async ({ page }) => {
 
 test('assistente confirma uma mudança antes de criar uma tarefa local', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Taby', exact: true }).click();
+  await go(page, 'Taby');
   const input = page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
   await input.fill('crie uma tarefa: Revisar briefing');
   await page.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByRole('button', { name: 'Confirmar' })).toBeVisible();
   await page.getByRole('button', { name: 'Confirmar' }).click();
   await expect(page.getByText('Tarefa criada: Revisar briefing')).toBeVisible();
-  await page.getByRole('button', { name: 'Tasks', exact: true }).click();
+  await go(page, 'Tarefas');
   await expect(page.getByText('Revisar briefing')).toBeVisible();
 });

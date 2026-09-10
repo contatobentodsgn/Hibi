@@ -1,5 +1,5 @@
 import React from 'react';
-import type { NavKey } from './AppShell';
+import type { NavKey } from './shell/routes';
 import { CompanionAssetGallery } from './CompanionAssetGallery';
 import { companionAssets } from '../assets/companion-assets';
 import { getCurrentAdapterStatuses } from '../domain/adapter-status';

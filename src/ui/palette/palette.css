@@ -1,0 +1,37 @@
+/* Só o que a paleta unificada acrescenta; a lista de comandos reaproveita .command-row de theme.css.
+   Seletores compostos (".overlay .palette", ".palette .palette-search input") são propositais: têm a
+   mesma especificidade nominal das regras de theme.css, mas theme.css é injetado DEPOIS deste arquivo
+   no grafo de módulos (App é importado antes de theme.css em main.tsx), então empataria e venceria por
+   ordem — a paleta ficaria com o fundo claro fixo de theme.css. Adicionar um seletor ao ancestral quebra
+   o empate a favor do tema real, sem depender de ordem de import. */
+/* .palette herda overflow:hidden de theme.css sem max-height: uma lista de comandos comprida ou um
+   turno longo podia esticar o diálogo além da viewport sem jeito de rolar. min(70vh, 560px) dá um
+   teto sensato em telas grandes e pequenas. O scroll NÃO fica no próprio .palette — isso faria o
+   campo de busca (primeiro filho) rolar para fora de vista junto com o resto. Em vez disso .palette
+   vira uma coluna flex e o scroll fica em .palette-body, um invólucro interno em volta da lista de
+   comandos e do turno; .palette-search e .palette-footer ficam fora dele, então sempre visíveis.  */
+.overlay .palette { background: var(--bg-surface-2); color: var(--text-primary); max-height: min(70vh, 560px); display: flex; flex-direction: column; }
+.palette .palette-search input { color: var(--text-primary); font-family: var(--font-serif); }
+.palette-search input::placeholder { color: var(--text-tertiary); }
+.palette .palette-search { flex: none; }
+.palette .palette-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.palette .command-row { color: var(--text-primary); }
+.palette .command-row:hover, .palette .command-row[data-selected="true"] { background: var(--bg-subtle); }
+.palette .empty { color: var(--text-secondary); }
+
+.palette-turn { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-5) var(--space-4); border-top: 1px solid var(--stroke-subtle); }
+.palette-line { display: flex; gap: var(--space-3); align-items: flex-start; font-size: var(--type-14); line-height: var(--leading-14); }
+.palette-line > .tag { flex: none; margin-top: 2px; }
+.palette-line > div { display: grid; gap: var(--space-1); }
+.palette-reply { white-space: pre-line; }
+.palette-provenance { display: block; color: var(--text-tertiary); font-size: var(--type-12); line-height: var(--leading-12); }
+.palette-actions { display: flex; gap: var(--space-2); margin-top: var(--space-1); }
+.palette-actions .primary { background: var(--text-primary); color: var(--bg-canvas); }
+.palette-actions .outline { border-color: var(--stroke-default); color: var(--text-primary); }
+
+/* Vista de pastas: as linhas reaproveitam .command-row; a linha de renomear ou juntar toma o lugar da lista. */
+.palette .folder-row small { color: var(--text-secondary); }
+.palette-folder-line { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-5); color: var(--text-primary); }
+.palette-folder-line span { color: var(--text-secondary); }
+.palette-folder-notice { margin: 0; padding: var(--space-2) var(--space-5); color: var(--text-secondary); }
+.palette-folder-notice:empty { padding: 0; }

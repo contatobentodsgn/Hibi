@@ -1,4 +1,4 @@
-const { notchBounds, actionBounds, selectDisplay } = require('./notch-geometry.cjs');
+const { notchBounds, actionBounds, resolveNotchDisplay } = require('./notch-geometry.cjs');
 
 const validPresentation = (value) => value && typeof value === 'object'
   && typeof value.requestId === 'string' && value.requestId.length <= 128
@@ -6,23 +6,33 @@ const validPresentation = (value) => value && typeof value === 'object'
   && (value.text === null || typeof value.text === 'string')
   && Array.isArray(value.actions) && value.actions.length <= 4;
 
-function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, onAction, platform = process.platform }) {
+function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, onAction, platform = process.platform, preferredDisplayId: initialPreferredDisplayId = null }) {
   let window = null;
   let activeRequestId = null;
   let activeActions = new Set();
   let activeHost = null;
-  // When an external monitor is primary, keep the companion on the physical
-  // Mac display that exposes a camera housing (the real notch).
-  const nativeNotchDisplay = nativeBridge?.screenGeometry?.().find((display) => display?.hasCameraHousing && Number.isInteger(display.displayId));
-  let preferredDisplayId = nativeNotchDisplay?.displayId ?? null;
+  let activePresentation = null;
+  let preferredDisplayId = Number.isInteger(initialPreferredDisplayId) ? initialPreferredDisplayId : null;
   const getWindow = () => window && !window.isDestroyed() ? window : null;
   const makePassive = (target) => { target.setIgnoreMouseEvents?.(true, { forward: true }); target.setFocusable?.(false); };
-  const selectedDisplay = () => selectDisplay(screen, preferredDisplayId);
+  // Lido a cada posicionamento, e não só ao iniciar: um app aberto com a tampa fechada precisa
+  // passar para a tela com câmera quando ela aparece.
+  const cameraHousingIds = () => {
+    try {
+      const screens = nativeBridge?.screenGeometry?.();
+      return Array.isArray(screens) ? screens.filter((entry) => entry?.hasCameraHousing && Number.isInteger(entry.displayId)).map((entry) => entry.displayId) : [];
+    } catch { return []; }
+  };
+  const resolution = ({ displays = screen.getAllDisplays(), primary = screen.getPrimaryDisplay(), housing = cameraHousingIds() } = {}) => resolveNotchDisplay(displays, primary, { preferredDisplayId, cameraHousingIds: housing });
+  const selectedDisplay = () => resolution().display;
   const position = () => {
     const target = getWindow(); if (!target) return;
     const bounds = activeActions.size > 0 ? actionBounds(selectedDisplay()) : notchBounds(selectedDisplay());
     target.setBounds(bounds);
-    nativeBridge?.place?.(target.getNativeWindowHandle?.(), bounds);
+    // O addon recebe o handle e os quatro números separados, não o objeto. A colocação nativa
+    // só eleva o nível e junta a janela aos Spaces: se falhar, a janela Electron já está
+    // posicionada e a confirmação precisa aparecer mesmo assim.
+    try { nativeBridge?.place?.(target.getNativeWindowHandle?.(), bounds.x, bounds.y, bounds.width, bounds.height); } catch { /* colocação nativa indisponível */ }
   };
   const selectedDisplayId = () => selectedDisplay().id;
   const useNativeHost = () => {
@@ -47,47 +57,86 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     window.setAlwaysOnTop?.(true, 'pop-up-menu');
     window.setVisibleOnAllWorkspaces?.(true, { visibleOnFullScreen: true });
     makePassive(window);
-    window.on?.('closed', () => { window = null; activeRequestId = null; activeActions = new Set(); });
+    window.on?.('closed', () => { window = null; activeRequestId = null; activeActions = new Set(); activePresentation = null; });
     load(window);
     return window;
+  };
+  // Ao trocar de host, a superfície anterior some: senão fica uma confirmação morta capturando cliques ou a pílula nativa na tela.
+  const hideSurface = (host) => {
+    if (host === 'native') { try { nativeBridge?.hideHost?.(); } catch { /* host nativo indisponível */ } }
+    else if (host === 'electron') { const target = getWindow(); if (target) { makePassive(target); target.hide(); } }
   };
   const resolveAction = (requestId, actionId) => {
     if (requestId !== activeRequestId || !activeActions.has(actionId)) return false;
     if (activeHost === 'native') nativeBridge?.hideHost?.();
     else { const target = getWindow(); if (!target) return false; makePassive(target); target.hide(); }
-    activeRequestId = null; activeActions = new Set(); activeHost = null;
+    activeRequestId = null; activeActions = new Set(); activeHost = null; activePresentation = null;
     onAction?.({ requestId, actionId });
     return true;
   };
   return {
     show(presentation) {
       if (!validPresentation(presentation)) throw new Error('Invalid companion presentation.');
+      const previousHost = activeHost;
       activeRequestId = presentation.requestId; activeActions = new Set(presentation.actions.map((action) => action.id));
-      if (useNativeHost() && showNativeHost(presentation)) {
-        activeHost = 'native';
-        return { degraded: false, requestId: activeRequestId, host: activeHost };
+      if (useNativeHost()) {
+        if (previousHost === 'electron') { hideSurface('electron'); activeHost = null; }
+        if (showNativeHost(presentation)) {
+          activeHost = 'native'; activePresentation = null;
+          return { degraded: false, requestId: activeRequestId, host: activeHost };
+        }
       }
-      const target = ensure(); activeHost = 'electron'; position();
-      const capturesInput = presentation.interaction === 'capture';
-      target.setIgnoreMouseEvents?.(capturesInput ? false : true, capturesInput ? undefined : { forward: true });
-      target.setFocusable?.(capturesInput);
-      target.webContents.send('hibi:companion:presentation', presentation);
-      target.showInactive?.();
-      if (capturesInput) target.focus?.();
-      return { degraded: true, requestId: activeRequestId, host: activeHost };
+      try {
+        if (activeHost === 'native') { hideSurface('native'); activeHost = null; }
+        const target = ensure(); activeHost = 'electron'; activePresentation = presentation; position();
+        const capturesInput = presentation.interaction === 'capture';
+        target.setIgnoreMouseEvents?.(capturesInput ? false : true, capturesInput ? undefined : { forward: true });
+        target.setFocusable?.(capturesInput);
+        // Numa janela recém-criada este envio chega antes de a overlay assinar o canal e se perde;
+        // por isso a overlay também busca `activePresentation` ao montar.
+        target.webContents.send('hibi:companion:presentation', presentation);
+        target.showInactive?.();
+        if (capturesInput) target.focus?.();
+        return { degraded: true, requestId: activeRequestId, host: activeHost };
+      } catch (error) {
+        // Sem janela, não pode ficar uma confirmação fantasma travando `activeInteractive`.
+        activeRequestId = null; activeActions = new Set(); activeHost = null; activePresentation = null;
+        throw error;
+      }
     },
     hide(requestId) {
       if (requestId !== activeRequestId) return false;
       if (activeHost === 'native') nativeBridge?.hideHost?.();
       else { const target = getWindow(); if (!target) return false; makePassive(target); target.hide(); }
-      activeRequestId = null; activeActions = new Set(); activeHost = null; return true;
+      activeRequestId = null; activeActions = new Set(); activeHost = null; activePresentation = null; return true;
     },
     resolveAction,
     setPreferredDisplay(displayId) { preferredDisplayId = Number.isInteger(displayId) ? displayId : null; if (activeHost === 'native') nativeBridge?.repositionHost?.(selectedDisplayId()); else position(); },
     reposition() { if (activeHost === 'native') return nativeBridge?.repositionHost?.(selectedDisplayId()) === true; position(); return Boolean(getWindow()); },
-    destroy() { const target = getWindow(); nativeBridge?.destroyHost?.(); nativeBridge?.teardown?.(); if (target) target.destroy(); window = null; activeRequestId = null; activeActions = new Set(); activeHost = null; },
+    describeDisplays() {
+      const displays = screen.getAllDisplays();
+      const primary = screen.getPrimaryDisplay();
+      const housing = cameraHousingIds();
+      const { display, reason } = resolution({ displays, primary, housing });
+      return {
+        resolvedDisplayId: display.id,
+        reason,
+        displays: displays.map((entry, index) => ({
+          id: entry.id,
+          label: typeof entry.label === 'string' && entry.label.trim() ? entry.label.trim() : `Monitor ${index + 1}`,
+          primary: entry.id === primary.id,
+          internal: entry.internal === true,
+          hasCameraHousing: housing.includes(entry.id),
+          width: entry.bounds.width,
+          height: entry.bounds.height,
+        })),
+      };
+    },
+    destroy() { const target = getWindow(); nativeBridge?.destroyHost?.(); nativeBridge?.teardown?.(); if (target) target.destroy(); window = null; activeRequestId = null; activeActions = new Set(); activeHost = null; activePresentation = null; },
     get activeRequestId() { return activeRequestId; },
     get activeHost() { return activeHost; },
+    get activePresentation() { return activeHost === 'electron' ? activePresentation : null; },
+    get activeInteractive() { return activeRequestId !== null && activeActions.size > 0; },
     get diagnostics() {
       if (nativeBridge?.nativeHostAvailable?.() === true) return { ...nativeBridge.hostDiagnostics?.(), host: activeHost ?? 'native' };
       return { available: false, host: 'electron' };
