@@ -204,7 +204,7 @@ test('usa a preferência inicial e volta ao automático com setPreferredDisplay(
     createHost: () => true,
     screenGeometry: () => [{ displayId: 2, hasCameraHousing: false }, { displayId: 1, hasCameraHousing: true }],
     showHost: (_presentation, displayId) => { calls.push(displayId); return true; },
-    repositionHost: () => true,
+    repositionHost: (displayId) => { calls.push(['reposition', displayId]); return true; },
   };
   const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin', preferredDisplayId: 2 });
 
@@ -212,7 +212,24 @@ test('usa a preferência inicial e volta ao automático com setPreferredDisplay(
   manager.setPreferredDisplay(null);
   manager.show({ requestId: 'automatic', kind: 'result', text: 'b', actions: [], interaction: 'passthrough' });
 
-  assert.deepEqual(calls, [2, 1]);
+  assert.deepEqual(calls, [2, ['reposition', 1], 1]);
+});
+
+test('uma confirmação é posicionada no monitor resolvido, não na tela principal', () => {
+  const external = { id: 2, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
+  const macbook = { id: 1, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
+  const multiScreen = { getAllDisplays: () => [external, macbook], getPrimaryDisplay: () => external };
+  const placed = [];
+  const nativeBridge = { screenGeometry: () => [{ displayId: 1, hasCameraHousing: true }], place: (_handle, x, y, width, height) => placed.push({ x, y, width, height }) };
+  let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: class extends FakeWindow { getNativeWindowHandle() { return Buffer.alloc(8); } }, screen: multiScreen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge, platform: 'darwin' });
+
+  manager.show({ requestId: 'confirm-on-mac', kind: 'confirmation', text: 'Ok?', actions: [{ id: 'confirm', label: 'Confirmar' }], interaction: 'capture' });
+
+  const bounds = notch.calls.filter((call) => call[0] === 'bounds').at(-1)[1];
+  assert.ok(bounds.x >= macbook.bounds.x && bounds.x + bounds.width <= macbook.bounds.x + macbook.bounds.width);
+  assert.ok(bounds.y >= macbook.bounds.y && bounds.y < macbook.bounds.y + macbook.bounds.height);
+  assert.deepEqual(placed.at(-1), { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height });
 });
 
 test('uma falha ao ler as telas do addon cai para a tela principal', () => {
