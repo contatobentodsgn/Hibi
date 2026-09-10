@@ -1311,7 +1311,10 @@ Feita por quem coordena, não por subagente: usa o app Electron real, as telas f
 do app nesta máquina.
 
 **Files:**
-- Create (fora do repositório): `<scratchpad>/notch-display-live.mjs`
+- Create: `scripts/notch-display-live.mjs` — versão final do roteiro abaixo, versionada. Além do
+  rascunho, move a janela principal do Hibi para cada tela antes de testar (a revisão da Task 2
+  achou a conversão nativa de coordenadas presa à tela com foco, corrigida em `7e5e267`) e captura
+  o cartão passivo e a confirmação.
 - Modify: `docs/notch-manual-results.md`
 
 - [ ] **Step 1: Conferir as telas**
@@ -1429,7 +1432,7 @@ console.log(JSON.stringify(report, null, 2));
 
 - [ ] **Step 4: Rodar**
 
-Run: `node <scratchpad>/notch-display-live.mjs <scratchpad>`
+Run: `node scripts/notch-display-live.mjs <scratchpad>` (a pasta das capturas fica fora do repositório)
 Expected: `automaticPicksCameraHousing: true`; nos três testes `confirmationInside: true` e a mensagem
 "Confirmado pelo notch em …" com o monitor certo; `passiveHost.displayId` igual ao monitor
 resolvido quando o host nativo estiver ativo; `persistsAcrossRestart: true`;
@@ -1464,7 +1467,7 @@ Record each result in the tables above with the date and the display names.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add docs/notch-manual-results.md
+git add docs/notch-manual-results.md scripts/notch-display-live.mjs
 git commit -m "docs: record notch display validation on the external monitor
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
