@@ -28,3 +28,9 @@
 .palette-actions { display: flex; gap: var(--space-2); margin-top: var(--space-1); }
 .palette-actions .primary { background: var(--text-primary); color: var(--bg-canvas); }
 .palette-actions .outline { border-color: var(--stroke-default); color: var(--text-primary); }
+
+/* Vista de pastas: as linhas reaproveitam .command-row; a linha de renomear ou juntar toma o lugar da lista. */
+.palette .folder-row small { color: var(--text-secondary); }
+.palette-folder-line { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-5); color: var(--text-primary); }
+.palette-folder-line span { color: var(--text-secondary); }
+.palette-folder-notice { margin: 0; padding: var(--space-2) var(--space-5); color: var(--text-secondary); }
