@@ -13,6 +13,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Os testes de lembretes usam horários de parede em -03:00; os runners rodam em UTC.
+  TZ: America/Sao_Paulo
+
 jobs:
   linux:
     name: Testes, tipos, build web e e2e
