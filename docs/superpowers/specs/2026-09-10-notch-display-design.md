@@ -93,7 +93,8 @@ answerMs = 20000 })` com `run(locale)` e `handleAction(action)`.
    - sem resposta em `answerMs` → esconde e devolve `timeout`, ou `interrupted` se outra
      apresentação já a tinha substituído.
 
-`run` devolve `{ outcome, displayId, displayLabel }` com o monitor em que o teste começou.
+`run` devolve `{ outcome, displayId, displayLabel }` com o monitor em que o teste começou. Uma
+exceção do gerenciador durante o teste devolve `failed` e libera um novo teste.
 Textos dos cartões existem em `pt` e `en` dentro do módulo, porque o processo principal não
 conhece o idioma da interface.
 
@@ -122,7 +123,10 @@ Componente `src/ui/NotchDisplaySettings.tsx`, montado em Configurações › Ger
 | `timeout` | Sem resposta em 20 s. O cartão pode não ter aparecido em `<monitor>`. |
 | `busy` | Há uma confirmação pendente no notch. Responda a ela e teste de novo. |
 | `interrupted` | O teste foi interrompido por outro aviso do Taby. |
-| ponte ausente ou erro | Disponível no app desktop. |
+| `failed` (exceção no processo principal ou na chamada) | Não foi possível mostrar o teste no notch. |
+| ponte ausente | Disponível no app desktop. |
+
+Uma falha ao trocar o monitor mostra "Não foi possível trocar o monitor do notch.".
 
 - A lista é lida ao montar e relida a cada `onNotchDisplaysChanged`.
 - Eventos de instrumentação: `edit · Notch display` e `test · Notch`.
