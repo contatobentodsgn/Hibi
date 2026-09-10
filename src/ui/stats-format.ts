@@ -1,5 +1,5 @@
 import { ACTIVITY_TYPES, type ActivityRecord, type KnownActivityType } from '../domain/activity';
-import { MAX_CUSTOM_PERIOD_DAYS, resolveStatsPeriod, type StatsPeriod, type StatsPreset } from '../domain/stats';
+import { calculateStats, MAX_CUSTOM_PERIOD_DAYS, resolveStatsPeriod, type StatsPeriod, type StatsPreset } from '../domain/stats';
 import { activityToCsv, activityToJson } from '../domain/stats-export';
 import type { DictionaryKey } from '../i18n/dictionary';
 import type { Locale } from '../i18n/format';
@@ -65,6 +65,13 @@ export function resolvePeriodChoice(preset: StatsPreset, reference: Date, custom
   }
 }
 
+/** Entrada que explica o erro: data vazia ou ilegível marca a própria entrada; ordem ou tamanho do período marcam o fim. */
+export function invalidDateFields(custom: CustomRange, choice: PeriodChoice): (keyof CustomRange)[] {
+  if (!choice.error) return [];
+  const unreadable = (['start', 'end'] as const).filter((field) => !isCalendarDate(custom[field]));
+  return unreadable.length > 0 ? unreadable : ['end'];
+}
+
 export const historyTypeOptions = (records: readonly ActivityRecord[]): KnownActivityType[] => {
   const present = new Set(records.map((record) => record.type));
   return ACTIVITY_TYPES.filter((type) => present.has(type));
@@ -104,3 +111,36 @@ export const periodRange = (period: StatsPeriod, locale: Locale) => {
   const keys = periodDayKeys(period);
   return formatDayRange(keys.start, keys.end, locale);
 };
+
+export interface PeriodSelection { preset: StatsPreset; custom: CustomRange }
+export interface PeriodEvent { detail: string; result?: 'pass' | 'fail' }
+/** Próxima seleção, a escolha resolvida para anunciar e o evento de instrumentação, quando houver. */
+export interface PeriodStep { selection: PeriodSelection; choice: PeriodChoice; event?: PeriodEvent }
+
+export function selectPreset(current: PeriodSelection, next: StatsPreset, reference: Date): PeriodStep | undefined {
+  // Repetir o período ativo não muda nada: nada a anunciar nem a registrar.
+  if (next === current.preset) return undefined;
+  let custom = current.custom;
+  // Na primeira vez, o personalizado parte do período que estava na tela; depois, mantém as datas digitadas.
+  if (next === 'custom' && custom.start === '' && custom.end === '') {
+    const shown = resolvePeriodChoice(current.preset, reference, custom).period;
+    if (shown) custom = periodDayKeys(shown);
+  }
+  return { selection: { preset: next, custom }, choice: resolvePeriodChoice(next, reference, custom), event: { detail: `Statistics · ${next}` } };
+}
+
+export function editCustomRange(current: PeriodSelection, custom: CustomRange, reference: Date): PeriodStep {
+  const choice = resolvePeriodChoice('custom', reference, custom);
+  const detail = 'Statistics · custom period';
+  if (choice.period) return { selection: { ...current, custom }, choice, event: { detail, result: 'pass' } };
+  // Uma falha por vez: enquanto as datas continuam inválidas, cada tecla não gera outro evento.
+  const wasValid = resolvePeriodChoice('custom', reference, current.custom).period !== undefined;
+  return { selection: { ...current, custom }, choice, event: wasValid ? { detail, result: 'fail' } : undefined };
+}
+
+// O aviso de histórico parcial entra no anúncio: quem só ouve a página também precisa saber que os números podem estar incompletos.
+export function periodAnnouncement(choice: PeriodChoice, records: readonly ActivityRecord[], t: Translate, locale: Locale): string {
+  if (!choice.period) return '';
+  const showing = fillTemplate(t('stats.showing'), { range: periodRange(choice.period, locale) });
+  return calculateStats(records, choice.period).partialHistory ? `${showing} ${t('stats.partial')}` : showing;
+}

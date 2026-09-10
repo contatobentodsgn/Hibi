@@ -270,6 +270,20 @@
   color: var(--text-secondary);
 }
 
+/* Some da tela, mas continua no nome acessível. O `.stats-view` na frente vence o padding de `.stats-table caption`. */
+.stats-view .stats-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .stats-table th,
 .stats-table td {
   padding: var(--space-2) var(--space-3);

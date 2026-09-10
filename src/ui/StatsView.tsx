@@ -19,17 +19,21 @@ import { useLocale, useT } from '../i18n/LocaleProvider';
 import {
   buildStatsExport,
   comparisonText,
+  editCustomRange,
   fillTemplate,
   formatDayKey,
   formatLocalDateTime,
   formatMinutes,
   formatValue,
   historyTypeOptions,
-  periodDayKeys,
+  invalidDateFields,
+  periodAnnouncement,
   periodRange,
   resolvePeriodChoice,
+  selectPreset,
   type CustomRange,
-  type PeriodChoice,
+  type PeriodSelection,
+  type PeriodStep,
   type StatsExportFormat,
 } from './stats-format';
 import './stats.css';
@@ -73,33 +77,19 @@ function buildReport(records: readonly ActivityRecord[], period: StatsPeriod): S
 export function StatsView({ records, referenceDate, onEvent }: { records: readonly ActivityRecord[]; referenceDate: Date; onEvent: OnEvent }) {
   const t = useT();
   const { language } = useLocale();
-  const [preset, setPreset] = useState<StatsPreset>('week');
-  const [custom, setCustom] = useState<CustomRange>({ start: '', end: '' });
+  const [selection, setSelection] = useState<PeriodSelection>({ preset: 'week', custom: { start: '', end: '' } });
   const [typeFilter, setTypeFilter] = useState('all');
   const [notice, setNotice] = useState('');
 
-  const announce = (choice: PeriodChoice) =>
-    setNotice(choice.period ? fillTemplate(t('stats.showing'), { range: periodRange(choice.period, language) }) : '');
-
-  const changePreset = (next: StatsPreset) => {
-    let nextCustom = custom;
-    // Ao abrir o personalizado, parte do período que já estava na tela em vez de datas vazias.
-    if (next === 'custom' && preset !== 'custom') {
-      const shown = resolvePeriodChoice(preset, referenceDate, custom).period;
-      if (shown) nextCustom = periodDayKeys(shown);
-    }
-    setPreset(next);
-    setCustom(nextCustom);
-    announce(resolvePeriodChoice(next, referenceDate, nextCustom));
-    onEvent('filter', `Statistics · ${next}`);
+  const applyPeriod = (step: PeriodStep | undefined) => {
+    if (!step) return;
+    setSelection(step.selection);
+    setNotice(periodAnnouncement(step.choice, records, t, language));
+    if (step.event) onEvent('filter', step.event.detail, step.event.result);
   };
 
-  const changeCustom = (next: CustomRange) => {
-    setCustom(next);
-    const choice = resolvePeriodChoice('custom', referenceDate, next);
-    announce(choice);
-    onEvent('filter', 'Statistics · custom period', choice.period ? 'pass' : 'fail');
-  };
+  const changePreset = (next: StatsPreset) => applyPeriod(selectPreset(selection, next, referenceDate));
+  const changeCustom = (next: CustomRange) => applyPeriod(editCustomRange(selection, next, referenceDate));
 
   const changeType = (next: string) => {
     setTypeFilter(next);
@@ -128,8 +118,8 @@ export function StatsView({ records, referenceDate, onEvent }: { records: readon
     <StatsContent
       records={records}
       referenceDate={referenceDate}
-      preset={preset}
-      custom={custom}
+      preset={selection.preset}
+      custom={selection.custom}
       typeFilter={typeFilter}
       notice={notice}
       onPresetChange={changePreset}
@@ -164,6 +154,7 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
   const report = useMemo(() => (period ? buildReport(records, period) : null), [records, periodKey]);
   const statusId = `${id}-status`;
   const status = choice.error ? fillTemplate(t(choice.error), { days: String(MAX_CUSTOM_PERIOD_DAYS) }) : notice;
+  const invalidFields = invalidDateFields(custom, choice);
   const dateInput = (field: keyof CustomRange, label: DictionaryKey) => (
     <div className="stats-field">
       <label htmlFor={`${id}-${field}`}>{t(label)}</label>
@@ -171,7 +162,7 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
         type="date"
         id={`${id}-${field}`}
         value={custom[field]}
-        aria-invalid={choice.error ? true : undefined}
+        aria-invalid={invalidFields.includes(field) ? true : undefined}
         aria-describedby={choice.error ? statusId : undefined}
         onChange={(event) => onCustomChange({ ...custom, [field]: event.target.value })}
       />
@@ -217,11 +208,11 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
               <DailyChart id={id} daily={report.current.daily} range={periodRange(report.current.period, language)} />
               <PlannedVsCompleted id={id} summary={report.current} />
               <div className="stats-distributions">
-                <Distribution id={`${id}-categories`} title="stats.categories" column="stats.column.category" entries={report.current.categories} label={(key) => {
+                <Distribution id={`${id}-categories`} title="stats.categories" caption="stats.categories.caption" column="stats.column.category" entries={report.current.categories} label={(key) => {
                   const labelKey = CATEGORY_KEYS.get(key);
                   return labelKey ? t(labelKey) : key;
                 }} />
-                <Distribution id={`${id}-folders`} title="stats.folders" column="stats.column.folder" entries={report.current.folders} label={(key) => (key === NO_FOLDER ? t('folders.none') : key)} />
+                <Distribution id={`${id}-folders`} title="stats.folders" caption="stats.folders.caption" column="stats.column.folder" entries={report.current.folders} label={(key) => (key === NO_FOLDER ? t('folders.none') : key)} />
               </div>
               <History id={id} records={report.periodRecords} typeFilter={typeFilter} onTypeFilterChange={onTypeFilterChange} />
             </>
@@ -396,7 +387,7 @@ function PlannedVsCompleted({ id, summary }: { id: string; summary: StatsSummary
   );
 }
 
-function Distribution({ id, title, column, entries, label }: { id: string; title: DictionaryKey; column: DictionaryKey; entries: readonly DistributionMetric[]; label: (key: string) => string }) {
+function Distribution({ id, title, caption, column, entries, label }: { id: string; title: DictionaryKey; caption: DictionaryKey; column: DictionaryKey; entries: readonly DistributionMetric[]; label: (key: string) => string }) {
   const t = useT();
   return (
     <section className="stats-section" aria-labelledby={id}>
@@ -405,6 +396,7 @@ function Distribution({ id, title, column, entries, label }: { id: string; title
         <p className="muted">{t('stats.distribution.empty')}</p>
       ) : (
         <table className="stats-table">
+          <caption className="stats-visually-hidden">{t(caption)}</caption>
           <thead>
             <tr>
               <th scope="col">{t(column)}</th>
@@ -436,7 +428,11 @@ function History({ id, records, typeFilter, onTypeFilterChange }: { id: string; 
   const newestFirst = (active === 'all' ? [...records] : records.filter((record) => record.type === active)).reverse();
   const shown = newestFirst.slice(0, HISTORY_LIMIT);
   const describe = (record: ActivityRecord) =>
-    [record.title, record.durationMinutes === undefined ? undefined : formatMinutes(record.durationMinutes)].filter(Boolean).join(' · ');
+    [
+      record.title,
+      record.durationMinutes === undefined ? undefined : formatMinutes(record.durationMinutes),
+      record.type === 'goal.progressed' && record.value !== undefined ? fillTemplate(t('stats.history.progress'), { value: formatValue(record.value) }) : undefined,
+    ].filter(Boolean).join(' · ');
 
   return (
     <section className="stats-section" aria-labelledby={`${id}-history`}>

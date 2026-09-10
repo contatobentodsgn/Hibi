@@ -4,17 +4,25 @@ import { describe, expect, it } from 'vitest';
 import type { ActivityRecord } from '../../domain/activity';
 import { MAX_CUSTOM_PERIOD_DAYS, resolveStatsPeriod } from '../../domain/stats';
 import { dictionary, translate, type DictionaryKey } from '../../i18n/dictionary';
+import { TIME_FORMAT_STORAGE_KEY, type LocaleHost } from '../../i18n/locale-storage';
+import { LocaleProvider } from '../../i18n/LocaleProvider';
 import { StatsContent, StatsView, type StatsContentProps } from '../StatsView';
 import {
   buildStatsExport,
   comparisonText,
+  editCustomRange,
   fillTemplate,
   formatMinutes,
   formatSigned,
   historyTypeOptions,
   MINUS,
+  periodAnnouncement,
+  periodRange,
   resolvePeriodChoice,
+  selectPreset,
   UTF8_BOM,
+  type CustomRange,
+  type PeriodSelection,
 } from '../stats-format';
 
 // Horários sempre construídos a partir de datas locais, para o teste valer em qualquer fuso.
@@ -81,6 +89,8 @@ const figureOf = (markup: string) => /<figure class="stats-chart">([\s\S]*?)<\/f
 const dailyTaskCells = (markup: string) => [...figureOf(markup).matchAll(/<tr><th scope="row">[^<]*<\/th><td>([^<]*)<\/td>/g)].map((match) => match[1]);
 const historyItems = (markup: string) => [...markup.matchAll(/<li class="stats-history-item">([\s\S]*?)<\/li>/g)].map((match) => match[1]);
 const optionValues = (markup: string) => [...markup.matchAll(/<option value="([^"]+)"/g)].map((match) => match[1]);
+const dateInputFor = (markup: string, label: string) => new RegExp(`>${label}</label>(<input[^>]*>)`).exec(markup)?.[1] ?? '';
+const noCustom: CustomRange = { start: '', end: '' };
 
 describe('StatsView', () => {
   const markup = renderView(ledger);
@@ -148,6 +158,11 @@ describe('StatsView', () => {
     expect(folders.indexOf('Clientes')).toBeLessThan(folders.indexOf('Sem pasta'));
   });
 
+  it('gives the category and folder tables a visually hidden caption', () => {
+    expect(markup).toContain('<table class="stats-table"><caption class="stats-visually-hidden">Tarefas e minutos concluídos por categoria</caption>');
+    expect(markup).toContain('<table class="stats-table"><caption class="stats-visually-hidden">Tarefas e minutos concluídos por pasta</caption>');
+  });
+
   it('lists the period history newest first with a type filter', () => {
     const items = historyItems(markup);
     expect(items).toHaveLength(12);
@@ -200,6 +215,27 @@ describe('StatsView', () => {
     expect(blank).toMatch(/<button[^>]*>Exportar CSV<\/button>/);
     expect(blank).toMatch(/<button[^>]*>Exportar JSON<\/button>/);
   });
+
+  it('renders English labels and 12-hour times when the person prefers them', () => {
+    // O idioma entra por prop, mas a preferência de 12 horas só é lida do armazenamento.
+    const twelveHour: LocaleHost = { storage: { getItem: (key) => (key === TIME_FORMAT_STORAGE_KEY ? 'false' : null), setItem: noop } };
+    const english = renderToStaticMarkup(
+      <LocaleProvider initialLanguage="en" host={twelveHour}>
+        <StatsView records={ledger} referenceDate={reference} onEvent={noop} />
+      </LocaleProvider>,
+    );
+    expect(english).toContain('<h1>Statistics</h1>');
+    expect(english).toMatch(/aria-pressed="true"[^>]*>Week</);
+    expect(english).toContain('Tasks completed');
+    expect(english).toMatch(/<button[^>]*>Export CSV<\/button>/);
+    const items = historyItems(english);
+    expect(items[0]).toContain('Task completed');
+    expect(items[0]).toMatch(/4:00\sPM/);
+    expect(items.at(-1)).toContain('Block created');
+    expect(items.at(-1)).toMatch(/8:00\sAM/);
+    expect(english).not.toContain('16:00');
+    expect(english).not.toContain('Tarefa concluída');
+  });
 });
 
 describe('StatsContent', () => {
@@ -219,6 +255,20 @@ describe('StatsContent', () => {
     expect(cards(markup)).toHaveLength(0);
   });
 
+  it('marks as invalid only the date input responsible for the error', () => {
+    const invalidInputs = (custom: CustomRange) => {
+      const markup = renderContent({ preset: 'custom', custom });
+      return ['Início', 'Fim'].filter((label) => dateInputFor(markup, label).includes('aria-invalid="true"'));
+    };
+    expect(invalidInputs({ start: '', end: '2026-09-10' })).toEqual(['Início']);
+    expect(invalidInputs({ start: '2026-02-30', end: '2026-03-01' })).toEqual(['Início']);
+    expect(invalidInputs({ start: '2026-09-01', end: '' })).toEqual(['Fim']);
+    expect(invalidInputs({ start: '', end: '' })).toEqual(['Início', 'Fim']);
+    expect(invalidInputs({ start: '2026-09-10', end: '2026-09-01' })).toEqual(['Fim']);
+    expect(invalidInputs({ start: '2025-01-01', end: '2026-01-02' })).toEqual(['Fim']);
+    expect(invalidInputs({ start: '2026-09-01', end: '2026-09-10' })).toEqual([]);
+  });
+
   it('filters the history by type and falls back to all for a type not in the period', () => {
     const focus = renderContent({ typeFilter: 'focus.completed' });
     expect(historyItems(focus)).toHaveLength(1);
@@ -233,6 +283,59 @@ describe('StatsContent', () => {
   it('announces the latest notice in the live status', () => {
     const markup = renderContent({ notice: 'Exportado hibi-stats-2026-09-10.csv.' });
     expect(markup).toMatch(/role="status" aria-live="polite"[^>]*>Exportado hibi-stats-2026-09-10\.csv\.</);
+  });
+
+  it('shows the value a goal progressed to in the history', () => {
+    const markup = renderContent({ records: [...ledger, record('goal.progressed', at(9, 10, 17), { title: 'Ler 12 livros', value: 3 })] });
+    const [newest] = historyItems(markup);
+    expect(newest).toContain('Progresso em meta');
+    expect(newest).toContain('Ler 12 livros · Progresso: 3');
+  });
+});
+
+describe('stats period selection', () => {
+  const week: PeriodSelection = { preset: 'week', custom: noCustom };
+
+  it('does nothing when the active preset is chosen again', () => {
+    expect(selectPreset(week, 'week', reference)).toBeUndefined();
+    expect(selectPreset({ preset: 'custom', custom: { start: '2026-09-01', end: '2026-09-03' } }, 'custom', reference)).toBeUndefined();
+    expect(selectPreset(week, 'month', reference)).toEqual({
+      selection: { preset: 'month', custom: noCustom },
+      choice: resolvePeriodChoice('month', reference, noCustom),
+      event: { detail: 'Statistics · month' },
+    });
+  });
+
+  it('seeds the custom dates from the visible range only until dates were entered', () => {
+    const seeded = selectPreset({ preset: 'month', custom: noCustom }, 'custom', reference)!;
+    expect(seeded.selection.custom).toEqual({ start: '2026-09-01', end: '2026-09-30' });
+    const typed = editCustomRange(seeded.selection, { start: '2026-09-02', end: '2026-09-04' }, reference).selection;
+    const backToWeek = selectPreset(typed, 'week', reference)!.selection;
+    expect(selectPreset(backToWeek, 'custom', reference)!.selection.custom).toEqual({ start: '2026-09-02', end: '2026-09-04' });
+  });
+
+  it('logs a failed custom period once when it turns invalid, not on every edit while it stays invalid', () => {
+    let selection = selectPreset(week, 'custom', reference)!.selection;
+    const edit = (custom: CustomRange) => {
+      const step = editCustomRange(selection, custom, reference);
+      selection = step.selection;
+      return step.event;
+    };
+    const detail = 'Statistics · custom period';
+    expect(edit({ start: '2026-09-08', end: '2026-09-13' })).toEqual({ detail, result: 'pass' });
+    expect(edit({ start: '2026-09-08', end: '' })).toEqual({ detail, result: 'fail' });
+    expect(edit({ start: '', end: '' })).toBeUndefined();
+    expect(edit({ start: '2026-09-20', end: '2026-09-10' })).toBeUndefined();
+    expect(edit({ start: '2026-09-01', end: '2026-09-10' })).toEqual({ detail, result: 'pass' });
+    expect(edit({ start: '2026-09-11', end: '2026-09-10' })).toEqual({ detail, result: 'fail' });
+  });
+
+  it('includes the partial-history notice in the announcement of a partial period', () => {
+    const choice = resolvePeriodChoice('week', reference, noCustom);
+    const showing = `Mostrando ${periodRange(choice.period!, 'pt')}.`;
+    expect(periodAnnouncement(choice, [record('task.completed', at(9, 8), { title: 'Primeira' })], t, 'pt')).toBe(`${showing} ${t('stats.partial')}`);
+    expect(periodAnnouncement(choice, ledger, t, 'pt')).toBe(showing);
+    expect(periodAnnouncement(resolvePeriodChoice('custom', reference, { start: '2026-09-10', end: '2026-09-01' }), ledger, t, 'pt')).toBe('');
   });
 });
 
@@ -329,5 +432,14 @@ describe('stats.css', () => {
     expect(css).toMatch(/@media \(max-width: 900px\)/);
     expect(css).toContain(':focus-visible');
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
+  });
+
+  it('hides captions visually while keeping them for assistive technology', () => {
+    const rule = /\.stats-visually-hidden \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(rule).toContain('position: absolute');
+    expect(rule).toContain('width: 1px');
+    expect(rule).toContain('height: 1px');
+    expect(rule).toContain('overflow: hidden');
+    expect(rule).toMatch(/clip(-path)?:/);
   });
 });
