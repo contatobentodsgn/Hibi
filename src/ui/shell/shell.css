@@ -21,3 +21,55 @@ body:has(.shell) { background: var(--bg-canvas); min-width: 960px; }
 .dock-commands kbd { font: inherit; color: #fff; background: #2d2d2d; border-radius: 6px; padding: 3px 6px; }
 
 @media (prefers-reduced-motion: no-preference) { .dock-item { transition: background-color 140ms ease, color 140ms ease; } }
+
+/* Ilha clara temporária: theme.css (o CSS legado das telas ainda não reconstruídas) fixa
+   146 cores literais que não seguem tema — ex. `background:#fff` em .list-card/.panel/
+   .settings-card. As 8 variáveis antigas (--paper/--ink/--muted/--line/--orange/--green/
+   --blue/--amber) SEGUEM o tema via tokens.css, então no escuro o texto virava quase-branco
+   (--ink) sobre esses fundos brancos fixos — 1.15:1 de contraste, ilegível. Até cada tela ser
+   reconstruída num sub-projeto futuro, `.legacy-surface` força os valores CLAROS dos tokens
+   por trás dessas 8 variáveis, nos dois temas, mantendo a legibilidade de hoje (18.26:1).
+   Isso NÃO afeta a paleta de comandos (renderizada fora deste wrapper) nem o shell novo
+   (topo/dock), que continuam seguindo o tema real. Cada tela migrada some desta ilha
+   conforme é reconstruída; o bloco inteiro é removido quando a última tela sair dela.
+
+   theme.css consome as 8 variáveis antigas diretamente (var(--ink), var(--paper)...), não os
+   tokens semânticos. Um custom property só é recalculado onde é DECLARADO: como --ink é
+   declarado apenas em :root (tokens.css), seu valor computado já fica congelado lá (usando o
+   --text-primary do :root, que é escuro) e desce por herança sem se reavaliar — redeclarar só
+   --text-primary aqui dentro não muda o --ink herdado. Por isso as 8 aliases também são
+   redeclaradas abaixo, agora resolvendo contra os tokens claros já fixados nesta ilha.
+
+   Pelo mesmo motivo, `color` (propriedade real, herdada) já vinha resolvido e congelado em
+   `.shell` (escuro) antes de chegar aqui — a maioria dos elementos legados não redeclara
+   `color` (herdam do texto ao redor), então também é preciso redeclarar `color` aqui para
+   que a herança recomece a partir de um valor claro.
+
+   `background` não é herdado, então também precisa de valor próprio: trechos legados sem
+   cartão (ex. o hero da Home, texto direto sobre o "canvas") não fixam fundo — hoje contam
+   com o canvas do documento inteiro sendo claro. Sem isso aqui, esse texto (agora claro)
+   ficaria sobre o canvas ESCURO real do shell (texto quase preto sobre fundo quase preto).
+   `.legacy-surface` recria o papel claro atrás de si, exatamente como o app já parece hoje:
+   chrome escuro (faixa do topo, dock) por cima de conteúdo em papel. */
+.legacy-surface {
+  color-scheme: light;
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+  --bg-canvas: #f3f2ef;
+  --text-primary: #151515;
+  --text-secondary: #5f5c56;
+  --stroke-default: #dedbd4;
+  --accent: #fb7017;
+  --cat-break-soft: #b9e7bd;
+  --cat-learning-soft: #c9def0;
+  --cat-important-soft: #f2c26b;
+
+  --paper: var(--bg-canvas);
+  --ink: var(--text-primary);
+  --muted: var(--text-secondary);
+  --line: var(--stroke-default);
+  --orange: var(--accent);
+  --green: var(--cat-break-soft);
+  --blue: var(--cat-learning-soft);
+  --amber: var(--cat-important-soft);
+}

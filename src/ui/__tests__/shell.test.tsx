@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { LocaleProvider } from '../../i18n/LocaleProvider'
@@ -6,6 +7,13 @@ import { Dock, DockMoreMenu } from '../shell/Dock'
 import { dockKeyFor, DOCK_ITEMS, MORE_ITEMS, sectionLabelKey } from '../shell/routes'
 
 const noop = () => undefined
+
+const cssBlock = (css: string, selector: string): Record<string, string> => {
+  const start = css.indexOf(`${selector} {`)
+  if (start < 0) throw new Error(`Bloco não encontrado: ${selector}`)
+  const body = css.slice(start, css.indexOf('}', start))
+  return Object.fromEntries([...body.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((match) => [match[1]!, match[2]!.trim()]))
+}
 
 describe('shell', () => {
   it('mostra os cinco itens do dock, o botão de mais e o atalho de comandos', () => {
@@ -45,5 +53,14 @@ describe('shell', () => {
     expect(markup).toContain('HIBI')
     expect(markup).toContain('>Agenda</span>')
     expect(markup).toContain('<main class="shell-content"><p>conteúdo</p></main>')
+  })
+
+  it('mantém a ilha clara legada (.legacy-surface) honesta com os tokens claros reais', () => {
+    const shellCss = readFileSync(new URL('../shell/shell.css', import.meta.url), 'utf8')
+    const tokensCss = readFileSync(new URL('../tokens.css', import.meta.url), 'utf8')
+    const island = cssBlock(shellCss, '.legacy-surface')
+    const light = cssBlock(tokensCss, ':root')
+    const covered = ['--bg-canvas', '--text-primary', '--text-secondary', '--stroke-default', '--accent', '--cat-break-soft', '--cat-learning-soft', '--cat-important-soft']
+    for (const name of covered) expect(island[name], `${name} falta na ilha`).toBe(light[name])
   })
 })
