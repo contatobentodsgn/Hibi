@@ -10,15 +10,32 @@ body:has(.shell) { background: var(--bg-canvas); min-width: 960px; }
 
 .shell-content { padding: var(--space-6) clamp(24px, 6vw, 96px) 120px; }
 
-.dock { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-3); background: #0c0c0c; color: #f4f3ef; box-shadow: var(--depth-float); -webkit-app-region: no-drag; }
-.dock-item { font: 800 var(--type-12) / 1 var(--font-sans); letter-spacing: .06em; background: none; border: 0; color: #9a9791; padding: 10px 12px; border-radius: var(--radius-2); cursor: pointer; }
-.dock-item[aria-current="page"], .dock-item[data-active="true"] { background: #f2f0ea; color: #111; }
+/* Cores do dock: propositalmente invariantes ao tema (o chrome flutuante fica sempre escuro,
+   claro ou escuro que seja o app) — NÃO gate-ar sob [data-theme]. Nomeadas aqui para que a
+   próxima tarefa (paleta de comandos, no mesmo shell) não copie "hex direto em shell.css" como
+   padrão da casa: a paleta deve seguir o tema real via tokens.css. */
+:root {
+  --dock-surface: #0c0c0c;
+  --dock-ink: #f4f3ef;
+  --dock-ink-muted: #9a9791;
+  --dock-active-surface: #f2f0ea;
+  --dock-active-ink: #111;
+  --dock-menu-surface: #161616;
+  --dock-menu-ink: #d8d5cd;
+  --dock-menu-hover-surface: #2a2a2a;
+  --dock-menu-hover-ink: #fff;
+  --dock-kbd-surface: #2d2d2d;
+}
+
+.dock { position: fixed; left: 50%; bottom: var(--space-5); transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-3); background: var(--dock-surface); color: var(--dock-ink); box-shadow: var(--depth-float); -webkit-app-region: no-drag; }
+.dock-item { font: 800 var(--type-12) / 1 var(--font-sans); letter-spacing: .06em; background: none; border: 0; color: var(--dock-ink-muted); padding: 10px 12px; border-radius: var(--radius-2); cursor: pointer; }
+.dock-item[aria-current="page"], .dock-item[data-active="true"] { background: var(--dock-active-surface); color: var(--dock-active-ink); }
 .dock-more { position: relative; }
-.dock-menu { position: absolute; bottom: calc(100% + var(--space-2)); left: 50%; transform: translateX(-50%); min-width: 180px; display: grid; padding: var(--space-1); border-radius: var(--radius-2); background: #161616; box-shadow: var(--depth-float); }
-.dock-menu button { text-align: left; font: 600 var(--type-14) / var(--leading-14) var(--font-sans); background: none; border: 0; color: #d8d5cd; padding: 8px 10px; border-radius: var(--radius-1); cursor: pointer; }
-.dock-menu button:hover, .dock-menu button:focus-visible { background: #2a2a2a; color: #fff; }
+.dock-menu { position: absolute; bottom: calc(100% + var(--space-2)); left: 50%; transform: translateX(-50%); min-width: 180px; display: grid; padding: var(--space-1); border-radius: var(--radius-2); background: var(--dock-menu-surface); box-shadow: var(--depth-float); }
+.dock-menu button { text-align: left; font: 600 var(--type-14) / var(--leading-14) var(--font-sans); background: none; border: 0; color: var(--dock-menu-ink); padding: 8px 10px; border-radius: var(--radius-1); cursor: pointer; }
+.dock-menu button:hover, .dock-menu button:focus-visible { background: var(--dock-menu-hover-surface); color: var(--dock-menu-hover-ink); }
 .dock-menu button[aria-current="page"] { color: var(--accent); }
-.dock-commands kbd { font: inherit; color: #fff; background: #2d2d2d; border-radius: 6px; padding: 3px 6px; }
+.dock-commands kbd { font: inherit; color: var(--dock-menu-hover-ink); background: var(--dock-kbd-surface); border-radius: 6px; padding: 3px 6px; }
 
 @media (prefers-reduced-motion: no-preference) { .dock-item { transition: background-color 140ms ease, color 140ms ease; } }
 

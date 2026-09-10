@@ -32,3 +32,17 @@ export const isAgendaRoute = (key: NavKey) => key === 'agenda' || key === 'day' 
 export const dockKeyFor = (route: NavKey): NavKey => isAgendaRoute(route) ? 'agenda' : route
 
 export const sectionLabelKey = (route: NavKey): DictionaryKey => isAgendaRoute(route) ? 'nav.agenda' : `nav.${route}`
+
+export type FocusMoveKey = 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown' | 'Home' | 'End'
+
+// Aritmética pura de foco em lista circular, usada pelo dock (setas esquerda/direita) e pelo
+// menu "···" (setas cima/baixo). `current` fora do intervalo (ex.: -1, quando o foco não está em
+// nenhum item) começa do primeiro item ao avançar e do último ao retroceder, em vez de no-op.
+export function nextFocusIndex(current: number, count: number, key: FocusMoveKey): number {
+  if (count <= 0) return -1
+  if (key === 'Home') return 0
+  if (key === 'End') return count - 1
+  const forward = key === 'ArrowRight' || key === 'ArrowDown'
+  if (current < 0 || current >= count) return forward ? 0 : count - 1
+  return (current + (forward ? 1 : -1) + count) % count
+}

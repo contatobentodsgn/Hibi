@@ -249,7 +249,7 @@ export default function App() {
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;
       default: return <HomeView {...props} data={data} onOpenCommands={() => setPaletteOpen(true)} />;
     }
-  }, [route, events, aiHistory, aiFallbackPolicy, data, assistantTurn.state]);
+  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state]);
 
   return (
     <AppShell active={route} onNavigate={navigate} onOpenCommands={() => setPaletteOpen(true)}>

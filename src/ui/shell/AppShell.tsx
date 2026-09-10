@@ -10,6 +10,9 @@ type Props = Readonly<{ active: NavKey; onNavigate: (key: NavKey) => void; onOpe
 
 export function AppShell({ active, onNavigate, onOpenCommands, children }: Props) {
   const t = useT()
+  // `.shell` é lida por `body:has(.shell)` em shell.css para manter o fundo da janela transparente
+  // atrás do overlay de notch nativo — renomear esta classe quebra esse contrato em silêncio,
+  // sem nenhum teste falhando.
   return <div className="shell">
     <header className="shell-topbar">
       <button type="button" className="shell-brand" onClick={() => onNavigate('home')}>{t('shell.brand')}</button>

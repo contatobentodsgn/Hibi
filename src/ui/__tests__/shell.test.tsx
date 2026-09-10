@@ -4,16 +4,10 @@ import { describe, expect, it } from 'vitest'
 import { LocaleProvider } from '../../i18n/LocaleProvider'
 import { AppShell } from '../shell/AppShell'
 import { Dock, DockMoreMenu } from '../shell/Dock'
-import { dockKeyFor, DOCK_ITEMS, MORE_ITEMS, sectionLabelKey } from '../shell/routes'
+import { dockKeyFor, DOCK_ITEMS, MORE_ITEMS, nextFocusIndex, sectionLabelKey } from '../shell/routes'
+import { cssBlock } from './css-block'
 
 const noop = () => undefined
-
-const cssBlock = (css: string, selector: string): Record<string, string> => {
-  const start = css.indexOf(`${selector} {`)
-  if (start < 0) throw new Error(`Bloco não encontrado: ${selector}`)
-  const body = css.slice(start, css.indexOf('}', start))
-  return Object.fromEntries([...body.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map((match) => [match[1]!, match[2]!.trim()]))
-}
 
 describe('shell', () => {
   it('mostra os cinco itens do dock, o botão de mais e o atalho de comandos', () => {
@@ -62,5 +56,29 @@ describe('shell', () => {
     const light = cssBlock(tokensCss, ':root')
     const covered = ['--bg-canvas', '--text-primary', '--text-secondary', '--stroke-default', '--accent', '--cat-break-soft', '--cat-learning-soft', '--cat-important-soft']
     for (const name of covered) expect(island[name], `${name} falta na ilha`).toBe(light[name])
+  })
+
+  describe('nextFocusIndex', () => {
+    it('avança com wrap-around no fim da lista', () => {
+      expect(nextFocusIndex(0, 3, 'ArrowRight')).toBe(1)
+      expect(nextFocusIndex(2, 3, 'ArrowRight')).toBe(0)
+    })
+
+    it('recua com wrap-around no início da lista', () => {
+      expect(nextFocusIndex(1, 3, 'ArrowLeft')).toBe(0)
+      expect(nextFocusIndex(0, 3, 'ArrowLeft')).toBe(2)
+    })
+
+    it('Home vai para o primeiro item e End para o último', () => {
+      expect(nextFocusIndex(2, 5, 'Home')).toBe(0)
+      expect(nextFocusIndex(0, 5, 'End')).toBe(4)
+    })
+
+    it('índice atual fora do intervalo começa do primeiro ao avançar e do último ao retroceder', () => {
+      expect(nextFocusIndex(-1, 4, 'ArrowDown')).toBe(0)
+      expect(nextFocusIndex(-1, 4, 'ArrowUp')).toBe(3)
+      expect(nextFocusIndex(99, 4, 'ArrowRight')).toBe(0)
+      expect(nextFocusIndex(-1, 0, 'ArrowDown')).toBe(-1)
+    })
   })
 })
