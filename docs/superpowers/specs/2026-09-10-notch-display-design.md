@@ -180,3 +180,35 @@ Gate: `npm test`, `npx tsc --noEmit`, `npm run build`, `npm run test:e2e`.
 **Playwright** (ponte simulada): Configurações › Geral lista os monitores; escolher um chama
 `setNotchDisplay` com o id; "Testar notch" mostra a mensagem de confirmado; um evento
 `displays-changed` atualiza a lista.
+
+## Ajustes após revisão e validação
+
+A implementação e a validação no app real, com a tela integrada e o LG ULTRAWIDE como principal,
+mudaram estes pontos em relação ao desenho acima.
+
+**Posicionamento nativo.** `Place` convertia a posição do Electron para o Cocoa a partir da tela com
+foco; com a janela do Hibi na tela integrada a confirmação saía da tela. A conversão parte da tela
+principal (`NSScreen.screens.firstObject`).
+
+**Cartão passivo nativo.** O texto era desenhado num retângulo de 10 pt e o painel de 38 pt ficava
+quase todo atrás da câmera. O painel cresce `safeAreaInsets.top` (0 em telas sem câmera) e desenha
+uma linha centralizada abaixo dela, com só os cantos de baixo arredondados. A faixa acrescentada
+fica preta atrás do recorte da câmera e sobre a barra de menus ao lado dele enquanto o cartão
+aparece; nada é desenhado sobre a câmera como recurso de produto nem por API privada — a decisão de
+`docs/notch-reference-analysis.md` continua valendo.
+
+**Troca de superfície.** Um cartão passivo usa o host nativo e uma confirmação usa a janela
+Electron; ao trocar de uma para a outra, a anterior é escondida, para uma confirmação substituída
+não continuar capturando cliques.
+
+**Confirmação.** O documento da overlay é transparente e sem largura mínima, a confirmação ocupa a
+janela inteira, esconde o vídeo do companion e mostra o texto em até duas linhas com os botões numa
+linha só.
+
+**Tela.** Uma leitura que falha não troca a tela por "Disponível no app desktop": mostra
+`settings.notch.loadFailed` e mantém o último estado; a falha ao trocar de monitor aparece na
+própria linha (`aria-describedby`); o botão de teste usa `aria-disabled` durante o teste para não
+perder o foco; os nomes de monitor entram nos textos por `fillDisplay`, literalmente.
+
+**Processo principal.** Os envios à janela principal passam por `sendToMainWindow`, que ignora uma
+janela fechada.

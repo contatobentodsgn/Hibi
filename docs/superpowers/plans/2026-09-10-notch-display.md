@@ -1030,6 +1030,12 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ### Task 7: Tela nas Configurações e e2e
 
+> Registro de execução: o código final difere do abaixo depois das revisões — falha de leitura
+> vira nota `settings.notch.loadFailed` com o último estado mantido, falha ao salvar vira nota da
+> própria linha com `aria-describedby`, o botão usa `aria-disabled` durante o teste, o seletor fica
+> desabilitado durante o teste e as respostas antigas são descartadas. Ver a seção "Ajustes após
+> revisão e validação" do spec.
+
 **Files:**
 - Create: `src/ui/NotchDisplaySettings.tsx`, `tests/e2e/notch-display.spec.ts`
 - Modify: `src/ui/SettingsView.tsx`
