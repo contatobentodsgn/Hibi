@@ -61,6 +61,11 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     load(window);
     return window;
   };
+  // Ao trocar de host, a superfície anterior some: senão fica uma confirmação morta capturando cliques ou a pílula nativa na tela.
+  const hideSurface = (host) => {
+    if (host === 'native') { try { nativeBridge?.hideHost?.(); } catch { /* host nativo indisponível */ } }
+    else if (host === 'electron') { const target = getWindow(); if (target) { makePassive(target); target.hide(); } }
+  };
   const resolveAction = (requestId, actionId) => {
     if (requestId !== activeRequestId || !activeActions.has(actionId)) return false;
     if (activeHost === 'native') nativeBridge?.hideHost?.();
@@ -72,12 +77,17 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
   return {
     show(presentation) {
       if (!validPresentation(presentation)) throw new Error('Invalid companion presentation.');
+      const previousHost = activeHost;
       activeRequestId = presentation.requestId; activeActions = new Set(presentation.actions.map((action) => action.id));
-      if (useNativeHost() && showNativeHost(presentation)) {
-        activeHost = 'native'; activePresentation = null;
-        return { degraded: false, requestId: activeRequestId, host: activeHost };
+      if (useNativeHost()) {
+        if (previousHost === 'electron') { hideSurface('electron'); activeHost = null; }
+        if (showNativeHost(presentation)) {
+          activeHost = 'native'; activePresentation = null;
+          return { degraded: false, requestId: activeRequestId, host: activeHost };
+        }
       }
       try {
+        if (activeHost === 'native') { hideSurface('native'); activeHost = null; }
         const target = ensure(); activeHost = 'electron'; activePresentation = presentation; position();
         const capturesInput = presentation.interaction === 'capture';
         target.setIgnoreMouseEvents?.(capturesInput ? false : true, capturesInput ? undefined : { forward: true });

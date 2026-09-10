@@ -276,6 +276,62 @@ test('uma falha ao criar a janela não deixa uma confirmação fantasma ativa', 
   assert.equal(manager.activePresentation, null);
 });
 
+// Registra, numa só lista, a ordem entre a janela Electron e o host nativo.
+const orderedHosts = () => {
+  const order = [];
+  class OrderedWindow extends FakeWindow { showInactive() { order.push('electron-show'); super.showInactive(); } hide() { order.push('electron-hide'); super.hide(); } }
+  const nativeBridge = { nativeHostAvailable: () => true, createHost: () => true, showHost: (value) => { order.push(['native-show', value.requestId]); return true; }, hideHost: () => { order.push('native-hide'); return true; } };
+  return { order, OrderedWindow, nativeBridge };
+};
+
+test('um cartão passivo no host nativo esconde a confirmação que estava na janela Electron', () => {
+  const { order, OrderedWindow, nativeBridge } = orderedHosts();
+  let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: OrderedWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge, platform: 'darwin' });
+
+  manager.show(confirmation);
+  assert.equal(manager.activeHost, 'electron');
+  const shownAt = notch.calls.findLastIndex(([name]) => name === 'show');
+  manager.show(presentation);
+
+  const after = notch.calls.slice(shownAt + 1);
+  const passiveAt = after.findIndex((call) => call[0] === 'mouse' && call[1] === true);
+  assert.deepEqual(after[passiveAt], ['mouse', true, { forward: true }]);
+  assert.ok(after.findIndex((call) => call[0] === 'focusable' && call[1] === false) > passiveAt);
+  assert.ok(after.findIndex(([name]) => name === 'hide') > passiveAt);
+  assert.deepEqual(order, ['electron-show', 'electron-hide', ['native-show', 'a']]);
+  assert.equal(manager.activeHost, 'native');
+  assert.equal(manager.activeInteractive, false);
+});
+
+test('uma confirmação na janela Electron esconde antes a pílula do host nativo', () => {
+  const { order, OrderedWindow, nativeBridge } = orderedHosts();
+  const manager = createNotchWindowManager({ BrowserWindowClass: OrderedWindow, screen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+
+  manager.show(presentation);
+  assert.equal(manager.activeHost, 'native');
+  manager.show(confirmation);
+
+  assert.deepEqual(order, [['native-show', 'a'], 'native-hide', 'electron-show']);
+  assert.equal(manager.activeHost, 'electron');
+});
+
+test('apresentações seguidas no mesmo host não escondem a superfície entre elas', () => {
+  const native = orderedHosts();
+  const nativeManager = createNotchWindowManager({ BrowserWindowClass: native.OrderedWindow, screen, preloadPath: 'preload', load: () => {}, nativeBridge: native.nativeBridge, platform: 'darwin' });
+  nativeManager.show(presentation);
+  nativeManager.show({ ...presentation, requestId: 'b' });
+  assert.deepEqual(native.order, [['native-show', 'a'], ['native-show', 'b']]);
+
+  let notch;
+  const electronManager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, platform: 'darwin' });
+  electronManager.show(confirmation);
+  electronManager.show(presentation);
+  assert.equal(electronManager.activeHost, 'electron');
+  assert.equal(notch.calls.filter(([name]) => name === 'hide').length, 0);
+  assert.equal(notch.calls.filter(([name]) => name === 'show').length, 2);
+});
+
 test('activeInteractive só é verdadeiro enquanto há uma confirmação ativa', () => {
   const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, platform: 'darwin' });
 
