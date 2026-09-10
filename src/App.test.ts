@@ -68,10 +68,17 @@ describe('activity ledger wiring', () => {
     expect(remove.indexOf('window.confirm(')).toBeLessThan(remove.indexOf('recordActivity('));
   });
 
-  it('records Taby completions by task id and focus lifecycle events', () => {
-    expect(appSource).toMatch(/onTaskCompleted: \(title: string, id: string\) => \{[^}]*repository\.getTask\(id\)/);
-    expect(appSource).toContain("recordActivity(taskStatusActivity({ ...task, status: 'open' }, 'completed', new Date().toISOString()))");
+  it('records Taby task status changes and focus lifecycle events', () => {
+    expect(appSource).not.toContain('onTaskCompleted');
+    expect(appSource).toContain("onTaskStatusChanged: (before: Task, after: Task) => { recordActivity(taskStatusActivity(before, after.status ?? 'open', new Date().toISOString()));");
     expect(appSource).toContain('onFocusLifecycle={(event) => recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString()))}');
+  });
+
+  it('shows the task completion notch only on the transition to completed', () => {
+    expect(appSource).toMatch(/onTaskStatusChanged: [^\n]*?if \(before\.status !== 'completed' && after\.status === 'completed'\) dispatchCompanion\(\{ type: 'task\.completed'/);
+    const change = body('changeTaskStatus');
+    expect(change).toContain("if (before.status !== 'completed' && status === 'completed') dispatchCompanion({ type: 'task.completed'");
+    expect(change.match(/dispatchCompanion\(/g)).toHaveLength(1);
   });
 
   it('never records from reset, restore, imports, Notion sync, or local API writes', () => {

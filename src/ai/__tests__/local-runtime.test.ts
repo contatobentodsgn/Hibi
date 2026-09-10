@@ -4,6 +4,7 @@ import { HeuristicAiProvider } from '../heuristic-provider';
 import { LocalRepository } from '../../data/local-repository';
 import { createSeedData } from '../../data/seed-data';
 import type { AiProvider } from '../contracts';
+import type { Task } from '../../domain/models';
 
 const providerFor = (toolCalls: readonly { name: string; arguments: Record<string, unknown> }[]): AiProvider => ({ id: 'test', label: 'Test model', generate: async () => ({ reply: 'Ready', toolCalls: [...toolCalls], notchPresentation: null, providerMetadata: { model: 'test-model' } }) });
 
@@ -55,31 +56,50 @@ describe('local Hibi tool registry', () => {
     expect(repository.getTask(task.id)?.title).toBe('Updated by AI');
   });
 
-  it('emits a completion event when an approved AI update completes a task', async () => {
-    const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
-    const completed: Array<[string, string]> = [];
-    const runtime = createLocalHibiRuntime(repository, { onTaskCompleted: (title, taskId) => completed.push([title, taskId]) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'completed' } }]));
-
-    const pending = await runtime.runTurn({ message: 'Complete it', surface: 'desktop' });
+  const confirmTurn = async (runtime: ReturnType<typeof createLocalHibiRuntime>) => {
+    const pending = await runtime.runTurn({ message: 'Do it', surface: 'desktop' });
     if (!pending.confirmation) throw new Error('Expected confirmation');
     await runtime.confirm(pending.confirmation);
+  };
+
+  it('reports the before and after task when an approved AI update completes a task', async () => {
+    const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
+    repository.updateTask(task.id, { status: 'open' });
+    const changes: Array<[Task, Task]> = [];
+    const runtime = createLocalHibiRuntime(repository, { onTaskStatusChanged: (before, after) => changes.push([before, after]) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'completed' } }]));
+
+    await confirmTurn(runtime);
 
     expect(repository.getTask(task.id)?.status).toBe('completed');
-    expect(completed).toEqual([[task.title, task.id]]);
+    expect(changes).toHaveLength(1);
+    expect(changes[0]![0]).toMatchObject({ id: task.id, title: task.title, status: 'open' });
+    expect(changes[0]![1]).toMatchObject({ id: task.id, title: task.title, status: 'completed' });
+    // O "antes" é uma cópia: a mutação da ferramenta não pode reescrevê-lo.
+    expect(changes[0]![0]).not.toBe(repository.getTask(task.id));
+    expect(changes[0]![1]).not.toBe(repository.getTask(task.id));
   });
 
-  it('does not emit a completion when an approved AI update touches an already completed task', async () => {
+  it('reports a reopen made through an approved AI update', async () => {
     const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
     repository.updateTask(task.id, { status: 'completed' });
-    const completed: string[] = [];
-    const runtime = createLocalHibiRuntime(repository, { onTaskCompleted: (_title, taskId) => completed.push(taskId) }, providerFor([{ name: 'task.update', arguments: { id: task.id, title: 'Renamed', status: 'completed' } }]));
+    const changes: Array<[string | undefined, string | undefined]> = [];
+    const runtime = createLocalHibiRuntime(repository, { onTaskStatusChanged: (before, after) => changes.push([before.status, after.status]) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'open' } }]));
 
-    const pending = await runtime.runTurn({ message: 'Rename it', surface: 'desktop' });
-    if (!pending.confirmation) throw new Error('Expected confirmation');
-    await runtime.confirm(pending.confirmation);
+    await confirmTurn(runtime);
+
+    expect(changes).toEqual([['completed', 'open']]);
+  });
+
+  it('does not report a status change when an approved AI update renames an already completed task', async () => {
+    const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
+    repository.updateTask(task.id, { status: 'completed' });
+    const changes: string[] = [];
+    const runtime = createLocalHibiRuntime(repository, { onTaskStatusChanged: (_before, after) => changes.push(after.id) }, providerFor([{ name: 'task.update', arguments: { id: task.id, title: 'Renamed', status: 'completed' } }]));
+
+    await confirmTurn(runtime);
 
     expect(repository.getTask(task.id)?.title).toBe('Renamed');
-    expect(completed).toEqual([]);
+    expect(changes).toEqual([]);
   });
 
   it('deletes a reminder only after an explicit confirmation', async () => {

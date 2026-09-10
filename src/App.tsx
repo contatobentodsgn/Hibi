@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LocalRepository } from './data/local-repository';
 import type { WorkspacePreferences } from './data/workspace-backup';
 import { createSeedData } from './data/seed-data';
-import type { EntityStatus, Goal, Habit, ScheduleBlock, StudyData } from './domain/models';
+import type { EntityStatus, Goal, Habit, ScheduleBlock, StudyData, Task } from './domain/models';
 import type { ActivityInput } from './domain/activity';
 import { blockActivity, focusActivity, goalProgressActivities, habitCompletionActivity, taskStatusActivity } from './domain/activity-events';
 import { validateScheduleBlock } from './domain/conflicts';
@@ -77,8 +77,8 @@ export default function App() {
   const [aiFallbackPolicy, setAiFallbackPolicy] = useState<AiFallbackPolicy>(readAiFallbackPolicy);
   const aiFallbackPolicyRef = useRef(aiFallbackPolicy);
   const updateAiFallbackPolicy = (policy: AiFallbackPolicy) => { aiFallbackPolicyRef.current = policy; setAiFallbackPolicy(policy); try { window.localStorage.setItem(AI_FALLBACK_POLICY_STORAGE_KEY, policy); } catch { /* unavailable storage */ } };
-  // O Taby só chama onTaskCompleted quando a tarefa passa a concluída, então antes da ferramenta ela não estava concluída.
-  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskCompleted: (title: string, id: string) => { const task = repository.getTask(id); if (task) recordActivity(taskStatusActivity({ ...task, status: 'open' }, 'completed', new Date().toISOString())); dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${title}`, nowMs: Date.now(), expiresInMs: 3_000 }); }, onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); }, onAudit: (event: AiAuditEvent) => setAiHistory((current) => appendAiAuditEvent(current, event)), onUsage: (event: { at: string; provider: string; model: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number }; outcome: 'completed'; fallback: boolean }) => setAiUsage((current) => appendAiUsageRecord(current, event)), ...(window.hibiDesktop?.prepareIntegrationAction && window.hibiDesktop?.executeApprovedIntegrationAction ? { integrations: { prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => window.hibiDesktop!.prepareIntegrationAction!(input), executeApproved: (input: { actionId: string; confirmationId: string }) => window.hibiDesktop!.executeApprovedIntegrationAction!(input) as Promise<{ ok: boolean; remoteId?: string }> } } : {}) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider(repository)), new HeuristicAiProvider(), () => aiFallbackPolicyRef.current); });
+  // Uma ação confirmada do Taby registra como a tela: conclusões e reaberturas. O aviso só aparece na transição para concluída.
+  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskStatusChanged: (before: Task, after: Task) => { recordActivity(taskStatusActivity(before, after.status ?? 'open', new Date().toISOString())); if (before.status !== 'completed' && after.status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${after.title}`, nowMs: Date.now(), expiresInMs: 3_000 }); }, onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); }, onAudit: (event: AiAuditEvent) => setAiHistory((current) => appendAiAuditEvent(current, event)), onUsage: (event: { at: string; provider: string; model: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number }; outcome: 'completed'; fallback: boolean }) => setAiUsage((current) => appendAiUsageRecord(current, event)), ...(window.hibiDesktop?.prepareIntegrationAction && window.hibiDesktop?.executeApprovedIntegrationAction ? { integrations: { prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => window.hibiDesktop!.prepareIntegrationAction!(input), executeApproved: (input: { actionId: string; confirmationId: string }) => window.hibiDesktop!.executeApprovedIntegrationAction!(input) as Promise<{ ok: boolean; remoteId?: string }> } } : {}) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider(repository)), new HeuristicAiProvider(), () => aiFallbackPolicyRef.current); });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
@@ -119,7 +119,8 @@ export default function App() {
     repository.updateTask(id, { status });
     refreshData();
     log(status === 'completed' ? 'complete' : 'reopen', task.title, status);
-    if (status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${task.title}`, nowMs: Date.now(), expiresInMs: 3_000 });
+    // Concluir de novo uma tarefa já concluída não é uma nova conclusão.
+    if (before.status !== 'completed' && status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${task.title}`, nowMs: Date.now(), expiresInMs: 3_000 });
     recordActivity(taskStatusActivity(before, status, new Date().toISOString()));
   };
 
