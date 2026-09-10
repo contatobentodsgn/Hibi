@@ -126,7 +126,8 @@ function safeAiStreamEvent(value) {
 
 function attachNotchLifecycle({ displayService, powerService, manager, onDisplaysChanged }) {
   const reposition = () => manager?.reposition();
-  const displaysChanged = () => { reposition(); onDisplaysChanged?.(); };
+  // Os Ajustes precisam reler os monitores mesmo se reposicionar falhar; o erro segue adiante, como no `resume`.
+  const displaysChanged = () => { try { reposition(); } finally { onDisplaysChanged?.(); } };
   const displayEvents = ['display-added', 'display-removed', 'display-metrics-changed'];
   for (const event of displayEvents) displayService?.on?.(event, displaysChanged);
   powerService?.on?.('resume', reposition);

@@ -107,6 +107,18 @@ test('avisa a janela principal quando um monitor entra, sai ou muda, depois de r
   assert.deepEqual(order, ['display-added', 'reposition', 'changed', 'display-removed', 'reposition', 'changed', 'display-metrics-changed', 'reposition', 'changed', 'resume', 'reposition']);
 });
 
+test('avisa a janela principal mesmo quando reposicionar falha', () => {
+  const registered = [];
+  const eventSource = { on: (event, listener) => registered.push([event, listener]), removeListener: () => {} };
+  let changed = 0;
+  attachNotchLifecycle({ displayService: eventSource, powerService: eventSource, manager: { reposition: () => { throw new Error('reposition failed'); } }, onDisplaysChanged: () => { changed += 1; } });
+
+  const displayAdded = registered.find(([event]) => event === 'display-added')[1];
+  assert.throws(() => displayAdded(), /reposition failed/);
+
+  assert.equal(changed, 1);
+});
+
 test('recovers a crashed renderer once and resets the guard after a successful load', () => {
   const listeners = new Map();
   let reloads = 0;
