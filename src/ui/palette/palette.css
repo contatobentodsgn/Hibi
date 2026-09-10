@@ -4,9 +4,17 @@
    no grafo de módulos (App é importado antes de theme.css em main.tsx), então empataria e venceria por
    ordem — a paleta ficaria com o fundo claro fixo de theme.css. Adicionar um seletor ao ancestral quebra
    o empate a favor do tema real, sem depender de ordem de import. */
-.overlay .palette { background: var(--bg-surface-2); color: var(--text-primary); }
+/* .palette herda overflow:hidden de theme.css sem max-height: uma lista de comandos comprida ou um
+   turno longo podia esticar o diálogo além da viewport sem jeito de rolar. min(70vh, 560px) dá um
+   teto sensato em telas grandes e pequenas. O scroll NÃO fica no próprio .palette — isso faria o
+   campo de busca (primeiro filho) rolar para fora de vista junto com o resto. Em vez disso .palette
+   vira uma coluna flex e o scroll fica em .palette-body, um invólucro interno em volta da lista de
+   comandos e do turno; .palette-search e .palette-footer ficam fora dele, então sempre visíveis.  */
+.overlay .palette { background: var(--bg-surface-2); color: var(--text-primary); max-height: min(70vh, 560px); display: flex; flex-direction: column; }
 .palette .palette-search input { color: var(--text-primary); font-family: var(--font-serif); }
 .palette-search input::placeholder { color: var(--text-tertiary); }
+.palette .palette-search { flex: none; }
+.palette .palette-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .palette .command-row { color: var(--text-primary); }
 .palette .command-row:hover, .palette .command-row[data-selected="true"] { background: var(--bg-subtle); }
 .palette .empty { color: var(--text-secondary); }
