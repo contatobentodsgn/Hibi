@@ -176,7 +176,7 @@ test('uma falha do gerenciador no timer de resposta devolve failed e libera um n
   await flush();
   timers.fire(0);
   await flush();
-  try { timers.fire(1); } catch { /* código antigo lança aqui */ }
+  timers.fire(1);
 
   const outcome = await Promise.race([running, flush().then(() => 'still-pending')]);
   assert.deepEqual(outcome, { outcome: 'failed', displayId: null, displayLabel: '' });

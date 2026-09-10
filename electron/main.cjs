@@ -136,6 +136,11 @@ function attachRendererRecovery(window) {
   return recover;
 }
 
+// No macOS a janela principal pode ter sido fechada enquanto o app continua vivo.
+function sendToMainWindow(channel, ...args) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, ...args);
+}
+
 function replaceAiRuntime(runtime) {
   aiRequestCoordinator = replaceAiRequestCoordinator(aiRequestCoordinator, runtime);
   aiRuntime = runtime;
@@ -187,10 +192,10 @@ app.whenReady().then(async () => {
   webhookService = createWebhookService({ keychain: secureKeychain, prepare: async (event) => { const confirmationId = `webhook-${crypto.randomUUID()}`; mainWindow?.webContents.send('hibi:webhook:confirmation', { confirmationId, kind: 'webhook.received', payload: event }); return { confirmationId, requiresConfirmation: true }; } });
   replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
   notchSettings = createNotchSettings({ filePath: path.join(app.getPath('userData'), 'notch-settings.json') });
-  // As respostas do teste do notch ficam no processo principal e nunca chegam ao renderer.
-  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { if (notchTest?.handleAction(action)) return; mainWindow?.webContents.send('hibi:companion:action', action); } });
+  // O teste do notch espera as próprias respostas aqui; repassá-las entregaria ao renderer respostas de confirmações que ele não abriu.
+  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { if (notchTest?.handleAction(action)) return; sendToMainWindow('hibi:companion:action', action); } });
   notchTest = createNotchTest({ manager: notchWindow });
-  detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('hibi:notch:displays-changed'); } });
+  detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('hibi:notch:displays-changed') });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
   ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
   ipcMain.handle("hibi:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });

@@ -73,6 +73,7 @@ test('repositions the companion after display changes and wake then unregisters 
   assert.equal(calls, 4);
   detach();
   assert.deepEqual(removed.map(([event]) => event), ['display-added', 'display-removed', 'display-metrics-changed', 'resume']);
+  assert.deepEqual(removed, registered);
 });
 
 test('avisa a janela principal quando um monitor entra, sai ou muda, depois de reposicionar, e não ao acordar', () => {
