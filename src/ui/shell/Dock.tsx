@@ -41,6 +41,11 @@ export function Dock({ active, onNavigate, onOpenCommands }: DockProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const activeKey = dockKeyFor(active)
 
+  // Fechar o menu por callsite não basta: a navegação também parte das telas de
+  // conteúdo e da paleta, que chamam navigate() direto. Reagir à seção ativa
+  // cobre qualquer origem — inclusive as que ainda não existem.
+  useEffect(() => { setMoreOpen(false) }, [active])
+
   const closeMenu = (options?: Readonly<{ restoreFocus?: boolean }>) => {
     setMoreOpen(false)
     if (options?.restoreFocus) triggerRef.current?.focus()
