@@ -27,4 +27,19 @@ describe('NotchOverlay', () => {
     expect(css).toContain('prefers-reduced-transparency:reduce');
     expect(css).toContain('forced-colors:active');
   });
+
+  it('groups confirmation buttons in a dedicated actions row so both fit inside the window', () => {
+    const markup = renderToStaticMarkup(<NotchOverlay initialPresentation={{ requestId: 'confirm-1', kind: 'confirmation', text: 'Este cartão apareceu no monitor escolhido?', interaction: 'capture', actions: [{ id: 'confirm', label: 'Apareceu' }, { id: 'cancel', label: 'Não apareceu' }] }} />);
+    const actionsMatch = markup.match(/<div class="notch-overlay-actions">([\s\S]*?)<\/div>/);
+    expect(actionsMatch).not.toBeNull();
+    expect(actionsMatch![1]).toContain('Apareceu');
+    expect(actionsMatch![1]).toContain('Não apareceu');
+  });
+
+  it('resets the overlay document chrome and hides the idle video during a capture confirmation', () => {
+    const css = readFileSync(new URL('../notch-overlay.css', import.meta.url), 'utf8');
+    expect(css).toMatch(/html:has\(\.notch-overlay\)[^{]*,\s*html:has\(\.notch-overlay\)\s*body\s*\{[^}]*background:\s*transparent[^}]*min-width:\s*0/);
+    expect(css).toMatch(/\.notch-overlay\{[^}]*width:\s*100%[^}]*height:\s*100vh[^}]*overflow:\s*hidden/);
+    expect(css).toMatch(/\.notch-overlay\[data-interaction=capture\]\s*video\s*\{\s*display:\s*none/);
+  });
 });

@@ -21,6 +21,8 @@ export function NotchOverlay({ initialPresentation = null }: { initialPresentati
   return <main className="notch-overlay" role={interactive ? 'dialog' : 'status'} aria-modal={interactive || undefined} aria-live={interactive ? undefined : 'polite'} aria-label={interactive ? 'Hibi confirmation' : `Hibi ${presentation.kind}`} data-interaction={presentation.interaction}>
     <video src={media.url} autoPlay muted loop playsInline aria-hidden="true" />
     {presentation.text && <p>{presentation.text}</p>}
-    {presentation.actions.map((action, index) => <button type="button" autoFocus={index === 0} key={action.id} onClick={() => { if (action.id === 'confirm' || action.id === 'cancel') void window.hibiDesktop?.resolveNotchAction?.(presentation.requestId, action.id); }}>{action.label}</button>)}
+    {presentation.actions.length > 0 && <div className="notch-overlay-actions">
+      {presentation.actions.map((action, index) => <button type="button" autoFocus={index === 0} key={action.id} onClick={() => { if (action.id === 'confirm' || action.id === 'cancel') void window.hibiDesktop?.resolveNotchAction?.(presentation.requestId, action.id); }}>{action.label}</button>)}
+    </div>}
   </main>;
 }
