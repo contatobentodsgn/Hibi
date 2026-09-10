@@ -110,6 +110,18 @@ test('executa lote do Notion e preserva êxitos quando um item falha', async () 
   assert.equal(result.items[1].ok, false);
 });
 
+test('traduz credencial, permissão e limite do Notion em falhas acionáveis', async () => {
+  const responses = [
+    new Response('{}', { status: 401 }),
+    new Response('{}', { status: 403 }),
+    new Response('{}', { status: 429, headers: { 'Retry-After': '7' } }),
+  ];
+  const connector = createNotionConnector({ request: async () => responses.shift() });
+  await assert.rejects(connector.testConnection({ credential: 'token' }), /Reconnect/);
+  await assert.rejects(connector.discoverDataSource({ credential: 'token', databaseId: 'db-1' }), /Share the database/);
+  await assert.rejects(connector.fetchImports({ credential: 'token', targets: [{ id: 'source-1' }] }), /7 seconds/);
+});
+
 test('o Slack lê itens salvos e descarta canais fora da seleção', async () => {
   const connector = createSlackConnector({ request: async () => ({ ok: true, json: async () => ({ ok: true, items: [
     { channel: 'C1', message: { ts: '1.1', text: 'guardado' } },

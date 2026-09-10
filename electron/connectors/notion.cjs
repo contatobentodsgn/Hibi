@@ -43,6 +43,14 @@ const databaseSchema = () => ({
   'Duration minutes': { number: { format: 'number' } }, Description: { rich_text: {} }, 'Hibi ID': { rich_text: {} }, 'Hibi updated at': { date: {} },
 });
 
+const failureFor = (response, fallback) => {
+  const retryAfter = Number(response?.headers?.get?.('retry-after'));
+  if (response?.status === 401) return new Error('Notion credential is invalid. Reconnect this integration.');
+  if (response?.status === 403) return new Error('Notion cannot access Hibi Tasks. Share the database with the Hibi integration.');
+  if (response?.status === 429) return new Error(`Notion is temporarily rate limited. Try again after ${Number.isFinite(retryAfter) && retryAfter > 0 ? Math.ceil(retryAfter) : 30} seconds.`);
+  return new Error(fallback);
+};
+
 function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request } = {}) {
   const url = new URL(baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
   const call = async (path, init, override) => {
@@ -67,7 +75,7 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request 
     },
     async testConnection({ credential, request: override }) {
       const response = await call('users/me', { method: 'GET', headers: headers(credential) }, override);
-      if (!response?.ok) throw new Error('Notion rejected this credential.');
+      if (!response?.ok) throw failureFor(response, 'Notion rejected this credential.');
       await jsonOrEmpty(response);
       return { ok: true, detail: 'Credential accepted by Notion.' };
     },
@@ -76,7 +84,7 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request 
       let cursor;
       do {
         const response = await call('search', { method: 'POST', headers: headers(credential, true), body: JSON.stringify({ filter: { value: 'data_source', property: 'object' }, page_size: MAX_PAGE_SIZE, ...(cursor ? { start_cursor: cursor } : {}) }) }, override);
-        if (!response?.ok) throw new Error('Notion could not list data sources.');
+        if (!response?.ok) throw failureFor(response, 'Notion could not list data sources.');
         const body = await jsonOrEmpty(response);
         for (const entry of Array.isArray(body?.results) ? body.results : []) {
           if (!boundedId(entry?.id)) continue;
@@ -90,7 +98,7 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request 
     async discoverDataSource({ credential, databaseId, request: override }) {
       if (!boundedId(databaseId)) throw new Error('Notion database identifier is invalid.');
       const response = await call(`databases/${encodeURIComponent(databaseId)}`, { method: 'GET', headers: headers(credential) }, override);
-      if (!response?.ok) throw new Error('Notion could not retrieve this database.');
+      if (!response?.ok) throw failureFor(response, 'Notion could not retrieve this database.');
       const body = await jsonOrEmpty(response);
       const source = Array.isArray(body?.data_sources) ? body.data_sources.find((entry) => boundedId(entry?.id)) : undefined;
       if (!source) throw new Error('Notion database has no accessible data source.');
@@ -104,7 +112,7 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request 
         do {
           const remaining = Math.max(1, Math.min(MAX_PAGE_SIZE, limit, MAX_PAGES - pages.length));
           const response = await call(`data_sources/${encodeURIComponent(target.id)}/query`, { method: 'POST', headers: headers(credential, true), body: JSON.stringify({ page_size: remaining, ...(cursor ? { start_cursor: cursor } : {}) }) }, override);
-          if (!response?.ok) throw new Error('Notion could not read one of the selected data sources.');
+          if (!response?.ok) throw failureFor(response, 'Notion could not read one of the selected data sources.');
           const body = await jsonOrEmpty(response);
           for (const page of Array.isArray(body?.results) ? body.results : []) { if (pages.length < MAX_PAGES) pages.push(page); }
           cursor = body?.has_more === true && boundedId(body?.next_cursor) && pages.length < MAX_PAGES ? body.next_cursor : undefined;
@@ -143,7 +151,7 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request 
           try {
             const response = await this.executeApproved({ kind: operation.kind, payload: operation.payload, credential, request: override });
             const body = await response.json().catch(() => ({}));
-            items.push({ key: operation.key, ok: response.ok === true, status: response.status, ...(boundedId(body?.id) ? { remoteId: body.id } : {}), ...(boundedId(body?.last_edited_time) ? { revision: body.last_edited_time } : {}), ...(response.ok === true ? {} : { error: 'Notion rejected this operation.' }) });
+            items.push({ key: operation.key, ok: response.ok === true, status: response.status, ...(boundedId(body?.id) ? { remoteId: body.id } : {}), ...(boundedId(body?.last_edited_time) ? { revision: body.last_edited_time } : {}), ...(response.ok === true ? {} : { error: failureFor(response, 'Notion rejected this operation.').message }) });
           } catch {
             items.push({ key: operation.key, ok: false, error: 'Notion operation failed.' });
           }
