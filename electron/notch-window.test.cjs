@@ -332,6 +332,27 @@ test('apresentações seguidas no mesmo host não escondem a superfície entre e
   assert.equal(notch.calls.filter(([name]) => name === 'show').length, 2);
 });
 
+// Regressão: se o host nativo falhar ao mostrar depois de trocar de host, o fallback precisa
+// reexibir a janela Electron (que a troca já tinha escondido) sem tocar no host nativo.
+test('quando o host nativo falha ao mostrar depois de trocar de host, o fallback reexibe a janela Electron sem esconder o host nativo', () => {
+  const order = [];
+  class OrderedWindow extends FakeWindow { showInactive() { order.push('electron-show'); super.showInactive(); } hide() { order.push('electron-hide'); super.hide(); } }
+  const hideHostCalls = [];
+  const nativeBridge = { nativeHostAvailable: () => true, createHost: () => true, showHost: () => false, hideHost: () => { hideHostCalls.push(1); return true; } };
+  const manager = createNotchWindowManager({ BrowserWindowClass: OrderedWindow, screen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+
+  manager.show(confirmation);
+  assert.equal(manager.activeHost, 'electron');
+  order.length = 0;
+
+  const response = manager.show(presentation);
+
+  assert.deepEqual(order, ['electron-hide', 'electron-show']);
+  assert.equal(manager.activeHost, 'electron');
+  assert.equal(response.host, 'electron');
+  assert.deepEqual(hideHostCalls, []);
+});
+
 test('activeInteractive só é verdadeiro enquanto há uma confirmação ativa', () => {
   const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, platform: 'darwin' });
 
