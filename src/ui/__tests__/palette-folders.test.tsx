@@ -71,6 +71,20 @@ describe('vista de pastas da paleta', () => {
     const clean = renderToStaticMarkup(<PaletteFolders view={{ kind: 'rename', from: 'Clientes', error: null }} folders={folders} selectedIndex={0} onHover={noop} onOpen={noop} />)
     expect(clean).toContain('<span role="alert"></span>')
   })
+
+  it('expõe a lista de pastas como listbox de opções, ausente nas vistas de renomear/juntar', () => {
+    const list = renderToStaticMarkup(<PaletteFolders view={{ kind: 'folders' }} folders={folders} selectedIndex={1} onHover={noop} onOpen={noop} />)
+    expect(list).toContain('role="listbox" id="palette-folders"')
+    expect(list.match(/role="option"/g)).toHaveLength(folders.length)
+    expect(list.match(/aria-selected="true"/g)).toHaveLength(1)
+    expect(list).toMatch(/aria-selected="true"[^>]*data-folder="Clientes"/)
+
+    const rename = renderToStaticMarkup(<PaletteFolders view={{ kind: 'rename', from: 'Clientes', error: null }} folders={folders} selectedIndex={0} onHover={noop} onOpen={noop} />)
+    expect(rename).not.toContain('role="listbox"')
+
+    const merge = renderToStaticMarkup(<PaletteFolders view={{ kind: 'merge', from: 'Clientes', to: 'Bento', tasks: 1, notes: 1 }} folders={folders} selectedIndex={0} onHover={noop} onOpen={noop} />)
+    expect(merge).not.toContain('role="listbox"')
+  })
 })
 
 describe('afterRename', () => {

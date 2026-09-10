@@ -74,7 +74,9 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
       if (event.key !== 'Tab') return
       const root = paletteRef.current
       if (!root) return
-      const focusable = Array.from(root.querySelectorAll<HTMLElement>('input,button')).filter((item) => !(item as HTMLButtonElement).disabled)
+      // As linhas viram opções da listbox (role="option"), não paradas do Tab: setas as navegam,
+      // então ficam fora da armadilha de foco — só o campo e os botões continuam alcançáveis por Tab.
+      const focusable = Array.from(root.querySelectorAll<HTMLElement>('input,button:not([role="option"])')).filter((item) => !(item as HTMLButtonElement).disabled)
       if (!focusable.length) return
       const first = focusable[0]!
       const last = focusable[focusable.length - 1]!
@@ -165,15 +167,22 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
         : state.status === 'confirmation' ? [t('palette.footer.confirm'), t('palette.footer.cancel')] : state.status === 'streaming' ? [t('palette.footer.cancel')] : mode === 'assistant' ? [t('palette.footer.ask'), t('palette.footer.close')] : [t('palette.footer.select'), t('palette.footer.open'), t('palette.footer.close')]
   const placeholder = view.kind === 'rename' || view.kind === 'merge' ? t('folders.renamePlaceholder') : view.kind === 'folders' ? t('folders.placeholder') : t('palette.placeholder')
   const activeDescendant = view.kind === 'folders' ? (folders[selectedIndex] ? `folder-row-${selectedIndex}` : undefined) : view.kind === 'commands' && mode === 'command' && matches[selectedIndex] ? `command-${matches[selectedIndex].key.slice(1)}` : undefined
+  // Padrão combobox do WAI-ARIA: `aria-expanded`/`aria-controls` só apontam para uma listbox que
+  // de fato tem opções — 0 comandos ou pastas filtrados não conta, mesmo que a vista seja a certa.
+  const showCommandList = view.kind === 'commands' && mode === 'command' && matches.length > 0
+  const showFolderList = view.kind === 'folders' && folders.length > 0
+  const listboxId = showCommandList ? 'palette-commands' : showFolderList ? 'palette-folders' : undefined
 
   return <div className="overlay" onMouseDown={onClose}><section ref={paletteRef} className="palette" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('palette.title')}>
-    <div className="palette-search"><span>{view.kind !== 'commands' ? '▤' : mode === 'command' ? '/' : '✦'}</span><input autoFocus value={query} onChange={(event) => handleQueryChange(event.target.value)} onKeyDown={handleKeyDown} placeholder={placeholder} aria-label={placeholder} aria-activedescendant={activeDescendant} maxLength={view.kind === 'rename' || view.kind === 'merge' ? FOLDER_NAME_MAX : undefined} /></div>
+    <div className="palette-search"><span>{view.kind !== 'commands' ? '▤' : mode === 'command' ? '/' : '✦'}</span><input autoFocus role="combobox" aria-autocomplete="list" aria-expanded={listboxId !== undefined} aria-controls={listboxId} value={query} onChange={(event) => handleQueryChange(event.target.value)} onKeyDown={handleKeyDown} placeholder={placeholder} aria-label={placeholder} aria-activedescendant={activeDescendant} maxLength={view.kind === 'rename' || view.kind === 'merge' ? FOLDER_NAME_MAX : undefined} /></div>
     <div className="palette-body">
       {view.kind !== 'commands' && <p className="palette-folder-notice" role="status">{notice ?? ''}</p>}
       {view.kind !== 'commands'
         ? <PaletteFolders view={view} folders={folders} selectedIndex={selectedIndex} onHover={setSelectedIndex} onOpen={(index) => openFolder(index)} />
         : <>
-          {mode === 'command' && matches.map((item, index) => <button type="button" className="command-row" id={`command-${item.key.slice(1)}`} data-selected={index === selectedIndex} key={item.key} onMouseEnter={() => setSelectedIndex(index)} onClick={() => openCommand(index)}><kbd>{item.key}</kbd><span>{t(item.label)}</span><small>{t(item.group)}</small></button>)}
+          {showCommandList && <div role="listbox" id="palette-commands" aria-label={t('palette.commandsList')}>
+            {matches.map((item, index) => <button type="button" className="command-row" role="option" aria-selected={index === selectedIndex} tabIndex={-1} id={`command-${item.key.slice(1)}`} data-selected={index === selectedIndex} key={item.key} onMouseEnter={() => setSelectedIndex(index)} onClick={() => openCommand(index)}><kbd>{item.key}</kbd><span>{t(item.label)}</span><small>{t(item.group)}</small></button>)}
+          </div>}
           {mode === 'command' && !matches.length && <p className="empty">{t('palette.empty')}</p>}
           {submitted !== null && <PaletteTurn submitted={submitted} state={state} turn={turn} />}
         </>}

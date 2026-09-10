@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 const dock = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
 const palette = (page: Page) => page.getByRole('dialog', { name: 'Paleta de comandos' });
-const field = (page: Page) => palette(page).getByRole('textbox');
+const field = (page: Page) => palette(page).getByRole('combobox');
 const row = (page: Page, name: string) => palette(page).locator(`.folder-row[data-folder="${name}"]`);
 
 // Mesmas regras de pluralização que src/ui/palette/folder-view.ts#countsLabel, para montar o texto

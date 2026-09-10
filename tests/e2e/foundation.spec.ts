@@ -9,7 +9,7 @@ const askTaby = async (page: Page, phrase: string) => {
   await expect(dock(page)).toBeVisible();
   await page.keyboard.press('Meta+K');
   await expect(palette(page)).toBeVisible();
-  await palette(page).getByRole('textbox').fill(phrase);
+  await palette(page).getByRole('combobox').fill(phrase);
   await page.keyboard.press('Enter');
 };
 const openSettings = async (page: Page) => {
@@ -131,4 +131,34 @@ test('o dock navega por teclado com setas', async ({ page }) => {
   await expect(dock(page).getByRole('button', { name: 'Comandos' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(palette(page)).toBeVisible();
+});
+
+test('a lista de comandos expõe opções, e aria-selected acompanha as setas', async ({ page }) => {
+  await page.goto('/');
+  await expect(dock(page)).toBeVisible();
+  await page.keyboard.press('Meta+K');
+  await expect(palette(page)).toBeVisible();
+  const options = palette(page).getByRole('option');
+  await expect(options.first()).toHaveAttribute('aria-selected', 'true');
+  await expect(options.nth(1)).toHaveAttribute('aria-selected', 'false');
+  await page.keyboard.press('ArrowDown');
+  await expect(options.first()).toHaveAttribute('aria-selected', 'false');
+  await expect(options.nth(1)).toHaveAttribute('aria-selected', 'true');
+});
+
+test('/folder expõe as pastas na listbox "Pastas", e Tab não move o foco para uma opção', async ({ page }) => {
+  await page.goto('/');
+  await expect(dock(page)).toBeVisible();
+  await page.keyboard.press('Meta+K');
+  await expect(palette(page)).toBeVisible();
+  const field = palette(page).getByRole('combobox');
+  await field.fill('/folder');
+  await page.keyboard.press('Enter');
+  const listbox = palette(page).getByRole('listbox', { name: 'Pastas' });
+  await expect(listbox).toBeVisible();
+  await expect(listbox.getByRole('option').first()).toBeVisible();
+
+  await field.focus();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('[role="option"]:focus')).toHaveCount(0);
 });

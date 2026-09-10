@@ -54,6 +54,16 @@ describe('paleta', () => {
     expect(markup).not.toContain('role="alert"')
   })
 
+  it('expõe o campo como combobox e os comandos como listbox de opções', () => {
+    const markup = renderToStaticMarkup(<CommandPalette data={data} onClose={noop} onNavigate={noop} onEvent={noop} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} />)
+    expect(markup).toContain('role="combobox"')
+    expect(markup).toContain('aria-expanded="true"')
+    expect(markup).toContain('aria-controls="palette-commands"')
+    expect(markup).toContain('role="listbox"')
+    expect(markup).toContain('role="option"')
+    expect(markup.match(/aria-selected="true"/g)).toHaveLength(1)
+  })
+
   it('/folder troca a paleta para a vista de pastas em vez de navegar', () => {
     const folder = PALETTE_COMMANDS.find((command) => command.key === '/folder')
     expect(folder && 'action' in folder ? folder.action : null).toBe('folders')

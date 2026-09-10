@@ -10,7 +10,7 @@ async function openBreak(page: Page) {
   await expect(dock(page)).toBeVisible();
   await page.keyboard.press('Meta+K');
   await expect(palette(page)).toBeVisible();
-  await palette(page).getByRole('textbox').fill('/break');
+  await palette(page).getByRole('combobox').fill('/break');
   await page.keyboard.press('Enter');
 }
 

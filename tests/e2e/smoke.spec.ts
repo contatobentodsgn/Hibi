@@ -35,7 +35,7 @@ test('paleta de comandos permite navegação por teclado', async ({ page }) => {
   await expect(palette).toBeVisible();
   const input = palette.locator('input');
   await input.fill('/week');
-  await expect(palette.getByRole('button', { name: /Abrir agenda da semana/ })).toHaveAttribute('data-selected', 'true');
+  await expect(palette.getByRole('option', { name: /Abrir agenda da semana/ })).toHaveAttribute('data-selected', 'true');
   await input.press('Enter');
   await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
 });
@@ -290,15 +290,15 @@ test('filtros do Day exibem blocos fixos e pausas', async ({ page }) => {
 test('updates e hardware são acessíveis pela paleta', async ({ page }) => {
   await page.goto('/');
   await openCommands(page);
-  await page.getByRole('textbox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/hardware');
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/hardware');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Hardware' })).toBeVisible();
   await openCommands(page);
-  await page.getByRole('textbox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/events');
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/events');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Instrumentation' })).toBeVisible();
   await openCommands(page);
-  await page.getByRole('textbox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/updates');
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/updates');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Updates' })).toBeVisible();
 });

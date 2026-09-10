@@ -31,6 +31,7 @@ const pt = {
   'agenda.toggle': 'Visualização da agenda',
 
   'palette.title': 'Paleta de comandos',
+  'palette.commandsList': 'Comandos',
   'palette.placeholder': 'Digite um comando ou pergunte ao Taby',
   'palette.empty': 'Nenhum comando encontrado. Tente /semana ou /foco.',
   'palette.group.navigate': 'Navegar',
@@ -76,6 +77,7 @@ const pt = {
   'command.hardware': 'Inspecionar superfícies de hardware',
 
   'folders.label': 'Pasta',
+  'folders.list': 'Pastas',
   'folders.all': 'Todas',
   'folders.none': 'Sem pasta',
   'command.folder': 'Navegar e renomear pastas',
@@ -155,6 +157,7 @@ const en: Record<DictionaryKey, string> = {
   'agenda.toggle': 'Agenda view',
 
   'palette.title': 'Command palette',
+  'palette.commandsList': 'Commands',
   'palette.placeholder': 'Type a command or ask Taby',
   'palette.empty': 'No command found. Try /week or /focus.',
   'palette.group.navigate': 'Navigate',
@@ -200,6 +203,7 @@ const en: Record<DictionaryKey, string> = {
   'command.hardware': 'Inspect hardware surfaces',
 
   'folders.label': 'Folder',
+  'folders.list': 'Folders',
   'folders.all': 'All',
   'folders.none': 'No folder',
   'command.folder': 'Browse and rename folders',
