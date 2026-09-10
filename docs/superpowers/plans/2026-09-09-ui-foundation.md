@@ -1479,7 +1479,7 @@ Substitua a linha de abertura `<AppShell active={route} taskCount={…} … onNa
 
 **Uma única instância do turno do assistente.** `AiTurnRuntime` é single-flight: `runTurn()` chama `this.cancel()` e mantém um só `AbortController`. Duas instâncias de `useAssistantTurn` sobre o mesmo runtime — a página Taby e a paleta, que podem estar montadas ao mesmo tempo — abortariam uma à outra em silêncio, e cada superfície mostraria "Solicitação cancelada" sem dizer por quê. Por isso o `App` passa a possuir **um** turno e a entregá-lo às duas superfícies: um assistente, um runtime, um turno em voo. Uma confirmação pendente aparece nas duas e pode ser resolvida em qualquer uma — o que é o comportamento correto, já que a confirmação é uma só.
 
-Declare o turno logo após `const [aiRuntime] = useState(…)`:
+Declare o turno **depois** de `const log = …` (linha 83) — ele usa `log`, e um `const` referenciado antes da declaração é erro de `tsc`, não só de estilo:
 
 ```tsx
   const assistantTurn = useAssistantTurn({ runtime: aiRuntime, data, onEvent: log, onCompanionEvent: dispatchCompanion, onCompanionError: (text) => dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }) });
