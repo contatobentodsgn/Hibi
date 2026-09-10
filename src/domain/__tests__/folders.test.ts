@@ -26,6 +26,14 @@ describe('listFolders', () => {
     expect(names).toHaveLength(2)
     expect(names).toEqual(expect.arrayContaining(['Bento', 'bento']))
   })
+
+  it('agrupa a mesma pasta em NFC e NFD (ex.: colada do macOS) numa única entrada', () => {
+    const nfc = 'Estúdio'
+    const nfd = nfc.normalize('NFD')
+    const folders = listFolders({ tasks: [task('t1', nfd), task('t2', nfc)], notes: [] })
+    expect(folders).toEqual([{ name: 'Estúdio', tasks: 2, notes: 0 }])
+    expect(folders[0].name).toBe('Estúdio')
+  })
 })
 
 describe('planFolderRename', () => {
@@ -45,5 +53,12 @@ describe('planFolderRename', () => {
 
   it('marca como junção quando o nome novo já existe', () => {
     expect(planFolderRename(data, 'Clientes', 'Bento')).toEqual({ ok: true, from: 'Clientes', to: 'Bento', tasks: 2, notes: 1, merge: true })
+  })
+
+  it('marca como junção ao normalizar para NFC mesmo quando o nome novo é colado em outra forma Unicode', () => {
+    const nfc = 'Estúdio'
+    const nfd = nfc.normalize('NFD')
+    const withEstudio = { tasks: [...data.tasks, task('t5', nfc)], notes: data.notes }
+    expect(planFolderRename(withEstudio, 'Clientes', nfd)).toEqual({ ok: true, from: 'Clientes', to: 'Estúdio', tasks: 2, notes: 1, merge: true })
   })
 })

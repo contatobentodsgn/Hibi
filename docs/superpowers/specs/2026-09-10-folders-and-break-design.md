@@ -36,14 +36,15 @@ para ser refeito depois, e a ordem de reconstrução das telas pelo dock é pres
 - `folderOf(item)` devolve o nome aparado ou `NO_FOLDER`.
 - `listFolders(data)` devolve `{ name, tasks, notes }[]`: nomes reais em ordem alfabética
   (`localeCompare` com `pt-BR`), e o grupo "Sem pasta" por último, só quando existir.
-- Igualdade de pastas é exata depois de aparar espaços: "bento" e "Bento" são pastas diferentes até
-  uma ser renomeada para a outra. Nada se junta sem ação explícita.
+- Igualdade de pastas é exata depois de aparar espaços e normalizar para NFC: "bento" e "Bento" são
+  pastas diferentes até uma ser renomeada para a outra. Nada se junta sem ação explícita.
 - `planFolderRename(data, from, to)` devolve `{ ok: true, from, to, tasks, notes, merge }` ou
   `{ ok: false, reason }`, com `reason` em `empty | unchanged | too-long | no-folder | missing`.
   O limite é 120 caracteres. `merge` é verdadeiro quando `to` já existe.
 
 **Repositório:** `renameFolder(from, to)` aplica em tarefas e notas usando `updateTask` e
-`updateNote`, e devolve as contagens. Quem chama valida antes com `planFolderRename`.
+`updateNote`, e devolve as contagens. Quem chama valida antes com `planFolderRename`; como guarda
+extra, `renameFolder` também recusa "Sem pasta" e um nome que fica vazio depois de aparado.
 
 **Consistência:** nota sem pasta passa a ser exibida como "Sem pasta", igual às tarefas. A criação
 continua com "Bento" como padrão: nenhum dado existente muda.

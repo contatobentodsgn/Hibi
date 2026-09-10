@@ -100,12 +100,27 @@ describe('LocalRepository', () => {
   it('renomeia uma pasta só nos itens dela e devolve as contagens', () => {
     repository.createTask({ title: 'Cliente A', durationMinutes: 30, category: 'work', folder: 'Clientes' });
     repository.createNote({ title: 'Briefing', content: '', folder: ' Clientes ', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' });
+    repository.createNote({ title: 'Nota arquivada', content: '', folder: 'Arquivo', createdAt: '2026-09-10T00:00:00.000Z', updatedAt: '2026-09-10T00:00:00.000Z' });
+    const semPasta = repository.createTask({ title: 'Sem pasta', durationMinutes: 30, category: 'work' });
 
     expect(repository.renameFolder('Clientes', ' Estúdio ')).toEqual({ tasks: 1, notes: 1 });
 
     const data = repository.snapshot();
     expect(data.tasks.filter((task) => task.folder === 'Estúdio')).toHaveLength(1);
-    expect(data.notes.map((note) => note.folder)).toEqual(['Estúdio']);
     expect(data.tasks.filter((task) => task.folder === 'Bento')).toHaveLength(8);
+    expect(data.tasks.find((task) => task.id === semPasta.id)?.folder).toBeUndefined();
+
+    const arquivoNote = data.notes.find((note) => note.title === 'Nota arquivada');
+    expect(arquivoNote?.folder).toBe('Arquivo');
+    expect(arquivoNote?.updatedAt).toBe('2026-09-10T00:00:00.000Z');
+
+    const renamedNote = data.notes.find((note) => note.title === 'Briefing');
+    expect(renamedNote?.folder).toBe('Estúdio');
+    expect(renamedNote?.updatedAt).not.toBe('2026-09-10T00:00:00.000Z');
+  });
+
+  it('recusa renomear "Sem pasta" ou para um nome que fica vazio depois de aparado', () => {
+    expect(() => repository.renameFolder('', 'X')).toThrow('Invalid folder rename.');
+    expect(() => repository.renameFolder('Clientes', '   ')).toThrow('Invalid folder rename.');
   });
 });

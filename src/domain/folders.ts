@@ -5,6 +5,9 @@ import type { Note, StudyData, Task } from './models'
 export const NO_FOLDER = ''
 export const FOLDER_NAME_MAX = 120
 
+// Nomes são comparados depois de aparar espaços e normalizar para NFC, para que uma "Estúdio" colada
+// do macOS (que vem em NFD) não vire uma pasta duplicada e visualmente idêntica à existente.
+
 export type FolderSummary = Readonly<{ name: string; tasks: number; notes: number }>
 export type FolderRenameRefusal = 'empty' | 'unchanged' | 'too-long' | 'no-folder' | 'missing'
 export type FolderRenamePlan =
@@ -13,7 +16,7 @@ export type FolderRenamePlan =
 
 type FolderSource = Pick<StudyData, 'tasks' | 'notes'>
 
-export const folderOf = (item: Pick<Task, 'folder'> | Pick<Note, 'folder'>): string => item.folder?.trim() ?? NO_FOLDER
+export const folderOf = (item: Pick<Task, 'folder'> | Pick<Note, 'folder'>): string => item.folder?.normalize('NFC').trim() ?? NO_FOLDER
 
 export function listFolders(data: FolderSource): FolderSummary[] {
   const counts = new Map<string, { tasks: number; notes: number }>()
@@ -35,7 +38,7 @@ export function listFolders(data: FolderSource): FolderSummary[] {
 // Calcula o efeito antes de aplicar, para a interface avisar sobre uma junção — que não se desfaz.
 export function planFolderRename(data: FolderSource, from: string, to: string): FolderRenamePlan {
   if (from === NO_FOLDER) return { ok: false, reason: 'no-folder' }
-  const target = to.trim()
+  const target = to.normalize('NFC').trim()
   if (!target) return { ok: false, reason: 'empty' }
   if (target.length > FOLDER_NAME_MAX) return { ok: false, reason: 'too-long' }
   if (target === from) return { ok: false, reason: 'unchanged' }
