@@ -35,6 +35,7 @@ import {
   type PeriodSelection,
   type PeriodStep,
   type StatsExportFormat,
+  type StatsNotice,
 } from './stats-format';
 import './stats.css';
 
@@ -79,7 +80,7 @@ export function StatsView({ records, referenceDate, onEvent }: { records: readon
   const { language } = useLocale();
   const [selection, setSelection] = useState<PeriodSelection>({ preset: 'week', custom: { start: '', end: '' } });
   const [typeFilter, setTypeFilter] = useState('all');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState<StatsNotice>({ text: '' });
 
   const applyPeriod = (step: PeriodStep | undefined) => {
     if (!step) return;
@@ -106,10 +107,10 @@ export function StatsView({ records, referenceDate, onEvent }: { records: readon
       link.download = file.fileName;
       link.click();
       URL.revokeObjectURL(url);
-      setNotice(fillTemplate(t('stats.exported'), { file: file.fileName }));
+      setNotice({ text: fillTemplate(t('stats.exported'), { file: file.fileName }) });
       onEvent('export', detail, 'pass');
     } catch {
-      setNotice(t('stats.exportFailed'));
+      setNotice({ text: t('stats.exportFailed') });
       onEvent('export', detail, 'fail');
     }
   };
@@ -136,7 +137,7 @@ export interface StatsContentProps {
   preset: StatsPreset;
   custom: CustomRange;
   typeFilter: string;
-  notice: string;
+  notice: StatsNotice;
   onPresetChange: (preset: StatsPreset) => void;
   onCustomChange: (custom: CustomRange) => void;
   onTypeFilterChange: (type: string) => void;
@@ -153,7 +154,9 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
   const periodKey = period ? `${period.preset}|${period.start}|${period.endExclusive}` : '';
   const report = useMemo(() => (period ? buildReport(records, period) : null), [records, periodKey]);
   const statusId = `${id}-status`;
-  const status = choice.error ? fillTemplate(t(choice.error), { days: String(MAX_CUSTOM_PERIOD_DAYS) }) : notice;
+  const status = choice.error ? fillTemplate(t(choice.error), { days: String(MAX_CUSTOM_PERIOD_DAYS) }) : notice.text;
+  // O status só carrega o aviso parcial quando mostra o anúncio de período, nunca junto de uma mensagem de erro.
+  const announcesPartial = !choice.error && notice.partial === true;
   const invalidFields = invalidDateFields(custom, choice);
   const dateInput = (field: keyof CustomRange, label: DictionaryKey) => (
     <div className="stats-field">
@@ -193,10 +196,14 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
           </div>
         )}
       </div>
-      <p id={statusId} className={choice.error ? 'stats-status is-error' : 'stats-status'} role="status" aria-live="polite">{status}</p>
+      <p id={statusId} className={choice.error ? 'stats-status is-error' : 'stats-status'} role="status" aria-live="polite">
+        {status}
+        {/* A frase já está na caixa logo abaixo: no status ela só é ouvida, e a caixa sai da leitura para não repetir. */}
+        {announcesPartial && <span className="stats-visually-hidden">{` ${t('stats.partial')}`}</span>}
+      </p>
       {report && (
         <>
-          {report.current.partialHistory && <p className="stats-notice">{t('stats.partial')}</p>}
+          {report.current.partialHistory && <p className="stats-notice" aria-hidden={announcesPartial ? true : undefined}>{t('stats.partial')}</p>}
           <SummaryCards id={id} report={report} />
           {report.periodRecords.length === 0 ? (
             <section className="stats-empty" aria-labelledby={`${id}-empty`}>

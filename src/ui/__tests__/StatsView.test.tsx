@@ -75,7 +75,7 @@ const renderContent = (props: Partial<StatsContentProps>) => renderToStaticMarku
     preset="week"
     custom={{ start: '2026-09-07', end: '2026-09-13' }}
     typeFilter="all"
-    notice=""
+    notice={{ text: '' }}
     onPresetChange={noop}
     onCustomChange={noop}
     onTypeFilterChange={noop}
@@ -90,6 +90,11 @@ const dailyTaskCells = (markup: string) => [...figureOf(markup).matchAll(/<tr><t
 const historyItems = (markup: string) => [...markup.matchAll(/<li class="stats-history-item">([\s\S]*?)<\/li>/g)].map((match) => match[1]);
 const optionValues = (markup: string) => [...markup.matchAll(/<option value="([^"]+)"/g)].map((match) => match[1]);
 const dateInputFor = (markup: string, label: string) => new RegExp(`>${label}</label>(<input[^>]*>)`).exec(markup)?.[1] ?? '';
+const statusOf = (markup: string) => /<p id="[^"]*-status"[^>]*>([\s\S]*?)<\/p>/.exec(markup)?.[1] ?? '';
+const textOf = (html: string) => html.replace(/<[^>]*>/g, '');
+// O que aparece na tela: sem os trechos que só existem para leitores de tela.
+const visibleOf = (markup: string) => markup.replace(/<(\w+) class="stats-visually-hidden">[\s\S]*?<\/\1>/g, '');
+const firstRecordOnly = [record('task.completed', at(9, 8), { title: 'Primeira' })];
 const noCustom: CustomRange = { start: '', end: '' };
 
 describe('StatsView', () => {
@@ -282,8 +287,23 @@ describe('StatsContent', () => {
   });
 
   it('announces the latest notice in the live status', () => {
-    const markup = renderContent({ notice: 'Exportado hibi-stats-2026-09-10.csv.' });
+    const markup = renderContent({ notice: { text: 'Exportado hibi-stats-2026-09-10.csv.' } });
     expect(markup).toMatch(/role="status" aria-live="polite"[^>]*>Exportado hibi-stats-2026-09-10\.csv\.</);
+  });
+
+  it('shows the partial-history sentence once on screen while the live status still announces it', () => {
+    const sentence = t('stats.partial');
+    const choice = resolvePeriodChoice('week', reference, noCustom);
+    const announced = renderContent({ records: firstRecordOnly, notice: periodAnnouncement(choice, firstRecordOnly, t, 'pt') });
+    expect(visibleOf(announced).split(sentence)).toHaveLength(2);
+    expect(textOf(statusOf(announced))).toContain(sentence);
+    // Quem lê a página de cima a baixo já ouviu a frase no status: a caixa visível sai da árvore de acessibilidade.
+    expect(announced).toContain(`<p class="stats-notice" aria-hidden="true">${sentence}</p>`);
+
+    // Sem anúncio de período (abertura da página, exportação), a caixa é o único lugar da frase e continua legível.
+    const exported = renderContent({ records: firstRecordOnly, notice: { text: 'Exportado hibi-stats-2026-09-10.csv.' } });
+    expect(exported.split(sentence)).toHaveLength(2);
+    expect(exported).toContain(`<p class="stats-notice">${sentence}</p>`);
   });
 
   it('shows the value a goal progressed to in the history', () => {
@@ -334,9 +354,11 @@ describe('stats period selection', () => {
   it('includes the partial-history notice in the announcement of a partial period', () => {
     const choice = resolvePeriodChoice('week', reference, noCustom);
     const showing = `Mostrando ${periodRange(choice.period!, 'pt')}.`;
-    expect(periodAnnouncement(choice, [record('task.completed', at(9, 8), { title: 'Primeira' })], t, 'pt')).toBe(`${showing} ${t('stats.partial')}`);
-    expect(periodAnnouncement(choice, ledger, t, 'pt')).toBe(showing);
-    expect(periodAnnouncement(resolvePeriodChoice('custom', reference, { start: '2026-09-10', end: '2026-09-01' }), ledger, t, 'pt')).toBe('');
+    // O anúncio é o texto do status inteiro, inclusive o trecho visualmente oculto.
+    const announced = (records: readonly ActivityRecord[]) => textOf(statusOf(renderContent({ records, notice: periodAnnouncement(choice, records, t, 'pt') })));
+    expect(announced(firstRecordOnly)).toBe(`${showing} ${t('stats.partial')}`);
+    expect(announced(ledger)).toBe(showing);
+    expect(periodAnnouncement(resolvePeriodChoice('custom', reference, { start: '2026-09-10', end: '2026-09-01' }), ledger, t, 'pt')).toEqual({ text: '' });
   });
 });
 

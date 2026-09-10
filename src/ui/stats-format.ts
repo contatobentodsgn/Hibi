@@ -138,9 +138,12 @@ export function editCustomRange(current: PeriodSelection, custom: CustomRange, r
   return { selection: { ...current, custom }, choice, event: wasValid ? { detail, result: 'fail' } : undefined };
 }
 
+/** Texto do status; `partial` pede o aviso de histórico parcial no anúncio, sem repetir na tela a caixa que já o mostra. */
+export interface StatsNotice { text: string; partial?: boolean }
+
 // O aviso de histórico parcial entra no anúncio: quem só ouve a página também precisa saber que os números podem estar incompletos.
-export function periodAnnouncement(choice: PeriodChoice, records: readonly ActivityRecord[], t: Translate, locale: Locale): string {
-  if (!choice.period) return '';
-  const showing = fillTemplate(t('stats.showing'), { range: periodRange(choice.period, locale) });
-  return calculateStats(records, choice.period).partialHistory ? `${showing} ${t('stats.partial')}` : showing;
+export function periodAnnouncement(choice: PeriodChoice, records: readonly ActivityRecord[], t: Translate, locale: Locale): StatsNotice {
+  if (!choice.period) return { text: '' };
+  const text = fillTemplate(t('stats.showing'), { range: periodRange(choice.period, locale) });
+  return calculateStats(records, choice.period).partialHistory ? { text, partial: true } : { text };
 }
