@@ -13,7 +13,7 @@ test('navega pelo calendário e abre comandos', async ({ page }) => {
   await goWeek(page);
   await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
   await page.keyboard.press('Meta+K');
-  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Paleta de comandos' })).toBeVisible();
 });
 
 test('todas as seções principais são navegáveis', async ({ page }) => {
@@ -31,11 +31,11 @@ test('todas as seções principais são navegáveis', async ({ page }) => {
 test('paleta de comandos permite navegação por teclado', async ({ page }) => {
   await page.goto('/');
   await openCommands(page);
-  const palette = page.getByRole('dialog', { name: 'Command palette' });
+  const palette = page.getByRole('dialog', { name: 'Paleta de comandos' });
   await expect(palette).toBeVisible();
   const input = palette.locator('input');
   await input.fill('/week');
-  await expect(palette.getByRole('button', { name: /Open weekly schedule/ })).toHaveAttribute('data-selected', 'true');
+  await expect(palette.getByRole('button', { name: /Abrir agenda da semana/ })).toHaveAttribute('data-selected', 'true');
   await input.press('Enter');
   await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
 });
@@ -43,13 +43,13 @@ test('paleta de comandos permite navegação por teclado', async ({ page }) => {
 test('atalho barra abre comandos fora de campos de texto', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true })));
-  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Paleta de comandos' })).toBeVisible();
 });
 
 test('captura rápida da Home abre a paleta de comandos', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Open quick capture' }).click();
-  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Paleta de comandos' })).toBeVisible();
 });
 
 test('filtro Bento funciona em Tasks e Notes', async ({ page }) => {
@@ -225,15 +225,15 @@ test('filtros do Day exibem blocos fixos e pausas', async ({ page }) => {
 test('updates e hardware são acessíveis pela paleta', async ({ page }) => {
   await page.goto('/');
   await openCommands(page);
-  await page.getByRole('textbox', { name: 'Type a command' }).fill('/hardware');
+  await page.getByRole('textbox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/hardware');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Hardware' })).toBeVisible();
   await openCommands(page);
-  await page.getByRole('textbox', { name: 'Type a command' }).fill('/events');
+  await page.getByRole('textbox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/events');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Instrumentation' })).toBeVisible();
   await openCommands(page);
-  await page.getByRole('textbox', { name: 'Type a command' }).fill('/updates');
+  await page.getByRole('textbox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/updates');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Updates' })).toBeVisible();
 });

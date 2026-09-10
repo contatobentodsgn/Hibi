@@ -9,12 +9,14 @@ import { WeekView } from '../WeekView';
 import { HabitsView } from '../HabitsView';
 import { GoalsView } from '../GoalsView';
 import { DockMoreMenu } from '../shell/Dock';
-import { CommandPalette } from '../CommandPalette';
+import { CommandPalette } from '../palette/CommandPalette';
+import type { AssistantTurnControls } from '../useAssistantTurn';
 import { FocusView } from '../FocusView';
 import { HelpView } from '../HelpView';
 
 const data = createSeedData();
 const onEvent = () => undefined;
+const idleTurn: AssistantTurnControls = { state: { status: 'idle' }, ask: async () => undefined, confirm: async () => undefined, cancelConfirmation: async () => undefined, stop: onEvent, retry: async () => undefined, useLocalFallback: async () => undefined, dismiss: () => 'close', reset: onEvent };
 
 describe('study views', () => {
   it('renders tasks from the study snapshot', () => {
@@ -136,12 +138,12 @@ describe('study views', () => {
 
   it('exposes habits and goals through the dock menu and commands', () => {
     const menu = renderToStaticMarkup(<DockMoreMenu active="home" onSelect={onEvent} />);
-    const palette = renderToStaticMarkup(<CommandPalette onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} />);
+    const palette = renderToStaticMarkup(<CommandPalette onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} turn={idleTurn} />);
 
     expect(menu).toContain('Hábitos');
     expect(menu).toContain('Metas');
-    expect(palette).toContain('Track habits');
-    expect(palette).toContain('Review goals');
+    expect(palette).toContain('Acompanhar hábitos');
+    expect(palette).toContain('Revisar metas');
   });
 
   it('exposes selectable focus and break durations', () => {
