@@ -23,3 +23,11 @@ test('keeps the native mascot host passive and rejects interactive presentations
   assert.match(source, /- \(NSAccessibilityRole\)accessibilityRole \{ return NSAccessibilityGroupRole; \}/);
   assert.match(source, /- \(NSString \*\)accessibilityLabel \{ return self\.message; \}/);
 });
+
+test('converte a posição do Electron a partir da tela principal, não da tela com foco', () => {
+  const source = fs.readFileSync(path.join(__dirname, 'src/notch.mm'), 'utf8');
+
+  assert.match(source, /NSScreen \*primary = NSScreen\.screens\.firstObject;/);
+  assert.match(source, /NSMaxY\(primary\.frame\) - electronY - height/);
+  assert.doesNotMatch(source, /NSScreen\.mainScreen/);
+});

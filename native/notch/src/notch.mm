@@ -133,7 +133,7 @@ NSScreen *ScreenForDisplayId(uint64_t displayId) {
     if (screenNumber && screenNumber.unsignedLongLongValue == displayId) return screen;
   }
   for (NSScreen *screen in NSScreen.screens) if (screen.safeAreaInsets.top > 0.0) return screen;
-  return NSScreen.mainScreen;
+  return NSScreen.screens.firstObject;
 }
 
 HibiNotchContentView *HostContentView() {
@@ -197,8 +197,9 @@ Napi::Value Place(const Napi::CallbackInfo& info) {
   id __unsafe_unretained nativeObject = *reinterpret_cast<id __unsafe_unretained *>(handle.Data()); if (!nativeObject) return Napi::Boolean::New(info.Env(), false);
   NSWindow *window = nil; if ([nativeObject isKindOfClass:NSView.class]) window = [(NSView *)nativeObject window]; else if ([nativeObject isKindOfClass:NSWindow.class]) window = (NSWindow *)nativeObject; if (!window) return Napi::Boolean::New(info.Env(), false);
   CGFloat x = info[1].As<Napi::Number>().DoubleValue(); CGFloat electronY = info[2].As<Napi::Number>().DoubleValue(); CGFloat width = info[3].As<Napi::Number>().DoubleValue(); CGFloat height = info[4].As<Napi::Number>().DoubleValue(); if (width <= 0 || height <= 0) return Napi::Boolean::New(info.Env(), false);
-  NSScreen *screen = NSScreen.mainScreen; if (!screen) return Napi::Boolean::New(info.Env(), false);
-  [window setFrame:NSMakeRect(x, NSMaxY(screen.frame) - electronY - height, width, height) display:YES animate:NO]; [window setLevel:NSStatusWindowLevel]; [window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary]; [window setOpaque:NO]; [window setHasShadow:NO]; return Napi::Boolean::New(info.Env(), true);
+  // Coordenadas globais do Electron e do Cocoa partem da tela principal, não da tela com foco.
+  NSScreen *primary = NSScreen.screens.firstObject; if (!primary) return Napi::Boolean::New(info.Env(), false);
+  [window setFrame:NSMakeRect(x, NSMaxY(primary.frame) - electronY - height, width, height) display:YES animate:NO]; [window setLevel:NSStatusWindowLevel]; [window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary]; [window setOpaque:NO]; [window setHasShadow:NO]; return Napi::Boolean::New(info.Env(), true);
 }
 Napi::Value NativeHostAvailable(const Napi::CallbackInfo& info) { return Napi::Boolean::New(info.Env(), true); }
 Napi::Value CreateHost(const Napi::CallbackInfo& info) {
