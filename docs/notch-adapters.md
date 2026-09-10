@@ -33,6 +33,20 @@ The adapter is intentionally excluded from the public release path. A packaged b
 
 The current experimental adapter is a no-op laboratory seam. It contains no private macOS calls and must not be used to import, execute, or reproduce proprietary code. Any future experiment requires separate architecture review and must remain outside signed/release builds.
 
+## Display selection
+
+The notch display is resolved on every placement: the display chosen in Settings › General if it
+is connected, otherwise the first display with a camera housing, otherwise the primary display.
+The choice is stored by the main process in `notch-settings.json` under `userData`. A disconnected
+choice stays saved and is used again when the same display id reconnects.
+
+Confirmation windows are placed in Electron global coordinates and converted to Cocoa coordinates
+from the primary display (`NSScreen.screens.firstObject`), never from the screen that holds focus.
+
+**Settings › General › Test notch** shows a passive card and then a confirmation on the resolved
+display. It never replaces a pending interactive confirmation, and its answers stay in the main
+process. Use it as the procedure for every row of the matrix below.
+
 ## Manual release matrix
 
 Before enabling the native host in a release, show a passive result and an interactive confirmation, then verify both visibility and action delivery on:

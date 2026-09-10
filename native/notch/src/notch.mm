@@ -63,8 +63,10 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
 @property(nonatomic, copy) NSString *message;
 @property(nonatomic, copy) NSString *requestId;
 @property(nonatomic, strong) NSArray<NSDictionary<NSString *, NSString *> *> *actions;
+@property(nonatomic) CGFloat topInset;
 - (void)setPresentationMessage:(NSString *)message requestId:(NSString *)requestId actions:(NSArray<NSDictionary<NSString *, NSString *> *> *)actions;
 - (void)focusFirstAction;
+- (void)applyTopInset:(CGFloat)topInset;
 @end
 
 @implementation HibiNotchContentView
@@ -73,12 +75,18 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
   if (self) {
     self.wantsLayer = YES;
     self.layer.cornerRadius = 30.0;
+    self.layer.maskedCorners = kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner | kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner;
     self.layer.masksToBounds = YES;
     self.layer.backgroundColor = NSColor.blackColor.CGColor;
     self.message = @"Hibi";
     self.actions = @[];
   }
   return self;
+}
+- (void)applyTopInset:(CGFloat)topInset {
+  self.topInset = topInset;
+  // Com câmera, o topo fica colado na borda da tela: arredonda só embaixo (layer não invertida, MinY = baixo).
+  self.layer.maskedCorners = topInset > 0.0 ? (kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner) : (kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner | kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner);
 }
 - (void)setPresentationMessage:(NSString *)message requestId:(NSString *)requestId actions:(NSArray<NSDictionary<NSString *, NSString *> *> *)actions {
   self.message = message.length > 0 ? message : @"Hibi";
@@ -121,9 +129,23 @@ void DispatchAction(NSString *requestId, NSString *actionId) {
   [super drawRect:dirtyRect];
   NSMutableParagraphStyle *paragraph = [NSMutableParagraphStyle new];
   paragraph.alignment = NSTextAlignmentCenter;
+  BOOL passive = self.actions.count == 0;
+  if (passive) paragraph.lineBreakMode = NSLineBreakByTruncatingTail;
   NSDictionary *attributes = @{ NSFontAttributeName: [NSFont systemFontOfSize:15 weight:NSFontWeightMedium], NSForegroundColorAttributeName: NSColor.whiteColor, NSParagraphStyleAttributeName: paragraph };
-  CGFloat bottom = self.actions.count > 0 ? 66.0 : 14.0;
-  [self.message drawInRect:NSMakeRect(16.0, bottom, self.bounds.size.width - 32.0, self.bounds.size.height - bottom - 14.0) withAttributes:attributes];
+  // A faixa coberta pela câmera fica no topo (view não invertida); o texto só usa o que sobra.
+  CGFloat usable = self.bounds.size.height - self.topInset;
+  if (passive) {
+    // Mede uma linha de referência: self.message pode ter \n e "contar" como várias linhas, jogando y para negativo.
+    CGFloat lineHeight = ceil([@"Hg" sizeWithAttributes:attributes].height);
+    CGFloat y = floor((usable - lineHeight) / 2.0);
+    // \r, \r\n e U+2028 também quebram a linha e não são pegos por um replace só de \n.
+    NSArray<NSString *> *messageLines = [self.message componentsSeparatedByCharactersInSet:NSCharacterSet.newlineCharacterSet];
+    NSString *singleLine = [messageLines componentsJoinedByString:@" "];
+    [singleLine drawInRect:NSMakeRect(16.0, y, self.bounds.size.width - 32.0, lineHeight) withAttributes:attributes];
+    return;
+  }
+  CGFloat bottom = 66.0;
+  [self.message drawInRect:NSMakeRect(16.0, bottom, self.bounds.size.width - 32.0, usable - bottom - 14.0) withAttributes:attributes];
 }
 @end
 
@@ -133,7 +155,7 @@ NSScreen *ScreenForDisplayId(uint64_t displayId) {
     if (screenNumber && screenNumber.unsignedLongLongValue == displayId) return screen;
   }
   for (NSScreen *screen in NSScreen.screens) if (screen.safeAreaInsets.top > 0.0) return screen;
-  return NSScreen.mainScreen;
+  return NSScreen.screens.firstObject;
 }
 
 HibiNotchContentView *HostContentView() {
@@ -171,9 +193,15 @@ BOOL PositionHost(uint64_t displayId) {
   if (!gPanel) return NO;
   NSScreen *screen = ScreenForDisplayId(displayId);
   if (!screen) return NO;
-  CGFloat height = gInteractive ? kInteractiveHeight : kPassiveHeight;
+  // safeAreaInsets.top é a faixa coberta pela câmera (0 em telas sem notch); somamos à altura
+  // para o painel nascer abaixo da câmera em vez de escondido atrás dela.
+  CGFloat inset = screen.safeAreaInsets.top;
+  CGFloat height = (gInteractive ? kInteractiveHeight : kPassiveHeight) + inset;
   NSRect frame = NSMakeRect(NSMidX(screen.frame) - kHostWidth / 2.0, NSMaxY(screen.frame) - height, kHostWidth, height);
   [gPanel setFrame:frame display:YES animate:NO];
+  HibiNotchContentView *view = HostContentView();
+  [view applyTopInset:inset];
+  [view setNeedsDisplay:YES];
   gDisplayId = @(displayId);
   return YES;
 }
@@ -197,8 +225,9 @@ Napi::Value Place(const Napi::CallbackInfo& info) {
   id __unsafe_unretained nativeObject = *reinterpret_cast<id __unsafe_unretained *>(handle.Data()); if (!nativeObject) return Napi::Boolean::New(info.Env(), false);
   NSWindow *window = nil; if ([nativeObject isKindOfClass:NSView.class]) window = [(NSView *)nativeObject window]; else if ([nativeObject isKindOfClass:NSWindow.class]) window = (NSWindow *)nativeObject; if (!window) return Napi::Boolean::New(info.Env(), false);
   CGFloat x = info[1].As<Napi::Number>().DoubleValue(); CGFloat electronY = info[2].As<Napi::Number>().DoubleValue(); CGFloat width = info[3].As<Napi::Number>().DoubleValue(); CGFloat height = info[4].As<Napi::Number>().DoubleValue(); if (width <= 0 || height <= 0) return Napi::Boolean::New(info.Env(), false);
-  NSScreen *screen = NSScreen.mainScreen; if (!screen) return Napi::Boolean::New(info.Env(), false);
-  [window setFrame:NSMakeRect(x, NSMaxY(screen.frame) - electronY - height, width, height) display:YES animate:NO]; [window setLevel:NSStatusWindowLevel]; [window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary]; [window setOpaque:NO]; [window setHasShadow:NO]; return Napi::Boolean::New(info.Env(), true);
+  // Coordenadas globais do Electron e do Cocoa partem da tela principal, não da tela com foco.
+  NSScreen *primary = NSScreen.screens.firstObject; if (!primary) return Napi::Boolean::New(info.Env(), false);
+  [window setFrame:NSMakeRect(x, NSMaxY(primary.frame) - electronY - height, width, height) display:YES animate:NO]; [window setLevel:NSStatusWindowLevel]; [window setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary]; [window setOpaque:NO]; [window setHasShadow:NO]; return Napi::Boolean::New(info.Env(), true);
 }
 Napi::Value NativeHostAvailable(const Napi::CallbackInfo& info) { return Napi::Boolean::New(info.Env(), true); }
 Napi::Value CreateHost(const Napi::CallbackInfo& info) {

@@ -15,8 +15,28 @@ Module._load = function (request, parent, isMain) {
   if (request === "./notifications.cjs") return { createNotificationScheduler() { return { clear() {} }; } };
   return originalLoad.call(this, request, parent, isMain);
 };
-const { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent } = require("./main.cjs");
+const { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent, routeNotchAction, isRendererPresentationAllowed } = require("./main.cjs");
 Module._load = originalLoad;
+
+test('respostas do teste do notch ficam no processo principal e as demais vão ao renderer', () => {
+  const sent = [];
+  const notchTest = { handleAction: (action) => action.requestId.startsWith('notch-test-') };
+  const send = (...args) => sent.push(args);
+
+  assert.equal(routeNotchAction({ requestId: 'notch-test-confirm-1', actionId: 'confirm' }, { notchTest, send }), 'test');
+  assert.deepEqual(sent, []);
+  assert.equal(routeNotchAction({ requestId: 'confirm-1', actionId: 'cancel' }, { notchTest, send }), 'renderer');
+  assert.deepEqual(sent, [['hibi:companion:action', { requestId: 'confirm-1', actionId: 'cancel' }]]);
+  assert.equal(routeNotchAction({ requestId: 'confirm-2', actionId: 'confirm' }, { notchTest: undefined, send }), 'renderer');
+  assert.equal(sent.length, 2);
+});
+
+test('o renderer não pode abrir apresentações com o prefixo reservado ao teste do notch', () => {
+  assert.equal(isRendererPresentationAllowed({ requestId: 'confirm-1', kind: 'confirmation', text: 'Ok?', actions: [] }), true);
+  assert.equal(isRendererPresentationAllowed({ requestId: 'notch-test-confirm-1', kind: 'confirmation', text: 'Ok?', actions: [] }), false);
+  assert.equal(isRendererPresentationAllowed(null), false);
+  assert.equal(isRendererPresentationAllowed({ requestId: 42, kind: 'result', text: null, actions: [] }), false);
+});
 
 test("allows only local development and packaged file navigation", () => {
   assert.equal(isAllowedNavigation("http://127.0.0.1:5173/"), true);
@@ -73,6 +93,50 @@ test('repositions the companion after display changes and wake then unregisters 
   assert.equal(calls, 4);
   detach();
   assert.deepEqual(removed.map(([event]) => event), ['display-added', 'display-removed', 'display-metrics-changed', 'resume']);
+  assert.deepEqual(removed, registered);
+});
+
+test('avisa a janela principal quando um monitor entra, sai ou muda, depois de reposicionar, e não ao acordar', () => {
+  const registered = [];
+  const eventSource = { on: (event, listener) => registered.push([event, listener]), removeListener: () => {} };
+  const order = [];
+  attachNotchLifecycle({ displayService: eventSource, powerService: eventSource, manager: { reposition: () => order.push('reposition') }, onDisplaysChanged: () => order.push('changed') });
+
+  for (const [event, listener] of registered) { order.push(event); listener(); }
+
+  assert.deepEqual(order, ['display-added', 'reposition', 'changed', 'display-removed', 'reposition', 'changed', 'display-metrics-changed', 'reposition', 'changed', 'resume', 'reposition']);
+});
+
+test('loga a falha ao reposicionar em vez de lançar, e ainda avisa a janela principal', () => {
+  const registered = [];
+  const eventSource = { on: (event, listener) => registered.push([event, listener]), removeListener: () => {} };
+  let changed = 0;
+  const logs = [];
+  const log = (message, error) => logs.push([message, error]);
+  attachNotchLifecycle({ displayService: eventSource, powerService: eventSource, manager: { reposition: () => { throw new Error('reposition failed'); } }, onDisplaysChanged: () => { changed += 1; }, log });
+
+  const displayAdded = registered.find(([event]) => event === 'display-added')[1];
+  assert.doesNotThrow(() => displayAdded());
+
+  assert.equal(changed, 1);
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0][0], '[notch] reposition failed');
+  assert.ok(logs[0][1] instanceof Error);
+});
+
+test('loga a falha ao reposicionar no resume sem lançar', () => {
+  const registered = [];
+  const eventSource = { on: (event, listener) => registered.push([event, listener]), removeListener: () => {} };
+  const logs = [];
+  const log = (message, error) => logs.push([message, error]);
+  attachNotchLifecycle({ displayService: eventSource, powerService: eventSource, manager: { reposition: () => { throw new Error('resume reposition failed'); } }, log });
+
+  const resume = registered.find(([event]) => event === 'resume')[1];
+  assert.doesNotThrow(() => resume());
+
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0][0], '[notch] reposition failed');
+  assert.ok(logs[0][1] instanceof Error);
 });
 
 test('recovers a crashed renderer once and resets the guard after a successful load', () => {
