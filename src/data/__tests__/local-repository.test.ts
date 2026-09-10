@@ -24,6 +24,17 @@ describe('LocalRepository', () => {
     expect(repository.snapshot().blocks.length).toBeGreaterThan(0);
   });
 
+  it('stamps task creation and edits with a local revision while accepting legacy tasks', () => {
+    const moments = ['2026-09-09T12:00:00.000Z', '2026-09-09T12:01:00.000Z'];
+    const stamped = new LocalRepository(createSeedData(), () => moments.shift() ?? 'unexpected');
+    const task = stamped.createTask({ title: 'Sincronizar', durationMinutes: 60, category: 'work' });
+    expect(task.updatedAt).toBe('2026-09-09T12:00:00.000Z');
+    expect(stamped.updateTask(task.id, { title: 'Sincronizado' }).updatedAt).toBe('2026-09-09T12:01:00.000Z');
+
+    const legacy = LocalRepository.fromJson(createSeedData(), JSON.stringify(createSeedData()));
+    expect(legacy.listTasks().some((entry) => entry.updatedAt === undefined)).toBe(true);
+  });
+
   it('exports and resets to a fresh copy of seed data', () => {
     const task = repository.createTask({ title: 'Temporário', durationMinutes: 60, category: 'work' });
     const exported = JSON.parse(repository.exportJson());
