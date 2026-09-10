@@ -29,9 +29,13 @@ function activationBounds(display) {
   return { x: Math.round(x + (displayWidth - width) / 2), y, width, height };
 }
 
-function selectDisplay(screen, preferredDisplayId) {
-  const displays = screen.getAllDisplays();
-  return displays.find((display) => display.id === preferredDisplayId) ?? screen.getPrimaryDisplay();
+// Ordem: o monitor escolhido, se conectado; senão a tela com câmera; senão a principal.
+function resolveNotchDisplay(displays, primary, { preferredDisplayId = null, cameraHousingIds = [] } = {}) {
+  const preferred = displays.find((display) => display.id === preferredDisplayId);
+  if (preferred) return { display: preferred, reason: 'preferred' };
+  const housing = displays.find((display) => cameraHousingIds.includes(display.id));
+  if (housing) return { display: housing, reason: 'camera-housing' };
+  return { display: primary, reason: 'primary' };
 }
 
-module.exports = { BASE_WIDTH, BASE_HEIGHT, scaleForDisplay, notchBounds, actionBounds, activationBounds, selectDisplay };
+module.exports = { BASE_WIDTH, BASE_HEIGHT, scaleForDisplay, notchBounds, actionBounds, activationBounds, resolveNotchDisplay };
