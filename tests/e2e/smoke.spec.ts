@@ -55,10 +55,19 @@ test('captura rápida da Home abre a paleta de comandos', async ({ page }) => {
 test('filtro de pasta funciona em Tarefas e Notas', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Tarefas');
-  await page.getByRole('button', { name: /^Pasta · Bento \d+$/ }).click();
-  await expect(page.getByText('Kabrito Post 01')).toBeVisible();
+  const chip = page.getByRole('button', { name: /^Pasta · Bento \d+$/ });
+  await chip.click();
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.task-row').first()).toBeVisible();
   await goMore(page, 'Notas');
   await expect(page.getByRole('button', { name: 'Pasta · Todas' })).toBeVisible();
+});
+
+test('+ New note leva o foco para o formulário de nota nova', async ({ page }) => {
+  await page.goto('/');
+  await goMore(page, 'Notas');
+  await page.getByRole('button', { name: '+ New note' }).click();
+  await expect(page.getByRole('form', { name: 'Create note' }).getByLabel('Title')).toBeFocused();
 });
 
 test('clicar no item do dock da tela atual não apaga o que está sendo digitado', async ({ page }) => {

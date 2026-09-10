@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { EntityStatus, StudyData } from '../domain/models';
-import { folderOf, listFolders, NO_FOLDER, type FolderSummary } from '../domain/folders';
+import { folderOf, listFolders } from '../domain/folders';
 import { useT } from '../i18n/LocaleProvider';
 
 type Props = {
@@ -15,15 +15,6 @@ type Props = {
   initialFolder?: string | null;
 };
 
-// Mantém visível o chip da pasta ativa mesmo quando ela não tem itens do tipo desta tela (contagem
-// 0), logo antes de "Sem pasta" — ou no fim, se não houver grupo "Sem pasta" — para não escondê-la.
-function withActiveFolderChip(folders: FolderSummary[], activeFolder: string | null): FolderSummary[] {
-  if (activeFolder === null || folders.some((entry) => entry.name === activeFolder)) return folders;
-  const chip: FolderSummary = { name: activeFolder, tasks: 0, notes: 0 };
-  const noFolderIndex = folders.findIndex((entry) => entry.name === NO_FOLDER);
-  return noFolderIndex === -1 ? [...folders, chip] : [...folders.slice(0, noFolderIndex), chip, ...folders.slice(noFolderIndex)];
-}
-
 export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onRenameTask, onDeleteTask, onEditTaskDeadline, initialFolder = null }: Props) {
   const t = useT();
   const [folder, setFolder] = useState<string | null>(initialFolder);
@@ -35,12 +26,12 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
   const [editTitle, setEditTitle] = useState('');
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const openTasks = data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused');
-  const taskFolders = listFolders({ tasks: data.tasks, notes: [] });
+  const allFolders = listFolders(data);
   // Só cai para "Todas" quando a pasta pedida não existe em lugar nenhum (nem em tarefas, nem em
   // notas) — chip removido, ou initialFolder que nunca existiu. Uma pasta sem tarefas nesta tela
-  // continua ativa, com um chip de contagem 0 (ver withActiveFolderChip).
-  const activeFolder = folder !== null && listFolders(data).some((entry) => entry.name === folder) ? folder : null;
-  const visibleFolders = withActiveFolderChip(taskFolders, activeFolder);
+  // continua ativa, com um chip de contagem 0 (ver o filtro de visibleFolders logo abaixo).
+  const activeFolder = folder !== null && allFolders.some((entry) => entry.name === folder) ? folder : null;
+  const visibleFolders = allFolders.filter((entry) => entry.tasks > 0 || entry.name === activeFolder);
   const visibleTasks = [...data.tasks].filter((task) => (scope === 'all' || (task.status !== 'completed' && task.status !== 'paused')) && (activeFolder === null || folderOf(task) === activeFolder)).sort((a, b) => deadlineSort ? (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999') : 0);
   const submitNewTask = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const title = newTitle.trim(); if (!title) return; onCreateTask?.(title); setNewTitle(''); setCreating(false); };
   const startEditing = (id: string, title: string) => { setEditingId(id); setEditTitle(title); };

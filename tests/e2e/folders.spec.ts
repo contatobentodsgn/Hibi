@@ -95,6 +95,9 @@ test('renomear para um nome livre aplica na hora', async ({ page }) => {
   await expect(palette(page).getByRole('status')).toHaveText('Pasta renomeada.');
   await expect(row(page, 'Estúdio')).toContainText('1 tarefa · 1 nota');
   await expect(row(page, 'Clientes')).toHaveCount(0);
+
+  await field(page).fill('est');
+  await expect(palette(page).getByRole('status')).toHaveText('');
 });
 
 test('juntar pede um segundo ↵ com a contagem, e esc volta sem aplicar', async ({ page }) => {
