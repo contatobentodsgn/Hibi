@@ -1,22 +1,35 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState } from 'react'
 import { translate, type DictionaryKey } from './dictionary'
 import { formatDate, formatRange, formatTime, formatWeekday, type FormatOptions, type Locale } from './format'
+import { browserLocaleHost, readLanguage, readTwentyFourHour, writeLanguage, writeTwentyFourHour, type LocaleHost } from './locale-storage'
 
-export const LANGUAGE_STORAGE_KEY = 'hibi-language'
-export const TIME_FORMAT_STORAGE_KEY = 'hibi-twenty-four-hour'
+export { LANGUAGE_STORAGE_KEY, TIME_FORMAT_STORAGE_KEY } from './locale-storage'
 
-type LocaleContextValue = Readonly<{ language: Locale; setLanguage: (language: Locale) => void }>
-const LocaleContext = createContext<LocaleContextValue>({ language: 'pt', setLanguage: () => undefined })
+type LocaleContextValue = Readonly<{
+  language: Locale
+  setLanguage: (language: Locale) => void
+  twentyFourHour: boolean
+  setTwentyFourHour: (twentyFourHour: boolean) => void
+}>
+const LocaleContext = createContext<LocaleContextValue>({
+  language: 'pt',
+  setLanguage: () => undefined,
+  twentyFourHour: true,
+  setTwentyFourHour: () => undefined,
+})
 
-const readLanguage = (): Locale => { try { const saved = window.localStorage.getItem(LANGUAGE_STORAGE_KEY); return saved === 'en' ? 'en' : 'pt' } catch { return 'pt' } }
-const readTwentyFourHour = () => { try { return window.localStorage.getItem(TIME_FORMAT_STORAGE_KEY) !== 'false' } catch { return true } }
-
-export function LocaleProvider({ children, initialLanguage }: { children: React.ReactNode; initialLanguage?: Locale }) {
-  const [language, setLanguageState] = useState<Locale>(() => initialLanguage ?? readLanguage())
-  const setLanguage = (next: Locale) => { setLanguageState(next); try { window.localStorage.setItem(LANGUAGE_STORAGE_KEY, next) } catch { /* armazenamento indisponível */ } }
+// `host` é opcional para testes injetarem um fake; em produção cai para browserLocaleHost(),
+// construído de forma preguiçosa (dentro do useState) para que importar este módulo nunca toque em `window`.
+export function LocaleProvider({ children, initialLanguage, host }: { children: React.ReactNode; initialLanguage?: Locale; host?: LocaleHost }) {
+  const [localeHost] = useState<LocaleHost>(() => host ?? browserLocaleHost())
+  const [language, setLanguageState] = useState<Locale>(() => initialLanguage ?? readLanguage(localeHost.storage))
+  const [twentyFourHour, setTwentyFourHourState] = useState<boolean>(() => readTwentyFourHour(localeHost.storage))
   useEffect(() => { document.documentElement.lang = language === 'pt' ? 'pt-BR' : 'en' }, [language])
-  const value = useMemo(() => ({ language, setLanguage }), [language])
-  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
+
+  const setLanguage = (next: Locale) => { setLanguageState(next); writeLanguage(localeHost.storage, next) }
+  const setTwentyFourHour = (next: boolean) => { setTwentyFourHourState(next); writeTwentyFourHour(localeHost.storage, next) }
+
+  return <LocaleContext.Provider value={{ language, setLanguage, twentyFourHour, setTwentyFourHour }}>{children}</LocaleContext.Provider>
 }
 
 export const useLocale = () => useContext(LocaleContext)
@@ -26,10 +39,9 @@ export function useT() {
   return (key: DictionaryKey) => translate(language, key)
 }
 
-// Lê a preferência de 24h a cada render: quem a grava é Ajustes, fora deste contexto.
 export function useFormat() {
-  const { language } = useLocale()
-  const options: FormatOptions = { locale: language, twentyFourHour: readTwentyFourHour() }
+  const { language, twentyFourHour } = useLocale()
+  const options: FormatOptions = { locale: language, twentyFourHour }
   return {
     time: (iso: string) => formatTime(iso, options),
     date: (iso: string) => formatDate(iso, options),
