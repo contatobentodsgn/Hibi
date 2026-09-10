@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readLiveConnectorConfig, runLiveConnectorTest } from './test-live-connectors.mjs'
+import { readLiveConnectorConfig, readNotionLifecycleConfig, runLiveConnectorTest } from './test-live-connectors.mjs'
 
 const base = {
   HIBI_LIVE_CONNECTOR_TEST: '1',
@@ -75,4 +75,90 @@ test('a escrita real só acontece com o segundo opt-in e não ecoa a mensagem en
   assert.equal(sent.length, 1)
   assert.equal(JSON.stringify(withWrite).includes('mensagem privada'), false)
   assert.ok(withWrite.audit.every((entry) => !Object.hasOwn(entry, 'detail')))
+})
+
+// Notion em memória, fiel ao contrato que o conector usa: consulta por data source,
+// criação em `pages`, atualização em `pages/{id}` e `last_edited_time` que muda a cada
+// escrita — é essa mudança que produz o lado remoto do conflito.
+const fakeNotion = () => {
+  const pages = new Map()
+  let clock = 0
+  const stamp = () => `2026-09-10T00:00:${String(clock++).padStart(2, '0')}.000Z`
+  const respond = (body) => ({ ok: true, status: 200, headers: { get: () => null }, json: async () => body })
+  const calls = { create: 0, update: 0 }
+  const fetchStub = async (url, init) => {
+    const path = String(url)
+    if (path.includes('users/me')) return respond({ object: 'user' })
+    if (path.includes('/query')) return respond({ results: [...pages.values()], has_more: false })
+    const patch = /pages\/([^/?]+)$/.exec(path)
+    if (patch && init?.method === 'PATCH') {
+      calls.update += 1
+      const id = decodeURIComponent(patch[1])
+      const current = pages.get(id)
+      const next = { ...current, properties: JSON.parse(init.body).properties, last_edited_time: stamp() }
+      pages.set(id, next)
+      return respond(next)
+    }
+    if (path.endsWith('pages')) {
+      calls.create += 1
+      const id = `page-${pages.size + 1}`
+      const page = { id, object: 'page', properties: JSON.parse(init.body).properties, last_edited_time: stamp() }
+      pages.set(id, page)
+      return respond(page)
+    }
+    return respond({})
+  }
+  return { fetchStub, calls, pages }
+}
+
+const notionBase = {
+  HIBI_LIVE_CONNECTOR_TEST: '1',
+  HIBI_LIVE_CONNECTOR_ID: 'notion',
+  HIBI_LIVE_CONNECTOR_ENDPOINT: 'https://api.notion.test/v1/',
+  HIBI_LIVE_CONNECTOR_TOKEN: 'token-secreto',
+  HIBI_LIVE_CONNECTOR_ALLOW_HOSTS: 'api.notion.test',
+  HIBI_LIVE_CONNECTOR_TARGETS: 'source-1',
+}
+const lifecycleEnv = { ...notionBase, HIBI_LIVE_CONNECTOR_WRITE_TEST: '1', HIBI_LIVE_NOTION_LIFECYCLE: '1', HIBI_LIVE_NOTION_DATA_SOURCE: 'source-1' }
+
+test('o ciclo de vida do Notion é um terceiro opt-in, acima da leitura e da escrita', () => {
+  assert.equal(readNotionLifecycleConfig(notionBase), null)
+  assert.throws(() => readNotionLifecycleConfig({ ...notionBase, HIBI_LIVE_NOTION_LIFECYCLE: '1' }), /WRITE_TEST=1/)
+  assert.throws(() => readNotionLifecycleConfig({ ...notionBase, HIBI_LIVE_NOTION_LIFECYCLE: '1', HIBI_LIVE_CONNECTOR_WRITE_TEST: '1' }), /HIBI_LIVE_NOTION_DATA_SOURCE/)
+  assert.throws(() => readNotionLifecycleConfig({ ...lifecycleEnv, HIBI_LIVE_CONNECTOR_ID: 'slack' }), /HIBI_LIVE_CONNECTOR_ID=notion/)
+  assert.deepEqual(readNotionLifecycleConfig(lifecycleEnv), { dataSourceId: 'source-1' })
+})
+
+test('sem o opt-in do ciclo de vida, uma leitura autorizada não escreve nada', async () => {
+  const notion = fakeNotion()
+  const report = await runLiveConnectorTest(notionBase, notion.fetchStub)
+  assert.equal(report.notionLifecycle, undefined)
+  assert.deepEqual(notion.calls, { create: 0, update: 0 })
+})
+
+test('o ciclo de vida cria, lê de volta, atualiza e detecta um conflito real de dois lados', async () => {
+  const notion = fakeNotion()
+  const report = await runLiveConnectorTest(lifecycleEnv, notion.fetchStub)
+  const lifecycle = report.notionLifecycle
+
+  assert.equal(lifecycle.reusedExistingFixture, false)
+  assert.deepEqual(lifecycle.create, { ok: true, receivedRemoteId: true })
+  assert.deepEqual(lifecycle.read, { mappedTitle: true, hasRevision: true, hasDuration: true })
+  assert.deepEqual(lifecycle.updateVisible, { durationApplied: true, revisionChanged: true })
+  // O conflito é real: a revisão remota mudou porque a etapa anterior editou a página.
+  assert.deepEqual(lifecycle.conflict, { detected: true, defaultDecision: 'skip', writesNothingByDefault: true })
+  assert.equal(lifecycle.outcome, 'passed')
+  assert.deepEqual(notion.calls, { create: 1, update: 1 })
+  assert.equal(JSON.stringify(report).includes('token-secreto'), false)
+})
+
+test('repetir o ciclo de vida reaproveita a mesma tarefa em vez de acumular lixo', async () => {
+  const notion = fakeNotion()
+  await runLiveConnectorTest(lifecycleEnv, notion.fetchStub)
+  const second = await runLiveConnectorTest(lifecycleEnv, notion.fetchStub)
+
+  assert.equal(second.notionLifecycle.reusedExistingFixture, true)
+  assert.equal(second.notionLifecycle.outcome, 'passed')
+  assert.equal(notion.pages.size, 1)
+  assert.deepEqual(notion.calls, { create: 1, update: 2 })
 })

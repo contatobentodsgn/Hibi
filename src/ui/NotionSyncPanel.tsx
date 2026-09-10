@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { Task } from '../domain/models'
 import type { ConnectorSettings, IntegrationExecutionResult, NotionConnectorState } from '../integrations/contracts'
-import { buildNotionSyncPlan, notionTaskHash, type NotionSyncPlan, type NotionSyncPlanItem, type NotionTaskRecord } from '../integrations/notion-sync'
+import { buildNotionSyncPlan, defaultDecisionFor, notionRecordFromCandidate, notionTaskHash, type NotionDecision, type NotionSyncPlan, type NotionTaskRecord } from '../integrations/notion-sync'
 import type { NotionLocalMutation } from '../integrations/notion-apply'
 
-export type NotionDecision = 'keep-local' | 'keep-remote' | 'duplicate' | 'skip'
+export type { NotionDecision }
 type Props = Readonly<{
   connected: boolean
   settings: ConnectorSettings
@@ -19,7 +19,6 @@ type Pending = Readonly<{ kind: 'setup' | 'sync'; actionId: string; confirmation
 
 const EMPTY_SUMMARY = { imported: 0, pushed: 0, updated: 0, skipped: 0, failed: 0, conflicts: 0 }
 const KIZUNA_PAGE_ID = 'dd22241d14e14b298e6802525af7d2a7'
-const defaultDecision = (item: NotionSyncPlanItem): NotionDecision => item.state === 'local-new' || item.state === 'local-changed' ? 'keep-local' : item.state === 'remote-new' || item.state === 'remote-changed' ? 'keep-remote' : 'skip'
 
 export function notionOperationsForPlan(plan: NotionSyncPlan, decisions: Readonly<Record<string, NotionDecision>>, dataSourceId: string): readonly RemoteOperation[] {
   return plan.items.flatMap((item): readonly RemoteOperation[] => {
@@ -29,9 +28,7 @@ export function notionOperationsForPlan(plan: NotionSyncPlan, decisions: Readonl
   })
 }
 
-const remoteRecord = (candidate: import('../integrations/imports').ImportCandidate): NotionTaskRecord | null => candidate.kind === 'task' && candidate.revision
-  ? { remoteId: candidate.remoteId, revision: candidate.revision, title: candidate.title, ...(candidate.hibiId ? { hibiId: candidate.hibiId } : {}), ...(candidate.status ? { status: candidate.status } : {}), ...(candidate.deadline ? { deadline: candidate.deadline } : {}), ...(candidate.durationMinutes === undefined ? {} : { durationMinutes: candidate.durationMinutes }), ...(candidate.description ? { description: candidate.description } : {}) }
-  : null
+const remoteRecord = notionRecordFromCandidate
 
 const summaryText = (state: NotionConnectorState | undefined) => {
   const summary = state?.lastSummary ?? EMPTY_SUMMARY
@@ -86,7 +83,7 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
       const remote = candidates.map(remoteRecord).filter((item): item is NotionTaskRecord => Boolean(item))
       const next = buildNotionSyncPlan(localTasks, remote, current.checkpoints)
       setPlan(next)
-      setDecisions(Object.fromEntries(next.items.map((item) => [item.key, defaultDecision(item)])))
+      setDecisions(Object.fromEntries(next.items.map((item) => [item.key, defaultDecisionFor(item)])))
       setNotice(`${next.items.length} items reviewed. Resolve conflicts, then review changes.`)
       onEvent('notion-sync-preview', `${next.items.length} items`, 'pass')
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not read Hibi Tasks.'); onEvent('notion-sync-preview', 'read failed', 'fail') }
@@ -177,7 +174,7 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
 
   if (!notion?.dataSourceId) return <section className="notion-sync-panel" aria-label="Notion sync setup"><h4>Hibi Tasks</h4><p className="muted">Create the dedicated task database inside Kizuna. This remote write requires confirmation.</p><label>Workspace<input value="Kizuna Std's Notion" readOnly /></label><label>Kizuna parent page ID<input aria-label="Kizuna parent page ID" value={parentPageId} onChange={(event) => setParentPageId(event.target.value)} /></label><button className="primary" disabled={!connected || busy} onClick={() => void prepareSetup()}>Prepare Hibi Tasks</button>{pending && <Confirmation onResolve={resolvePending} />}{!connected && <p className="muted">Connect Notion first.</p>}<p className="muted" aria-live="polite">{notice}</p></section>
 
-  return <section className="notion-sync-panel" aria-label="Notion task synchronization"><div className="notion-sync-heading"><div><h4>Hibi Tasks</h4><p className="muted">{notion.workspaceLabel || "Kizuna Std's Notion"} · manual two-way sync</p></div><button className="primary" disabled={!connected || busy} onClick={() => void readSync()}>{busy ? 'Working…' : 'Sync now'}</button></div><div className="notion-sync-meta"><span><b>Last sync</b> {notion.lastSyncAt ? new Date(notion.lastSyncAt).toLocaleString() : 'Never'}</span><span>{summaryText(notion)}</span></div>{visibleItems.length > 0 && <div className="notion-sync-preview" role="status"><h5>Review changes</h5>{visibleItems.map((item) => <div className="notion-sync-item" key={item.key}><div><strong>{item.local?.title ?? item.remote?.title ?? 'Untitled task'}</strong><span>{item.state.replace('-', ' ')}</span></div><select aria-label={`Sync decision for ${item.local?.title ?? item.remote?.title ?? item.key}`} value={decisions[item.key] ?? defaultDecision(item)} onChange={(event) => setDecisions((current) => ({ ...current, [item.key]: event.target.value as NotionDecision }))}><option value="keep-local">Keep Hibi</option><option value="keep-remote">Keep Notion</option><option value="duplicate">Create copy</option><option value="skip">Skip</option></select></div>)}<button className="primary" disabled={busy} onClick={() => void prepareSync()}>{failedKeys.length ? `Retry ${failedKeys.length} pending` : 'Review selected changes'}</button></div>}{plan && visibleItems.length === 0 && <p className="muted">Everything is up to date.</p>}{pending && <Confirmation onResolve={resolvePending} />}<p className="muted" aria-live="polite">{notice}</p></section>
+  return <section className="notion-sync-panel" aria-label="Notion task synchronization"><div className="notion-sync-heading"><div><h4>Hibi Tasks</h4><p className="muted">{notion.workspaceLabel || "Kizuna Std's Notion"} · manual two-way sync</p></div><button className="primary" disabled={!connected || busy} onClick={() => void readSync()}>{busy ? 'Working…' : 'Sync now'}</button></div><div className="notion-sync-meta"><span><b>Last sync</b> {notion.lastSyncAt ? new Date(notion.lastSyncAt).toLocaleString() : 'Never'}</span><span>{summaryText(notion)}</span></div>{visibleItems.length > 0 && <div className="notion-sync-preview" role="status"><h5>Review changes</h5>{visibleItems.map((item) => <div className="notion-sync-item" key={item.key}><div><strong>{item.local?.title ?? item.remote?.title ?? 'Untitled task'}</strong><span>{item.state.replace('-', ' ')}</span></div><select aria-label={`Sync decision for ${item.local?.title ?? item.remote?.title ?? item.key}`} value={decisions[item.key] ?? defaultDecisionFor(item)} onChange={(event) => setDecisions((current) => ({ ...current, [item.key]: event.target.value as NotionDecision }))}><option value="keep-local">Keep Hibi</option><option value="keep-remote">Keep Notion</option><option value="duplicate">Create copy</option><option value="skip">Skip</option></select></div>)}<button className="primary" disabled={busy} onClick={() => void prepareSync()}>{failedKeys.length ? `Retry ${failedKeys.length} pending` : 'Review selected changes'}</button></div>}{plan && visibleItems.length === 0 && <p className="muted">Everything is up to date.</p>}{pending && <Confirmation onResolve={resolvePending} />}<p className="muted" aria-live="polite">{notice}</p></section>
 }
 
 function Confirmation({ onResolve }: { onResolve: (approved: boolean) => Promise<void> }) {
