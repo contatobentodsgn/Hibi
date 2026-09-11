@@ -70,4 +70,12 @@ describe('workspace backups', () => {
   it('exposes WORKSPACE_BACKUP_VERSION as 2', () => {
     expect(WORKSPACE_BACKUP_VERSION).toBe(2);
   });
+
+  it('carries no conversation text, because conversations live outside StudyData', () => {
+    const data = createSeedData();
+    const backup = createWorkspaceBackup(data, { language: 'pt', twentyFourHour: true });
+
+    expect(JSON.stringify(backup)).not.toContain('hibi-conversations');
+    expect(Object.keys(backup.data)).not.toContain('conversations');
+  });
 });
