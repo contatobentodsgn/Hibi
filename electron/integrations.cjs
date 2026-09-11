@@ -111,14 +111,24 @@ function createReadOnlyFetch(request) {
   };
 }
 
-function createIntegrationManager({ connectors = [], keychain, now = () => new Date().toISOString(), fetch } = {}) {
+// O log de auditoria não pode viver dentro do gerenciador: trocar o endpoint de um
+// conector reconstrói o gerenciador (o allowlist de hosts vem do `baseUrl`) e levaria
+// o histórico junto. Ele é dono do próprio limite e é passado adiante na reconstrução.
+function createIntegrationAuditLog({ limit = MAX_AUDIT_ENTRIES } = {}) {
+  const entries = [];
+  return {
+    append(value) { const event = sanitizeIntegrationAudit(value); if (!event) return; entries.unshift({ at: value.at, ...event }); if (entries.length > limit) entries.length = limit; },
+    list() { return entries.map(({ at, action, connectorId, detail }) => ({ at, action, connectorId, detail })); },
+  };
+}
+
+function createIntegrationManager({ connectors = [], keychain, now = () => new Date().toISOString(), fetch, auditLog = createIntegrationAuditLog() } = {}) {
   if (!keychain || typeof keychain.set !== 'function' || typeof keychain.get !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function') throw new Error('A Keychain implementation is required.');
   const registered = new Map(connectors.map((connector) => { validateConnector(connector); return [connector.id, connector]; }));
   if (registered.size !== connectors.length) throw new Error('Integration connector IDs must be unique.');
   const prepared = new Map();
-  const audits = [];
   const accountFor = (id) => `integration:${id}`;
-  const appendAudit = (value) => { const event = sanitizeIntegrationAudit(value); if (event) audits.unshift({ at: now(), ...event }); if (audits.length > MAX_AUDIT_ENTRIES) audits.length = MAX_AUDIT_ENTRIES; };
+  const appendAudit = (value) => auditLog.append({ at: now(), ...value });
   const getConnector = (id) => { const connector = registered.get(id); if (!connector) throw new Error('Unknown integration connector.'); return connector; };
   const safeFetchFor = (connector) => createSafeIntegrationFetch({ connector, ...(fetch ? { fetch } : {}) });
   const statusFor = async (connector) => ({ id: connector.id, label: connector.label, state: await keychain.has(accountFor(connector.id)) ? 'connected' : 'disconnected', capabilities: [...connector.capabilities], hasCredential: await keychain.has(accountFor(connector.id)) });
@@ -222,7 +232,11 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       appendAudit({ action: 'import-read', connectorId: id, detail: `Read ${candidates.length} items from ${targets.length} selected sources.` });
       return candidates;
     },
-    async audit() { return audits.map(({ at, action, connectorId, detail }) => ({ at, action, connectorId, detail })); },
+    async audit() { return auditLog.list(); },
+    // Reconstrói o gerenciador com outros conectores preservando o histórico. As ações já
+    // preparadas continuam sendo descartadas de propósito: uma ação preparada contra o
+    // endpoint anterior não deve ser executada contra um endpoint novo.
+    withConnectors(nextConnectors) { return createIntegrationManager({ connectors: nextConnectors, keychain, now, auditLog, ...(fetch ? { fetch } : {}) }); },
     getConnector,
     createSafeFetch(id, options = {}) { return createSafeIntegrationFetch({ connector: getConnector(id), ...(fetch ? { fetch } : {}), ...options }); },
   };

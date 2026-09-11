@@ -81,7 +81,7 @@ Referência: Hey Taby 0.2.2 e 0.2.3, pelas auditorias em `/Volumes/SSD/app/node_
 - [x] Exigir confirmação dentro do app para escritas recebidas pela API local. Auditoria de 2026-09-11: o lado servidor tem prova no nível HTTP (`electron/local-api.test.cjs` — a rota devolve 202 e nunca aplica a mutação), mas o cartão no renderer só é coberto por asserção sobre o texto de `App.tsx` em `src/App.test.ts`, e nenhum e2e o exercita. Vale notar que a aprovação é decidida no renderer: o processo principal só devolve o `approved`.
 - [x] Recompilar o addon nativo do notch — **"validar" não se sustenta como estava escrito**. Auditoria de 2026-09-11: o binário é mais novo que `notch.mm`, carrega e devolve dados reais de tela, então "recompilar" é verdade e checável. Mas as asserções de `place`/`createHost` em `native/notch/index.test.cjs` vivem dentro de `if (!bridge.available())` e são **puladas justamente quando o addon funciona**, e as seis de `layout.test.cjs` são regex sobre o texto do `.mm`. O único exercício do binário compilado é `npm run native:notch:smoke`, manual, fora do `npm test` e fora da CI de PR.
 - [x] Adicionar teste de interface para iniciar/parar webhook e confirmar estado após reinício.
-- [x] Exibir histórico completo de confirmações de integrações, em vez de somente a contagem de auditoria.
+- [x] Exibir histórico completo de confirmações de integrações, em vez de somente a contagem de auditoria. "Completo" quer dizer a sessão inteira: o log vive na memória do processo principal e atravessa a reconstrução dos conectores por troca de endpoint (`withConnectors`), mas não um reinício do app.
 
 ### Fase 2 — tornar conectores operacionais
 
@@ -157,7 +157,6 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 Fora das listas de fases, em ordem de gravidade. "Tarefa criada" significa que já existe trabalho aberto para o item.
 
 - **O webhook de entrada não pode ser aprovado.** `electron/main.cjs:207` envia `hibi:webhook:confirmation` ao renderer, mas o preload não expõe esse canal e nada em `src/` escuta: o `202 requiresConfirmation` fica sem resposta possível e o cartão nunca aparece. *(auditoria de 2026-09-11 · tarefa criada)*
-- **Salvar um endpoint de conector apaga a auditoria.** O manager é recriado a cada troca de endpoint e o log vive na instância, o que desfaz em silêncio o item 5 da Fase 1. *(auditoria de 2026-09-11 · tarefa criada)*
 - **Todo 4xx não mapeado vira `invalid_response`.** Em `classifyProviderFailure`, um modelo inexistente (404) se disfarça de resposta malformada — foi o que atrasou a primeira validação ao vivo do provedor. *(2026-09-11 · tarefa criada)*
 - **Quatro testes falham em UTC+14.** `recurrence.test.ts`, `schedule.test.ts` e `InstrumentationView.test.tsx` afirmam dias locais a partir de instantes fixos em `-03:00`; a CI não enxerga porque fixa `America/Sao_Paulo`. *(medido em 2026-09-11 · tarefa criada)*
 - **OAuth e endpoint customizado se excluem.** O allowlist de cada conector vem do `baseUrl`, mas as URLs de OAuth são absolutas e fixas: configurar um endpoint real quebra o OAuth daquele conector, e a do e-mail aponta para o placeholder `mail.example.test`. Exige decisão de design, não só conserto. *(auditoria de 2026-09-11)*

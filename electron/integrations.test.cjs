@@ -230,6 +230,39 @@ test('descobre uma fonte de dados sem devolver credencial ao renderer', async ()
   assert.equal(JSON.stringify(result).includes('secret'), false);
 });
 
+// Trocar o endpoint de um conector refaz o gerenciador em `main.cjs`, porque o allowlist
+// de hosts sai do `baseUrl`. Com o log preso à instância, cada troca de endpoint apagava
+// em silêncio todo o histórico já registrado — e o histórico é item entregue da Fase 1.
+test('a auditoria sobrevive à reconstrução dos conectores por troca de endpoint', async () => {
+  const store = keychain();
+  const manager = createIntegrationManager({ connectors: [connector], keychain: store });
+  await manager.connect('fixture', { credential: 'token-antes-da-troca' });
+  const prepared = await manager.prepareAction({ connectorId: 'fixture', kind: 'slack.post', payload: {} });
+
+  const rebuilt = manager.withConnectors([{ ...connector, allowedHosts: ['api.novo.test'] }]);
+
+  assert.deepEqual((await rebuilt.audit()).map((entry) => entry.action), ['prepare', 'connect']);
+  assert.deepEqual(await rebuilt.audit(), await manager.audit());
+  assert.deepEqual(rebuilt.getConnector('fixture').allowedHosts, ['api.novo.test']);
+  // Uma ação preparada contra o endpoint anterior continua sem poder ser executada.
+  await assert.rejects(() => rebuilt.executeApproved({ actionId: prepared.id, confirmationId: prepared.confirmationId }), /confirmation/i);
+  // O log é o mesmo, e não uma cópia: o que o gerenciador novo registra entra na frente
+  // do histórico antigo em vez de abrir uma lista paralela.
+  await rebuilt.revoke('fixture');
+  assert.deepEqual((await rebuilt.audit()).map((entry) => entry.action), ['revoke', 'prepare', 'connect']);
+  assert.equal(JSON.stringify(await rebuilt.audit()).includes('token-antes-da-troca'), false);
+});
+
+test('o log de auditoria continua limitado depois de uma reconstrução', async () => {
+  const store = keychain();
+  let manager = createIntegrationManager({ connectors: [connector], keychain: store });
+  for (let index = 0; index < 120; index += 1) await manager.connect('fixture', { credential: `token-${index}` });
+  manager = manager.withConnectors([connector]);
+  for (let index = 0; index < 120; index += 1) await manager.connect('fixture', { credential: `token-${index}` });
+
+  assert.equal((await manager.audit()).length, 200);
+});
+
 // O Slack recusa uma chamada com HTTP 200 e `ok: false` no corpo. Olhando só a linha de
 // status, uma postagem recusada volta idêntica a uma aceita: o app diz que executou, a
 // auditoria registra a execução e nada foi postado.
