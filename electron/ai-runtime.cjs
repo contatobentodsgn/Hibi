@@ -98,8 +98,11 @@ function classifyProviderFailure(input) {
     return { code: 'rate_limited', retryable: true, ...(retryAfterMs && retryAfterMs > 0 ? { retryAfterMs: Math.min(retryAfterMs, MAX_RETRY_AFTER_MS) } : {}) };
   }
   if (status === 408) return { code: 'unavailable', retryable: true };
-  if (status >= 400 && status < 500) return { code: 'invalid_response', retryable: false };
+  // Um marcador explícito de resposta ilegível vale mais que a faixa de status.
   if (name === 'syntaxerror' || code === 'invalid_response' || record?.type === 'malformed_response') return { code: 'invalid_response', retryable: false };
+  // O 4xx restante é a requisição — endpoint, id de modelo ou forma do pedido —, não a resposta.
+  // Nenhum deles passa a funcionar ao repetir, então a faixa inteira fica não-retentável.
+  if (status >= 400 && status < 500) return { code: 'invalid_request', retryable: false };
   return { code: 'unavailable', retryable: true };
 }
 
@@ -253,7 +256,7 @@ function createOpenAiCompatibleClient({ endpoint, apiKey, model, fetchImpl = fet
     let retryAttempt = 0;
     const noteFailure = (error) => {
       const failure = classifyProviderFailure(signal?.aborted ? { name: 'AbortError' } : error);
-      const limit = failure.code === 'invalid_credentials' || failure.code === 'invalid_response' || failure.code === 'cancelled' ? 1 : failure.code === 'rate_limited' ? 2 : 3;
+      const limit = failure.code === 'invalid_credentials' || failure.code === 'invalid_request' || failure.code === 'invalid_response' || failure.code === 'cancelled' ? 1 : failure.code === 'rate_limited' ? 2 : 3;
       maxFetches = Math.min(maxFetches, limit);
       return failure;
     };
