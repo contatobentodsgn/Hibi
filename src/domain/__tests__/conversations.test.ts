@@ -63,4 +63,18 @@ describe('conversations', () => {
     expect(pruned.some((item) => item.id === 'c-0')).toBe(false)
     expect(pruned[0].id).toBe('c-50')
   })
+
+  // Um `updatedAt` com fuso (`-03:00`) e outro em UTC (`Z`) descrevem instantes reais; comparar
+  // como texto inverte a ordem e poda a conversa errada. Mesmo tropeço que já quebrou as telas
+  // de Dia e Semana fora de São Paulo.
+  it('orders by the real instant even when offsets are written differently', () => {
+    const noon = { ...createConversation('meio-dia', new Date(Date.UTC(2026, 8, 11, 12, 0)).toISOString(), 'c-noon'), updatedAt: '2026-09-11T09:00:00-03:00' }
+    const midMorning = createConversation('meio da manhã', new Date(Date.UTC(2026, 8, 11, 10, 0)).toISOString(), 'c-mid')
+
+    expect(noon.updatedAt.localeCompare(midMorning.updatedAt)).toBeLessThan(0)
+    expect(Date.parse(noon.updatedAt)).toBeGreaterThan(Date.parse(midMorning.updatedAt))
+
+    expect(pruneConversations([midMorning, noon]).map((item) => item.id)).toEqual(['c-noon', 'c-mid'])
+    expect(pruneConversations([midMorning, noon], { maxConversations: 1 }).map((item) => item.id)).toEqual(['c-noon'])
+  })
 })

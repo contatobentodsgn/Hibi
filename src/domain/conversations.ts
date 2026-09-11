@@ -59,7 +59,8 @@ export function searchConversations(conversations: readonly Conversation[], quer
     conversation.title.toLowerCase().includes(needle) || conversation.messages.some((message) => message.text.toLowerCase().includes(needle)))
 }
 
-/** Mais recente primeiro; a mais antiga cai ao estourar o teto. */
+/** Mais recente primeiro; a mais antiga cai ao estourar o teto. Compara instantes, não texto:
+ * `2026-09-11T09:00:00-03:00` vem depois de `2026-09-11T10:00:00.000Z`, mas ordena antes como string. */
 export function pruneConversations(conversations: readonly Conversation[], { maxConversations = MAX_CONVERSATIONS } = {}): readonly Conversation[] {
-  return [...conversations].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).slice(0, maxConversations)
+  return [...conversations].sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt)).slice(0, maxConversations)
 }
