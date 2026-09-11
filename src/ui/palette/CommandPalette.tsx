@@ -4,6 +4,7 @@ import type { StudyData } from '../../domain/models'
 import { useT } from '../../i18n/LocaleProvider'
 import type { NavKey } from '../shell/routes'
 import type { AssistantTurnControls } from '../useAssistantTurn'
+import type { ConversationsController } from '../useConversations'
 import { filterCommands } from './commands'
 import { afterRename, filterFolders, folderIntent, previousView, renameOutcome, type PaletteView } from './folder-view'
 import { paletteModeFor } from './mode'
@@ -18,11 +19,12 @@ type Props = Readonly<{
   onEvent: (action: string, detail: string) => void
   onRenameFolder: (from: string, to: string, expectMerge: boolean) => FolderRenamePlan
   turn: AssistantTurnControls
+  conversations: ConversationsController
 }>
 
 // Um campo, várias vistas: "/" filtra comandos; uma frase vai para o Taby e confirma aqui mesmo;
 // `/folder` troca para a vista de pastas, onde o mesmo campo filtra e renomeia pastas.
-export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFolder, turn }: Props) {
+export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFolder, turn, conversations }: Props) {
   const t = useT()
   const [query, setQuery] = useState('')
   const [submitted, setSubmitted] = useState<string | null>(null)
@@ -107,7 +109,8 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
     setQuery(outcome.query)
     setNotice(outcome.applied ? t('folders.renamed') : null)
   }
-  const send = () => { const message = query.trim(); if (!message) return; setSubmitted(message); setQuery(''); void turn.ask(message) }
+  // A pergunta entra na mesma thread da tela Taby: o dono do histórico está acima das duas superfícies.
+  const send = () => { const message = query.trim(); if (!message) return; conversations.record({ role: 'user', text: message, at: new Date().toISOString() }); setSubmitted(message); setQuery(''); void turn.ask(message) }
 
   // Digitar "/" com um turno na tela é o usuário pedindo comandos de volta explicitamente.
   // dismiss() primeiro: é o único jeito seguro de sair de uma confirmação pendente (cancela via

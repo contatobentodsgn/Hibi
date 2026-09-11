@@ -41,6 +41,7 @@ import type { AiFallbackPolicy } from './ai/contracts';
 import { applyImportDecision, type ImportCandidate, type ImportDecision } from './integrations/imports';
 import { localApiTaskMutation, type LocalApiIntent } from './integrations/local-api-intents';
 import { useAssistantTurn } from './ui/useAssistantTurn';
+import { useConversations } from './ui/useConversations';
 import { applyNotionMutations, type NotionLocalMutation } from './integrations/notion-apply';
 import { listFolders, NO_FOLDER, planFolderRename, renameApplied, type FolderRenamePlan } from './domain/folders';
 
@@ -96,6 +97,10 @@ export default function App() {
   };
 
   const assistantTurn = useAssistantTurn({ runtime: aiRuntime, onEvent: log, onCompanionEvent: dispatchCompanion, onCompanionError: (text) => dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }) });
+  // Montado aqui, acima da tela Taby e da paleta: a paleta pergunta com a tela desmontada, e uma
+  // thread que morasse dentro da tela perderia essas perguntas. Recebe o turno porque a resposta do
+  // assistente é gravada uma vez só, deste lado.
+  const conversations = useConversations({ turn: assistantTurn, onEvent: log });
 
   const refreshData = () => setData(repository.snapshot());
   // Chamado só depois da mutação aplicada. Se registrar falhar, a ação continua valendo: só avisa.
@@ -322,7 +327,7 @@ export default function App() {
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
       case 'review': return <ReviewView data={data} onNavigate={navigate} />;
       case 'stats': return <StatsView records={data.activity} referenceDate={new Date()} onEvent={log} />;
-      case 'taby': return <TabyView data={data} turn={assistantTurn} />;
+      case 'taby': return <TabyView data={data} turn={assistantTurn} conversations={conversations} />;
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'agenda': case 'day': case 'week': return <AgendaView {...props} data={data} mode={route === 'agenda' ? undefined : route} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onModeChange={(mode) => setRoute(mode)} />;
@@ -333,7 +338,7 @@ export default function App() {
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;
       default: return <HomeView {...props} data={data} onOpenCommands={openPalette} />;
     }
-  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, folderFilter, openPalette]);
+  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, folderFilter, openPalette]);
 
   return (
     <AppShell active={route} onNavigate={(key) => {
@@ -348,7 +353,7 @@ export default function App() {
       {validationError && <div role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '0 0 16px', padding: '13px 16px', border: '1px solid #e2a992', borderRadius: 12, background: '#fff0eb', color: '#984418' }}><span aria-hidden="true" style={{ fontWeight: 900 }}>!</span><div style={{ flex: 1, whiteSpace: 'pre-line' }}>{validationError}</div><button type="button" className="outline" onClick={() => setValidationError('')} aria-label="Dismiss validation error" style={{ padding: '7px 10px' }}>Dismiss</button></div>}
       {pendingLocalApiIntent && <div role="alert" className="notice" style={{ marginBottom: 16 }}><div><strong>Confirmação da API local</strong><p>Deseja criar “{typeof pendingLocalApiIntent.payload.title === 'string' ? pendingLocalApiIntent.payload.title : 'esta tarefa'}”?</p></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={() => void resolveLocalApiIntent(true)}>Confirmar</button><button className="outline" onClick={() => void resolveLocalApiIntent(false)}>Cancelar</button></div></div>}
       <div className="legacy-surface" onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } if (route === 'reminders' && button?.textContent?.trim() === '+ New reminder') { event.preventDefault(); event.stopPropagation(); setReminderCreateOpen(true); } }}>{content}</div>
-      {paletteOpen && <CommandPalette data={data} onClose={() => setPaletteOpen(false)} onNavigate={(next, options) => { setPaletteOpen(false); navigate(next, 'command', options); }} onEvent={log} onRenameFolder={renameFolder} turn={assistantTurn} />}
+      {paletteOpen && <CommandPalette data={data} onClose={() => setPaletteOpen(false)} onNavigate={(next, options) => { setPaletteOpen(false); navigate(next, 'command', options); }} onEvent={log} onRenameFolder={renameFolder} turn={assistantTurn} conversations={conversations} />}
       {taskCreateOpen && <TaskCreateModal onClose={() => setTaskCreateOpen(false)} onSubmit={createTask} folders={listFolders(data).map((entry) => entry.name).filter((name) => name !== NO_FOLDER)} />}
       {reminderCreateOpen && <ReminderCreateModal defaultDate={planStartDate()} onClose={() => setReminderCreateOpen(false)} onSubmit={createReminder} />}
       {deadlineEditTaskId && (() => { const task = data.tasks.find((item) => item.id === deadlineEditTaskId); return task ? <DeadlineEditModal taskTitle={task.title} deadline={task.deadline} onClose={() => setDeadlineEditTaskId(null)} onSubmit={(deadline) => saveTaskDeadline(task.id, deadline)} /> : null; })()}
