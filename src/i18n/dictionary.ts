@@ -227,6 +227,19 @@ const pt = {
   'stats.exportFailed': 'Não foi possível exportar o arquivo.',
   'stats.empty': 'Nenhuma atividade registrada neste período.',
   'stats.emptyDetail': 'Conclua tarefas, sessões de foco, hábitos ou metas para ver as estatísticas aqui.',
+
+  'taby.greeting': 'Olá! Sou o assistente local do Hibi. Posso consultar e organizar seu espaço de trabalho.',
+  'taby.conversations': 'Conversas',
+  'taby.newConversation': 'Nova conversa',
+  'taby.searchPlaceholder': 'Buscar nas conversas',
+  'taby.searchLabel': 'Buscar nas conversas',
+  'taby.empty': 'Nenhuma conversa salva ainda.',
+  'taby.noMatches': 'Nenhuma conversa encontrada.',
+  'taby.delete': 'Apagar conversa',
+  'taby.deleteAll': 'Apagar todas',
+  'taby.deleteAllConfirm': 'Apagar todas as conversas salvas? Isto não pode ser desfeito.',
+  'taby.saveFailed': 'Não foi possível salvar a conversa.',
+  'taby.localOnly': 'As conversas ficam neste Mac e não entram no backup do workspace.',
 } as const
 
 export type DictionaryKey = keyof typeof pt
@@ -457,6 +470,19 @@ const en: Record<DictionaryKey, string> = {
   'stats.exportFailed': 'Could not export the file.',
   'stats.empty': 'No activity recorded in this period.',
   'stats.emptyDetail': 'Complete tasks, focus sessions, habits or goals to see statistics here.',
+
+  'taby.greeting': "Hi! I'm Hibi's local assistant. I can look things up and organise your workspace.",
+  'taby.conversations': 'Conversations',
+  'taby.newConversation': 'New conversation',
+  'taby.searchPlaceholder': 'Search conversations',
+  'taby.searchLabel': 'Search conversations',
+  'taby.empty': 'No saved conversations yet.',
+  'taby.noMatches': 'No conversation found.',
+  'taby.delete': 'Delete conversation',
+  'taby.deleteAll': 'Delete all',
+  'taby.deleteAllConfirm': 'Delete every saved conversation? This cannot be undone.',
+  'taby.saveFailed': 'The conversation could not be saved.',
+  'taby.localOnly': 'Conversations stay on this Mac and are not included in the workspace backup.',
 }
 
 export const dictionary: Record<Locale, Record<DictionaryKey, string>> = { pt, en }
