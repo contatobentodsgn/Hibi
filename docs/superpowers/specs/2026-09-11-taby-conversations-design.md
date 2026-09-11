@@ -22,6 +22,42 @@ into a transcript archive.
 | Creation | A conversation is created when the first message is sent, not when the screen opens. Opening Taby and leaving must not litter the list with empty threads. |
 | Titles | Derived from the first user message, trimmed to a short label. No model call to name a thread: that would spend tokens and, with a remote provider, send the text somewhere for a cosmetic gain. |
 
+## Decisions after implementation
+
+Settled while building `feat/taby-conversations`. Where they differ from the sections
+below, these win.
+
+- **Opening Taby opens an empty thread.** `useConversations` seeds `activeId` as
+  `null`, so a new session — and every reload — starts on a blank thread with the
+  earlier conversations listed beside it. The first question then starts a new
+  conversation, because `recordTurn` creates one whenever there is no active
+  conversation. This is the same rule as the "Nova conversa" button, which only
+  clears `activeId`: a thread is never created by arriving, only by speaking. The
+  cost is that resuming yesterday's conversation is one click, not automatic; the
+  gain is that the list never fills with empty threads, and reopening the app never
+  silently appends to a conversation the person has stopped thinking about.
+- **The duplicate guard lives in `useConversations` and is keyed on
+  `status:requestId`.** The assistant's reply is written from an effect watching
+  `turn.state`, and the timestamp is taken with `new Date().toISOString()` at the
+  moment the effect runs — so under `React.StrictMode`, which runs effects twice,
+  the same reply arrives with two different `at` values. Comparing the message
+  content (the `sameMessage` check inside `recordTurn`) therefore cannot catch it:
+  the two copies genuinely differ. The `handled` ref keyed on the turn's
+  `status:requestId` identifies the *transition*, not the text, and is the only
+  guard that holds. `recordTurn`'s own comparison stays as a second line of defence
+  for a caller that replays an identical message.
+- **`conversations` is a required prop on `CommandPalette`, not optional.** The
+  palette asks questions while `TabyView` is unmounted, so it is the surface most
+  likely to be wired up wrong. Making the prop optional would let a call site
+  compile while silently dropping every question asked at `⌘K` into a thread that
+  does not exist. Required, `tsc` names the file that forgot.
+- **Conversations are ordered by instant, not by string.** `pruneConversations`
+  compares `Date.parse(updatedAt)` rather than `localeCompare`. String order matches
+  chronological order only while every timestamp is UTC with a `Z` and a fixed
+  width; one `updatedAt` carrying an offset (`2026-09-11T09:00:00-03:00`) sorts
+  before an earlier UTC instant and prunes the wrong conversation. The same class of
+  bug already broke the Day and Week views outside São Paulo.
+
 ## Data
 
 `src/domain/conversations.ts` owns the shape and the pure rules:
