@@ -1,9 +1,14 @@
-function createEmailConnector({ baseUrl = 'https://mail.example.test/', request } = {}) {
+// Este conector não tem serviço padrão: `mail.example.test` é um placeholder que
+// não existe. Por isso ele não traz OAuth embutido — anunciar um fluxo que nunca
+// poderia completar é pior do que não anunciar nenhum. O OAuth aqui só existe
+// quando a pessoa configura as URLs do próprio serviço, e as permissões ficam a
+// cargo dele: o Hibi não inventa nomes de escopo para um servidor arbitrário.
+function createEmailConnector({ baseUrl = 'https://mail.example.test/', request, oauth } = {}) {
   const url = new URL(baseUrl);
   const call = async (path, init, override) => (override ?? request)(new URL(path, url).toString(), init);
   return {
     id: 'email', label: 'Email', allowedHosts: [url.hostname], capabilities: ['import', 'write'],
-    oauth: { pkce: true, authorizationUrl: 'https://mail.example.test/oauth/authorize', tokenUrl: 'https://mail.example.test/oauth/token', scopes: ['mail.read', 'mail.send'] },
+    ...(oauth ? { oauth: { pkce: true, ...oauth } } : {}),
     normalizeImport(message) {
       if (!message || message.flagged !== true || typeof message.id !== 'string' || !message.id) return null;
       return { remoteId: message.id, ...(typeof message.updatedAt === 'string' ? { revision: message.updatedAt } : {}), title: typeof message.subject === 'string' && message.subject.trim() ? message.subject.trim().slice(0, 240) : 'Flagged email', kind: 'email', ...(typeof message.from === 'string' ? { source: message.from.slice(0, 240) } : {}) };
