@@ -163,7 +163,6 @@ Fora das listas de fases, em ordem de gravidade. "Tarefa criada" significa que j
 - **O `main.cjs` não tem cobertura de teste.** Os 43 `ipcMain.handle` são registrados dentro do callback de `app.whenReady()`, e o harness de `electron/navigation-policy.test.cjs` troca `app` por um objeto cujo `then()` nunca executa esse callback — só as oito funções puras exportadas são exercitadas. Na prática: devolver `integrationManager.withConnectors(...)` para `createIntegrationManager({ … })` faz a auditoria voltar a ser apagada **sem nenhum teste falhar**. *(2026-09-11 · tarefa criada)*
 - **OAuth e endpoint customizado se excluem.** O allowlist de cada conector vem do `baseUrl`, mas as URLs de OAuth são absolutas e fixas: configurar um endpoint real quebra o OAuth daquele conector, e a do e-mail aponta para o placeholder `mail.example.test`. Exige decisão de design, não só conserto. *(auditoria de 2026-09-11)*
 - **O seed tem datas fixas.** `src/data/seed-data.ts` traz blocos de 07 a 11/09/2026, então uma instalação nova abre num dia vazio assim que a data real passa desse intervalo. Gerar o seed a partir do dia atual segue pendente, por decisão de entregar antes a data local real. *(2026-09-11)*
-- **Código morto no host nativo.** `notch.mm:241-244` ficou inalcançável depois que a linha 240 passou a recusar apresentações com ações, e `layout.test.cjs` ainda afirma sobre esses ramos. *(auditoria de 2026-09-11)*
 
 ## Critério de conclusão
 
