@@ -202,7 +202,11 @@ test('criação de lembrete diário preserva a recorrência', async ({ page }) =
   await expect(page.getByText('Every day · 08:30')).toBeVisible();
 });
 
+// O dia pré-marcado é o do início do plano (`planStartDate`, o primeiro dia com bloco), e o seed é
+// ancorado no dia em que roda: sem fixar o relógio, o dia esperado mudaria a cada dia de execução.
+// 07/09/2026 é uma segunda, então "Mon" aqui é escolha do teste, não coincidência do seed antigo.
 test('criação semanal preseleciona o dia do início e permite escolher categoria', async ({ page }) => {
+  await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await goMore(page, 'Lembretes');
   await page.getByRole('button', { name: '+ New reminder' }).click();
