@@ -13,6 +13,7 @@ const { createLocalApi, createLocalApiTokenStore } = require('./local-api.cjs');
 const { createWebhookService } = require('./webhooks.cjs');
 const { createOAuthService } = require('./oauth.cjs');
 const { createConnectorSettings } = require('./connector-settings.cjs');
+const { buildConnectors } = require('./connectors/index.cjs');
 const { createNotchWindowManager, validPresentation } = require("./notch-window.cjs");
 const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('./notch-settings.cjs');
 const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
@@ -181,15 +182,7 @@ function createWindow() {
 
 // Um endpoint configurado troca a base do conector e, com ela, o allowlist de
 // hosts: nenhuma outra origem passa a ser permitida por causa disso.
-function buildConnectors(settings) {
-  const endpointFor = (id) => { const value = settings.get(id).endpoint; return value ? { baseUrl: value } : {}; };
-  return [
-    createNotionConnector(endpointFor('notion')),
-    createSlackConnector(endpointFor('slack')),
-    createEmailConnector(endpointFor('email')),
-    createRemoteNotificationConnector(endpointFor('remote-notifications')),
-  ];
-}
+
 
 app.whenReady().then(async () => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
