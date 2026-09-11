@@ -10,6 +10,6 @@ Run the application in production mode (`npm run desktop:production`) before rec
 | Display reconnect | With a card visible, unplug and reconnect the external display. | No crash; a subsequent card is positioned on an available display. |
 | Spaces and fullscreen | Show a passive card, change Spaces, then enter and leave a fullscreen app. | The passive card remains visible without activating Hibi; confirmation remains actionable. |
 | Sleep and wake | Put the Mac to sleep, wake it, then trigger a new card. | No stale card remains; the next card is correctly positioned. |
-| VoiceOver and keyboard | Enable VoiceOver, trigger a confirmation, then use Tab, Shift-Tab, Enter and Escape. | VoiceOver announces the separate action dialog and its message. The mascot host is not exposed as an interactive element. The first action is focused, Tab reaches all actions, Enter activates the focused action, and Escape dismisses passive cards. |
+| VoiceOver and keyboard | Enable VoiceOver, trigger a confirmation, then use Tab, Shift-Tab, Enter and Escape. | VoiceOver announces the separate action dialog and its message. The mascot host is not exposed as an interactive element. The first action is focused, Tab reaches all actions, and Enter activates the focused action. Escape does nothing on a confirmation: the overlay only dismisses cards that carry no actions. |
 
 Record the macOS version, Hibi build, display arrangement, adapter shown in Settings/diagnostics, and one screenshot for each failing scenario. Do not mark an untested hardware scenario as passed.

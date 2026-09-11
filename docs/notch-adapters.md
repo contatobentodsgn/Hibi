@@ -4,7 +4,7 @@ Hibi selects one native-notch adapter in the Electron main process. Renderer cod
 
 ## `public` — default and distributable
 
-This is always the default. On macOS with the compiled addon available, it owns a singleton AppKit `NSPanel`; Electron supplies only validated presentation state and receives bounded confirmation actions. When the host cannot initialize, it uses the documented Electron fallback. Both paths use documented Electron and AppKit capabilities only:
+This is always the default. On macOS with the compiled addon available, it owns a singleton AppKit `NSPanel` that shows passive cards only: it refuses any presentation carrying actions, so confirmations always go to the Electron fallback window. Electron supplies only validated presentation state. When the host cannot initialize, it uses the documented Electron fallback. Both paths use documented Electron and AppKit capabilities only:
 
 - top-centred native companion panel, selected from `NSScreen` by display ID;
 - display/safe-area detection;
