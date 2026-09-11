@@ -123,6 +123,8 @@ Os dois harness recusam a execução até que o opt-in e os parâmetros seguros 
 
 O relatório traz apenas contagens, resultados e o host autorizado: nenhum título, corpo, identificador remoto ou credencial.
 
+E-mail e notificações remotas não têm serviço de mercado contra o qual rodar: o contrato é do próprio conector. `scripts/connector-sandbox.mjs` implementa esse contrato para que os itens 3 e 4 sejam reproduzíveis — suba com `SANDBOX_TOKEN=$(openssl rand -hex 16) node scripts/connector-sandbox.mjs`, exponha a porta em HTTPS (o harness recusa HTTP) e aponte `HIBI_LIVE_CONNECTOR_ENDPOINT` para `<url>/mail/` ou `<url>/notify/`. O cabeçalho do arquivo repete a ressalva: ela prova a fiação, não a compatibilidade com um serviço real.
+
 O ciclo de vida do Notion reaproveita sempre a mesma tarefa descartável, marcada como
 `[hibi-harness] disposable validation task`. Repetir a validação não acumula páginas no
 workspace; o conector não expõe arquivamento de propósito, então essa única página fica
