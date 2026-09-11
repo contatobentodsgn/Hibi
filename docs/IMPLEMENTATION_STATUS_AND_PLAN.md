@@ -164,6 +164,8 @@ Fora das listas de fases, em ordem de gravidade. "Tarefa criada" significa que j
 - **O seed tem datas fixas.** `src/data/seed-data.ts` traz blocos de 07 a 11/09/2026, então uma instalação nova abre num dia vazio assim que a data real passa desse intervalo. Gerar o seed a partir do dia atual segue pendente, por decisão de entregar antes a data local real. *(2026-09-11)*
 - **Código morto no host nativo.** `notch.mm:241-244` ficou inalcançável depois que a linha 240 passou a recusar apresentações com ações, e `layout.test.cjs` ainda afirma sobre esses ramos. *(auditoria de 2026-09-11)*
 
+- **Lembretes semanais criados antes de 2026-09-11 podem ter a data de início errada.** `firstWeeklyOccurrence` misturava dia da semana local com data UTC, então fora de UTC-03 o `schedule.at` gravado ao criar ou editar um lembrete semanal aponta para o dia errado. O cálculo foi corrigido, mas **os dados já gravados não**: decidir entre recalcular na migração, corrigir na leitura, ou deixar como está e avisar. *(encontrado ao tornar a suíte independente de fuso, 2026-09-11)*
+
 ## Critério de conclusão
 
 O projeto só deve ser considerado completo quando as fases 1–3 tiverem evidência executável. Recursos remotos não devem ser marcados como concluídos apenas pela existência de um adaptador: é necessário teste em sandbox autorizado e relatório sem segredos.
