@@ -88,7 +88,7 @@ Commit `fbb3c83`. `stats` route in `MORE_ITEMS` right after `review`, `/stats` c
 
 ## Task 8: Verify persistence, accessibility, and regression safety — DONE
 
-Commit `8dc895e` `test: verify dedicated statistics workflow` (e2e and docs). The controller ran the Electron check on 2026-09-10, pushed the branch and opened the PR.
+Commit `8dc895e` `test: verify dedicated statistics workflow` (e2e and docs). The controller ran the Electron check on 2026-09-10, pushed the branch and opened PR #7, merged on 2026-09-10 as `6984c20`.
 
 **Files:**
 - Modify: `tests/e2e/stats.spec.ts`
@@ -98,4 +98,4 @@ Commit `8dc895e` `test: verify dedicated statistics workflow` (e2e and docs). Th
 - [x] **Step 2: Full gate.** `rtk proxy npm test`, `npx tsc --noEmit`, `npm run build`, `rtk proxy npx playwright test` → PASS; also `TZ=UTC rtk proxy npx vitest run src/domain/__tests__/stats.test.ts`. Result on 2026-09-10: Vitest 503 tests in 66 files plus 176 `node --test`; `tsc` without errors; build (native addon, `tsc`, `vite build`) exit 0; Playwright 99 passed; `stats.test.ts` 28 passed with `TZ=UTC` and with `TZ=America/Sao_Paulo`. The Stats spec also passed twice each under `America/Sao_Paulo`, `UTC` and `Pacific/Kiritimati`.
 - [x] **Step 3: Real app check (controller).** Done on 2026-09-10 after `npm run build`, driving the production app (`HIBI_PRODUCTION=1`) with Playwright's Electron API and a temporary `userData` set before the main process loads, so no real workspace was touched. 10/10 checks: Review opens unchanged; a task completed in Tarefas shows under Semana (7–13 Sep) and Hoje with the four summary cards, the `role="img"` chart, the daily table and the history row; the CSV and JSON exports (`hibi-stats-2026-09-10.*`) contain only that record; a custom period that excludes today shows 0 with exports still available; an inverted period marks only the end date; no network requests and no console errors while on Stats. Screenshots are of the Hibi window only. Production build in Electron (`HIBI_PRODUCTION=1`), open Stats through the dock, capture a screenshot of the Hibi window only (not the desktop), check summary, chart, table, history, custom dates and exports; Review unchanged; no network requests from Stats.
 - [x] **Step 4: Docs.** In `IMPLEMENTATION_STATUS_AND_PLAN.md` mark "Estatísticas dedicadas" implemented with evidence, tick item 1 of Fase 5 and remove Stats from the "Falta" table; add the spec section.
-- [x] **Step 5: Commit** `test: verify dedicated statistics workflow`, push, open the PR and let CI run. Commit `8dc895e`; the controller pushed the branch and opened the PR, where CI runs.
+- [x] **Step 5: Commit** `test: verify dedicated statistics workflow`, push, open the PR and let CI run. Commit `8dc895e`; PR #7 passed CI (tests, types, web build and e2e on Linux; the macOS native-addon job only runs on `main`) and was merged on 2026-09-10 as `6984c20`.
