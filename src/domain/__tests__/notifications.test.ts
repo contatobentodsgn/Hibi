@@ -27,7 +27,9 @@ describe('buildNotificationEntries', () => {
         kind: 'reminder',
         title: 'vaga/inglês - Horizontes',
         body: 'Important reminder.',
-        at: '2026-09-08T09:00:00-03:00',
+        // O seed é ancorado no dia em que roda, então a data sai dele — fixá-la aqui só valeria
+        // enquanto a data real estivesse na janela antiga do seed.
+        at: data.reminders[0].schedule.at,
         recurrence: data.reminders[0].schedule.recurrence,
       },
     ]);
