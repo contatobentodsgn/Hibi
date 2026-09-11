@@ -102,6 +102,15 @@ describe('activity ledger wiring', () => {
   });
 });
 
+describe('local calendar day', () => {
+  // O dia do calendário vem sempre dos componentes locais da data. Derivá-lo do instante UTC faria
+  // o app pular para amanhã depois das 21h em São Paulo.
+  it('never derives the current day from the UTC instant', () => {
+    expect(appSource).not.toContain('new Date().toISOString().slice(0, 10)');
+    expect(appSource).toContain('?? todayKey()');
+  });
+});
+
 describe('companion event wiring', () => {
   it('feeds the notch with real task, reminder, focus, and validation events', () => {
     expect(appSource).toContain("type: 'task.completed'");

@@ -1,7 +1,9 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { createSeedData } from '../../data/seed-data';
+import type { StudyData } from '../../domain/models';
 import { DayView } from '../DayView';
+import { HomeView } from '../HomeView';
 import { RemindersView } from '../RemindersView';
 import { SettingsView } from '../SettingsView';
 import { TasksView } from '../TasksView';
@@ -16,6 +18,31 @@ import { HelpView } from '../HelpView';
 
 const data = createSeedData();
 const onEvent = () => undefined;
+
+// O seed traz cinco dias fixos (07 a 11/09/2026), mas Início, Dia e Semana abrem na data local
+// real: os blocos são remapeados para hoje e os quatro dias seguintes, senão estes testes passariam
+// só enquanto a data real estivesse dentro do intervalo do seed. Tudo é montado com os componentes
+// locais da data, para valer em qualquer fuso.
+const SEED_DAYS = ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11'];
+const pad = (value: number) => String(value).padStart(2, '0');
+const dayFromToday = (offset: number) => { const date = new Date(); date.setDate(date.getDate() + offset); return date; };
+const keyFromToday = (offset: number) => { const date = dayFromToday(offset); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`; };
+const onRealDays = (source: StudyData): StudyData => ({
+  ...source,
+  blocks: source.blocks.map((block) => {
+    const day = keyFromToday(SEED_DAYS.indexOf(block.start.slice(0, 10)));
+    return { ...block, start: `${day}${block.start.slice(10)}`, end: `${day}${block.end.slice(10)}` };
+  }),
+});
+const agenda = onRealDays(data);
+// Um workspace só com blocos antigos: "hoje" não pode escorregar para a data do bloco mais antigo.
+const oldWorkspace: StudyData = { ...data, blocks: [{ id: 'antigo', title: 'Bloco antigo', start: '2020-01-02T09:00:00-03:00', end: '2020-01-02T10:00:00-03:00', category: 'work' }] };
+const WEEKDAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+const dayLabel = (offset: number) => { const date = dayFromToday(offset); return `${WEEKDAYS[date.getDay()]} · ${pad(date.getDate())} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`; };
+const homeLabel = (offset: number) => { const date = dayFromToday(offset); return `${WEEKDAYS[date.getDay()]} · ${MONTHS[date.getMonth()]} ${pad(date.getDate())}, ${date.getFullYear()}`; };
+const shortLabel = (offset: number) => { const date = dayFromToday(offset); return `${SHORT_DAYS[date.getDay()]} ${pad(date.getDate())}`; };
 const idleTurn: AssistantTurnControls = { state: { status: 'idle' }, ask: async () => undefined, confirm: async () => undefined, cancelConfirmation: async () => undefined, stop: onEvent, retry: async () => undefined, useLocalFallback: async () => undefined, dismiss: () => 'close', reset: onEvent };
 
 describe('study views', () => {
@@ -60,29 +87,51 @@ describe('study views', () => {
     expect(markup).toContain('1 active');
   });
 
-  it('renders the seeded day blocks', () => {
+  it('opens the day on the real local date and renders its blocks', () => {
     const markup = renderToStaticMarkup(
-      <DayView data={data} onEvent={onEvent} onCreateBlock={onEvent} />,
+      <DayView data={agenda} onEvent={onEvent} onCreateBlock={onEvent} />,
     );
 
-    expect(markup).toContain('MONDAY · 07 SEPTEMBER 2026');
+    expect(markup).toContain(dayLabel(0));
     expect(markup).toContain('Kabrito Post 01');
     expect(markup).toContain('Almoço');
   });
 
-  it('renders seeded blocks across the week', () => {
+  it('opens the week on the real local date and renders its blocks', () => {
     const markup = renderToStaticMarkup(
-      <WeekView data={data} onEvent={onEvent} onCreateBlock={onEvent} />,
+      <WeekView data={agenda} onEvent={onEvent} onCreateBlock={onEvent} />,
     );
 
-    expect(markup).toContain('Mon 07 — Sun 13');
+    expect(markup).toContain(`${shortLabel(0)} — ${shortLabel(6)}`);
     expect(markup).toContain('Aula de inglês');
     expect(markup).toContain('THU');
   });
 
+  // A data do bloco mais antigo do workspace não é "hoje": um workspace só com blocos velhos
+  // continua abrindo no dia de hoje, vazio, em vez de voltar no tempo.
+  it('keeps Day, Week and Home on today when the workspace only has old blocks', () => {
+    const day = renderToStaticMarkup(<DayView data={oldWorkspace} onEvent={onEvent} onCreateBlock={onEvent} />);
+    const week = renderToStaticMarkup(<WeekView data={oldWorkspace} onEvent={onEvent} onCreateBlock={onEvent} />);
+    const home = renderToStaticMarkup(<HomeView data={oldWorkspace} onEvent={onEvent} onNavigate={onEvent} />);
+
+    expect(day).toContain(dayLabel(0));
+    expect(week).toContain(`${shortLabel(0)} — ${shortLabel(6)}`);
+    expect(home).toContain(homeLabel(0));
+    for (const markup of [day, week, home]) expect(markup).not.toContain('Bloco antigo');
+    expect(home).toContain('No block scheduled');
+  });
+
+  it('shows the blocks of the real local day on Home', () => {
+    const markup = renderToStaticMarkup(<HomeView data={agenda} onEvent={onEvent} onNavigate={onEvent} />);
+
+    expect(markup).toContain(homeLabel(0));
+    expect(markup).toContain('Kabrito Post 01');
+    expect(markup).toContain('8 work blocks planned today');
+  });
+
   it('gives day event controls descriptive delete labels', () => {
     const markup = renderToStaticMarkup(
-      <DayView data={data} onEvent={onEvent} onCreateBlock={onEvent} onDeleteBlock={onEvent} />,
+      <DayView data={agenda} onEvent={onEvent} onCreateBlock={onEvent} onDeleteBlock={onEvent} />,
     );
 
     expect(markup).toContain('aria-label="Delete Kabrito Post 01 at 09:00"');
@@ -91,10 +140,10 @@ describe('study views', () => {
 
   it('gives week event controls descriptive delete labels and add slots button semantics', () => {
     const markup = renderToStaticMarkup(
-      <WeekView data={data} onEvent={onEvent} onCreateBlock={onEvent} onDeleteBlock={onEvent} />,
+      <WeekView data={agenda} onEvent={onEvent} onCreateBlock={onEvent} onDeleteBlock={onEvent} />,
     );
 
-    expect(markup).toContain('aria-label="Delete Aula de inglês at 08:00 on 2026-09-10"');
+    expect(markup).toContain(`aria-label="Delete Aula de inglês at 08:00 on ${keyFromToday(3)}"`);
     expect(markup).toContain('role="button"');
     expect(markup).toContain('tabindex="0"');
   });

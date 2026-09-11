@@ -145,7 +145,7 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 8. [ ] Voz e modelo local, depois de decidir motor, tamanho de download e empacotamento.
 9. [ ] Dispositivo físico, quando houver protocolo e hardware para teste.
 
-Pendências já registradas fora desta lista: Início, Dia, Semana e o Taby ainda tratam como "hoje" a data do bloco mais antigo do workspace (`src/domain/date-context.ts`) e, sem blocos, caem numa data UTC que vira o dia seguinte depois das 21h em São Paulo; as Estatísticas já partem da data local real.
+Pendências já registradas fora desta lista: o seed ainda traz datas fixas (`src/data/seed-data.ts`, blocos de 07 a 11/09/2026), então uma instalação nova do Hibi abre num dia vazio assim que a data real passa desse intervalo; gerar o seed a partir do dia atual continua pendente.
 
 ## Critério de conclusão
 

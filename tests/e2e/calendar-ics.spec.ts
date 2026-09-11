@@ -16,7 +16,12 @@ test('exporta o calendário local como ICS', async ({ page }) => {
   expect(path).toBeTruthy();
 });
 
+// Os eventos importados caem em 07/09/2026 e a Semana abre na data local real: sem fixar o relógio,
+// eles só apareceriam na grade enquanto a data real estivesse na mesma semana. Componentes locais.
+const seedToday = () => new Date(2026, 8, 7, 10, 0, 0);
+
 test('importa um evento ICS na semana exibida', async ({ page }) => {
+  await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await goWeek(page);
   const fileInput = page.locator('input[type="file"]');
@@ -39,6 +44,7 @@ test('importa um evento ICS na semana exibida', async ({ page }) => {
 });
 
 test('mantém um evento ICS importado após recarregar o app', async ({ page }) => {
+  await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await goWeek(page);
   await page.locator('input[type="file"]').setInputFiles({

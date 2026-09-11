@@ -4,13 +4,10 @@ import type { AiProviderFailure } from '../ai/contracts';
 import { classifyProviderFailure } from '../ai/production';
 import type { AiRuntimeResult, AiTurnRuntime } from '../ai/runtime';
 import type { CompanionEvent } from '../companion/contracts';
-import { referenceDate } from '../domain/date-context';
-import type { StudyData } from '../domain/models';
 import { companionEventFor, failurePresentationFor } from './assistant-presentation';
 
 export type AssistantHost = Readonly<{
   runtime: AiTurnRuntime;
-  data: StudyData;
   onEvent: (action: string, detail: string, result?: string) => void;
   onCompanionEvent?: (event: CompanionEvent) => void;
   onCompanionError?: (text: string) => void;
@@ -40,7 +37,7 @@ const assistantRequestId = () => `assistant-${crypto.randomUUID().replace(/[^A-Z
 
 // Um turno do assistente, do pedido à execução confirmada. A página Taby e a paleta usam o mesmo hook:
 // o reducer decide as transições; aqui só se conversa com o runtime, o companion e a instrumentação.
-export function useAssistantTurn({ runtime, data, onEvent, onCompanionEvent, onCompanionError }: AssistantHost): AssistantTurnControls {
+export function useAssistantTurn({ runtime, onEvent, onCompanionEvent, onCompanionError }: AssistantHost): AssistantTurnControls {
   const [state, dispatch] = useReducer(assistantTurnReducer, initialAssistantTurnState);
   const activeRequestId = useRef<string | null>(null);
   const lastMessage = useRef('');
@@ -98,7 +95,9 @@ export function useAssistantTurn({ runtime, data, onEvent, onCompanionEvent, onC
     onEvent('assistant-query', trimmed, useLocalFallback ? 'local-fallback' : 'requested');
     onCompanionEvent?.(companionEventFor('listening', requestId, 'Ouvindo…', Date.now()));
     try {
-      const result = await runtime.runTurn({ message: trimmed, surface: 'desktop', requestId, useLocalFallback, now: new Date(`${referenceDate(data)}T09:00:00-03:00`) });
+      // O instante real: o assistente raciocina sobre o agora de quem pergunta, e é dele que sai o
+      // dia usado para criar blocos e lembretes a partir de um horário solto ("às 10h").
+      const result = await runtime.runTurn({ message: trimmed, surface: 'desktop', requestId, useLocalFallback, now: new Date() });
       if (activeRequestId.current !== requestId) return;
       if (result.confirmation) {
         const text = `${result.reply}\n\nConfirme para continuar.`;
@@ -129,7 +128,7 @@ export function useAssistantTurn({ runtime, data, onEvent, onCompanionEvent, onC
     } finally {
       if (activeRequestId.current === requestId) activeRequestId.current = null;
     }
-  }, [runtime, data, onEvent, onCompanionEvent, onCompanionError]);
+  }, [runtime, onEvent, onCompanionEvent, onCompanionError]);
 
   const stop = useCallback(() => {
     const current = stateRef.current;
