@@ -1,0 +1,214 @@
+const test = require('node:test');
+const { after } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const bridge = require('./index.cjs');
+
+// Este arquivo exercita o BINÁRIO compilado (`build/Release/hibi_notch.node`) — não o texto do
+// `.mm` (isso é `layout.test.cjs`) nem um stub (isso é `index.test.cjs`). É a única verificação
+// automática que chama AppKit de verdade: cria o NSPanel, mede o frame que ele ocupou na tela real
+// e o destrói.
+//
+// Regra deste arquivo: nada de asserção que desaparece. Quando falta ambiente (addon não compilado,
+// sessão sem telas), o teste é PULADO explicitamente, com motivo legível no relatório. Um ramo
+// `if (!disponível)` some justamente quando a capacidade existe, que é quando a asserção valeria.
+const ADDON_PATH = path.join(__dirname, 'build/Release/hibi_notch.node');
+const addonBuilt = fs.existsSync(ADDON_PATH);
+const NO_ADDON = 'addon não compilado em native/notch/build/Release/hibi_notch.node — rode `npm run native:build`';
+const NO_SCREENS = 'NSScreen.screens vazio: esta sessão não tem window server para abrir um painel';
+
+// Os números do contrato passivo, afirmados aqui contra o frame real em vez de por regex no fonte.
+const HOST_WIDTH = 256;
+const PASSIVE_HEIGHT = 38;
+// O painel nasce centralizado e colado no topo, com a altura somando a faixa da câmera.
+const expectedFrame = (screen) => ({
+  x: screen.frame.x + screen.frame.width / 2 - HOST_WIDTH / 2,
+  y: screen.frame.y + screen.frame.height - (PASSIVE_HEIGHT + screen.safeAreaTop),
+  width: HOST_WIDTH,
+  height: PASSIVE_HEIGHT + screen.safeAreaTop,
+});
+const passive = (requestId, text = 'verificação do host nativo') => ({ requestId, kind: 'result', text, interaction: 'passthrough', actions: [] });
+// Cada teste começa e termina sem painel: o host é estado global do processo.
+const reset = () => { if (addonBuilt) bridge.destroyHost(); };
+// Rede de segurança: nenhuma janela sobrevive ao arquivo, mesmo se uma asserção estourar no meio.
+after(reset);
+
+test('o binário compilado anuncia capacidade real em vez do contrato de indisponibilidade', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  assert.equal(bridge.available(), true);
+  assert.equal(bridge.promotionAvailable(), true);
+  assert.equal(bridge.nativeHostAvailable(), true);
+  assert.equal(bridge.hostDiagnostics().available, true);
+  // O adaptador público sobre o bridge real, e não sobre um stub, é o que o app carrega.
+  const adapter = bridge.createNotchAdapter({ platform: 'darwin', isPackaged: false });
+  assert.equal(adapter.id, 'public');
+  assert.equal(adapter.available(), true);
+  assert.equal(adapter.nativeHostAvailable(), true);
+});
+
+test('screenGeometry descreve as telas reais com os campos que o seletor de tela consome', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  const screens = bridge.screenGeometry();
+  assert.ok(Array.isArray(screens));
+  if (screens.length === 0) return t.skip(NO_SCREENS);
+  screens.forEach((screen, index) => {
+    assert.equal(screen.index, index);
+    assert.ok(Number.isInteger(screen.displayId) && screen.displayId > 0, `displayId inválido: ${screen.displayId}`);
+    assert.ok(screen.frame.width > 0 && screen.frame.height > 0);
+    assert.equal(typeof screen.frame.x, 'number');
+    assert.equal(typeof screen.frame.y, 'number');
+    assert.ok(Number.isFinite(screen.safeAreaTop) && screen.safeAreaTop >= 0);
+    assert.equal(typeof screen.hasCameraHousing, 'boolean');
+  });
+  // `notch-window.cjs` casa `displayId` com os displays do Electron: repetido, escolheria a tela errada.
+  assert.equal(new Set(screens.map((screen) => screen.displayId)).size, screens.length);
+});
+
+test('o ciclo de vida do host nativo cria, mostra, esconde e destrói um NSPanel de verdade', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  const screens = bridge.screenGeometry();
+  if (screens.length === 0) return t.skip(NO_SCREENS);
+  reset();
+  const displayId = screens[0].displayId;
+
+  assert.equal(bridge.createHost(() => {}), true);
+  const created = bridge.hostDiagnostics();
+  assert.equal(created.created, true);
+  assert.equal(created.visible, false, 'criar o host não pode acender o painel sozinho');
+  assert.equal(created.frame.width, HOST_WIDTH);
+  assert.equal(created.frame.height, PASSIVE_HEIGHT);
+
+  assert.equal(bridge.showHost(passive('ciclo-de-vida'), displayId), true);
+  const shown = bridge.hostDiagnostics();
+  assert.equal(shown.visible, true);
+  assert.equal(shown.requestId, 'ciclo-de-vida');
+  assert.equal(shown.displayId, displayId);
+  assert.deepEqual(shown.frame, expectedFrame(screens[0]));
+  assert.equal(typeof shown.activeSpace, 'boolean');
+
+  assert.equal(bridge.hideHost(), true);
+  const hidden = bridge.hostDiagnostics();
+  assert.equal(hidden.visible, false);
+  assert.equal(hidden.created, true, 'esconder preserva o painel para a próxima apresentação');
+  assert.equal(hidden.requestId, undefined, 'o pedido escondido não pode continuar ativo no host');
+
+  assert.equal(bridge.destroyHost(), true);
+  const destroyed = bridge.hostDiagnostics();
+  assert.equal(destroyed.created, false);
+  assert.equal(destroyed.visible, false);
+  assert.equal(destroyed.frame, undefined);
+  assert.equal(destroyed.displayId, undefined);
+  // Sem painel não há o que esconder nem reposicionar: a recusa prova que o destroy soltou o estado.
+  assert.equal(bridge.hideHost(), false);
+  assert.equal(bridge.repositionHost(displayId), false);
+});
+
+test('o painel nasce abaixo da câmera: altura e posição saem da geometria real de cada tela', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  const screens = bridge.screenGeometry();
+  if (screens.length === 0) return t.skip(NO_SCREENS);
+  reset();
+  assert.equal(bridge.showHost(passive('geometria'), screens[0].displayId), true);
+  for (const screen of screens) {
+    assert.equal(bridge.repositionHost(screen.displayId), true);
+    const { frame, displayId } = bridge.hostDiagnostics();
+    assert.equal(displayId, screen.displayId);
+    // Altura = faixa passiva + faixa da câmera, senão o cartão nasceria escondido atrás dela.
+    assert.deepEqual(frame, expectedFrame(screen), `frame errado na tela ${screen.displayId}`);
+    assert.equal(frame.height, PASSIVE_HEIGHT + screen.safeAreaTop);
+  }
+  reset();
+});
+
+test('uma tela desconhecida cai numa tela real em vez de largar o painel fora do mundo', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  const screens = bridge.screenGeometry();
+  if (screens.length === 0) return t.skip(NO_SCREENS);
+  reset();
+  assert.equal(bridge.showHost(passive('tela-inexistente'), 999999), true);
+  const { frame } = bridge.hostDiagnostics();
+  const candidates = screens.map(expectedFrame);
+  assert.ok(candidates.some((candidate) => candidate.x === frame.x && candidate.y === frame.y && candidate.height === frame.height),
+    `o painel foi para ${JSON.stringify(frame)}, que não é nenhuma tela real`);
+  // Havendo tela com câmera, a queda é para ela: é onde o cartão faz sentido.
+  const housing = screens.find((screen) => screen.hasCameraHousing);
+  if (housing) assert.deepEqual(frame, expectedFrame(housing));
+  reset();
+});
+
+test('o host recusa apresentações com ações: clique e teclado são da overlay Electron', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  const screens = bridge.screenGeometry();
+  if (screens.length === 0) return t.skip(NO_SCREENS);
+  reset();
+  const displayId = screens[0].displayId;
+  assert.equal(bridge.showHost(passive('passivo'), displayId), true);
+  // A recusa é o contrato do painel: ele não aceita foco, então não teria como despachar a ação.
+  assert.equal(bridge.showHost({ requestId: 'com-acao', kind: 'confirm', text: 'Confirmar?', actions: [{ id: 'ok', label: 'OK' }] }, displayId), false);
+  // E a apresentação recusada não pode ter substituído a que estava no ar.
+  assert.equal(bridge.hostDiagnostics().requestId, 'passivo');
+  reset();
+});
+
+test('o host recusa apresentações malformadas sem derrubar o processo', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  const screens = bridge.screenGeometry();
+  if (screens.length === 0) return t.skip(NO_SCREENS);
+  reset();
+  const displayId = screens[0].displayId;
+  assert.equal(bridge.showHost({ actions: [] }, displayId), false, 'sem requestId');
+  assert.equal(bridge.showHost({ requestId: '', actions: [] }, displayId), false, 'requestId vazio');
+  assert.equal(bridge.showHost({ requestId: 42, actions: [] }, displayId), false, 'requestId não string');
+  assert.equal(bridge.showHost({ requestId: 'a', actions: 'nope' }, displayId), false, 'actions não é lista');
+  assert.equal(bridge.showHost({ requestId: 'a' }, displayId), false, 'sem actions');
+  assert.equal(bridge.showHost({ requestId: 'x'.repeat(129), actions: [] }, displayId), false, 'requestId acima de 128');
+  assert.equal(bridge.showHost(passive('a'), 'não é número'), false, 'displayId não numérico');
+  assert.equal(bridge.showHost({ requestId: 'x'.repeat(128), actions: [] }, displayId), true, '128 é o limite aceito');
+  // Quebras de linha viram uma linha só na hora de desenhar; aqui o que se prova é que não explode.
+  assert.equal(bridge.showHost(passive('multilinha', 'uma\nduas\r\ntrês quatro'), displayId), true);
+  reset();
+});
+
+test('place exige os cinco argumentos e recusa handles que não apontam para janela', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  // Posicionar uma janela de verdade exige o handle de um BrowserWindow do Electron; o que dá para
+  // provar fora dele são as guardas — e elas são justamente o que separa um erro de um crash.
+  assert.throws(() => bridge.place(), { name: 'TypeError', message: 'Expected native handle and x, y, width, height.' });
+  assert.throws(() => bridge.place({}, 0, 0, 10, 10), { name: 'TypeError' });
+  assert.throws(() => bridge.place(Buffer.alloc(8), 0, 0, 10), { name: 'TypeError' });
+  assert.equal(bridge.place(Buffer.alloc(2), 0, 0, 10, 10), false, 'handle menor que um ponteiro');
+  assert.equal(bridge.place(Buffer.alloc(8), 0, 0, 10, 10), false, 'ponteiro nulo');
+});
+
+test('teardown desfaz o host e é idempotente', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  const screens = bridge.screenGeometry();
+  if (screens.length === 0) return t.skip(NO_SCREENS);
+  reset();
+  assert.equal(bridge.createHost(() => {}), true);
+  assert.equal(bridge.showHost(passive('teardown'), screens[0].displayId), true);
+  assert.equal(bridge.teardown(), undefined);
+  assert.equal(bridge.hostDiagnostics().created, false);
+  // Chamado duas vezes no desligamento do app, não pode estourar na segunda.
+  assert.equal(bridge.teardown(), undefined);
+  assert.equal(bridge.hostDiagnostics().created, false);
+});
+
+test('o adaptador público entrega o host real do binário, e não só o contrato seguro', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  const screens = bridge.screenGeometry();
+  if (screens.length === 0) return t.skip(NO_SCREENS);
+  reset();
+  const adapter = bridge.createNotchAdapter({ platform: 'darwin', isPackaged: false });
+  assert.equal(adapter.createHost('não é função'), false, 'o adaptador barra o callback inválido antes da ponte');
+  assert.equal(adapter.createHost(() => {}), true);
+  assert.equal(adapter.showHost(passive('via-adaptador'), screens[0].displayId), true);
+  const diagnostics = adapter.hostDiagnostics();
+  assert.equal(diagnostics.created, true);
+  assert.equal(diagnostics.requestId, 'via-adaptador');
+  assert.deepEqual(diagnostics.frame, expectedFrame(screens[0]));
+  assert.equal(adapter.hideHost(), true);
+  assert.equal(adapter.destroyHost(), true);
+  assert.equal(adapter.hostDiagnostics().created, false);
+});

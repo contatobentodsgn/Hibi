@@ -4,23 +4,24 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 // Limite honesto deste arquivo: os testes leem `src/notch.mm` como texto e provam que o fonte
-// contém (ou não contém) certas construções. Não provam nada sobre o comportamento do binário
-// compilado — quem exercita o addon de verdade é `npm run native:notch:smoke`, manual.
+// contém (ou não contém) certas construções. Um regex sobre fonte quebra quando alguém reformata e
+// passa quando a lógica está errada, então aqui só ficou o que o binário não deixa observar: nada
+// na ponte N-API expõe máscara de canto, foco de janela, monitor de teclado ou texto desenhado, e
+// `doesNotMatch` prova ausência, que nenhuma chamada consegue provar.
+// O que dá para medir no painel de verdade (tamanho, posição sob a câmera, recusa de ações, ciclo
+// de vida) foi para `host.test.cjs`, que chama o addon compilado — não é mais o smoke manual.
 const readSource = () => fs.readFileSync(path.join(__dirname, 'src/notch.mm'), 'utf8');
 
-test('o fonte fixa as proporções compactas do painel e não guarda mais uma altura interativa', () => {
-  const source = readSource();
-
-  assert.match(source, /constexpr CGFloat kHostWidth = 256\.0/);
-  assert.match(source, /constexpr CGFloat kPassiveHeight = 38\.0/);
-  assert.doesNotMatch(source, /kInteractiveHeight/);
+test('o fonte não guarda mais uma altura interativa', () => {
+  // Os valores de kHostWidth/kPassiveHeight são afirmados contra o frame real em `host.test.cjs`;
+  // aqui sobra a ausência, que só o fonte mostra.
+  assert.doesNotMatch(readSource(), /kInteractiveHeight/);
 });
 
 test('o fonte recusa apresentações com ações e não guarda mais o host interativo', () => {
   const source = readSource();
 
-  // A recusa é o contrato: com ações, a apresentação é da overlay Electron, não deste painel.
-  assert.match(source, /if \(actionsValue\.Length\(\) > 0\) return Napi::Boolean::New\(info\.Env\(\), false\);/);
+  // A recusa em si (`showHost` com ações devolve false) é exercitada contra o binário em `host.test.cjs`.
   assert.match(source, /gPanel\.ignoresMouseEvents = YES/);
   assert.match(source, /gPanel\.styleMask \|= NSWindowStyleMaskNonactivatingPanel/);
   assert.match(source, /gPanel\.becomesKeyOnlyIfNeeded = YES; \[gPanel orderFrontRegardless\]/);

@@ -1,5 +1,21 @@
-const test = require('node:test'); const assert = require('node:assert/strict'); const bridge = require('./index.cjs');
-test('reports a safe documented capability contract', () => { assert.equal(typeof bridge.available, 'function'); assert.equal(typeof bridge.promotionAvailable, 'function'); assert.equal(typeof bridge.screenGeometry, 'function'); assert.equal(typeof bridge.place, 'function'); assert.equal(typeof bridge.teardown, 'function'); assert.equal(typeof bridge.nativeHostAvailable, 'function'); assert.equal(typeof bridge.createHost, 'function'); assert.equal(typeof bridge.showHost, 'function'); assert.equal(typeof bridge.hideHost, 'function'); assert.equal(typeof bridge.repositionHost, 'function'); assert.equal(typeof bridge.destroyHost, 'function'); assert.equal(typeof bridge.hostDiagnostics, 'function'); assert.equal(bridge.promotionAvailable(), bridge.available()); const screens = bridge.screenGeometry(); assert.ok(Array.isArray(screens)); for (const screen of screens) { assert.equal(typeof screen.safeAreaTop, 'number'); assert.equal(typeof screen.hasCameraHousing, 'boolean'); } if (!bridge.available()) { assert.equal(bridge.place(), false); assert.equal(bridge.nativeHostAvailable(), false); assert.equal(bridge.createHost(() => {}), false); } });
+const test = require('node:test'); const assert = require('node:assert/strict'); const fs = require('node:fs'); const path = require('node:path'); const bridge = require('./index.cjs');
+// O binário compilado é a única coisa que separa os dois contratos desta ponte, e os dois são
+// afirmados: sem ele, tudo responde `false`; com ele, a capacidade é real. Um `if (!available())`
+// com um ramo só sumia justamente quando o addon funciona, que é quando a asserção valeria —
+// o ciclo completo contra o binário está em `host.test.cjs`.
+const addonBuilt = fs.existsSync(path.join(__dirname, 'build/Release/hibi_notch.node'));
+test('reports a safe documented capability contract', () => { assert.equal(typeof bridge.available, 'function'); assert.equal(typeof bridge.promotionAvailable, 'function'); assert.equal(typeof bridge.screenGeometry, 'function'); assert.equal(typeof bridge.place, 'function'); assert.equal(typeof bridge.teardown, 'function'); assert.equal(typeof bridge.nativeHostAvailable, 'function'); assert.equal(typeof bridge.createHost, 'function'); assert.equal(typeof bridge.showHost, 'function'); assert.equal(typeof bridge.hideHost, 'function'); assert.equal(typeof bridge.repositionHost, 'function'); assert.equal(typeof bridge.destroyHost, 'function'); assert.equal(typeof bridge.hostDiagnostics, 'function'); assert.equal(bridge.promotionAvailable(), bridge.available()); const screens = bridge.screenGeometry(); assert.ok(Array.isArray(screens)); for (const screen of screens) { assert.equal(typeof screen.safeAreaTop, 'number'); assert.equal(typeof screen.hasCameraHousing, 'boolean'); } assert.equal(bridge.available(), addonBuilt); assert.equal(bridge.nativeHostAvailable(), addonBuilt);
+  if (addonBuilt) {
+    // Com addon, `place` cobra os argumentos em vez de devolver um `false` mudo.
+    assert.throws(() => bridge.place(), { name: 'TypeError' });
+    assert.equal(bridge.place(Buffer.alloc(8), 0, 0, 10, 10), false);
+  } else {
+    assert.equal(bridge.place(), false);
+    assert.equal(bridge.createHost(() => {}), false);
+    assert.equal(bridge.showHost({ requestId: 'x', actions: [] }, 1), false);
+    assert.deepEqual(bridge.hostDiagnostics(), { available: false });
+  }
+});
 
 test('keeps native host operations safely unavailable when the bridge cannot provide them', () => {
   const { createPublicNotchAdapter } = require('./adapters/public.cjs');
