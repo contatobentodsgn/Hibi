@@ -23,13 +23,13 @@ Atualizado em 2026-09-11. Este documento é a fonte operacional do status atual 
 | Nova UI — fundação | Implementado localmente | Tokens claro/escuro com contraste testado, i18n `pt`/`en` ao vivo, shell sem moldura com dock, paleta `⌘K` unificada com o Taby; telas ainda com o visual anterior dentro do shell novo. |
 | Estatísticas dedicadas | Implementado (PR #7) | Página `/stats` (menu "Mais" do dock e paleta; `/review` continua no Review) sobre um registro local de atividade só de acréscimo, gravado uma vez por ação feita no Hibi — Tarefas, Hábitos, Metas, blocos, Foco e ações confirmadas do Taby; pausas nunca contam como foco. Resumo com comparação ao período anterior, tendência diária em SVG com tabela equivalente, planejado x concluído, categorias, pastas, histórico filtrável e exportação CSV/JSON só do período (também vazio); Hoje, Semana e Mês partem da data local real, porque o registro usa o relógio real; backup versão 2 leva o registro. Código: `src/domain/activity.ts`, `activity-events.ts`, `stats.ts`, `stats-export.ts`, `src/data/workspace-backup.ts`, `src/ui/focus-lifecycle.ts`, `StatsView.tsx`, `stats-format.ts`, `stats.css`. Testes: `stats.test.ts` (em `TZ=UTC` e `America/Sao_Paulo`), `stats-export.test.ts`, `activity-events.test.ts`, `activity.test.ts`, `workspace-backup.test.ts`, `focus-lifecycle.test.ts`, `StatsView.test.tsx`, `shell.test.tsx`, `palette.test.tsx`; e2e `tests/e2e/stats.spec.ts` — tarefa concluída em Hoje, persistência após recarregar, período personalizado sem a tarefa, CSV do período, teclado, foco concluído e cancelado com relógio simulado e pausa sem efeito. Bateria do PR #7 (merge `6984c20`): 504 Vitest, 176 `node --test`, 100 e2e, `tsc` e build de produção. Checagem no app Electron de produção em 2026-09-10 (userData isolado): Revisão inalterada, tarefa em Semana e Hoje, exportações só do período, período invertido marca só o fim e nenhuma requisição de rede nas Estatísticas ([plano](superpowers/plans/2026-09-08-dedicated-stats.md), Task 8). |
 | Slack | **Adiado** | Adaptador de leitura e escrita existe e é coberto por testes, mas o produto de sincronização foi adiado: o esforço foi concentrado no Notion. Nenhuma validação ao vivo planejada por ora. |
-| E-mail e notificações remotas | Implementado localmente | Adaptadores, confirmação, endpoint HTTPS configurável e teste de conexão; entrega real exige credencial do serviço escolhido. |
+| E-mail e notificações remotas | Implementado localmente; fiação validada ao vivo | Adaptadores, confirmação, endpoint HTTPS configurável e teste de conexão; entrega real exige credencial do serviço escolhido. Em 2026-09-11 o ciclo completo rodou por HTTPS contra uma **sandbox própria** que implementa o contrato que cada conector espera (e-mail: `profile`, `mailboxes`, `messages?flagged=true`, `send`; notificações: `health`, `send`): conexão, leitura só das mensagens sinalizadas, escrita confirmada e auditoria por ação. Isso valida a fiação — HTTPS, allowlist, credencial no Keychain, confirmação, relatório sanitizado —, **não** compatibilidade com um serviço de mercado. |
 | Webhooks | Implementado localmente | HMAC, nonce, expiração, limite de corpo, loopback, Keychain e confirmação; ciclo iniciar/parar e estado após reinício cobertos por e2e; não é endpoint público. |
 | API pública | Implementado localmente | API HTTP loopback, token revogável no Keychain, OpenAPI, leituras e escritas com confirmação. |
 | Importação | Implementado localmente | CSV/JSON/ICS e leitura por conector a partir das fontes escolhidas, com prévia, deduplicação por referência remota, conflitos e aplicação local da decisão. |
 | Compartilhamento | Implementado localmente | Convites somente leitura assinados e expirados. |
 | Teste com provedor real | **Validado ao vivo** | Groq (`api.groq.com`, `openai/gpt-oss-120b`) em 2026-09-11: streaming com deltas, proveniência, consumo (337 tokens) e cancelamento real de um turno em voo. 401, limite de uso e indisponibilidade com retry são exercitados com respostas injetadas e carimbados `simulated` no relatório — não há como forçá-los num provedor real sem sujar a conta. A validação revelou e corrigiu um defeito no próprio harness: os eventos eram passados como terceiro argumento de `run()`, que aceita dois, então o relatório saía sem evento nenhum e um provedor que não streamasse teria passado. O relatório nunca traz a chave nem o texto. |
-| Teste com conector real | Notion validado; demais bloqueados por credencial | `npm run test:notion:live` roda o ciclo `criar → ler → atualizar → conflito` com a credencial que o próprio Hibi guarda no Keychain, sem expor o token. Slack, e-mail e notificações remotas seguem sem credencial de sandbox. |
+| Teste com conector real | Notion validado ao vivo; e-mail e notificações contra sandbox própria; Slack adiado | `npm run test:notion:live` roda o ciclo `criar → ler → atualizar → conflito` com a credencial que o próprio Hibi guarda no Keychain, sem expor o token. E-mail e notificações remotas rodaram leitura e escrita por HTTPS contra uma sandbox própria em 2026-09-11 — os conectores não falam nenhuma API de mercado, definem um contrato próprio, então não há serviço de terceiro contra o qual validar sem antes escrever um adaptador para ele. Slack segue adiado por decisão. |
 
 ## Paridade com o app original
 
@@ -97,8 +97,8 @@ Os dois harness recusam a execução até que o opt-in e os parâmetros seguros 
 
 - [x] Executar `HIBI_LIVE_PROVIDER_TEST=1 npm run test:providers:live` contra sandbox autorizado. Feito em 2026-09-11 contra a Groq.
 - [x] Exercitar streaming, cancelamento, 401, limite de uso, indisponibilidade, retry e proveniência com o provedor real. Ao vivo: streaming, proveniência, consumo e cancelamento em voo. Simulados com respostas injetadas e marcados como tal no relatório: 401, limite de uso e indisponibilidade com retry.
-- [ ] Executar `HIBI_LIVE_CONNECTOR_TEST=1 npm run test:connectors:live` por conector, em modo somente leitura.
-- [ ] Exercitar uma escrita real com `HIBI_LIVE_CONNECTOR_WRITE_TEST=1` e registrar o relatório sanitizado.
+- [x] Executar `HIBI_LIVE_CONNECTOR_TEST=1 npm run test:connectors:live` por conector, em modo somente leitura. Notion ao vivo; e-mail (conexão, 2 caixas, 1 mensagem sinalizada de 2) e notificações remotas (conexão) contra sandbox própria em 2026-09-11.
+- [x] Exercitar uma escrita real com `HIBI_LIVE_CONNECTOR_WRITE_TEST=1` e registrar o relatório sanitizado. `email.send` e `notification.send` responderam 200 com identificador remoto, cada uma precedida de `prepare` e registrada na auditoria. Slack continua adiado por decisão, e não foi exercitado.
 
 #### Parâmetros dos harness
 
@@ -122,6 +122,8 @@ Os dois harness recusam a execução até que o opt-in e os parâmetros seguros 
 | `HIBI_LIVE_NOTION_KEYCHAIN=1` | Opt-in de `npm run test:notion:live`: valida o Notion dentro do Electron com a credencial salva pelo Hibi, sem variável de token. |
 
 O relatório traz apenas contagens, resultados e o host autorizado: nenhum título, corpo, identificador remoto ou credencial.
+
+E-mail e notificações remotas não têm serviço de mercado contra o qual rodar: o contrato é do próprio conector. `scripts/connector-sandbox.mjs` implementa esse contrato para que os itens 3 e 4 sejam reproduzíveis — suba com `SANDBOX_TOKEN=$(openssl rand -hex 16) node scripts/connector-sandbox.mjs`, exponha a porta em HTTPS (o harness recusa HTTP) e aponte `HIBI_LIVE_CONNECTOR_ENDPOINT` para `<url>/mail/` ou `<url>/notify/`. O cabeçalho do arquivo repete a ressalva: ela prova a fiação, não a compatibilidade com um serviço real.
 
 O ciclo de vida do Notion reaproveita sempre a mesma tarefa descartável, marcada como
 `[hibi-harness] disposable validation task`. Repetir a validação não acumula páginas no
@@ -155,6 +157,8 @@ Pendências já registradas fora desta lista: `classifyProviderFailure` joga tod
 ## Critério de conclusão
 
 O projeto só deve ser considerado completo quando as fases 1–3 tiverem evidência executável. Recursos remotos não devem ser marcados como concluídos apenas pela existência de um adaptador: é necessário teste em sandbox autorizado e relatório sem segredos.
+
+A Fase 3 está cumprida com uma distinção que o documento precisa preservar, para não se ler mais do que foi feito: **Notion e o provedor de IA foram validados contra serviços reais de terceiros**; **e-mail e notificações remotas foram validados contra uma sandbox própria**, o que prova a fiação do Hibi mas não a compatibilidade com um serviço de mercado. O primeiro serviço real que for plugado nesses dois conectores ainda pode revelar incompatibilidade de contrato.
 
 ## Comandos de verificação
 
