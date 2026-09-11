@@ -1,8 +1,8 @@
 # Hibi — status de implementação e plano consolidado
 
-Atualizado em 2026-09-10, depois do merge do PR #7 (`main` em `6984c20`). Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
+Atualizado em 2026-09-11. Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
 
-Última bateria completa (branch `fix/notch-debts`): 507 testes Vitest, 181 `node --test`, 100 e2e Playwright, `tsc` sem erros e build de produção com o addon nativo.
+Última bateria completa em `main`: 507 testes Vitest, 181 `node --test`, 100 e2e Playwright, `tsc` sem erros e build de produção com o addon nativo.
 
 ## Status atual
 
