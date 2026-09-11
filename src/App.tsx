@@ -251,6 +251,9 @@ export default function App() {
     const intent = pendingLocalApiIntent;
     if (!intent) return;
     setPendingLocalApiIntent(null);
+    // Sem descartar a apresentação, o estado do companion guarda a confirmação até ela expirar e o
+    // relógio a mostra de novo no notch, já respondida.
+    dispatchCompanion({ type: 'presentation.dismissed', requestId: intent.confirmationId });
     if (approved) {
       const mutation = localApiTaskMutation(intent);
       if (mutation) { repository.createTask(mutation); refreshData(); log('local-api', mutation.title, 'approved'); }

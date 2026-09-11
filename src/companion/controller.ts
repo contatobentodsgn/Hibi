@@ -13,7 +13,10 @@ export class CompanionController {
   dispatch(event: CompanionEvent): CompanionPresentation {
     const previous = this.state; const next = reduceCompanion(previous, event); this.state = next;
     const presentation = toNotchPresentation(next);
-    if (presentation) this.callbacks.show(presentation);
+    // Só apresenta quando o estado muda de verdade: o relógio despacha `time.elapsed` a cada segundo
+    // e o reducer devolve o mesmo estado quando nada mudou. Reapresentar a cada tique traz de volta
+    // ao notch um cartão que já foi respondido e escondido.
+    if (presentation) { if (next !== previous) this.callbacks.show(presentation); }
     else if (previous.requestId) this.callbacks.hide(previous.requestId);
     return next;
   }
