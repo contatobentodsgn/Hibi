@@ -78,8 +78,8 @@ Observations, not failures:
 | Built-in Mac display with camera housing | 2026-09-10 runs above: passive card below the housing and confirmation inside the display, answered through the overlay. | Pass (automated clicks, real app, captures inspected by the agent) |
 | External display, passive and confirmation | 2026-09-10 runs above, with Hibi's window on either display. | Pass (automated clicks, real app, captures inspected by the agent) |
 | Display choice persistence | Choice kept after restarting the app. | Pass (real app) |
-| Native confirmation focus | Production app exposed the confirmation as a native window and put initial focus on **Confirmar**. | Pass |
-| Native keyboard navigation | Tab moved focus from **Confirmar** to **Cancelar** after adding an explicit local key monitor scoped to the interactive host. | Pass |
+| Native confirmation focus | Production app exposed the confirmation as a native window and put initial focus on **Confirmar**. | Pass when recorded — **superseded**: the native host now refuses any presentation carrying actions, so confirmations are shown by the Electron overlay. |
+| Native keyboard navigation | Tab moved focus from **Confirmar** to **Cancelar** after adding an explicit local key monitor scoped to the interactive host. | Pass when recorded — **superseded**: the key monitors still exist in `notch.mm`, but cannot run while the host stays passive-only. |
 | Passive interaction policy | Electron and AppKit paths are covered by automated tests: passive cards remain click-through and confirmations become interactive. | Pass (automated) |
 | Production renderer recovery | A renderer crash reloads once and resets the guard after a successful load. | Pass (automated) |
 
