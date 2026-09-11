@@ -53,7 +53,13 @@ async function safeExecutionResult(value) {
     const remoteId = typeof body?.id === 'string' && body.id.length <= 240 ? body.id : undefined;
     const revisionValue = body?.revision ?? body?.last_edited_time;
     const revision = typeof revisionValue === 'string' && revisionValue.length <= 240 ? revisionValue : undefined;
-    return { ok: value.ok === true, status: value.status, ...(remoteId === undefined ? {} : { remoteId }), ...(revision === undefined ? {} : { revision }) };
+    // O Slack recusa uma chamada com HTTP 200 e `ok: false` no corpo, então o status
+    // sozinho transformaria uma recusa em escrita bem-sucedida. Quando a resposta traz
+    // essa flag, ela decide; e-mail, notificações remotas e Notion nunca a enviam, e
+    // para eles o resultado continua vindo só do código HTTP.
+    const ok = value.ok === true && body?.ok !== false;
+    const error = ok ? undefined : redact(boundedText(body?.error, 240) ? body.error : 'The remote service refused this action.');
+    return { ok, status: value.status, ...(error === undefined ? {} : { error }), ...(remoteId === undefined ? {} : { remoteId }), ...(revision === undefined ? {} : { revision }) };
   }
   if (value && typeof value === 'object') {
     const remoteId = typeof value.remoteId === 'string' && value.remoteId.length <= 240 ? value.remoteId : undefined;
@@ -154,7 +160,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       const credential = await keychain.get(accountFor(action.connector.id));
       if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
       const result = await safeExecutionResult(await action.connector.executeApproved({ kind: action.kind, payload: action.payload, credential, request: safeFetchFor(action.connector) }));
-      appendAudit({ action: 'execute', connectorId: action.connector.id, detail: `Executed approved ${action.kind}.` });
+      appendAudit({ action: 'execute', connectorId: action.connector.id, detail: result.ok ? `Executed approved ${action.kind}.` : `The service refused approved ${action.kind}: ${result.error ?? 'no reason given'}` });
       return result;
     },
     async testConnection(id) {

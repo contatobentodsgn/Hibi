@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createIntegrationManager, createReadOnlyFetch, createSafeIntegrationFetch, sanitizeIntegrationAudit } = require('./integrations.cjs');
+const { createSlackConnector } = require('./connectors/slack.cjs');
 
 const keychain = () => {
   const values = new Map();
@@ -227,6 +228,46 @@ test('descobre uma fonte de dados sem devolver credencial ao renderer', async ()
   assert.equal(receivedCredential, 'token-secret');
   assert.deepEqual(result, { databaseId: 'db-1', dataSourceId: 'source-1', label: 'Hibi Tasks' });
   assert.equal(JSON.stringify(result).includes('secret'), false);
+});
+
+// O Slack recusa uma chamada com HTTP 200 e `ok: false` no corpo. Olhando só a linha de
+// status, uma postagem recusada volta idêntica a uma aceita: o app diz que executou, a
+// auditoria registra a execução e nada foi postado.
+test('uma recusa no corpo da resposta não vira escrita bem-sucedida', async () => {
+  const store = keychain();
+  await store.set('integration:slack', 'token-secreto');
+  const manager = createIntegrationManager({
+    connectors: [createSlackConnector()], keychain: store,
+    fetch: async () => new Response(JSON.stringify({ ok: false, error: 'channel_not_found' }), { status: 200, headers: { 'content-type': 'application/json' } }),
+  });
+  const prepared = await manager.prepareAction({ connectorId: 'slack', kind: 'slack.post', payload: { channel: 'C1', text: 'RECUSA_SIMULADA' } });
+
+  const result = await manager.executeApproved({ actionId: prepared.id, confirmationId: prepared.confirmationId });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 200);
+  assert.match(result.error, /channel_not_found/);
+  const [entry] = await manager.audit();
+  assert.equal(entry.action, 'execute');
+  assert.match(entry.detail, /refused/i);
+  assert.equal(JSON.stringify(await manager.audit()).includes('token-secreto'), false);
+});
+
+// E-mail, notificações remotas e Notion sinalizam falha pelo código HTTP e nunca mandam
+// `ok` no corpo: para eles o status continua sendo a única palavra, nos dois sentidos.
+test('uma resposta sem a flag `ok` no corpo continua decidida pelo status HTTP', async () => {
+  const store = keychain();
+  await store.set('integration:fixture', 'token');
+  const responses = [new Response(JSON.stringify({ id: 'sent-1' }), { status: 200 }), new Response(JSON.stringify({ error: 'mensagem inválida' }), { status: 400 })];
+  const manager = createIntegrationManager({ connectors: [{ ...connector, executeApproved: async () => responses.shift() }], keychain: store });
+
+  const accepted = await manager.prepareAction({ connectorId: 'fixture', kind: 'email.send', payload: {} });
+  assert.deepEqual(await manager.executeApproved({ actionId: accepted.id, confirmationId: accepted.confirmationId }), { ok: true, status: 200, remoteId: 'sent-1' });
+
+  const rejected = await manager.prepareAction({ connectorId: 'fixture', kind: 'email.send', payload: {} });
+  const failure = await manager.executeApproved({ actionId: rejected.id, confirmationId: rejected.confirmationId });
+  assert.equal(failure.ok, false);
+  assert.equal(failure.status, 400);
 });
 
 test('extrai a revisão segura da resposta de página do Notion', async () => {
