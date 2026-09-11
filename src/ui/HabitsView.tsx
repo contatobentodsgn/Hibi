@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { localDateKey, localNoon, todayKey } from '../domain/date-context';
 import type { Habit, StudyData } from '../domain/models';
 
 type HabitChanges = Partial<Omit<Habit, 'id'>>;
@@ -8,42 +9,45 @@ type Props = {
   onToggleCompletion: (id: string, date: string, completed: boolean) => void;
   onUpdate: (id: string, changes: HabitChanges) => void;
   onDelete: (id: string) => void;
+  /** Instante que define "hoje". Existe para os testes fixarem o dia sem congelar o relógio global. */
+  now?: Date;
 };
 
-const TODAY = '2026-09-07';
-const OFFSET = '-03:00';
-
-function dateKey(date: Date): string { return date.toISOString().slice(0, 10); }
-
+// A semana de um hábito semanal vai da segunda ao domingo do dia informado, no calendário local.
+// Ancorar em `-03:00` e reler com `toISOString()` misturava dois calendários: fora de UTC-03 a grade
+// saía deslocada de um dia e as marcações caíam na semana errada.
 function weekDates(dateKeyValue: string): string[] {
-  const date = new Date(`${dateKeyValue}T12:00:00${OFFSET}`);
+  const date = localNoon(dateKeyValue);
   const mondayOffset = (date.getDay() + 6) % 7;
   date.setDate(date.getDate() - mondayOffset);
   return Array.from({ length: 7 }, (_, index) => {
     const current = new Date(date);
     current.setDate(date.getDate() + index);
-    return dateKey(current);
+    return localDateKey(current);
   });
 }
 
-function streakFor(habit: Habit): number {
+/** Dias consecutivos concluídos terminando em `today`, contados para trás pelo calendário local. */
+export function streakFor(habit: Habit, today: string): number {
   const completed = new Set(habit.completedDates);
   let streak = 0;
-  const cursor = new Date(`${TODAY}T12:00:00${OFFSET}`);
-  while (completed.has(dateKey(cursor))) {
+  const cursor = localNoon(today);
+  while (completed.has(localDateKey(cursor))) {
     streak += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
   return streak;
 }
 
-function progressFor(habit: Habit): { completed: number; target: number } {
-  if (habit.frequency === 'daily') return { completed: habit.completedDates.includes(TODAY) ? 1 : 0, target: 1 };
-  const week = new Set(weekDates(TODAY));
+export function progressFor(habit: Habit, today: string): { completed: number; target: number } {
+  if (habit.frequency === 'daily') return { completed: habit.completedDates.includes(today) ? 1 : 0, target: 1 };
+  const week = new Set(weekDates(today));
   return { completed: habit.completedDates.filter((date) => week.has(date)).length, target: habit.targetPerWeek };
 }
 
-export function HabitsView({ data, onCreate, onToggleCompletion, onUpdate, onDelete }: Props) {
+export function HabitsView({ data, onCreate, onToggleCompletion, onUpdate, onDelete, now }: Props) {
+  // Hoje é o dia do relógio de quem usa o app, resolvido a cada render — não uma data fixa no código.
+  const today = todayKey(now);
   const [newTitle, setNewTitle] = useState('');
   const [newFrequency, setNewFrequency] = useState<Habit['frequency']>('daily');
   const [newTarget, setNewTarget] = useState('3');
@@ -87,12 +91,12 @@ export function HabitsView({ data, onCreate, onToggleCompletion, onUpdate, onDel
       <button className="primary" type="submit">Add habit</button>
     </form>
     <section className="list-card">{data.habits.map((habit) => {
-      const completedToday = habit.completedDates.includes(TODAY);
-      const progress = progressFor(habit);
+      const completedToday = habit.completedDates.includes(today);
+      const progress = progressFor(habit, today);
       const percent = Math.min(100, Math.round((progress.completed / Math.max(progress.target, 1)) * 100));
       return <div className="habit-row" key={habit.id}>
-        <button className={`check ${completedToday ? 'checked' : ''}`} aria-label={`${completedToday ? 'Undo' : 'Complete'} ${habit.title} today`} onClick={() => onToggleCompletion(habit.id, TODAY, !completedToday)}>{completedToday ? '✓' : ''}</button>
-        {editingId === habit.id ? <form className="habit-copy" aria-label={`Edit ${habit.title}`} onSubmit={(event) => submitEdit(event, habit)}><label htmlFor={`edit-habit-${habit.id}`}>Habit name</label><input id={`edit-habit-${habit.id}`} aria-label={`Edit ${habit.title} name`} value={editTitle} onChange={(event) => setEditTitle(event.target.value)} required /><label htmlFor={`edit-frequency-${habit.id}`}>Frequency</label><select id={`edit-frequency-${habit.id}`} value={editFrequency} onChange={(event) => setEditFrequency(event.target.value as Habit['frequency'])}><option value="daily">Daily</option><option value="weekly">Weekly</option></select>{editFrequency === 'weekly' && <label htmlFor={`edit-target-${habit.id}`}>Times per week<input id={`edit-target-${habit.id}`} type="number" min="1" step="1" value={editTarget} onChange={(event) => setEditTarget(event.target.value)} required /></label>}<div><button className="primary" type="submit">Save</button><button className="outline" type="button" onClick={() => setEditingId(null)}>Cancel</button></div></form> : <div className="habit-copy"><strong>{habit.title}</strong><span>{habit.frequency === 'daily' ? 'Daily' : `${habit.targetPerWeek} times per week`} · {progress.completed}/{progress.target} this period · {streakFor(habit)} day streak</span><div className="entity-progress"><span style={{ width: `${percent}%` }} /></div></div>}
+        <button className={`check ${completedToday ? 'checked' : ''}`} aria-label={`${completedToday ? 'Undo' : 'Complete'} ${habit.title} today`} onClick={() => onToggleCompletion(habit.id, today, !completedToday)}>{completedToday ? '✓' : ''}</button>
+        {editingId === habit.id ? <form className="habit-copy" aria-label={`Edit ${habit.title}`} onSubmit={(event) => submitEdit(event, habit)}><label htmlFor={`edit-habit-${habit.id}`}>Habit name</label><input id={`edit-habit-${habit.id}`} aria-label={`Edit ${habit.title} name`} value={editTitle} onChange={(event) => setEditTitle(event.target.value)} required /><label htmlFor={`edit-frequency-${habit.id}`}>Frequency</label><select id={`edit-frequency-${habit.id}`} value={editFrequency} onChange={(event) => setEditFrequency(event.target.value as Habit['frequency'])}><option value="daily">Daily</option><option value="weekly">Weekly</option></select>{editFrequency === 'weekly' && <label htmlFor={`edit-target-${habit.id}`}>Times per week<input id={`edit-target-${habit.id}`} type="number" min="1" step="1" value={editTarget} onChange={(event) => setEditTarget(event.target.value)} required /></label>}<div><button className="primary" type="submit">Save</button><button className="outline" type="button" onClick={() => setEditingId(null)}>Cancel</button></div></form> : <div className="habit-copy"><strong>{habit.title}</strong><span>{habit.frequency === 'daily' ? 'Daily' : `${habit.targetPerWeek} times per week`} · {progress.completed}/{progress.target} this period · {streakFor(habit, today)} day streak</span><div className="entity-progress"><span style={{ width: `${percent}%` }} /></div></div>}
         {editingId !== habit.id && <button className="icon-button" aria-label={`Edit ${habit.title}`} onClick={() => startEditing(habit)}>✎</button>}
          <button className="icon-button" aria-label={`Delete ${habit.title}`} onClick={() => setPendingDelete({ id: habit.id, title: habit.title })}>×</button>
       </div>;
