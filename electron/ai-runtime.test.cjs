@@ -310,8 +310,11 @@ test('classifies invalid credentials without retrying or exposing provider data'
   }
 });
 
-test('does not retry invalid HTTP client requests or expose provider text', async () => {
-  for (const status of [400, 404]) {
+// Um 404 `model_not_found` é um id de modelo errado nos Ajustes, não uma resposta ilegível:
+// chamá-lo de `invalid_response` foi o que mandou a primeira validação ao vivo investigar
+// formatação de JSON. O código precisa nomear a requisição, não a resposta.
+test('classifies rejected client requests as invalid_request without retrying or exposing provider text', async () => {
+  for (const status of [400, 404, 422]) {
     const events = []; let calls = 0;
     const client = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', onEvent: (event) => events.push(event), sleep: async () => assert.fail('must not retry invalid client requests'), fetchImpl: async () => {
       calls += 1;
@@ -319,14 +322,47 @@ test('does not retry invalid HTTP client requests or expose provider text', asyn
     } });
 
     await assert.rejects(() => client.generate({ message: 'x', surface: 'desktop' }), (error) => {
-      assert.match(error.message, /invalid_response/);
+      assert.match(error.message, /invalid_request/);
+      assert.doesNotMatch(error.message, /invalid_response/);
       assert.doesNotMatch(error.message, /raw client detail/i);
       return true;
     });
 
     assert.equal(calls, 1);
-    assert.deepEqual(events, [{ type: 'failed', failure: { code: 'invalid_response', retryable: false } }]);
+    assert.deepEqual(events, [{ type: 'failed', failure: { code: 'invalid_request', retryable: false } }]);
   }
+});
+
+// Os 4xx restantes também são a requisição, e nenhum deles melhora ao repetir: cair no
+// `unavailable` retentável seria trocar um rótulo errado por chamadas inúteis.
+test('keeps every other client status as a non-retryable invalid request', async () => {
+  for (const status of [405, 409, 413, 415]) {
+    const events = []; let calls = 0;
+    const client = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', onEvent: (event) => events.push(event), sleep: async () => assert.fail('must not retry invalid client requests'), fetchImpl: async () => {
+      calls += 1;
+      return jsonResponse({ error: { message: 'raw client detail' } }, { status });
+    } });
+
+    await assert.rejects(() => client.generate({ message: 'x', surface: 'desktop' }), /invalid_request/);
+
+    assert.equal(calls, 1);
+    assert.deepEqual(events, [{ type: 'failed', failure: { code: 'invalid_request', retryable: false } }]);
+  }
+});
+
+// A contrapartida: `invalid_response` continua existindo, para a resposta que de facto não se lê.
+test('still reports a genuinely unparseable body as invalid_response', async () => {
+  const events = []; let calls = 0;
+  const client = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', onEvent: (event) => events.push(event), sleep: async () => assert.fail('must not retry an unreadable response'), fetchImpl: async () => {
+    calls += 1;
+    return { ok: true, status: 200, headers: { get: () => null }, text: async () => 'not json at all' };
+  } });
+
+  // Aqui a mensagem segura do erro substitui o código, então quem afirma o contrato é o evento.
+  await assert.rejects(() => client.generate({ message: 'x', surface: 'desktop' }), /invalid response/i);
+
+  assert.equal(calls, 1);
+  assert.deepEqual(events, [{ type: 'failed', failure: { code: 'invalid_response', retryable: false } }]);
 });
 
 test('retries HTTP request timeouts within the unavailable fetch budget', async () => {

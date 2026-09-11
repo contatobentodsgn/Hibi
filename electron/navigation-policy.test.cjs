@@ -18,6 +18,14 @@ Module._load = function (request, parent, isMain) {
 const { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent, routeNotchAction, isRendererPresentationAllowed } = require("./main.cjs");
 Module._load = originalLoad;
 
+// Um código fora da lista faz `safeAiFailure` devolver null, e o evento `failed` inteiro é
+// descartado: a pessoa veria o turno falhar sem cartão nenhum. Cada código novo precisa entrar aqui.
+test('deixa passar a falha de requisição inválida em vez de descartar o evento', () => {
+  const event = safeAiStreamEvent({ type: 'failed', requestId: 'r-1', correlationId: 'c-1', failure: { code: 'invalid_request', retryable: false } });
+  assert.equal(event?.failure?.code, 'invalid_request');
+  assert.equal(safeAiStreamEvent({ type: 'failed', requestId: 'r-1', correlationId: 'c-1', failure: { code: 'inventado', retryable: false } }), null);
+});
+
 test('respostas do teste do notch ficam no processo principal e as demais vão ao renderer', () => {
   const sent = [];
   const notchTest = { handleAction: (action) => action.requestId.startsWith('notch-test-') };

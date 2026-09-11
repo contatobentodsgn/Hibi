@@ -106,6 +106,11 @@ export function classifyProviderFailure(input: unknown): AiProviderFailure {
   ) {
     return failure('unavailable', true)
   }
+  // 408 já saiu como indisponível acima, e um marcador de resposta ilegível também.
+  // O 4xx restante é a requisição — endpoint, id de modelo ou forma do pedido — e repetir não resolve.
+  if (status !== undefined && status >= 400 && status < 500) {
+    return failure('invalid_request', false)
+  }
   return failure('unavailable', true)
 }
 

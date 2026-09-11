@@ -100,6 +100,27 @@ describe('classifyProviderFailure', () => {
     expect(JSON.stringify(failure)).not.toContain('secret-value')
   })
 
+  // Endpoint, id de modelo ou forma do pedido errados. Não é a resposta que está ilegível,
+  // e repetir o mesmo pedido nunca passa a funcionar.
+  it.each([400, 404, 422])('classifies HTTP %i as a non-retryable invalid request without raw text', (status) => {
+    const failure = classifyProviderFailure({ status, message: 'model_not_found: secret-value' })
+
+    expect(failure).toEqual({ code: 'invalid_request', retryable: false })
+    expect(JSON.stringify(failure)).not.toContain('secret-value')
+  })
+
+  it('keeps every other client status as an invalid request instead of a retryable outage', () => {
+    expect(classifyProviderFailure({ status: 405 })).toEqual({ code: 'invalid_request', retryable: false })
+    expect(classifyProviderFailure({ response: { status: 409 } })).toEqual({ code: 'invalid_request', retryable: false })
+  })
+
+  it('prefers an explicit malformed-response marker over the status range', () => {
+    expect(classifyProviderFailure({ status: 400, code: 'invalid_response' })).toEqual({
+      code: 'invalid_response',
+      retryable: false,
+    })
+  })
+
   it('classifies AbortError as a non-retryable cancellation', () => {
     expect(classifyProviderFailure(new DOMException('cancelled', 'AbortError'))).toEqual({
       code: 'cancelled',

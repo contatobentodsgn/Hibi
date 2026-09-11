@@ -90,7 +90,7 @@ function safeAiFailure(value) {
   if (!value || typeof value !== 'object') return null;
   const code = value.code;
   const retryable = value.retryable;
-  if (!['invalid_credentials', 'rate_limited', 'unavailable', 'invalid_response', 'cancelled'].includes(code) || typeof retryable !== 'boolean') return null;
+  if (!['invalid_credentials', 'rate_limited', 'unavailable', 'invalid_request', 'invalid_response', 'cancelled'].includes(code) || typeof retryable !== 'boolean') return null;
   const retryAfterMs = value.retryAfterMs;
   if (retryAfterMs !== undefined && (!Number.isFinite(retryAfterMs) || retryAfterMs <= 0 || retryAfterMs > MAX_AI_STREAM_DELAY)) return null;
   return { code, retryable, ...(retryAfterMs === undefined ? {} : { retryAfterMs }) };

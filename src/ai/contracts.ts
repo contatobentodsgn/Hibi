@@ -77,8 +77,11 @@ export interface AiNormalizedUsage {
 
 export type AiProviderFailureCode =
   | 'invalid_credentials'
+  /** Endpoint, model id, or request shape is wrong. Retrying never helps. */
+  | 'invalid_request'
   | 'rate_limited'
   | 'unavailable'
+  /** The answer itself could not be parsed. */
   | 'invalid_response'
   | 'cancelled'
 

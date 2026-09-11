@@ -68,6 +68,20 @@ describe('TabyView capability boundaries', () => {
     });
   });
 
+  // Um id de modelo errado não pode se apresentar como "resposta inválida": o texto tem de
+  // apontar para o endpoint e o modelo, e não oferecer um "tentar de novo" que nunca funciona.
+  it('points a rejected request at the endpoint and model instead of blaming the answer', () => {
+    const presentation = failurePresentationFor({ code: 'invalid_request', retryable: false });
+
+    expect(presentation).toEqual({
+      title: 'Check the endpoint and model',
+      detail: 'The provider rejected the request itself. Check the endpoint and the model id in AI settings; retrying will not help.',
+      canRetry: false,
+      canUseLocalFallback: true,
+    });
+    expect(presentation.detail).not.toContain('invalid response');
+  });
+
   it('maps assistant stages, confirmations, results, and failures to companion events', () => {
     expect(companionEventFor('confirmation', 'c-1', 'Confirm?', 10)).toMatchObject({ type: 'confirmation.requested', requestId: 'c-1', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] });
     expect(companionEventFor('result', 'r-1', 'Done', 10)).toMatchObject({ type: 'ai.result', requestId: 'r-1', expiresInMs: 4_000 });

@@ -2,8 +2,19 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createNotificationScheduler, nextOccurrence, sanitizeEntries } = require('./notifications.cjs');
 
+// O agendador dispara no relógio de parede de quem usa o app: uma diária das 09:00 toca às 09:00
+// locais em qualquer fuso. Um relógio montado a partir de um instante fixo em `-03:00` só media a
+// distância certa até a próxima 09:00 perto de UTC-03, então os testes de recorrência montam o
+// "agora" com componentes locais. Os de horário único continuam comparando dois instantes absolutos.
+function localMs(text) {
+  const [date, time] = text.split('T');
+  const [year, month, day] = date.split('-').map(Number);
+  const [hours, minutes] = time.split(':').map(Number);
+  return new Date(year, month - 1, day, hours, minutes, 0, 0).getTime();
+}
+
 function createHarness(start, { onTrigger } = {}) {
-  let now = Date.parse(start);
+  let now = typeof start === 'number' ? start : Date.parse(start);
   let nextId = 1;
   const timers = new Map();
   const cleared = [];
@@ -30,7 +41,7 @@ function createHarness(start, { onTrigger } = {}) {
     timers,
     cleared,
     shown,
-    setNow: (value) => { now = Date.parse(value); },
+    setNow: (value) => { now = typeof value === 'number' ? value : Date.parse(value); },
     fireNext: () => {
       const [id, timer] = timers.entries().next().value;
       timers.delete(id);
@@ -60,14 +71,14 @@ test('reports the entry that triggered to the companion bridge', () => {
 });
 
 test('reschedules the next configured weekday after a recurring reminder fires', () => {
-  const harness = createHarness('2026-09-07T12:00:00-03:00');
+  const harness = createHarness(localMs('2026-09-07T12:00'));
   harness.scheduler.sync([{
     id: 'reminder:weekly', kind: 'reminder', title: 'Language class', body: 'Important reminder.', at: '2026-09-08T09:00:00-03:00',
     recurrence: { frequency: 'weekly', weekdays: [2, 3], timesByWeekday: { 2: '09:00', 3: '20:00' }, startDate: '2026-09-07' },
   }]);
 
   assert.equal([...harness.timers.values()][0].delay, 21 * 60 * 60 * 1000);
-  harness.setNow('2026-09-08T09:00:00-03:00');
+  harness.setNow(localMs('2026-09-08T09:00'));
   harness.fireNext();
 
   assert.equal(harness.shown.length, 1);
@@ -80,7 +91,7 @@ test('accepts date-only recurrence values with the configured local offset', () 
 });
 
 test('schedules the next day when a daily reminder time already passed', () => {
-  const harness = createHarness('2026-09-07T10:00:00-03:00');
+  const harness = createHarness(localMs('2026-09-07T10:00'));
   harness.scheduler.sync([{ id: 'reminder:daily', kind: 'reminder', title: 'Daily check-in', body: 'Daily', at: '2026-09-07T09:00:00-03:00', recurrence: { frequency: 'daily', time: '09:00', startDate: '2026-09-07' } }]);
 
   assert.equal([...harness.timers.values()][0].delay, 23 * 60 * 60 * 1000);

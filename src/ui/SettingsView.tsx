@@ -7,6 +7,7 @@ import { IntegrationsView } from './IntegrationsView';
 import { NotchDisplaySettings } from './NotchDisplaySettings';
 import type { AiUsageRecord } from '../ai/usage';
 import { useLocale, useT } from '../i18n/LocaleProvider';
+import type { DictionaryKey } from '../i18n/dictionary';
 import type { Locale } from '../i18n/format';
 import { useThemePreference } from './theme-context';
 import { isThemePreference } from './theme';
@@ -21,6 +22,25 @@ type LaunchAtLoginBridge = Readonly<{
   setOpenAtLogin: (enabled: boolean) => Promise<boolean>;
 }>;
 
+type Translate = (key: DictionaryKey) => string;
+
+// `translate` não interpola. A substituição por função evita que um `$&` no endpoint seja reinterpretado.
+const fillTemplate = (template: string, values: Record<string, string>): string =>
+  Object.entries(values).reduce((text, [key, value]) => text.replace(`{${key}}`, () => value), template);
+
+// O processo principal devolve só a mensagem segura `AI provider request failed: <código>.`,
+// que o ipcRenderer ainda prefixa — é esse código que decide o que a tela diz. Um pedido recusado
+// (endpoint ou id de modelo errado) precisa nomear endpoint e modelo, e não culpar a resposta.
+export function aiSaveFailureMessage(error: unknown, config: { endpoint: string; model: string }, t: Translate): string {
+  const message = error instanceof Error ? error.message : '';
+  if (message.includes('invalid_request')) return fillTemplate(t('settings.ai.invalidRequest'), { endpoint: config.endpoint, model: config.model });
+  if (message.includes('invalid_credentials')) return t('settings.ai.invalidCredentials');
+  if (message.includes('invalid_response')) return t('settings.ai.invalidResponse');
+  if (message.includes('rate_limited')) return t('settings.ai.rateLimited');
+  if (message.includes('unavailable')) return t('settings.ai.unavailable');
+  return message || t('settings.ai.saveFailed');
+}
+
 export function usageSummaryFor(entries: readonly AiUsageRecord[]) {
   return entries.reduce((summary, entry) => ({ turns: summary.turns + 1, totalTokens: summary.totalTokens + entry.totalTokens, estimatedCost: summary.estimatedCost + (entry.estimatedCost ?? 0) }), { turns: 0, totalTokens: 0, estimatedCost: 0 })
 }
@@ -31,6 +51,7 @@ export async function syncLaunchAtLogin(bridge: LaunchAtLoginBridge, enabled: bo
 }
 
 export function AiSettings({ onEvent, fallbackPolicy = 'automatic', onFallbackPolicyChange, usage = [] }: Pick<Props, 'onEvent' | 'aiUsage'> & { fallbackPolicy?: AiFallbackPolicy; onFallbackPolicyChange?: (policy: AiFallbackPolicy) => void; usage?: readonly AiUsageRecord[] }) {
+  const t = useT();
   const [config, setConfig] = useState<AiConfig>(DEFAULT_AI_CONFIG);
   const [apiKey, setApiKey] = useState('');
   const [modelPreset, setModelPreset] = useState<AiModelPresetId>('custom');
@@ -43,7 +64,7 @@ export function AiSettings({ onEvent, fallbackPolicy = 'automatic', onFallbackPo
       const saved = await window.hibiDesktop?.saveAiConfig?.({ provider: config.provider, endpoint: config.endpoint, model: config.model, ...(apiKey ? { apiKey } : {}) });
       if (saved) { setConfig(saved); setApiKey(''); setNotice(saved.hasApiKey ? 'AI settings saved. The key remains only in Keychain.' : 'AI settings saved.'); onEvent('edit', `AI provider: ${saved.provider}`, 'pass'); }
       else setNotice('AI settings require the desktop app.');
-    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not save AI settings.'); }
+    } catch (error) { setNotice(aiSaveFailureMessage(error, { endpoint: config.endpoint, model: config.model }, t)); }
   };
   const removeKey = async () => {
     try { const saved = await window.hibiDesktop?.deleteAiKey?.(); if (saved) { setConfig(saved); setNotice('API key removed from Keychain.'); onEvent('edit', 'Removed AI API key', 'pass'); } }

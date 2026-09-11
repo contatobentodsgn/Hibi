@@ -19,7 +19,7 @@ function safeFailureFrom(error: unknown): AiProviderFailure {
     const failure = (error as { failure?: unknown }).failure
     if (typeof failure === 'object' && failure !== null && 'code' in failure && 'retryable' in failure) {
       const { code, retryable, retryAfterMs } = failure as Partial<AiProviderFailure>
-      if (['invalid_credentials', 'rate_limited', 'unavailable', 'invalid_response', 'cancelled'].includes(String(code)) && typeof retryable === 'boolean' && (retryAfterMs === undefined || typeof retryAfterMs === 'number')) return { code: code as AiProviderFailure['code'], retryable, ...(typeof retryAfterMs === 'number' ? { retryAfterMs } : {}) }
+      if (['invalid_credentials', 'invalid_request', 'rate_limited', 'unavailable', 'invalid_response', 'cancelled'].includes(String(code)) && typeof retryable === 'boolean' && (retryAfterMs === undefined || typeof retryAfterMs === 'number')) return { code: code as AiProviderFailure['code'], retryable, ...(typeof retryAfterMs === 'number' ? { retryAfterMs } : {}) }
     }
   }
   return classifyProviderFailure(error)
