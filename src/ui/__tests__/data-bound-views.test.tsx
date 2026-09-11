@@ -19,22 +19,13 @@ import { HelpView } from '../HelpView';
 const data = createSeedData();
 const onEvent = () => undefined;
 
-// O seed traz cinco dias fixos (07 a 11/09/2026), mas Início, Dia e Semana abrem na data local
-// real: os blocos são remapeados para hoje e os quatro dias seguintes, senão estes testes passariam
-// só enquanto a data real estivesse dentro do intervalo do seed. Tudo é montado com os componentes
-// locais da data, para valer em qualquer fuso.
-const SEED_DAYS = ['2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11'];
+// O seed já nasce ancorado em hoje e nos quatro dias seguintes (ver `data/seed-data`), e Início, Dia
+// e Semana abrem na data local real — então a agenda do seed já é a destes testes, sem remapear
+// nada. Tudo é montado com os componentes locais da data, para valer em qualquer fuso.
 const pad = (value: number) => String(value).padStart(2, '0');
 const dayFromToday = (offset: number) => { const date = new Date(); date.setDate(date.getDate() + offset); return date; };
 const keyFromToday = (offset: number) => { const date = dayFromToday(offset); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`; };
-const onRealDays = (source: StudyData): StudyData => ({
-  ...source,
-  blocks: source.blocks.map((block) => {
-    const day = keyFromToday(SEED_DAYS.indexOf(block.start.slice(0, 10)));
-    return { ...block, start: `${day}${block.start.slice(10)}`, end: `${day}${block.end.slice(10)}` };
-  }),
-});
-const agenda = onRealDays(data);
+const agenda = data;
 // Um workspace só com blocos antigos: "hoje" não pode escorregar para a data do bloco mais antigo.
 const oldWorkspace: StudyData = { ...data, blocks: [{ id: 'antigo', title: 'Bloco antigo', start: '2020-01-02T09:00:00-03:00', end: '2020-01-02T10:00:00-03:00', category: 'work' }] };
 const WEEKDAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];

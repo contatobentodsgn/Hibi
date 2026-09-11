@@ -152,10 +152,13 @@ describe('local Hibi tool registry', () => {
   it('interprets local edit and delete commands for every mutable workspace entity', async () => {
     const repository = new LocalRepository(createSeedData());
     const note = repository.createNote({ title: 'Rascunho', content: 'texto', folder: 'Bento', createdAt: '2026-09-07T09:00:00-03:00', updatedAt: '2026-09-07T09:00:00-03:00' });
+    // O id do bloco do seed carrega o dia, e o seed é ancorado no dia em que roda: vem do próprio
+    // repositório, senão este caso voltaria a depender de uma data fixa.
+    const blockId = repository.listBlocks()[0]!.id;
     const cases: Array<[string, string, () => boolean]> = [
       ['edite tarefa: Kabrito Post 01 para Post revisado', 'exclua tarefa: Post revisado', () => repository.listTasks().some((item) => item.title === 'Post revisado')],
       ['edite lembrete: vaga/inglês - Horizontes para Aviso Horizontes', 'exclua lembrete: Aviso Horizontes', () => repository.listReminders().some((item) => item.title === 'Aviso Horizontes')],
-      ['edite bloco: 2026-09-07-09:00 para Bloco revisado', 'exclua bloco: Bloco revisado', () => repository.listBlocks().some((item) => item.title === 'Bloco revisado')],
+      [`edite bloco: ${blockId} para Bloco revisado`, 'exclua bloco: Bloco revisado', () => repository.listBlocks().some((item) => item.title === 'Bloco revisado')],
       ['edite nota: Rascunho para Nota revisada', 'exclua nota: Nota revisada', () => repository.listNotes().some((item) => item.id === note.id && item.title === 'Nota revisada')],
     ];
     const runtime = createLocalHibiRuntime(repository);
