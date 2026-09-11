@@ -181,7 +181,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
+  notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => sendToMainWindow('hibi:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
   const secureKeychain = createMacKeychain();
   connectorSettings = createConnectorSettings({ filePath: path.join(app.getPath('userData'), 'connector-settings.json') });
@@ -190,7 +190,7 @@ app.whenReady().then(async () => {
   localApi = createLocalApi({ tokenStore: createLocalApiTokenStore({ keychain: createMacKeychain() }), workspace: () => localApiWorkspace, prepareWrite: async (intent) => {
     const confirmationId = `local-api-${crypto.randomUUID()}`;
     pendingLocalApiWrites.set(confirmationId, intent);
-    mainWindow?.webContents.send('hibi:local-api:confirmation', { confirmationId, kind: intent.kind, payload: intent.payload });
+    sendToMainWindow('hibi:local-api:confirmation', { confirmationId, kind: intent.kind, payload: intent.payload });
     return { confirmationId, requiresConfirmation: true };
   } });
   webhookService = createWebhookService({ keychain: secureKeychain });
