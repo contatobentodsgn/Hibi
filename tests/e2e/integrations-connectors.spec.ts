@@ -4,10 +4,10 @@ import { test, expect, type Page } from '@playwright/test';
 // verifiquem o que a interface realmente enviou ao processo principal.
 async function installConnectorBridge(page: Page) {
   await page.addInitScript(() => {
-    const settings: Record<string, { endpoint: string; clientId: string; targets: { id: string; label: string }[] }> = {};
+    const settings: Record<string, { endpoint: string; clientId: string; targets: { id: string; label: string }[]; authorizationUrl: string; tokenUrl: string }> = {};
     const connected = new Set<string>();
     const calls: string[] = [];
-    const entry = (id: string) => settings[id] ?? (settings[id] = { endpoint: '', clientId: '', targets: [] });
+    const entry = (id: string) => settings[id] ?? (settings[id] = { endpoint: '', clientId: '', targets: [], authorizationUrl: '', tokenUrl: '' });
     const state = (id: string, label: string, capabilities: string[]) => ({ id, label, capabilities, state: connected.has(id) ? 'connected' : 'disconnected', hasCredential: connected.has(id) });
     (window as unknown as { hibiE2E: unknown }).hibiE2E = { settings, calls };
     (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
@@ -19,7 +19,14 @@ async function installConnectorBridge(page: Page) {
         state('remote-notifications', 'Remote notifications', ['notify', 'write']),
       ],
       listIntegrationAudit: async () => [],
-      isOauthSupported: async (id: string) => ['notion', 'slack', 'email'].includes(id),
+      // Espelha o processo principal: o OAuth embutido pertence ao serviço padrão,
+      // e um endpoint próprio só tem OAuth com as duas URLs configuradas.
+      isOauthSupported: async (id: string) => {
+        const current = entry(id);
+        if (current.authorizationUrl && current.tokenUrl) return true;
+        if (current.endpoint) return false;
+        return ['notion', 'slack'].includes(id);
+      },
       getConnectorSettings: async (id: string) => ({ ...entry(id) }),
       saveConnectorSettings: async (id: string, patch: Record<string, unknown>) => {
         const current = entry(id);
@@ -28,6 +35,12 @@ async function installConnectorBridge(page: Page) {
           current.endpoint = patch.endpoint ? `${patch.endpoint.replace(/\/$/, '')}/` : '';
         }
         if (typeof patch.clientId === 'string') current.clientId = patch.clientId;
+        for (const key of ['authorizationUrl', 'tokenUrl'] as const) {
+          const value = patch[key];
+          if (typeof value !== 'string') continue;
+          if (value && !value.startsWith('https://')) throw new Error('Connector authorization URL must use HTTPS.');
+          current[key] = value;
+        }
         if (Array.isArray(patch.targets)) current.targets = patch.targets as { id: string; label: string }[];
         calls.push(`save:${id}`);
         return { ...current };
@@ -135,6 +148,47 @@ test('escolhe quais canais são importados e mantém a seleção', async ({ page
 
   await sources.getByRole('checkbox', { name: '#geral' }).uncheck();
   await expect(page.getByText('Nothing selected yet; imports stay empty until you choose a source.')).toBeVisible();
+});
+
+test('um endpoint próprio desliga o OAuth até as URLs de autorização serem configuradas', async ({ page }) => {
+  await installConnectorBridge(page);
+  await openIntegrations(page);
+
+  const slackRow = page.locator('[data-connector="slack"]');
+  await expect(slackRow.getByRole('button', { name: 'Authorize' })).toBeVisible();
+  await slackRow.getByRole('button', { name: 'Configure' }).click();
+
+  const endpoint = page.getByLabel('Slack endpoint');
+  await endpoint.fill('https://slack.interno.example/api');
+  await endpoint.blur();
+
+  // Nem erro de allowlist, nem promessa de um fluxo que não existe: o estado é dito.
+  await expect(page.getByText('This connector uses a direct credential.')).toBeVisible();
+  await expect(slackRow.getByRole('button', { name: 'Authorize' })).toHaveCount(0);
+
+  const authorizationUrl = page.getByLabel('Slack authorization URL');
+  await authorizationUrl.fill('https://login.interno.example/oauth/authorize');
+  await authorizationUrl.blur();
+  await expect(page.getByText('Connector configuration saved on this Mac.')).toBeVisible();
+  await expect(slackRow.getByRole('button', { name: 'Authorize' })).toHaveCount(0);
+
+  const tokenUrl = page.getByLabel('Slack token URL');
+  await tokenUrl.fill('https://login.interno.example/oauth/token');
+  await tokenUrl.blur();
+  await expect(slackRow.getByRole('button', { name: 'Authorize' })).toBeVisible();
+  await expect(page.getByText('This connector uses a direct credential.')).toHaveCount(0);
+});
+
+test('recusa uma URL de autorização sem HTTPS', async ({ page }) => {
+  await installConnectorBridge(page);
+  await openIntegrations(page);
+
+  const emailRow = page.locator('[data-connector="email"]');
+  await emailRow.getByRole('button', { name: 'Configure' }).click();
+  const authorizationUrl = page.getByLabel('Email authorization URL');
+  await authorizationUrl.fill('http://login.interno.example/oauth/authorize');
+  await authorizationUrl.blur();
+  await expect(page.getByText('Connector authorization URL must use HTTPS.')).toBeVisible();
 });
 
 test('não oferece autorização OAuth para conectores que não a suportam', async ({ page }) => {
