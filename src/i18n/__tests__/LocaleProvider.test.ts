@@ -56,7 +56,7 @@ describe('LocaleProvider', () => {
   it('useFormat honra a preferência de 24h vinda do contexto', () => {
     const FormatConsumer = () => {
       const format = useFormat()
-      return React.createElement('span', null, format.time('2026-09-07T09:00:00-03:00'))
+      return React.createElement('span', null, format.time('2026-09-07T09:00:00'))
     }
 
     const twentyFourFake = host('en', 'true')
@@ -71,7 +71,7 @@ describe('LocaleProvider', () => {
   it('useFormat usa 24h por padrão quando a chave está ausente', () => {
     const FormatConsumer = () => {
       const format = useFormat()
-      return React.createElement('span', null, format.time('2026-09-07T09:00:00-03:00'))
+      return React.createElement('span', null, format.time('2026-09-07T09:00:00'))
     }
     const fake = host('en')
     const markup = renderToStaticMarkup(React.createElement(LocaleProvider, { host: fake, children: React.createElement(FormatConsumer) }))
