@@ -13,9 +13,38 @@ export function titleFor(text: string): string {
 }
 
 export function createConversation(firstMessage: string, at: string, id: string): Conversation {
-  return { id, title: titleFor(firstMessage), createdAt: at, updatedAt: at, messages: [{ role: 'user', text: firstMessage, at }] }
+  const text = redactSecrets(firstMessage)
+  return { id, title: titleFor(text), createdAt: at, updatedAt: at, messages: [{ role: 'user', text, at }] }
 }
 
 export function appendMessage(conversation: Conversation, message: ConversationMessage): Conversation {
-  return { ...conversation, updatedAt: message.at, messages: [...conversation.messages, message] }
+  return { ...conversation, updatedAt: message.at, messages: [...conversation.messages, { ...message, text: redactSecrets(message.text) }] }
+}
+
+// Mesma regra do histórico da IA (`src/ai/history.ts`): uma credencial colada por engano não
+// chega ao armazenamento. A conversa é gravada inteira; só o segredo é substituído.
+export const redactSecrets = (value: string): string => value
+  .replace(/(?:Bearer\s+|sk-|gsk_)[^\s,;]+/gi, '[redacted]')
+  .replace(/(?:api[_-]?key|token)\s*[:=]\s*[^\s,;]+/gi, '[redacted]')
+
+const isRole = (value: unknown): value is ConversationMessage['role'] => value === 'user' || value === 'assistant'
+const isIsoDate = (value: unknown): value is string => typeof value === 'string' && !Number.isNaN(Date.parse(value))
+
+const sanitizeMessage = (value: unknown): ConversationMessage | undefined => {
+  if (!value || typeof value !== 'object') return undefined
+  const record = value as Record<string, unknown>
+  if (!isRole(record.role) || typeof record.text !== 'string' || !isIsoDate(record.at)) return undefined
+  const provenance = typeof record.provenance === 'string' && record.provenance ? record.provenance.slice(0, 240) : undefined
+  return { role: record.role, text: redactSecrets(record.text), at: record.at, ...(provenance ? { provenance } : {}) }
+}
+
+/** Um registro corrompido é descartado sozinho; os demais sobrevivem. */
+export function sanitizeConversation(value: unknown): Conversation | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const record = value as Record<string, unknown>
+  if (typeof record.id !== 'string' || !record.id || typeof record.title !== 'string') return undefined
+  if (!isIsoDate(record.createdAt) || !isIsoDate(record.updatedAt) || !Array.isArray(record.messages)) return undefined
+  const messages = record.messages.map(sanitizeMessage)
+  if (messages.some((message) => message === undefined)) return undefined
+  return { id: record.id, title: record.title.slice(0, 120), createdAt: record.createdAt, updatedAt: record.updatedAt, messages: messages as ConversationMessage[] }
 }

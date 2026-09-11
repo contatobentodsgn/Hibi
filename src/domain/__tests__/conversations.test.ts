@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appendMessage, createConversation, titleFor } from '../conversations'
+import { appendMessage, createConversation, sanitizeConversation, titleFor } from '../conversations'
 
 const at = (hour: number) => new Date(2026, 8, 11, hour, 0).toISOString()
 
@@ -27,5 +27,22 @@ describe('conversations', () => {
     expect(replied.updatedAt).toBe(at(10))
     expect(replied.createdAt).toBe(at(9))
     expect(created.messages).toHaveLength(1)
+  })
+
+  it('redacts pasted credentials before a message is ever stored', () => {
+    const conversation = createConversation('minha chave é sk-abcdef123456 ok?', at(9), 'c-1')
+    expect(conversation.messages[0].text).toBe('minha chave é [redacted] ok?')
+
+    const withHeader = appendMessage(conversation, { role: 'user', text: 'usei Authorization: Bearer gsk_live_9f8e7d', at: at(10) })
+    expect(withHeader.messages[1].text).toContain('[redacted]')
+    expect(withHeader.messages[1].text).not.toContain('gsk_live_9f8e7d')
+  })
+
+  it('drops malformed records and keeps the valid ones', () => {
+    const valid = createConversation('oi', at(9), 'c-1')
+    expect(sanitizeConversation(valid)).toEqual(valid)
+    expect(sanitizeConversation({ id: 'c-2', title: 'sem mensagens', createdAt: at(9), updatedAt: at(9), messages: 'nope' })).toBeUndefined()
+    expect(sanitizeConversation({ ...valid, messages: [{ role: 'ghost', text: 'x', at: at(9) }] })).toBeUndefined()
+    expect(sanitizeConversation(null)).toBeUndefined()
   })
 })
