@@ -3,16 +3,16 @@ const test = require('node:test');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createConnectorSettings, normalizeEndpoint, normalizeTargets } = require('./connector-settings.cjs');
+const { createConnectorSettings, normalizeEndpoint, normalizeOauthUrl, normalizeTargets } = require('./connector-settings.cjs');
 
 const tempFile = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hibi-connector-settings-')), 'connectors.json');
 
 test('guarda endpoint, client id e alvos escolhidos por conector', () => {
   const settings = createConnectorSettings({ filePath: tempFile() });
-  assert.deepEqual(settings.get('slack'), { endpoint: '', clientId: '', targets: [] });
+  assert.deepEqual(settings.get('slack'), { endpoint: '', clientId: '', targets: [], authorizationUrl: '', tokenUrl: '' });
 
   const saved = settings.save('slack', { endpoint: 'https://slack.com/api', clientId: 'client.123', targets: [{ id: 'C1', label: '#geral' }] });
-  assert.deepEqual(saved, { endpoint: 'https://slack.com/api/', clientId: 'client.123', targets: [{ id: 'C1', label: '#geral' }] });
+  assert.deepEqual(saved, { endpoint: 'https://slack.com/api/', clientId: 'client.123', targets: [{ id: 'C1', label: '#geral' }], authorizationUrl: '', tokenUrl: '' });
   assert.deepEqual(createConnectorSettings({ filePath: settings.filePath }).get('slack'), saved);
 });
 
@@ -20,7 +20,34 @@ test('preserva os campos não informados em uma atualização parcial', () => {
   const settings = createConnectorSettings({ filePath: tempFile() });
   settings.save('email', { endpoint: 'https://mail.example.test', clientId: 'client-1' });
   const next = settings.save('email', { targets: [{ id: 'INBOX' }] });
-  assert.deepEqual(next, { endpoint: 'https://mail.example.test/', clientId: 'client-1', targets: [{ id: 'INBOX', label: 'INBOX' }] });
+  assert.deepEqual(next, { endpoint: 'https://mail.example.test/', clientId: 'client-1', targets: [{ id: 'INBOX', label: 'INBOX' }], authorizationUrl: '', tokenUrl: '' });
+});
+
+test('guarda as URLs de OAuth do conector com a mesma barreira do endpoint', () => {
+  const settings = createConnectorSettings({ filePath: tempFile() });
+  const saved = settings.save('slack', { endpoint: 'https://slack.interno.example/api', authorizationUrl: 'https://login.interno.example/oauth/authorize', tokenUrl: 'https://login.interno.example/oauth/token' });
+
+  // O caminho precisa sobreviver intacto: uma barra a mais troca a rota de autorização.
+  assert.equal(saved.authorizationUrl, 'https://login.interno.example/oauth/authorize');
+  assert.equal(saved.tokenUrl, 'https://login.interno.example/oauth/token');
+  assert.deepEqual(createConnectorSettings({ filePath: settings.filePath }).get('slack'), saved);
+});
+
+test('recusa URLs de OAuth inseguras ou com dados embutidos', () => {
+  const settings = createConnectorSettings({ filePath: tempFile() });
+  assert.throws(() => settings.save('slack', { authorizationUrl: 'http://login.interno.example/oauth/authorize' }), /must use HTTPS/);
+  assert.throws(() => settings.save('slack', { tokenUrl: 'https://user:senha@login.interno.example/oauth/token' }), /must not embed credentials/);
+  assert.throws(() => settings.save('slack', { authorizationUrl: 'https://login.interno.example/oauth/authorize?tenant=1' }), /query or fragment/);
+  assert.throws(() => settings.save('slack', { tokenUrl: 'nao-e-url' }), /invalid/);
+  assert.equal(normalizeOauthUrl(''), '');
+  assert.equal(settings.get('slack').authorizationUrl, '');
+});
+
+test('uma URL de OAuth pode ser guardada sozinha, sem virar meia configuração válida', () => {
+  const settings = createConnectorSettings({ filePath: tempFile() });
+  const saved = settings.save('slack', { authorizationUrl: 'https://login.interno.example/oauth/authorize' });
+  assert.equal(saved.authorizationUrl, 'https://login.interno.example/oauth/authorize');
+  assert.equal(saved.tokenUrl, '');
 });
 
 test('recusa endpoints inseguros ou com dados embutidos', () => {
@@ -57,7 +84,10 @@ test('persiste o estado limitado da sincronização do Notion sem segredos', () 
   };
   const saved = settings.save('notion', { notion });
   assert.deepEqual(saved.notion, notion);
-  assert.equal(JSON.stringify(saved).includes('token'), false);
+  // `tokenUrl` é configuração declarada pela pessoa, não segredo: a asserção olha
+  // o estado do Notion, que é onde um token poderia vazar.
+  assert.equal(JSON.stringify(saved.notion).includes('token'), false);
+  assert.equal(saved.tokenUrl, '');
 });
 
 test('recusa estado do Notion corrompido e preserva configuração legada', () => {

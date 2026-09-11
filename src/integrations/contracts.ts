@@ -47,6 +47,10 @@ export type ConnectorSettings = Readonly<{
   endpoint: string
   clientId: string
   targets: readonly IntegrationImportTarget[]
+  // URLs do servidor de autorização, configuradas ao lado do endpoint: elas não
+  // são derivadas dele, porque o autorizador raramente mora no host da API.
+  authorizationUrl?: string
+  tokenUrl?: string
   notion?: NotionConnectorState
 }>
 

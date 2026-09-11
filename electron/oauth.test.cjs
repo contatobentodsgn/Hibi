@@ -1,7 +1,17 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const crypto = require('node:crypto');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { createOAuthService, oauthConfigFor } = require('./oauth.cjs');
+const { createConnectorSettings } = require('./connector-settings.cjs');
+const { buildConnectors } = require('./connectors/index.cjs');
+
+// Os conectores de verdade, montados como o processo principal os monta: é aí que
+// endpoint configurado e URL de OAuth fixa se encontram.
+const tempSettings = () => createConnectorSettings({ filePath: path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hibi-oauth-settings-')), 'connectors.json') });
+const shippedConnector = (settings, id) => buildConnectors(settings).find((connector) => connector.id === id);
 
 const connector = {
   id: 'fixture', label: 'Fixture', allowedHosts: ['service.example.test'], capabilities: ['import', 'write'],
@@ -165,6 +175,68 @@ test('exige client id e PKCE declarado pelo conector', async () => {
   await assert.rejects(service.authorize('sem-oauth', { clientId: 'client-123' }), /does not support the PKCE/);
   assert.equal(service.supports('fixture'), true);
   assert.equal(service.supports('sem-oauth'), false);
+});
+
+test('mantém o OAuth embutido do Slack enquanto o endpoint padrão não é trocado', () => {
+  const config = oauthConfigFor(shippedConnector(tempSettings(), 'slack'));
+  assert.equal(config.authorizationUrl.toString(), 'https://slack.com/oauth/v2/authorize');
+  assert.equal(config.tokenUrl.toString(), 'https://slack.com/api/oauth.v2.access');
+  assert.deepEqual(config.scopes, ['chat:write', 'stars:read']);
+});
+
+test('um endpoint próprio sem URLs de OAuth desliga o OAuth em vez de recusar a URL embutida', () => {
+  const settings = tempSettings();
+  settings.save('slack', { endpoint: 'https://slack.interno.example/api' });
+  const slack = shippedConnector(settings, 'slack');
+  const service = createOAuthService({ keychain: memoryKeychain(), getConnector: () => slack, openExternal: () => undefined, fetch: async () => jsonResponse({}) });
+
+  assert.equal(slack.oauth, undefined);
+  assert.equal(service.supports('slack'), false);
+  // A ausência é honesta; o erro de allowlist seria uma promessa quebrada.
+  assert.throws(() => oauthConfigFor(slack), /does not support the PKCE/);
+});
+
+test('só considera o OAuth configurado quando as duas URLs existem', () => {
+  const settings = tempSettings();
+  settings.save('slack', { endpoint: 'https://slack.interno.example/api', authorizationUrl: 'https://login.interno.example/oauth/authorize' });
+  assert.equal(shippedConnector(settings, 'slack').oauth, undefined);
+
+  settings.save('slack', { tokenUrl: 'https://login.interno.example/oauth/token' });
+  assert.equal(shippedConnector(settings, 'slack').oauth?.authorizationUrl, 'https://login.interno.example/oauth/authorize');
+});
+
+test('autoriza um conector entregue usando as URLs de OAuth configuradas com o endpoint', async () => {
+  const settings = tempSettings();
+  settings.save('slack', { endpoint: 'https://slack.interno.example/api', authorizationUrl: 'https://login.interno.example/oauth/authorize', tokenUrl: 'https://login.interno.example/oauth/token' });
+  const slack = shippedConnector(settings, 'slack');
+  const keychain = memoryKeychain();
+  const calls = [];
+  let opened;
+  const service = createOAuthService({
+    keychain, getConnector: () => slack,
+    openExternal: (url) => { opened = new URL(url); },
+    fetch: async (url, init) => { calls.push({ url, body: init.body }); return jsonResponse({ access_token: 'access-1' }); },
+  });
+
+  assert.equal(service.supports('slack'), true);
+  const started = service.authorize('slack', { clientId: 'client-slack-1' });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(`${opened.origin}${opened.pathname}`, 'https://login.interno.example/oauth/authorize');
+  assert.equal(opened.searchParams.get('scope'), 'chat:write stars:read');
+  const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
+  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&code=auth-code-1`);
+
+  assert.deepEqual(await started, { connectorId: 'slack', connected: true, hasRefreshToken: false });
+  assert.equal(calls[0].url, 'https://login.interno.example/oauth/token');
+  assert.equal(keychain.store.get('integration:slack'), 'access-1');
+});
+
+test('o conector de e-mail não anuncia mais o OAuth do placeholder inexistente', () => {
+  const settings = tempSettings();
+  assert.equal(shippedConnector(settings, 'email').oauth, undefined);
+  settings.save('email', { authorizationUrl: 'https://login.interno.example/oauth/authorize', tokenUrl: 'https://login.interno.example/oauth/token' });
+  assert.equal(oauthConfigFor(shippedConnector(settings, 'email')).tokenUrl.toString(), 'https://login.interno.example/oauth/token');
 });
 
 test('recusa endpoints fora do allowlist do conector ou sem HTTPS', () => {

@@ -19,6 +19,19 @@ function normalizeEndpoint(value) {
   return url.toString().endsWith('/') ? url.toString() : `${url.toString()}/`;
 }
 
+// As URLs de OAuth passam pela mesma barreira do endpoint, mas sem ganhar barra
+// no fim: o caminho de autorização precisa chegar exato ao serviço configurado.
+function normalizeOauthUrl(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string' || value.length > 2_048) throw new Error('Connector authorization URL is invalid.');
+  let url;
+  try { url = new URL(value.trim()); } catch { throw new Error('Connector authorization URL is invalid.'); }
+  if (url.protocol !== 'https:') throw new Error('Connector authorization URL must use HTTPS.');
+  if (url.username || url.password) throw new Error('Connector authorization URL must not embed credentials.');
+  if (url.search || url.hash) throw new Error('Connector authorization URL must not carry a query or fragment.');
+  return url.toString();
+}
+
 function normalizeClientId(value) {
   if (value === undefined || value === null || value === '') return '';
   if (typeof value !== 'string' || !/^[\w.:-]{1,200}$/.test(value.trim())) throw new Error('Connector client identifier is invalid.');
@@ -67,9 +80,15 @@ function normalizeNotion(value) {
   };
 }
 
+const emptyEntry = () => ({ endpoint: '', clientId: '', targets: [], authorizationUrl: '', tokenUrl: '' });
+
 const normalizeEntry = (value) => {
   const notion = normalizeNotion(value?.notion);
-  return { endpoint: normalizeEndpoint(value?.endpoint), clientId: normalizeClientId(value?.clientId), targets: normalizeTargets(value?.targets), ...(notion ? { notion } : {}) };
+  return {
+    endpoint: normalizeEndpoint(value?.endpoint), clientId: normalizeClientId(value?.clientId), targets: normalizeTargets(value?.targets),
+    authorizationUrl: normalizeOauthUrl(value?.authorizationUrl), tokenUrl: normalizeOauthUrl(value?.tokenUrl),
+    ...(notion ? { notion } : {}),
+  };
 };
 
 function createConnectorSettings({ filePath } = {}) {
@@ -95,16 +114,18 @@ function createConnectorSettings({ filePath } = {}) {
     all() { return readAll(); },
     get(connectorId) {
       if (!isConnectorId(connectorId)) throw new Error('Unknown integration connector.');
-      return readAll()[connectorId] ?? { endpoint: '', clientId: '', targets: [] };
+      return readAll()[connectorId] ?? emptyEntry();
     },
     save(connectorId, patch) {
       if (!isConnectorId(connectorId)) throw new Error('Unknown integration connector.');
       const entries = readAll();
-      const current = entries[connectorId] ?? { endpoint: '', clientId: '', targets: [] };
+      const current = entries[connectorId] ?? emptyEntry();
       const next = normalizeEntry({
         endpoint: patch?.endpoint === undefined ? current.endpoint : patch.endpoint,
         clientId: patch?.clientId === undefined ? current.clientId : patch.clientId,
         targets: patch?.targets === undefined ? current.targets : patch.targets,
+        authorizationUrl: patch?.authorizationUrl === undefined ? current.authorizationUrl : patch.authorizationUrl,
+        tokenUrl: patch?.tokenUrl === undefined ? current.tokenUrl : patch.tokenUrl,
         notion: patch?.notion === undefined ? current.notion : patch.notion,
       });
       entries[connectorId] = next;
@@ -114,4 +135,4 @@ function createConnectorSettings({ filePath } = {}) {
   };
 }
 
-module.exports = { MAX_TARGETS, MAX_CHECKPOINTS, createConnectorSettings, normalizeClientId, normalizeEndpoint, normalizeTargets, normalizeNotion };
+module.exports = { MAX_TARGETS, MAX_CHECKPOINTS, createConnectorSettings, normalizeClientId, normalizeEndpoint, normalizeOauthUrl, normalizeTargets, normalizeNotion };

@@ -51,7 +51,11 @@ const failureFor = (response, fallback) => {
   return new Error(fallback);
 };
 
-function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request } = {}) {
+// URLs do serviço padrão. Um endpoint próprio não as herda: o servidor de
+// autorização do Notion não acompanha a base da API que a pessoa configurou.
+const DEFAULT_OAUTH = { pkce: true, authorizationUrl: 'https://api.notion.com/v1/oauth/authorize', tokenUrl: 'https://api.notion.com/v1/oauth/token', scopes: [] };
+
+function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request, oauth } = {}) {
   const url = new URL(baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
   const call = async (path, init, override) => {
     const transport = override ?? request;
@@ -62,7 +66,9 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request 
   const jsonOrEmpty = (response) => response.json().catch(() => ({}));
   return {
     id: 'notion', label: 'Notion', allowedHosts: [url.hostname], capabilities: ['import', 'write', 'sync'],
-    oauth: { pkce: true, authorizationUrl: 'https://api.notion.com/v1/oauth/authorize', tokenUrl: 'https://api.notion.com/v1/oauth/token', scopes: [] },
+    // `oauth: null` remove o bloco: o conector passa a declarar que só aceita
+    // credencial direta, em vez de anunciar um fluxo que seria recusado.
+    ...(oauth === null ? {} : { oauth: oauth ? { ...DEFAULT_OAUTH, ...oauth } : DEFAULT_OAUTH }),
     normalizeImport(page) {
       if (!page || !boundedId(page.id)) return null;
       const properties = page.properties && typeof page.properties === 'object' ? page.properties : {};

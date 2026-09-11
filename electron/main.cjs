@@ -13,6 +13,7 @@ const { createLocalApi, createLocalApiTokenStore } = require('./local-api.cjs');
 const { createWebhookService } = require('./webhooks.cjs');
 const { createOAuthService } = require('./oauth.cjs');
 const { createConnectorSettings } = require('./connector-settings.cjs');
+const { buildConnectors } = require('./connectors/index.cjs');
 const { createNotchWindowManager, validPresentation } = require("./notch-window.cjs");
 const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('./notch-settings.cjs');
 const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
@@ -177,18 +178,6 @@ function createWindow() {
   attachRendererRecovery(mainWindow);
   if (isDev) { const candidate = process.env.HIBI_DEV_SERVER || "http://127.0.0.1:5173"; const url = new URL(candidate); if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(url.hostname)) throw new Error('HIBI_DEV_SERVER must target loopback HTTP'); mainWindow.loadURL(url.toString()); }
   else mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
-}
-
-// Um endpoint configurado troca a base do conector e, com ela, o allowlist de
-// hosts: nenhuma outra origem passa a ser permitida por causa disso.
-function buildConnectors(settings) {
-  const endpointFor = (id) => { const value = settings.get(id).endpoint; return value ? { baseUrl: value } : {}; };
-  return [
-    createNotionConnector(endpointFor('notion')),
-    createSlackConnector(endpointFor('slack')),
-    createEmailConnector(endpointFor('email')),
-    createRemoteNotificationConnector(endpointFor('remote-notifications')),
-  ];
 }
 
 app.whenReady().then(async () => {
