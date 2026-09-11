@@ -5,7 +5,7 @@ const { createLoopbackWebhookReceiver, createWebhookService, createWebhookVerifi
 
 const signed = (secret, timestamp, nonce, body) => crypto.createHmac('sha256', secret).update(`${timestamp}.${nonce}.`).update(body).digest('hex');
 
-test('rejects invalid or replayed inbound webhook signatures before any action can be prepared', () => {
+test('rejects invalid or replayed inbound webhook signatures before any event is accepted', () => {
   const now = 1_700_000_000_000;
   const body = Buffer.from('{"event":"task.updated"}');
   const verifier = createWebhookVerifier({ secret: 'webhook-secret', now: () => now });
@@ -18,30 +18,39 @@ test('rejects invalid or replayed inbound webhook signatures before any action c
   assert.throws(() => verifier.verify({ signature: signed('webhook-secret', String(now - 600_000), 'nonce-3', body), timestamp: String(now - 600_000), nonce: 'nonce-3', body }), /timestamp/i);
 });
 
-test('accepts a verified loopback webhook only as a confirmation intent', async () => {
+// O receptor autentica e aceita o evento; ele não propõe nada ao workspace, então
+// a resposta não pode prometer uma confirmação que ninguém vai apresentar.
+test('accepts a verified loopback webhook as a received event and proposes nothing', async () => {
   const now = 1_700_000_000_000;
   const body = Buffer.from('{"event":"task.updated"}');
-  const receiver = createLoopbackWebhookReceiver({
-    verifier: createWebhookVerifier({ secret: 'webhook-secret', now: () => now }),
-    prepare: async (event) => ({ confirmationId: `confirm-${event.event}`, requiresConfirmation: true }),
-  });
+  const receiver = createLoopbackWebhookReceiver({ verifier: createWebhookVerifier({ secret: 'webhook-secret', now: () => now }) });
   const { origin } = await receiver.start();
+  const post = (nonce, signature, payload = body) => fetch(`${origin}/webhook`, { method: 'POST', headers: {
+    'content-type': 'application/json',
+    'x-hibi-timestamp': String(now),
+    'x-hibi-nonce': nonce,
+    'x-hibi-signature': signature,
+  }, body: payload });
   try {
-    const timestamp = String(now);
-    const response = await fetch(`${origin}/webhook`, { method: 'POST', headers: {
-      'content-type': 'application/json',
-      'x-hibi-timestamp': timestamp,
-      'x-hibi-nonce': 'nonce-loopback',
-      'x-hibi-signature': signed('webhook-secret', timestamp, 'nonce-loopback', body),
-    }, body });
-    assert.equal(response.status, 202);
-    assert.deepEqual(await response.json(), { confirmationId: 'confirm-task.updated', requiresConfirmation: true });
+    const accepted = await post('nonce-loopback', signed('webhook-secret', String(now), 'nonce-loopback', body));
+    assert.equal(accepted.status, 200);
+    const payload = await accepted.json();
+    assert.deepEqual(payload, { accepted: true, event: 'task.updated' });
+    assert.equal(Object.hasOwn(payload, 'confirmationId'), false);
+    assert.equal(Object.hasOwn(payload, 'requiresConfirmation'), false);
+
+    // A autenticação continua sendo a substância do recurso: sem `prepare` no caminho,
+    // assinatura inválida e repetição de nonce seguem recusadas no nível HTTP.
+    const forged = await post('nonce-forged', 'f'.repeat(64));
+    assert.equal(forged.status, 401);
+    const replayed = await post('nonce-loopback', signed('webhook-secret', String(now), 'nonce-loopback', body));
+    assert.equal(replayed.status, 401);
   } finally { await receiver.stop(); }
 });
 
 test('stores a webhook secret in Keychain and reports only its loopback state', async () => {
   const values = new Map();
-  const service = createWebhookService({ keychain: { get: async (key) => values.get(key), set: async (key, value) => values.set(key, value), has: async (key) => values.has(key), remove: async (key) => values.delete(key) }, prepare: async () => ({ confirmationId: 'confirm-1', requiresConfirmation: true }) });
+  const service = createWebhookService({ keychain: { get: async (key) => values.get(key), set: async (key, value) => values.set(key, value), has: async (key) => values.has(key), remove: async (key) => values.delete(key) } });
   await service.configure('secret-for-test');
   const started = await service.start();
   try { assert.deepEqual(await service.status(), { running: true, hasSecret: true, origin: started.origin }); }

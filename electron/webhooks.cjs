@@ -38,8 +38,8 @@ function createWebhookVerifier({ secret, now = () => Date.now() } = {}) {
   };
 }
 
-function createLoopbackWebhookReceiver({ verifier, prepare } = {}) {
-  if (!verifier || typeof verifier.verify !== 'function' || typeof prepare !== 'function') throw new Error('A verifier and confirmation preparer are required.');
+function createLoopbackWebhookReceiver({ verifier } = {}) {
+  if (!verifier || typeof verifier.verify !== 'function') throw new Error('A webhook verifier is required.');
   let server;
   const reply = (response, status, payload) => {
     const body = Buffer.from(JSON.stringify(payload));
@@ -52,13 +52,14 @@ function createLoopbackWebhookReceiver({ verifier, prepare } = {}) {
     const fail = (status, message) => { if (!finished) { finished = true; reply(response, status, { error: message }); } };
     request.on('data', (chunk) => { total += chunk.length; if (total > MAX_BODY_BYTES) { request.destroy(); fail(413, 'Webhook body exceeds the size limit.'); } else parts.push(chunk); });
     request.on('error', () => fail(400, 'Webhook request failed.'));
-    request.on('end', async () => {
+    request.on('end', () => {
       if (finished) return;
       try {
         const event = verifier.verify({ signature: request.headers['x-hibi-signature'], timestamp: request.headers['x-hibi-timestamp'], nonce: request.headers['x-hibi-nonce'], body: Buffer.concat(parts) });
-        const intent = await prepare(event);
-        if (!intent || typeof intent.confirmationId !== 'string' || intent.requiresConfirmation !== true) throw new Error('Webhook action requires confirmation.');
-        finished = true; reply(response, 202, { confirmationId: intent.confirmationId, requiresConfirmation: true });
+        // O receptor termina aqui: o evento foi autenticado, está dentro da janela de
+        // tempo e não é repetição. Nada é proposto ao workspace, então a resposta
+        // confirma só isso — nenhuma aprovação fica pendente do outro lado.
+        finished = true; reply(response, 200, { accepted: true, event: event.event });
       } catch (error) { fail(401, error instanceof Error ? error.message : 'Webhook rejected.'); }
     });
   };
@@ -75,12 +76,12 @@ function createLoopbackWebhookReceiver({ verifier, prepare } = {}) {
   };
 }
 
-function createWebhookService({ keychain, prepare, account = WEBHOOK_SECRET_ACCOUNT } = {}) {
-  if (!keychain || typeof keychain.get !== 'function' || typeof keychain.set !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function' || typeof prepare !== 'function') throw new Error('Webhook service dependencies are required.');
+function createWebhookService({ keychain, account = WEBHOOK_SECRET_ACCOUNT } = {}) {
+  if (!keychain || typeof keychain.get !== 'function' || typeof keychain.set !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function') throw new Error('Webhook service dependencies are required.');
   let receiver;
   return {
     async configure(secret) { if (typeof secret !== 'string' || !secret.trim() || secret.length > 8_192) throw new Error('A webhook signing secret is required.'); await keychain.set(account, secret.trim()); },
-    async start() { if (receiver) return receiver.start(); const secret = await keychain.get(account); receiver = createLoopbackWebhookReceiver({ verifier: createWebhookVerifier({ secret }), prepare }); return receiver.start(); },
+    async start() { if (receiver) return receiver.start(); const secret = await keychain.get(account); receiver = createLoopbackWebhookReceiver({ verifier: createWebhookVerifier({ secret }) }); return receiver.start(); },
     async stop() { if (!receiver) return; const current = receiver; receiver = undefined; await current.stop(); },
     async status() { return { running: Boolean(receiver?.isRunning()), hasSecret: await keychain.has(account), ...(receiver?.isRunning() ? { origin: (await receiver.start()).origin } : {}) }; },
     async revoke() { await this.stop(); return keychain.remove(account); },
