@@ -2,7 +2,7 @@
 
 Atualizado em 2026-09-11. Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
 
-Última bateria completa em `main`: 507 testes Vitest, 181 `node --test`, 100 e2e Playwright, `tsc` sem erros e build de produção com o addon nativo.
+Última bateria completa em `main`: 517 testes Vitest, 185 `node --test`, 100 e2e Playwright, `tsc` sem erros e build de produção com o addon nativo.
 
 ## Status atual
 
@@ -28,7 +28,7 @@ Atualizado em 2026-09-11. Este documento é a fonte operacional do status atual 
 | API pública | Implementado localmente | API HTTP loopback, token revogável no Keychain, OpenAPI, leituras e escritas com confirmação. |
 | Importação | Implementado localmente | CSV/JSON/ICS e leitura por conector a partir das fontes escolhidas, com prévia, deduplicação por referência remota, conflitos e aplicação local da decisão. |
 | Compartilhamento | Implementado localmente | Convites somente leitura assinados e expirados. |
-| Teste com provedor real | Bloqueado por configuração | Harness protegido criado; falta endpoint sandbox, modelo, credencial e opt-in explícito. |
+| Teste com provedor real | **Validado ao vivo** | Groq (`api.groq.com`, `openai/gpt-oss-120b`) em 2026-09-11: streaming com deltas, proveniência, consumo (337 tokens) e cancelamento real de um turno em voo. 401, limite de uso e indisponibilidade com retry são exercitados com respostas injetadas e carimbados `simulated` no relatório — não há como forçá-los num provedor real sem sujar a conta. A validação revelou e corrigiu um defeito no próprio harness: os eventos eram passados como terceiro argumento de `run()`, que aceita dois, então o relatório saía sem evento nenhum e um provedor que não streamasse teria passado. O relatório nunca traz a chave nem o texto. |
 | Teste com conector real | Notion validado; demais bloqueados por credencial | `npm run test:notion:live` roda o ciclo `criar → ler → atualizar → conflito` com a credencial que o próprio Hibi guarda no Keychain, sem expor o token. Slack, e-mail e notificações remotas seguem sem credencial de sandbox. |
 
 ## Paridade com o app original
@@ -95,8 +95,8 @@ Referência: Hey Taby 0.2.2 e 0.2.3, pelas auditorias em `/Volumes/SSD/app/node_
 
 Os dois harness recusam a execução até que o opt-in e os parâmetros seguros estejam presentes. Falta apenas fornecer sandbox e credenciais.
 
-- [ ] Executar `HIBI_LIVE_PROVIDER_TEST=1 npm run test:providers:live` contra sandbox autorizado.
-- [ ] Exercitar streaming, cancelamento, 401, limite de uso, indisponibilidade, retry e proveniência com o provedor real.
+- [x] Executar `HIBI_LIVE_PROVIDER_TEST=1 npm run test:providers:live` contra sandbox autorizado. Feito em 2026-09-11 contra a Groq.
+- [x] Exercitar streaming, cancelamento, 401, limite de uso, indisponibilidade, retry e proveniência com o provedor real. Ao vivo: streaming, proveniência, consumo e cancelamento em voo. Simulados com respostas injetadas e marcados como tal no relatório: 401, limite de uso e indisponibilidade com retry.
 - [ ] Executar `HIBI_LIVE_CONNECTOR_TEST=1 npm run test:connectors:live` por conector, em modo somente leitura.
 - [ ] Exercitar uma escrita real com `HIBI_LIVE_CONNECTOR_WRITE_TEST=1` e registrar o relatório sanitizado.
 
@@ -104,6 +104,11 @@ Os dois harness recusam a execução até que o opt-in e os parâmetros seguros 
 
 | Variável | Uso |
 | --- | --- |
+| `HIBI_LIVE_PROVIDER_TEST=1` | Libera o teste com provedor real. |
+| `HIBI_LIVE_PROVIDER_ENDPOINT` | URL **completa** do `chat/completions`, só HTTPS: o cliente faz `POST` nela e recusa redirecionamento, então a base `/v1` não serve. |
+| `HIBI_LIVE_PROVIDER_MODEL` | Identificador do modelo. Precisa aceitar JSON mode e streaming com `stream_options`. |
+| `HIBI_LIVE_PROVIDER_KEY` | Credencial; fica só em memória. |
+| `HIBI_LIVE_PROVIDER_ALLOW_HOSTS` | Hosts autorizados; o host do endpoint precisa estar na lista. |
 | `HIBI_LIVE_CONNECTOR_TEST=1` | Libera qualquer tráfego real de conector. |
 | `HIBI_LIVE_CONNECTOR_ID` | `notion`, `slack`, `email` ou `remote-notifications`. |
 | `HIBI_LIVE_CONNECTOR_ENDPOINT` | Base HTTPS do sandbox. |
@@ -145,7 +150,7 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 8. [ ] Voz e modelo local, depois de decidir motor, tamanho de download e empacotamento.
 9. [ ] Dispositivo físico, quando houver protocolo e hardware para teste.
 
-Pendências já registradas fora desta lista: o seed ainda traz datas fixas (`src/data/seed-data.ts`, blocos de 07 a 11/09/2026), então uma instalação nova do Hibi abre num dia vazio assim que a data real passa desse intervalo; gerar o seed a partir do dia atual continua pendente.
+Pendências já registradas fora desta lista: `classifyProviderFailure` joga todo 4xx não mapeado em `invalid_response`, então um modelo inexistente (404) se disfarça de resposta malformada — foi o que atrasou a primeira validação ao vivo. O seed ainda traz datas fixas (`src/data/seed-data.ts`, blocos de 07 a 11/09/2026), então uma instalação nova do Hibi abre num dia vazio assim que a data real passa desse intervalo; gerar o seed a partir do dia atual continua pendente.
 
 ## Critério de conclusão
 
