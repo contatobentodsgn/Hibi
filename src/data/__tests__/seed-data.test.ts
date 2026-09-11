@@ -15,7 +15,7 @@ describe('createSeedData', () => {
 
     first.tasks.push({ id: 'extra', title: 'Extra task', durationMinutes: 30, category: 'work', folder: 'Bento' });
     first.tasks[0].title = 'Mutated title';
-    first.reminders[0].schedule.at = '1999-01-01T09:00:00-03:00';
+    first.reminders[0].schedule.at = '1999-01-01T09:00:00';
 
     expect(second.tasks).toHaveLength(8);
     expect(second.tasks[0].title).toBe('Kabrito Post 01');

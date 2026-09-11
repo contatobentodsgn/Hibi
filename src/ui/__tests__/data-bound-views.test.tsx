@@ -27,7 +27,7 @@ const dayFromToday = (offset: number) => { const date = new Date(); date.setDate
 const keyFromToday = (offset: number) => { const date = dayFromToday(offset); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`; };
 const agenda = data;
 // Um workspace só com blocos antigos: "hoje" não pode escorregar para a data do bloco mais antigo.
-const oldWorkspace: StudyData = { ...data, blocks: [{ id: 'antigo', title: 'Bloco antigo', start: '2020-01-02T09:00:00-03:00', end: '2020-01-02T10:00:00-03:00', category: 'work' }] };
+const oldWorkspace: StudyData = { ...data, blocks: [{ id: 'antigo', title: 'Bloco antigo', start: '2020-01-02T09:00:00', end: '2020-01-02T10:00:00', category: 'work' }] };
 const WEEKDAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];

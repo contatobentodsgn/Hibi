@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { localNoon, shiftDayKey, todayKey } from '../domain/date-context';
 import { durationMinutes, toDateKey } from '../domain/schedule';
+import { parseIcsEvents, toIcsCalendar } from '../domain/ics';
 import type { ScheduleBlock, StudyData } from '../domain/models';
 type Props = { data: StudyData; onEvent: (action: string, detail: string, result?: string) => void; onCreateBlock: (input: Omit<ScheduleBlock, 'id'>) => void; onDeleteBlock?: (id: string) => void };
-const OFFSET = '-03:00'; const names = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+const names = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 const daysFrom = (key: string) => Array.from({ length: 7 }, (_, i) => shiftDayKey(key, i));
-const icsDate = (value: string) => `${value.slice(0,4)}-${value.slice(4,6)}-${value.slice(6,8)}T${value.slice(9,11)}:${value.slice(11,13)}:00${OFFSET}`;
 export function WeekView({ data, onEvent, onCreateBlock, onDeleteBlock }: Props) {
   const [layer, setLayer] = useState<'all' | 'schedule' | 'important' | 'wellbeing'>('all');
   const [weekStart, setWeekStart] = useState(() => todayKey());
   const matchesLayer = (block: ScheduleBlock) => layer === 'all' || layer === 'schedule' || (layer === 'important' ? block.isHard === true : block.category === 'break');
   const days = daysFrom(weekStart);
-  const add = (date: string, hour: number) => onCreateBlock({ title: 'Quick study block', start: `${date}T${String(hour).padStart(2,'0')}:00:00${OFFSET}`, end: `${date}T${String(hour + 1).padStart(2,'0')}:00:00${OFFSET}`, category: 'work' });
-  const importIcs = async (file: File) => { let count = 0; for (const match of file.text ? [...(await file.text()).matchAll(/BEGIN:VEVENT([\s\S]*?)END:VEVENT/g)] : []) { const body = match[1]; const start = body.match(/DTSTART(?:;[^:]+)?:([0-9]{8}T[0-9]{6})/)?.[1]; const end = body.match(/DTEND(?:;[^:]+)?:([0-9]{8}T[0-9]{6})/)?.[1]; const title = body.match(/SUMMARY:(.*)/)?.[1]?.trim() || 'Imported event'; if (start && end) { onCreateBlock({ title, start: icsDate(start), end: icsDate(end), category: 'work' }); count++; } } onEvent('import', file.name, `${count} imported`); };
-  const exportIcs = () => { const esc = (v: string) => v.replace(/[\\;,]/g, '\\$&').replace(/\n/g, '\\n'); const events = data.blocks.map((b) => `BEGIN:VEVENT\nUID:${b.id}@hibi\nDTSTART:${b.start.replace(/[-:]/g,'').replace('.000','')}\nDTEND:${b.end.replace(/[-:]/g,'').replace('.000','')}\nSUMMARY:${esc(b.title)}\nEND:VEVENT`).join('\n'); const url = URL.createObjectURL(new Blob([`BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Hibi//EN\n${events}\nEND:VCALENDAR`], { type:'text/calendar' })); const link = document.createElement('a'); link.href=url; link.download='hibi-calendar.ics'; link.click(); URL.revokeObjectURL(url); onEvent('export','Exported calendar ICS','pass'); };
+  const add = (date: string, hour: number) => onCreateBlock({ title: 'Quick study block', start: `${date}T${String(hour).padStart(2,'0')}:00:00`, end: `${date}T${String(hour + 1).padStart(2,'0')}:00:00`, category: 'work' });
+  const importIcs = async (file: File) => { const events = file.text ? parseIcsEvents(await file.text()) : []; for (const event of events) onCreateBlock({ ...event, category: 'work' }); onEvent('import', file.name, `${events.length} imported`); };
+  const exportIcs = () => { const url = URL.createObjectURL(new Blob([toIcsCalendar(data.blocks)], { type:'text/calendar' })); const link = document.createElement('a'); link.href=url; link.download='hibi-calendar.ics'; link.click(); URL.revokeObjectURL(url); onEvent('export','Exported calendar ICS','pass'); };
   const shortDay = (date: string) => { const day = names[localNoon(date).getDay()]; return `${day[0]}${day.slice(1).toLowerCase()} ${date.slice(8, 10)}`; };
   const rangeLabel = `${shortDay(days[0])} — ${shortDay(days[6])}`;
   const monthLabel = localNoon(weekStart).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();

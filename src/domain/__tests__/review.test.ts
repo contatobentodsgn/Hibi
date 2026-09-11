@@ -14,7 +14,7 @@ const block = (id: string, title: string, start: string): ScheduleBlock => ({
   id,
   title,
   start,
-  end: `${start.slice(0, 11)}${String(Number(start.slice(11, 13)) + 1).padStart(2, '0')}:00-03:00`,
+  end: `${start.slice(0, 11)}${String(Number(start.slice(11, 13)) + 1).padStart(2, '0')}:00`,
   category: 'work',
 });
 
