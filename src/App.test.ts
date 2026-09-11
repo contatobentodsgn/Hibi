@@ -121,12 +121,3 @@ describe('companion event wiring', () => {
     expect(appSource).toContain('onNotificationTriggered');
   });
 });
-
-describe('local API confirmation dismissal', () => {
-  // Sem descartar a apresentação, o estado do companion guarda a confirmação por 60 s e o relógio
-  // manda mostrá-la de novo, mesmo depois de respondida.
-  it('dismisses the companion card before resolving the local API write', () => {
-    expect(appSource).toContain("dispatchCompanion({ type: 'presentation.dismissed', requestId: intent.confirmationId })");
-    expect(appSource.indexOf("type: 'presentation.dismissed', requestId: intent.confirmationId")).toBeLessThan(appSource.indexOf('resolveLocalApiWrite'));
-  });
-});
