@@ -97,7 +97,7 @@ Os dois harness recusam a execução até que o opt-in e os parâmetros seguros 
 
 - [x] Executar `HIBI_LIVE_PROVIDER_TEST=1 npm run test:providers:live` contra sandbox autorizado. Feito em 2026-09-11 contra a Groq.
 - [x] Exercitar streaming, cancelamento, 401, limite de uso, indisponibilidade, retry e proveniência com o provedor real. Ao vivo: streaming, proveniência, consumo e cancelamento em voo. Simulados com respostas injetadas e marcados como tal no relatório: 401, limite de uso e indisponibilidade com retry.
-- [x] Executar `HIBI_LIVE_CONNECTOR_TEST=1 npm run test:connectors:live` por conector, em modo somente leitura. Notion ao vivo; e-mail (conexão, 2 caixas, 1 mensagem sinalizada de 2) e notificações remotas (conexão) contra sandbox própria em 2026-09-11.
+- [x] Executar `HIBI_LIVE_CONNECTOR_TEST=1 npm run test:connectors:live` por conector, em modo somente leitura. Os quatro foram cobertos em 2026-09-11: Notion ao vivo; e-mail (conexão, 2 caixas, 1 mensagem sinalizada de 2), notificações remotas (conexão) e Slack (conexão, 2 canais, 1 item salvo de 2 pelo filtro de canal) contra sandbox própria. O Slack segue adiado **como produto de sincronização**, mas o conector foi exercitado.
 - [x] Exercitar uma escrita real com `HIBI_LIVE_CONNECTOR_WRITE_TEST=1` e registrar o relatório sanitizado. `email.send` e `notification.send` responderam 200 com identificador remoto, cada uma precedida de `prepare` e registrada na auditoria. Slack continua adiado por decisão, e não foi exercitado.
 
 #### Parâmetros dos harness
@@ -123,7 +123,7 @@ Os dois harness recusam a execução até que o opt-in e os parâmetros seguros 
 
 O relatório traz apenas contagens, resultados e o host autorizado: nenhum título, corpo, identificador remoto ou credencial.
 
-E-mail e notificações remotas não têm serviço de mercado contra o qual rodar: o contrato é do próprio conector. `scripts/connector-sandbox.mjs` implementa esse contrato para que os itens 3 e 4 sejam reproduzíveis — suba com `SANDBOX_TOKEN=$(openssl rand -hex 16) node scripts/connector-sandbox.mjs`, exponha a porta em HTTPS (o harness recusa HTTP) e aponte `HIBI_LIVE_CONNECTOR_ENDPOINT` para `<url>/mail/` ou `<url>/notify/`. O cabeçalho do arquivo repete a ressalva: ela prova a fiação, não a compatibilidade com um serviço real.
+E-mail e notificações remotas não têm serviço de mercado contra o qual rodar: o contrato é do próprio conector. `scripts/connector-sandbox.mjs` implementa esses contratos — e-mail, notificações e Slack — para que os itens 3 e 4 sejam reproduzíveis — suba com `SANDBOX_TOKEN=$(openssl rand -hex 16) node scripts/connector-sandbox.mjs`, exponha a porta em HTTPS (o harness recusa HTTP) e aponte `HIBI_LIVE_CONNECTOR_ENDPOINT` para `<url>/mail/` ou `<url>/notify/`. O cabeçalho do arquivo repete a ressalva: ela prova a fiação, não a compatibilidade com um serviço real.
 
 O ciclo de vida do Notion reaproveita sempre a mesma tarefa descartável, marcada como
 `[hibi-harness] disposable validation task`. Repetir a validação não acumula páginas no
@@ -152,7 +152,7 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 8. [ ] Voz e modelo local, depois de decidir motor, tamanho de download e empacotamento.
 9. [ ] Dispositivo físico, quando houver protocolo e hardware para teste.
 
-Pendências já registradas fora desta lista: `classifyProviderFailure` joga todo 4xx não mapeado em `invalid_response`, então um modelo inexistente (404) se disfarça de resposta malformada — foi o que atrasou a primeira validação ao vivo. O seed ainda traz datas fixas (`src/data/seed-data.ts`, blocos de 07 a 11/09/2026), então uma instalação nova do Hibi abre num dia vazio assim que a data real passa desse intervalo; gerar o seed a partir do dia atual continua pendente.
+Pendências já registradas fora desta lista: o `executeApproved` do conector Slack (`electron/connectors/slack.cjs`) devolve a resposta HTTP sem verificar o `ok` do corpo, e a API do Slack recusa chamadas com HTTP 200 — uma postagem recusada é registrada como escrita bem-sucedida, com auditoria e tudo, sem nada ter sido postado; reproduzido em 2026-09-11 contra a sandbox. `classifyProviderFailure` joga todo 4xx não mapeado em `invalid_response`, então um modelo inexistente (404) se disfarça de resposta malformada — foi o que atrasou a primeira validação ao vivo. O seed ainda traz datas fixas (`src/data/seed-data.ts`, blocos de 07 a 11/09/2026), então uma instalação nova do Hibi abre num dia vazio assim que a data real passa desse intervalo; gerar o seed a partir do dia atual continua pendente.
 
 ## Critério de conclusão
 

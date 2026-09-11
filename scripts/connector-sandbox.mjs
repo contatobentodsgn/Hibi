@@ -9,6 +9,14 @@
 //                 POST mail/send                 <- { to, subject, text }
 //   notificações  GET  notify/health
 //                 POST notify/send               <- { title, body }
+//   slack         GET  slack/auth.test           -> { ok: true, team }
+//                 GET  slack/conversations.list  -> { ok: true, channels: [{ id, name }] }
+//                 GET  slack/stars.list          -> { ok: true, items: [{ channel, message }] }
+//                 POST slack/chat.postMessage    <- { channel, text }
+//
+// O Slack responde `{ ok: false }` com HTTP 200 quando recusa uma chamada, e é assim que a API real
+// se comporta. Um texto contendo RECUSA_SIMULADA faz `chat.postMessage` responder desse jeito, para
+// se poder verificar o que o Hibi reporta nesse caso.
 //
 // Todas exigem `Authorization: Bearer $SANDBOX_TOKEN`; sem ela a resposta é 401, o que também serve
 // para exercitar o caminho de credencial recusada.
@@ -42,6 +50,13 @@ const readBody = async (req) => {
 }
 
 // Duas mensagens, uma sinalizada: é o bastante para provar que a importação filtra por `flagged`.
+// Dois itens salvos em canais diferentes: com `HIBI_LIVE_CONNECTOR_TARGETS=C1`, só o primeiro deve
+// ser importado, o que prova o filtro por canal escolhido.
+const SLACK_ITEMS = [
+  { channel: 'C1', message: { ts: '1789000001.0001', text: 'Fechar proposta do cliente' } },
+  { channel: 'C2', message: { ts: '1789000002.0002', text: 'Revisar contrato' } },
+]
+
 const MESSAGES = [
   { id: 'sandbox-1', subject: 'Revisar proposta da semana', updatedAt: '2026-09-11T09:00:00.000Z', from: 'equipe@example.test', flagged: true },
   { id: 'sandbox-2', subject: 'Newsletter (não sinalizada)', updatedAt: '2026-09-11T09:05:00.000Z', from: 'news@example.test', flagged: false },
@@ -74,6 +89,17 @@ const server = createServer(async (req, res) => {
     const body = await readBody(req)
     if (!body || typeof body.title !== 'string' || typeof body.body !== 'string') return json(res, 400, { error: 'notificação inválida' })
     return json(res, 200, { ok: true, id: `notified-${log.length}` })
+  }
+
+  // Slack: o corpo carrega o `ok`, e não o código HTTP.
+  if (req.method === 'GET' && path === '/slack/auth.test') return json(res, 200, { ok: true, team: 'Hibi Sandbox' })
+  if (req.method === 'GET' && path === '/slack/conversations.list') return json(res, 200, { ok: true, channels: [{ id: 'C1', name: 'geral' }, { id: 'C2', name: 'clientes' }] })
+  if (req.method === 'GET' && path === '/slack/stars.list') return json(res, 200, { ok: true, items: SLACK_ITEMS })
+  if (req.method === 'POST' && path === '/slack/chat.postMessage') {
+    const body = await readBody(req)
+    if (!body || typeof body.channel !== 'string' || typeof body.text !== 'string') return json(res, 200, { ok: false, error: 'invalid_arguments' })
+    if (body.text.includes('RECUSA_SIMULADA')) return json(res, 200, { ok: false, error: 'channel_not_found' })
+    return json(res, 200, { ok: true, ts: '1789000003.0003' })
   }
 
   return json(res, 404, { error: 'caminho desconhecido' })
