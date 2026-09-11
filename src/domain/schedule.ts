@@ -1,8 +1,6 @@
 import { localNoon, shiftDayKey } from './date-context';
 import type { RecurrenceRule, ScheduleBlock } from './models';
 
-const OFFSET = '-03:00';
-
 export function toDateKey(value: string): string {
   return value.slice(0, 10);
 }
@@ -26,7 +24,7 @@ export function expandRecurrence(rule: RecurrenceRule, from: string, to: string)
     const matches = rule.frequency === 'daily' || (rule.weekdays ?? []).includes(day);
     if (!matches) continue;
     const time = rule.timesByWeekday?.[day] ?? rule.time;
-    if (time) results.push(`${date}T${time}:00${OFFSET}`);
+    if (time) results.push(`${date}T${time}:00`);
   }
   return results;
 }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { formatDate, formatRange, formatTime, formatWeekday } from '../format'
 
-const at = '2026-09-07T09:00:00-03:00'
-const end = '2026-09-07T10:30:00-03:00'
+const at = '2026-09-07T09:00:00'
+const end = '2026-09-07T10:30:00'
 
 describe('formatação por locale', () => {
   it('formata hora em 24h e 12h', () => {
@@ -26,7 +26,14 @@ describe('formatação por locale', () => {
     expect(formatRange(at, end, { locale: 'en', twentyFourHour: false })).toBe('9:00 AM – 10:30 AM')
   })
 
-  it('respeita o fuso fixo do workspace, não o da máquina', () => {
-    expect(formatTime('2026-09-07T12:00:00Z', { locale: 'pt', twentyFourHour: true })).toBe('09:00')
+  // O horário guardado é hora de parede flutuante, então estes formatadores têm que render os
+  // próprios dígitos gravados onde quer que o app rode — exatamente o que as telas já faziam ao
+  // fatiar a string. Esta asserção precisa valer nos três fusos em que a suíte roda: São Paulo,
+  // Pacific/Kiritimati (UTC+14) e Pacific/Midway (UTC-11). Um `timeZone` fixo aqui a quebraria.
+  it('mostra a hora de parede gravada, seja qual for o fuso da máquina', () => {
+    expect(formatTime('2026-09-07T09:00:00', { locale: 'pt', twentyFourHour: true })).toBe('09:00')
+    expect(formatTime('2026-09-07T23:30:00', { locale: 'en', twentyFourHour: true })).toBe('23:30')
+    expect(formatDate('2026-09-07T23:30:00', { locale: 'en', twentyFourHour: true })).toBe('Monday, September 7, 2026')
+    expect(formatWeekday('2026-09-07T00:30:00', { locale: 'en', twentyFourHour: true })).toBe('Mon')
   })
 })

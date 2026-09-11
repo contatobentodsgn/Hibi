@@ -126,8 +126,8 @@ describe('LocalRepository', () => {
 
   it('seeds the internal study routine with exact fixed commitments', () => {
     const data = repository.snapshot();
-    expect(data.blocks.some((b) => b.title === 'Almoço' && b.start.endsWith('T12:00:00-03:00') && b.end.endsWith('T14:00:00-03:00'))).toBe(true);
-    expect(data.blocks.some((b) => b.title === 'Aula de inglês' && b.start.endsWith('T21:00:00-03:00'))).toBe(true);
+    expect(data.blocks.some((b) => b.title === 'Almoço' && b.start.endsWith('T12:00:00') && b.end.endsWith('T14:00:00'))).toBe(true);
+    expect(data.blocks.some((b) => b.title === 'Aula de inglês' && b.start.endsWith('T21:00:00'))).toBe(true);
     expect(data.reminders.filter((r) => r.title === 'vaga/inglês - Horizontes')).toHaveLength(1);
   });
 
@@ -269,12 +269,12 @@ describe('LocalRepository', () => {
     // voltava como 07/09, que é segunda — um `at` fora dos dias que o próprio lembrete repete.
     stored.reminders.push({
       id: 'weekly-broken', title: 'Aula de inglês', category: 'important', status: 'open',
-      schedule: { at: '2026-09-07T09:00:00-03:00', recurrence: { frequency: 'weekly', weekdays: [2], timesByWeekday: { 2: '09:00' }, startDate: '2026-09-07' } },
+      schedule: { at: '2026-09-07T09:00:00', recurrence: { frequency: 'weekly', weekdays: [2], timesByWeekday: { 2: '09:00' }, startDate: '2026-09-07' } },
     });
 
     const loaded = LocalRepository.fromJson(createSeedData(), JSON.stringify(stored)).listReminders();
 
-    expect(loaded.find((reminder) => reminder.id === 'weekly-broken')?.schedule.at).toBe('2026-09-08T09:00:00-03:00');
+    expect(loaded.find((reminder) => reminder.id === 'weekly-broken')?.schedule.at).toBe('2026-09-08T09:00:00');
     // O do seed cai numa terça, que está entre os dias que ele repete: sai da carga como entrou.
     expect(loaded.find((reminder) => reminder.id === 'horizontes')).toEqual(createSeedData().reminders[0]);
   });
@@ -283,10 +283,65 @@ describe('LocalRepository', () => {
     const stored = createSeedData();
     stored.reminders.push({
       id: 'weekly-broken', title: 'Aula de inglês', category: 'important', status: 'open',
-      schedule: { at: '2026-09-07T09:00:00-03:00', recurrence: { frequency: 'weekly', weekdays: [2], timesByWeekday: { 2: '09:00' }, startDate: '2026-09-07' } },
+      schedule: { at: '2026-09-07T09:00:00', recurrence: { frequency: 'weekly', weekdays: [2], timesByWeekday: { 2: '09:00' }, startDate: '2026-09-07' } },
     });
 
     const first = LocalRepository.fromJson(createSeedData(), JSON.stringify(stored)).exportJson();
     expect(LocalRepository.fromJson(createSeedData(), first).exportJson()).toBe(first);
+  });
+
+  // O horário passou a ser hora de parede local, sem fuso gravado. O dado que já está no disco
+  // carrega `-03:00` (ou `Z`, se veio de fora), e a migração acontece aqui, no mesmo ponto de
+  // entrada da reancoragem semanal. O critério é um só: a tela tem que continuar mostrando
+  // exatamente os dígitos que mostrava — os de São Paulo, que era o fuso que o app fixava.
+  it('migra o horário gravado com fuso preservando o que a tela mostrava', () => {
+    const stored = createSeedData();
+    stored.blocks = [
+      { id: 'legado-offset', title: 'Almoço', start: '2026-09-11T12:00:00-03:00', end: '2026-09-11T14:00:00-03:00', category: 'break' },
+      { id: 'legado-utc', title: 'Aula', start: '2026-09-11T12:00:00Z', end: '2026-09-11T13:00:00Z', category: 'learning' },
+    ];
+    stored.reminders = [{ id: 'legado', title: 'Consulta', category: 'wellbeing', status: 'open', schedule: { at: '2026-09-11T12:00:00Z' } }];
+
+    const loaded = LocalRepository.fromJson(createSeedData(), JSON.stringify(stored)).snapshot();
+
+    // O `-03:00` era decorativo: os dígitos ficam, só o sufixo sai.
+    expect(loaded.blocks[0]).toMatchObject({ start: '2026-09-11T12:00:00', end: '2026-09-11T14:00:00' });
+    // Um instante em UTC vira a hora de parede de São Paulo, que é a que a tela mostrava para ele.
+    expect(loaded.blocks[1]).toMatchObject({ start: '2026-09-11T09:00:00', end: '2026-09-11T10:00:00' });
+    expect(loaded.reminders[0].schedule.at).toBe('2026-09-11T09:00:00');
+  });
+
+  it('deixa passar intacto o horário que já é hora de parede', () => {
+    const stored = createSeedData();
+
+    const loaded = LocalRepository.fromJson(createSeedData(), JSON.stringify(stored)).snapshot();
+
+    expect(loaded.blocks).toEqual(stored.blocks);
+    expect(loaded.reminders).toEqual(stored.reminders);
+  });
+
+  it('migra o horário e reancora a semana na mesma carga, sem uma coisa atrapalhar a outra', () => {
+    const stored = createSeedData();
+    // Gravado com fuso E no dia errado: 07/09 é segunda, e o lembrete diz repetir só às terças.
+    stored.reminders.push({
+      id: 'weekly-broken-offset', title: 'Aula de inglês', category: 'important', status: 'open',
+      schedule: { at: '2026-09-07T09:00:00-03:00', recurrence: { frequency: 'weekly', weekdays: [2], timesByWeekday: { 2: '09:00' }, startDate: '2026-09-07' } },
+    });
+
+    const loaded = LocalRepository.fromJson(createSeedData(), JSON.stringify(stored)).listReminders();
+
+    expect(loaded.find((reminder) => reminder.id === 'weekly-broken-offset')?.schedule.at).toBe('2026-09-08T09:00:00');
+  });
+
+  it('carrega duas vezes sem mudar nada na segunda, mesmo partindo de dado com fuso', () => {
+    const stored = createSeedData();
+    stored.blocks = [{ id: 'legado', title: 'Almoço', start: '2026-09-11T12:00:00Z', end: '2026-09-11T14:00:00Z', category: 'break' }];
+    stored.reminders.push({ id: 'legado-lembrete', title: 'Consulta', category: 'wellbeing', status: 'open', schedule: { at: '2026-09-11T15:00:00-03:00' } });
+
+    const first = LocalRepository.fromJson(createSeedData(), JSON.stringify(stored)).exportJson();
+
+    expect(LocalRepository.fromJson(createSeedData(), first).exportJson()).toBe(first);
+    expect(first).not.toContain('-03:00');
+    expect(first).not.toContain('12:00:00Z');
   });
 });

@@ -160,12 +160,12 @@ export default function App() {
   };
   const createTask = ({ title, durationMinutes, folder }: NewTaskForm) => { repository.createTask({ title, durationMinutes, category: 'work', folder, status: 'open' }); refreshData(); log('create', title); setTaskCreateOpen(false); };
   const createReminder = ({ title, category, date, frequency, time, weekdays }: NewReminderForm) => {
-    if (frequency === 'one-time') repository.createReminder({ title, category, status: 'open', schedule: { at: `${date}T${time}:00-03:00` } });
-    if (frequency === 'daily') repository.createReminder({ title, category, status: 'open', schedule: { at: `${date}T${time}:00-03:00`, recurrence: { frequency: 'daily', time, startDate: date } } });
+    if (frequency === 'one-time') repository.createReminder({ title, category, status: 'open', schedule: { at: `${date}T${time}:00` } });
+    if (frequency === 'daily') repository.createReminder({ title, category, status: 'open', schedule: { at: `${date}T${time}:00`, recurrence: { frequency: 'daily', time, startDate: date } } });
     if (frequency === 'weekly') {
       const parts = weekdays.map((day) => `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day]} ${time}`);
       const first = firstWeeklyOccurrence(date, parts)!;
-      repository.createReminder({ title, category, status: 'open', schedule: { at: `${first.date}T${first.time}:00-03:00`, recurrence: { frequency: 'weekly', weekdays, timesByWeekday: Object.fromEntries(weekdays.map((day) => [day, time])), startDate: date } } });
+      repository.createReminder({ title, category, status: 'open', schedule: { at: `${first.date}T${first.time}:00`, recurrence: { frequency: 'weekly', weekdays, timesByWeekday: Object.fromEntries(weekdays.map((day) => [day, time])), startDate: date } } });
     }
     refreshData(); log('create', title); setReminderCreateOpen(false);
   };
@@ -216,14 +216,14 @@ export default function App() {
   const saveTaskDeadline = (id: string, deadline?: string) => { const task = data.tasks.find((item) => item.id === id); if (!task) return; repository.updateTask(id, { deadline }); refreshData(); log('edit', task.title, 'deadline-updated'); setDeadlineEditTaskId(null); };
   const editReminderSchedule = (id: string, edited: EditedReminderSchedule) => {
     const reminder = data.reminders.find((item) => item.id === id); if (!reminder) return;
-    if (edited.frequency === 'one-time') repository.updateReminder(id, { schedule: { at: `${edited.date}T${edited.time}:00-03:00` } });
-    if (edited.frequency === 'daily') repository.updateReminder(id, { schedule: { at: `${edited.date}T${edited.time}:00-03:00`, recurrence: { frequency: 'daily', time: edited.time, startDate: edited.date } } });
+    if (edited.frequency === 'one-time') repository.updateReminder(id, { schedule: { at: `${edited.date}T${edited.time}:00` } });
+    if (edited.frequency === 'daily') repository.updateReminder(id, { schedule: { at: `${edited.date}T${edited.time}:00`, recurrence: { frequency: 'daily', time: edited.time, startDate: edited.date } } });
     if (edited.frequency === 'weekly') {
       const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const parts = edited.weekdays.map((day) => `${labels[day]} ${edited.time}`);
       const first = firstWeeklyOccurrence(edited.date, parts)!;
       const timesByWeekday: Record<number, string> = Object.fromEntries(edited.weekdays.map((day) => [day, edited.time]));
-      repository.updateReminder(id, { schedule: { at: `${first.date}T${first.time}:00-03:00`, recurrence: { frequency: 'weekly', weekdays: edited.weekdays, timesByWeekday, startDate: edited.date } } });
+      repository.updateReminder(id, { schedule: { at: `${first.date}T${first.time}:00`, recurrence: { frequency: 'weekly', weekdays: edited.weekdays, timesByWeekday, startDate: edited.date } } });
     }
     refreshData(); log('edit', reminder.title, 'schedule-updated');
   };

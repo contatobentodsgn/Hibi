@@ -3,6 +3,7 @@ import { createLocalHibiRuntime } from '../local-runtime';
 import { HeuristicAiProvider } from '../heuristic-provider';
 import { LocalRepository } from '../../data/local-repository';
 import { createSeedData } from '../../data/seed-data';
+import { localDateKey } from '../../domain/date-context';
 import type { AiProvider } from '../contracts';
 import type { ScheduleBlock, Task } from '../../domain/models';
 
@@ -43,6 +44,34 @@ describe('local Hibi tool registry', () => {
     if (!pending.confirmation) throw new Error('Expected confirmation');
     await runtime.confirm(pending.confirmation);
     expect(repository.listBlocks().some((block) => block.title === 'revisar pauta')).toBe(true);
+  });
+
+  it('grava o bloco pedido em hora de parede, no dia local de quem perguntou', async () => {
+    const repository = new LocalRepository(createSeedData()); const runtime = createLocalHibiRuntime(repository);
+    // O runtime entrega `currentTime` em UTC (`toISOString`). "das 22:00 às 23:00" é o relógio de
+    // quem pediu: fatiar o texto UTC punha o bloco no dia de Greenwich, que a leste e a oeste não é
+    // o mesmo dia. O dia sai de `date-context`, e nada de offset é gravado.
+    const now = new Date('2026-09-07T09:00:00-03:00');
+    const pending = await runtime.runTurn({ message: 'crie um bloco: revisar pauta das 22:00 às 23:00', surface: 'desktop', now });
+    if (!pending.confirmation) throw new Error('Expected confirmation');
+    await runtime.confirm(pending.confirmation);
+
+    const created = repository.listBlocks().find((block) => block.title === 'revisar pauta');
+    expect(created?.start).toBe(`${localDateKey(now)}T22:00:00`);
+    expect(created?.end).toBe(`${localDateKey(now)}T23:00:00`);
+  });
+
+  it('normaliza para hora de parede o instante com fuso que vier de um provedor externo', async () => {
+    const repository = new LocalRepository(createSeedData());
+    const runtime = createLocalHibiRuntime(repository, {}, providerFor([{ name: 'block.create', arguments: { title: 'importado', start: '2027-03-04T12:00:00Z', end: '2027-03-04T13:00:00Z', category: 'work' } }]));
+
+    const pending = await runtime.runTurn({ message: 'Do it', surface: 'desktop' });
+    if (!pending.confirmation) throw new Error('Expected confirmation');
+    await runtime.confirm(pending.confirmation);
+
+    // Nada com offset entra no workspace pela porta do assistente: vira a hora de parede que a tela
+    // mostraria para aquele instante, do mesmo jeito que a migração do dado já gravado faz.
+    expect(repository.listBlocks().find((block) => block.title === 'importado')).toMatchObject({ start: '2027-03-04T09:00:00', end: '2027-03-04T10:00:00' });
   });
 
   it('updates a task only after an explicit confirmation', async () => {

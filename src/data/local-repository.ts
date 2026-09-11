@@ -3,6 +3,7 @@ import { createActivityRecord, isActivityRecord } from '../domain/activity';
 import type { ActivityInput, ActivityRecord } from '../domain/activity';
 import { folderOf, NO_FOLDER } from '../domain/folders';
 import { repairWeeklyAnchor } from '../domain/recurrence';
+import { toFloatingBlock, toFloatingReminder } from '../domain/wall-clock';
 
 type NewTask = Omit<Task, 'id'>;
 type NewHabit = Omit<Habit, 'id'>;
@@ -41,7 +42,12 @@ export class LocalRepository {
       // e este é o único ponto por onde todo dado persistido entra: o `localStorage`, o `replace` e a
       // restauração de backup passam aqui. É onde a reancoragem dos lembretes semanais gravados com
       // o dia errado cabe — e como o App reescreve o workspace a cada mudança, ela só corre uma vez.
-      reminders: parsed.reminders.map(repairWeeklyAnchor),
+      //
+      // As duas migrações convivem, nesta ordem: primeiro o horário vira hora de parede flutuante
+      // (o `-03:00` decorativo que as versões antigas carimbavam vira os dígitos que a tela já
+      // mostrava), e só então a reancoragem semanal age — lendo, e reescrevendo, o formato de hoje.
+      blocks: parsed.blocks.map(toFloatingBlock),
+      reminders: parsed.reminders.map(toFloatingReminder).map(repairWeeklyAnchor),
     };
     return repository;
   }

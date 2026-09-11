@@ -11,7 +11,7 @@ describe('buildNotificationEntries', () => {
       { id: 'no-deadline', title: 'No deadline', durationMinutes: 30, category: 'work', status: 'open' },
     );
     data.reminders.push(
-      { id: 'paused-reminder', title: 'Paused reminder', category: 'wellbeing', status: 'paused', schedule: { at: '2026-09-08T19:00:00-03:00' } },
+      { id: 'paused-reminder', title: 'Paused reminder', category: 'wellbeing', status: 'paused', schedule: { at: '2026-09-08T19:00:00' } },
     );
 
     expect(buildNotificationEntries(data)).toEqual([

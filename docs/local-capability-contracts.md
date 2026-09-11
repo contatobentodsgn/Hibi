@@ -24,9 +24,10 @@ This is the reconstructed contract surface for the Hibi study replica. It descri
 
 ### Reminders and calendar
 
-- Reminder times are ISO-like local timestamps using the `-03:00` offset at creation/edit time; recurrence supports `daily` and `weekly`, with optional start/end dates, weekdays, and per-weekday times ([models.ts](../src/domain/models.ts), [App.tsx](../src/App.tsx)).
+- Reminder and block times are floating local wall-clock timestamps — `2026-09-11T08:00:00`, with no zone or offset stored, so 08:00 is 08:00 wherever the user is (`DTSTART` without `TZID` semantics). Values persisted by older versions carried a fixed `-03:00` offset and are migrated on load ([wall-clock.ts](../src/domain/wall-clock.ts), [local-repository.ts](../src/data/local-repository.ts)). Recurrence supports `daily` and `weekly`, with optional start/end dates, weekdays, and per-weekday times ([models.ts](../src/domain/models.ts), [App.tsx](../src/App.tsx)).
 - Calendar blocks are validated against existing local blocks before creation; duration is derived from parsed `start`/`end` timestamps ([conflicts.ts](../src/domain/conflicts.ts), [schedule.ts](../src/domain/schedule.ts)).
-- Recurrence expansion preserves local calendar dates and emits timestamp strings with the same `-03:00` offset ([schedule.ts](../src/domain/schedule.ts)).
+- Recurrence expansion preserves local calendar dates and emits floating wall-clock timestamps, with no offset ([schedule.ts](../src/domain/schedule.ts)).
+- Calendar export/import uses the RFC 5545 floating form (`DTSTART:20260911T080000`, no `Z` and no `TZID`); an imported event from any zone keeps the wall-clock time its calendar displayed ([ics.ts](../src/domain/ics.ts)).
 
 ### Notifications
 

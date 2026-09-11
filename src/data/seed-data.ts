@@ -2,13 +2,12 @@ import { shiftDayKey, todayKey } from '../domain/date-context';
 import { firstWeeklyOccurrence } from '../domain/recurrence';
 import type { Reminder, ScheduleBlock, StudyData, Task } from '../domain/models';
 
-// O horário do workspace inteiro é serializado em -03:00 (ver OFFSET em `domain/schedule.ts`,
-// `ui/DayView`, `ui/WeekView` e `App`, e o `HIBI_TIME_ZONE` de `i18n/format`); o seed segue a mesma
-// convenção para não ser o único a falar outra língua. O que nunca é fixo aqui é o DIA: ele sai de
-// `todayKey`/`shiftDayKey`, sempre por componentes locais da data — nada de `toISOString()`, que
-// devolveria o dia UTC e, a leste ou a oeste de UTC-03, ancoraria a demonstração no dia errado.
-const OFFSET = '-03:00';
-const at = (date: string, time: string) => `${date}T${time}:00${OFFSET}`;
+// O horário do workspace inteiro é hora de parede local, flutuante — sem fuso nenhum gravado (ver
+// `domain/wall-clock`); o seed segue a mesma convenção para não ser o único a falar outra língua. O
+// que nunca é fixo aqui é o DIA: ele sai de `todayKey`/`shiftDayKey`, sempre por componentes locais
+// da data — nada de `toISOString()`, que devolveria o dia UTC e, a leste ou a oeste, ancoraria a
+// demonstração no dia errado.
+const at = (date: string, time: string) => `${date}T${time}:00`;
 
 const SEED_DAYS = 5;
 
