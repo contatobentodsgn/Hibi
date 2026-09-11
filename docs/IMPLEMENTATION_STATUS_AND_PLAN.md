@@ -2,7 +2,7 @@
 
 Atualizado em 2026-09-11. Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
 
-Última bateria completa em `main`: 517 testes Vitest, 185 `node --test`, 100 e2e Playwright, `tsc` sem erros e build de produção com o addon nativo.
+Última bateria completa em `main`: 517 testes Vitest, 189 `node --test`, 100 e2e Playwright, `tsc` sem erros e build de produção com o addon nativo.
 
 ## Status atual
 
