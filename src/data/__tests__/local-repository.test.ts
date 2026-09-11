@@ -262,4 +262,31 @@ describe('LocalRepository', () => {
     expect(() => repository.renameFolder('', 'X')).toThrow('Invalid folder rename.');
     expect(() => repository.renameFolder('Clientes', '   ')).toThrow('Invalid folder rename.');
   });
+
+  it('reancora ao carregar só o lembrete semanal cujo dia contradiz a própria recorrência', () => {
+    const stored = createSeedData();
+    // O que o cálculo antigo gravava a leste de UTC+09: uma terça pedida a partir de segunda 07/09
+    // voltava como 07/09, que é segunda — um `at` fora dos dias que o próprio lembrete repete.
+    stored.reminders.push({
+      id: 'weekly-broken', title: 'Aula de inglês', category: 'important', status: 'open',
+      schedule: { at: '2026-09-07T09:00:00-03:00', recurrence: { frequency: 'weekly', weekdays: [2], timesByWeekday: { 2: '09:00' }, startDate: '2026-09-07' } },
+    });
+
+    const loaded = LocalRepository.fromJson(createSeedData(), JSON.stringify(stored)).listReminders();
+
+    expect(loaded.find((reminder) => reminder.id === 'weekly-broken')?.schedule.at).toBe('2026-09-08T09:00:00-03:00');
+    // O do seed cai numa terça, que está entre os dias que ele repete: sai da carga como entrou.
+    expect(loaded.find((reminder) => reminder.id === 'horizontes')).toEqual(createSeedData().reminders[0]);
+  });
+
+  it('carrega duas vezes sem mudar nada na segunda', () => {
+    const stored = createSeedData();
+    stored.reminders.push({
+      id: 'weekly-broken', title: 'Aula de inglês', category: 'important', status: 'open',
+      schedule: { at: '2026-09-07T09:00:00-03:00', recurrence: { frequency: 'weekly', weekdays: [2], timesByWeekday: { 2: '09:00' }, startDate: '2026-09-07' } },
+    });
+
+    const first = LocalRepository.fromJson(createSeedData(), JSON.stringify(stored)).exportJson();
+    expect(LocalRepository.fromJson(createSeedData(), first).exportJson()).toBe(first);
+  });
 });
