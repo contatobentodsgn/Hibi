@@ -204,7 +204,7 @@ app.whenReady().then(async () => {
     mainWindow?.webContents.send('hibi:local-api:confirmation', { confirmationId, kind: intent.kind, payload: intent.payload });
     return { confirmationId, requiresConfirmation: true };
   } });
-  webhookService = createWebhookService({ keychain: secureKeychain, prepare: async (event) => { const confirmationId = `webhook-${crypto.randomUUID()}`; mainWindow?.webContents.send('hibi:webhook:confirmation', { confirmationId, kind: 'webhook.received', payload: event }); return { confirmationId, requiresConfirmation: true }; } });
+  webhookService = createWebhookService({ keychain: secureKeychain });
   replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
   notchSettings = createNotchSettings({ filePath: path.join(app.getPath('userData'), 'notch-settings.json') });
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
