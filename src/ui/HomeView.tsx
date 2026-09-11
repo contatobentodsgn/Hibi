@@ -1,16 +1,16 @@
 import React from 'react';
-import { referenceDate } from '../domain/date-context';
+import { localNoon, todayKey } from '../domain/date-context';
 import type { StudyData } from '../domain/models';
 
 type Props = { data: StudyData; onEvent: (action: string, detail: string, result?: string) => void; onNavigate: (route: any) => void; onOpenCommands?: () => void };
 
 export function HomeView({ data, onEvent, onNavigate, onOpenCommands }: Props) {
-  const today = referenceDate(data);
+  const today = todayKey();
   const todayBlocks = data.blocks.filter((block) => block.start.startsWith(today));
   const current = todayBlocks.find((block) => block.start.includes('T09:00')) ?? todayBlocks[0];
   const next = todayBlocks.filter((block) => block !== current).slice(0, 3);
   const planned = todayBlocks.filter((block) => block.category !== 'break').length;
-  const label = new Date(`${today}T12:00:00-03:00`).toLocaleDateString('en-US', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase().replace(',', ' ·');
+  const label = localNoon(today).toLocaleDateString('en-US', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase().replace(',', ' ·');
   return <div className="home-view">
     <div className="eyebrow">{label} <span className="pill green">LOCAL STUDY MODE</span></div>
     <section className="hero"><div><p className="kicker">YOUR DAY, IN ONE PLACE</p><h1>Make room for<br /><em>what matters.</em></h1><p className="subhead">A calm command centre for tasks, time and attention.</p></div><div className="hero-orbit"><span>09—17</span><small>WORK WINDOW</small></div></section>

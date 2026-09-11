@@ -5,6 +5,7 @@ import { createSeedData } from './data/seed-data';
 import type { EntityStatus, Goal, Habit, ScheduleBlock, StudyData, Task } from './domain/models';
 import type { ActivityInput } from './domain/activity';
 import { blockActivity, focusActivity, goalProgressActivities, habitCompletionActivity, taskStatusActivity } from './domain/activity-events';
+import { todayKey } from './domain/date-context';
 import { validateScheduleBlock } from './domain/conflicts';
 import { AppShell } from './ui/shell/AppShell';
 import type { NavKey } from './ui/shell/routes';
@@ -94,7 +95,7 @@ export default function App() {
     setEvents((current) => [{ id: Math.max(0, ...current.map((event) => event.id)) + 1, at: new Date().toLocaleTimeString('pt-BR'), route, action, detail, result }, ...current]);
   };
 
-  const assistantTurn = useAssistantTurn({ runtime: aiRuntime, data, onEvent: log, onCompanionEvent: dispatchCompanion, onCompanionError: (text) => dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }) });
+  const assistantTurn = useAssistantTurn({ runtime: aiRuntime, onEvent: log, onCompanionEvent: dispatchCompanion, onCompanionError: (text) => dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }) });
 
   const refreshData = () => setData(repository.snapshot());
   // Chamado só depois da mutação aplicada. Se registrar falhar, a ação continua valendo: só avisa.
@@ -110,7 +111,8 @@ export default function App() {
     }
     refreshData();
   };
-  const planStartDate = () => repository.listBlocks().map((block) => block.start.slice(0, 10)).filter(Boolean).sort()[0] ?? new Date().toISOString().slice(0, 10);
+  // Data sugerida para um lembrete novo: o começo do plano guardado e, sem plano, hoje.
+  const planStartDate = () => repository.listBlocks().map((block) => block.start.slice(0, 10)).filter(Boolean).sort()[0] ?? todayKey();
 
   // getTask/getHabit/getGoal devolvem o objeto vivo do repositório: o "antes" precisa ser copiado.
   const changeTaskStatus = (id: string, status: EntityStatus) => {

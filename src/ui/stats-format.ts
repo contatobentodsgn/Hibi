@@ -1,4 +1,5 @@
 import { ACTIVITY_TYPES, type ActivityRecord, type KnownActivityType } from '../domain/activity';
+import { localDateKey } from '../domain/date-context';
 import { calculateStats, MAX_CUSTOM_PERIOD_DAYS, resolveStatsPeriod, type StatsPeriod, type StatsPreset } from '../domain/stats';
 import { activityToCsv, activityToJson } from '../domain/stats-export';
 import type { DictionaryKey } from '../i18n/dictionary';
@@ -18,8 +19,6 @@ export const UTF8_BOM = '\uFEFF';
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 86_400_000;
 
-const pad = (value: number) => String(value).padStart(2, '0');
-const localDateKey = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 const utcDay = (key: string) => {
   const [year, month, day] = key.split('-').map(Number);
   return Date.UTC(year, month - 1, day);
