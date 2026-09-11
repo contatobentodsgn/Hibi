@@ -2,7 +2,7 @@
 
 Atualizado em 2026-09-11. Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
 
-Última bateria completa em `feat/taby-conversations`: 539 testes Vitest em 71 arquivos, 189 `node --test`, 101 e2e Playwright, `tsc` sem erros e build de produção com o addon nativo.
+Última bateria completa no `main` (`f9d7423`): 608 testes Vitest em 74 arquivos, 261 `node --test`, 103 e2e Playwright, `tsc` sem erros e build de produção com o addon nativo. A suíte dá **o mesmo resultado** em `America/Sao_Paulo` e em `Pacific/Kiritimati` (UTC+14), e a CI roda as duas: foi por não rodar assim que lembretes semanais chegaram a ser gravados no dia errado, e que um lembrete sem recorrência tocava horas fora do horário mostrado na tela.
 
 ## Status atual
 
