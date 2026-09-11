@@ -180,10 +180,6 @@ function createWindow() {
   else mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 }
 
-// Um endpoint configurado troca a base do conector e, com ela, o allowlist de
-// hosts: nenhuma outra origem passa a ser permitida por causa disso.
-
-
 app.whenReady().then(async () => {
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => mainWindow?.webContents.send('hibi:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
