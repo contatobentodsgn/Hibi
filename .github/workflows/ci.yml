@@ -34,6 +34,12 @@ jobs:
       - run: npm ci
       # Vitest e node --test; os testes do addon nativo funcionam sem o binário compilado.
       - run: npm test
+      # O mesmo suite bem a leste do UTC. Um dia de calendário montado a partir de um instante fixo
+      # em -03:00 passa no fuso de cima e quebra aqui, que foi como lembretes semanais chegaram a
+      # ser gravados no dia errado; rodar nos dois fusos impede a regressão silenciosa.
+      - run: npm test
+        env:
+          TZ: Pacific/Kiritimati
       - run: npx tsc --noEmit
       # `npm run build` compila o addon, que só existe no macOS; aqui só o build web.
       - run: npx vite build
