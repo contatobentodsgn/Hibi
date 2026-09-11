@@ -1,3 +1,4 @@
+import { localNoon, shiftDayKey } from './date-context';
 import type { RecurrenceRule, ScheduleBlock } from './models';
 
 const OFFSET = '-03:00';
@@ -10,19 +11,16 @@ export function durationMinutes(block: ScheduleBlock): number {
   return Math.round((Date.parse(block.end) - Date.parse(block.start)) / 60000);
 }
 
-function addDays(dateKey: string, amount: number): string {
-  const date = new Date(`${dateKey}T12:00:00${OFFSET}`);
-  date.setDate(date.getDate() + amount);
-  return date.toISOString().slice(0, 10);
-}
-
+// Mesmo defeito que `recurrence.ts` tinha: montar o dia a partir de um instante fixo em `-03:00`
+// misturava o dia-da-semana local com o dia UTC. A leste de ~UTC+09 o `getDay()` já era o do dia
+// seguinte e a recorrência inteira saía deslocada em um dia. Dia e dia-da-semana são calendário.
 function weekday(dateKey: string): number {
-  return new Date(`${dateKey}T12:00:00${OFFSET}`).getDay();
+  return localNoon(dateKey).getDay();
 }
 
 export function expandRecurrence(rule: RecurrenceRule, from: string, to: string): string[] {
   const results: string[] = [];
-  for (let date = from; date <= to; date = addDays(date, 1)) {
+  for (let date = from; date <= to; date = shiftDayKey(date, 1)) {
     if (date < rule.startDate || (rule.endDate && date > rule.endDate)) continue;
     const day = weekday(date);
     const matches = rule.frequency === 'daily' || (rule.weekdays ?? []).includes(day);
