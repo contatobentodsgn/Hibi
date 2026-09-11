@@ -1,4 +1,6 @@
 import type { Goal, Habit, Note, Reminder, ScheduleBlock, StudyData, Task } from '../domain/models';
+import { createActivityRecord, isActivityRecord } from '../domain/activity';
+import type { ActivityInput, ActivityRecord } from '../domain/activity';
 import { folderOf, NO_FOLDER } from '../domain/folders';
 
 type NewTask = Omit<Task, 'id'>;
@@ -21,8 +23,16 @@ export class LocalRepository {
     const repository = new LocalRepository(seed);
     const parsed = JSON.parse(json) as StudyData;
     if (!parsed || !Array.isArray(parsed.tasks) || !Array.isArray(parsed.reminders) || !Array.isArray(parsed.blocks) || !Array.isArray(parsed.telemetry)) throw new Error('Invalid study data');
+    const activity = parsed.activity === undefined ? [] : parsed.activity;
+    if (!Array.isArray(activity) || !activity.every(isActivityRecord)) throw new Error('Invalid study data');
+    const activityIds = new Set<string>();
+    for (const record of activity) {
+      if (activityIds.has(record.id)) throw new Error(`Duplicate activity id: ${record.id}`);
+      activityIds.add(record.id);
+    }
     repository.data = {
       ...clone(parsed),
+      activity: clone(activity),
       notes: Array.isArray(parsed.notes) ? parsed.notes : [],
       habits: Array.isArray(parsed.habits) ? parsed.habits : [],
       goals: Array.isArray(parsed.goals) ? parsed.goals : [],
@@ -36,6 +46,13 @@ export class LocalRepository {
   }
 
   snapshot(): StudyData { return clone(this.data); }
+  listActivity(): ActivityRecord[] { return clone(this.data.activity); }
+  appendActivity(input: ActivityInput): ActivityRecord {
+    const record = createActivityRecord(input);
+    if (this.data.activity.some((item) => item.id === record.id)) throw new Error(`Duplicate activity id: ${record.id}`);
+    this.data.activity.push(record);
+    return clone(record);
+  }
   listTasks(): Task[] { return clone(this.data.tasks); }
   listReminders(): Reminder[] { return clone(this.data.reminders); }
   listNotes(): Note[] { return clone(this.data.notes); }

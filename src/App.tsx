@@ -2,7 +2,9 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LocalRepository } from './data/local-repository';
 import type { WorkspacePreferences } from './data/workspace-backup';
 import { createSeedData } from './data/seed-data';
-import type { EntityStatus, Goal, Habit, ScheduleBlock, StudyData } from './domain/models';
+import type { EntityStatus, Goal, Habit, ScheduleBlock, StudyData, Task } from './domain/models';
+import type { ActivityInput } from './domain/activity';
+import { blockActivity, focusActivity, goalProgressActivities, habitCompletionActivity, taskStatusActivity } from './domain/activity-events';
 import { validateScheduleBlock } from './domain/conflicts';
 import { AppShell } from './ui/shell/AppShell';
 import type { NavKey } from './ui/shell/routes';
@@ -19,6 +21,7 @@ import { buildNotificationEntries } from './domain/notifications';
 import { HabitsView } from './ui/HabitsView';
 import { GoalsView } from './ui/GoalsView';
 import { ReviewView } from './ui/ReviewView';
+import { StatsView } from './ui/StatsView';
 import { TabyView } from './ui/TabyView';
 import { HelpView } from './ui/HelpView';
 import { FeedbackView } from './ui/FeedbackView';
@@ -75,7 +78,8 @@ export default function App() {
   const [aiFallbackPolicy, setAiFallbackPolicy] = useState<AiFallbackPolicy>(readAiFallbackPolicy);
   const aiFallbackPolicyRef = useRef(aiFallbackPolicy);
   const updateAiFallbackPolicy = (policy: AiFallbackPolicy) => { aiFallbackPolicyRef.current = policy; setAiFallbackPolicy(policy); try { window.localStorage.setItem(AI_FALLBACK_POLICY_STORAGE_KEY, policy); } catch { /* unavailable storage */ } };
-  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskCompleted: (title: string) => dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${title}`, nowMs: Date.now(), expiresInMs: 3_000 }), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); }, onAudit: (event: AiAuditEvent) => setAiHistory((current) => appendAiAuditEvent(current, event)), onUsage: (event: { at: string; provider: string; model: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number }; outcome: 'completed'; fallback: boolean }) => setAiUsage((current) => appendAiUsageRecord(current, event)), ...(window.hibiDesktop?.prepareIntegrationAction && window.hibiDesktop?.executeApprovedIntegrationAction ? { integrations: { prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => window.hibiDesktop!.prepareIntegrationAction!(input), executeApproved: (input: { actionId: string; confirmationId: string }) => window.hibiDesktop!.executeApprovedIntegrationAction!(input) as Promise<{ ok: boolean; remoteId?: string }> } } : {}) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider(repository)), new HeuristicAiProvider(), () => aiFallbackPolicyRef.current); });
+  // Uma ação confirmada do Taby registra como a tela: conclusões e reaberturas. O aviso só aparece na transição para concluída.
+  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskStatusChanged: (before: Task, after: Task) => { recordActivity(taskStatusActivity(before, after.status ?? 'open', new Date().toISOString())); if (before.status !== 'completed' && after.status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${after.title}`, nowMs: Date.now(), expiresInMs: 3_000 }); }, onBlockCreated: (block: ScheduleBlock) => recordActivity(blockActivity('created', block, new Date().toISOString())), onBlockDeleted: (block: ScheduleBlock) => recordActivity(blockActivity('deleted', block, new Date().toISOString())), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); }, onAudit: (event: AiAuditEvent) => setAiHistory((current) => appendAiAuditEvent(current, event)), onUsage: (event: { at: string; provider: string; model: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number }; outcome: 'completed'; fallback: boolean }) => setAiUsage((current) => appendAiUsageRecord(current, event)), ...(window.hibiDesktop?.prepareIntegrationAction && window.hibiDesktop?.executeApprovedIntegrationAction ? { integrations: { prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => window.hibiDesktop!.prepareIntegrationAction!(input), executeApproved: (input: { actionId: string; confirmationId: string }) => window.hibiDesktop!.executeApprovedIntegrationAction!(input) as Promise<{ ok: boolean; remoteId?: string }> } } : {}) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider(repository)), new HeuristicAiProvider(), () => aiFallbackPolicyRef.current); });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
@@ -93,15 +97,32 @@ export default function App() {
   const assistantTurn = useAssistantTurn({ runtime: aiRuntime, data, onEvent: log, onCompanionEvent: dispatchCompanion, onCompanionError: (text) => dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }) });
 
   const refreshData = () => setData(repository.snapshot());
+  // Chamado só depois da mutação aplicada. Se registrar falhar, a ação continua valendo: só avisa.
+  const recordActivity = (inputs: ActivityInput | readonly ActivityInput[] | null) => {
+    const list: readonly ActivityInput[] = inputs === null ? [] : 'type' in inputs ? [inputs] : inputs;
+    if (list.length === 0) return;
+    let type = 'unknown';
+    try {
+      for (const input of list) { type = input.type; repository.appendActivity(input); }
+    } catch {
+      log('activity', type, 'fail');
+      setValidationError('Não foi possível registrar a atividade.');
+    }
+    refreshData();
+  };
   const planStartDate = () => repository.listBlocks().map((block) => block.start.slice(0, 10)).filter(Boolean).sort()[0] ?? new Date().toISOString().slice(0, 10);
 
+  // getTask/getHabit/getGoal devolvem o objeto vivo do repositório: o "antes" precisa ser copiado.
   const changeTaskStatus = (id: string, status: EntityStatus) => {
     const task = repository.getTask(id);
     if (!task) return;
+    const before = { ...task };
     repository.updateTask(id, { status });
     refreshData();
     log(status === 'completed' ? 'complete' : 'reopen', task.title, status);
-    if (status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${task.title}`, nowMs: Date.now(), expiresInMs: 3_000 });
+    // Concluir de novo uma tarefa já concluída não é uma nova conclusão.
+    if (before.status !== 'completed' && status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${task.title}`, nowMs: Date.now(), expiresInMs: 3_000 });
+    recordActivity(taskStatusActivity(before, status, new Date().toISOString()));
   };
 
   const changeReminderStatus = (id: string, status: EntityStatus) => {
@@ -116,11 +137,20 @@ export default function App() {
     const validation = validateScheduleBlock({ ...input, id: `preview-${Date.now()}` }, repository.listBlocks());
     if (!validation.valid) { const text = validation.errors.join('\n'); setValidationError(text); log('validation', input.title, 'blocked'); dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }); return; }
     setValidationError('');
-    repository.createBlock(input);
+    const block = repository.createBlock(input);
     refreshData();
     log('create', input.title);
+    recordActivity(blockActivity('created', block, new Date().toISOString()));
   };
-  const deleteBlock = (id: string) => { const block = data.blocks.find((item) => item.id === id); if (!block) return; if (!window.confirm(`Excluir ${block.title}?`)) return; repository.deleteBlock(id); refreshData(); log('delete', block.title); };
+  const deleteBlock = (id: string) => {
+    const block = data.blocks.find((item) => item.id === id);
+    if (!block) return;
+    if (!window.confirm(`Excluir ${block.title}?`)) return;
+    repository.deleteBlock(id);
+    refreshData();
+    log('delete', block.title);
+    recordActivity(blockActivity('deleted', block, new Date().toISOString()));
+  };
   const createTask = ({ title, durationMinutes, folder }: NewTaskForm) => { repository.createTask({ title, durationMinutes, category: 'work', folder, status: 'open' }); refreshData(); log('create', title); setTaskCreateOpen(false); };
   const createReminder = ({ title, category, date, frequency, time, weekdays }: NewReminderForm) => {
     if (frequency === 'one-time') repository.createReminder({ title, category, status: 'open', schedule: { at: `${date}T${time}:00-03:00` } });
@@ -155,11 +185,26 @@ export default function App() {
   const createHabit = (title: string, frequency: Habit['frequency'] = 'daily', targetPerWeek = 7) => { repository.createHabit({ title, frequency, targetPerWeek, completedDates: [], status: 'open' }); refreshData(); log('create', title); };
   const updateHabit = (id: string, changes: Partial<Omit<Habit, 'id'>>) => { repository.updateHabit(id, changes); refreshData(); log('edit', id); };
   const deleteHabit = (id: string) => { repository.deleteHabit(id); refreshData(); log('delete', id); };
-  const toggleHabitCompletion = (id: string, date: string, completed: boolean) => { repository.setHabitCompletion(id, date, completed); refreshData(); log(completed ? 'complete' : 'reopen', id, date); };
+  const toggleHabitCompletion = (id: string, date: string, completed: boolean) => {
+    const habit = repository.getHabit(id);
+    const before = habit && { ...habit, completedDates: [...habit.completedDates] };
+    repository.setHabitCompletion(id, date, completed);
+    refreshData();
+    log(completed ? 'complete' : 'reopen', id, date);
+    if (before) recordActivity(habitCompletionActivity(before, date, completed, new Date().toISOString()));
+  };
   const createGoal = (title: string, target: number, unit?: string) => { repository.createGoal({ title, target, current: 0, unit, status: 'open' }); refreshData(); log('create', title); };
   const updateGoal = (id: string, changes: Partial<Omit<Goal, 'id'>>) => { repository.updateGoal(id, changes); refreshData(); log('edit', id); };
   const deleteGoal = (id: string) => { repository.deleteGoal(id); refreshData(); log('delete', id); };
-  const setGoalProgress = (id: string, current: number) => { repository.setGoalProgress(id, current); refreshData(); log('progress', id, String(current)); };
+  const setGoalProgress = (id: string, current: number) => {
+    const goal = repository.getGoal(id);
+    const before = goal && { ...goal };
+    repository.setGoalProgress(id, current);
+    refreshData();
+    log('progress', id, String(current));
+    const after = repository.getGoal(id);
+    if (before && after) recordActivity(goalProgressActivities(before, after, new Date().toISOString()));
+  };
   const editTaskDeadline = (id: string) => { if (data.tasks.some((task) => task.id === id)) setDeadlineEditTaskId(id); };
   const saveTaskDeadline = (id: string, deadline?: string) => { const task = data.tasks.find((item) => item.id === id); if (!task) return; repository.updateTask(id, { deadline }); refreshData(); log('edit', task.title, 'deadline-updated'); setDeadlineEditTaskId(null); };
   const editReminderSchedule = (id: string, edited: EditedReminderSchedule) => {
@@ -271,11 +316,12 @@ export default function App() {
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
       case 'review': return <ReviewView data={data} onNavigate={navigate} />;
+      case 'stats': return <StatsView records={data.activity} referenceDate={new Date()} onEvent={log} />;
       case 'taby': return <TabyView data={data} turn={assistantTurn} />;
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'agenda': case 'day': case 'week': return <AgendaView {...props} data={data} mode={route === 'agenda' ? undefined : route} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onModeChange={(mode) => setRoute(mode)} />;
-      case 'focus': case 'break': return <FocusView key={route} {...props} mode={route === 'break' ? 'break' : 'focus'} onModeChange={(next) => navigate(next)} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
+      case 'focus': case 'break': return <FocusView key={route} {...props} mode={route === 'break' ? 'break' : 'focus'} onModeChange={(next) => navigate(next)} onFocusLifecycle={(event) => recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString()))} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
       case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} />;
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} onClearAiHistory={clearAiHistory} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;

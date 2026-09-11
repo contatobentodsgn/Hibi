@@ -4,6 +4,7 @@ import { HeuristicAiProvider } from '../heuristic-provider';
 import { LocalRepository } from '../../data/local-repository';
 import { createSeedData } from '../../data/seed-data';
 import type { AiProvider } from '../contracts';
+import type { ScheduleBlock, Task } from '../../domain/models';
 
 const providerFor = (toolCalls: readonly { name: string; arguments: Record<string, unknown> }[]): AiProvider => ({ id: 'test', label: 'Test model', generate: async () => ({ reply: 'Ready', toolCalls: [...toolCalls], notchPresentation: null, providerMetadata: { model: 'test-model' } }) });
 
@@ -55,17 +56,86 @@ describe('local Hibi tool registry', () => {
     expect(repository.getTask(task.id)?.title).toBe('Updated by AI');
   });
 
-  it('emits a completion event when an approved AI update completes a task', async () => {
-    const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
-    const completed: string[] = [];
-    const runtime = createLocalHibiRuntime(repository, { onTaskCompleted: (title) => completed.push(title) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'completed' } }]));
-
-    const pending = await runtime.runTurn({ message: 'Complete it', surface: 'desktop' });
+  const confirmTurn = async (runtime: ReturnType<typeof createLocalHibiRuntime>) => {
+    const pending = await runtime.runTurn({ message: 'Do it', surface: 'desktop' });
     if (!pending.confirmation) throw new Error('Expected confirmation');
     await runtime.confirm(pending.confirmation);
+  };
+
+  it('reports the before and after task when an approved AI update completes a task', async () => {
+    const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
+    repository.updateTask(task.id, { status: 'open' });
+    const changes: Array<[Task, Task]> = [];
+    const runtime = createLocalHibiRuntime(repository, { onTaskStatusChanged: (before, after) => changes.push([before, after]) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'completed' } }]));
+
+    await confirmTurn(runtime);
 
     expect(repository.getTask(task.id)?.status).toBe('completed');
-    expect(completed).toEqual([task.title]);
+    expect(changes).toHaveLength(1);
+    expect(changes[0]![0]).toMatchObject({ id: task.id, title: task.title, status: 'open' });
+    expect(changes[0]![1]).toMatchObject({ id: task.id, title: task.title, status: 'completed' });
+    // O "antes" é uma cópia: a mutação da ferramenta não pode reescrevê-lo.
+    expect(changes[0]![0]).not.toBe(repository.getTask(task.id));
+    expect(changes[0]![1]).not.toBe(repository.getTask(task.id));
+  });
+
+  it('reports a reopen made through an approved AI update', async () => {
+    const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
+    repository.updateTask(task.id, { status: 'completed' });
+    const changes: Array<[string | undefined, string | undefined]> = [];
+    const runtime = createLocalHibiRuntime(repository, { onTaskStatusChanged: (before, after) => changes.push([before.status, after.status]) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'open' } }]));
+
+    await confirmTurn(runtime);
+
+    expect(changes).toEqual([['completed', 'open']]);
+  });
+
+  it('does not report a status change when an approved AI update renames an already completed task', async () => {
+    const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
+    repository.updateTask(task.id, { status: 'completed' });
+    const changes: string[] = [];
+    const runtime = createLocalHibiRuntime(repository, { onTaskStatusChanged: (_before, after) => changes.push(after.id) }, providerFor([{ name: 'task.update', arguments: { id: task.id, title: 'Renamed', status: 'completed' } }]));
+
+    await confirmTurn(runtime);
+
+    expect(repository.getTask(task.id)?.title).toBe('Renamed');
+    expect(changes).toEqual([]);
+  });
+
+  it('reports a block created through an approved AI action as a copy', async () => {
+    const repository = new LocalRepository(createSeedData());
+    const created: ScheduleBlock[] = [];
+    const runtime = createLocalHibiRuntime(repository, { onBlockCreated: (block) => created.push(block) }, providerFor([{ name: 'block.create', arguments: { title: 'revisar pauta', start: '2026-09-07T22:00:00-03:00', end: '2026-09-07T23:00:00-03:00', category: 'work' } }]));
+
+    await confirmTurn(runtime);
+
+    const stored = repository.listBlocks().find((block) => block.title === 'revisar pauta');
+    expect(stored).toBeDefined();
+    expect(created).toEqual([stored]);
+    created[0]!.title = 'mutated by the hook';
+    expect(repository.listBlocks().some((block) => block.id === stored!.id && block.title === 'revisar pauta')).toBe(true);
+  });
+
+  it('reports a block deleted through an approved AI action', async () => {
+    const repository = new LocalRepository(createSeedData()); const block = repository.listBlocks()[0]!;
+    const deleted: ScheduleBlock[] = [];
+    const runtime = createLocalHibiRuntime(repository, { onBlockDeleted: (item) => deleted.push(item) }, providerFor([{ name: 'block.delete', arguments: { id: block.id } }]));
+
+    await confirmTurn(runtime);
+
+    expect(repository.listBlocks().some((item) => item.id === block.id)).toBe(false);
+    expect(deleted).toEqual([block]);
+  });
+
+  it('does not report block creation or deletion when an approved AI action updates a block', async () => {
+    const repository = new LocalRepository(createSeedData()); const block = repository.listBlocks()[0]!;
+    const reported: string[] = [];
+    const runtime = createLocalHibiRuntime(repository, { onBlockCreated: () => reported.push('created'), onBlockDeleted: () => reported.push('deleted') }, providerFor([{ name: 'block.update', arguments: { id: block.id, title: 'Bloco revisado' } }]));
+
+    await confirmTurn(runtime);
+
+    expect(repository.listBlocks().find((item) => item.id === block.id)?.title).toBe('Bloco revisado');
+    expect(reported).toEqual([]);
   });
 
   it('deletes a reminder only after an explicit confirmation', async () => {

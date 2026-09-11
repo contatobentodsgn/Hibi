@@ -30,5 +30,5 @@ export function createSeedData(): StudyData {
   };
   // Deep-clone the shared seed objects so each caller gets its own copies: tests and workspace
   // resets mutate what they receive, and callers must not leak changes into later calls.
-  return { tasks: structuredClone(tasks), reminders: [structuredClone(reminder)], habits: [], goals: [], notes: [], blocks: weekdays.flatMap(addBlocks), telemetry: [] };
+  return { activity: [], tasks: structuredClone(tasks), reminders: [structuredClone(reminder)], habits: [], goals: [], notes: [], blocks: weekdays.flatMap(addBlocks), telemetry: [] };
 }

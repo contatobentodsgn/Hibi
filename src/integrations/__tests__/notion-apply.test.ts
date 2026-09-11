@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { LocalRepository } from '../../data/local-repository'
 import { applyNotionMutations } from '../notion-apply'
 
-const empty = () => new LocalRepository({ tasks: [], reminders: [], notes: [], habits: [], goals: [], blocks: [], telemetry: [] }, () => '2026-09-10T02:00:00.000Z')
+const empty = () => new LocalRepository({ activity: [], tasks: [], reminders: [], notes: [], habits: [], goals: [], blocks: [], telemetry: [] }, () => '2026-09-10T02:00:00.000Z')
 
 describe('applyNotionMutations', () => {
   it('creates and updates full mapped tasks and links successful pushes', () => {
