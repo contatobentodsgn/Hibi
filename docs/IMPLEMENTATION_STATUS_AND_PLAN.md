@@ -160,7 +160,7 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 Fora das listas de fases, em ordem de gravidade. "Tarefa criada" significa que já existe trabalho aberto para o item.
 
 - **O seed tem datas fixas.** `src/data/seed-data.ts` traz blocos de 07 a 11/09/2026, então uma instalação nova abre num dia vazio assim que a data real passa desse intervalo. Gerar o seed a partir do dia atual segue pendente, por decisão de entregar antes a data local real. *(2026-09-11)*
-- **Lembretes semanais criados antes de 2026-09-11 podem ter a data de início errada.** `firstWeeklyOccurrence` misturava dia da semana local com data UTC, então fora de UTC-03 o `schedule.at` gravado ao criar ou editar um lembrete semanal aponta para o dia errado. O cálculo foi corrigido, mas **os dados já gravados não**: decidir entre recalcular na migração, corrigir na leitura, ou deixar como está e avisar. *(encontrado ao tornar a suíte independente de fuso, 2026-09-11)*
+- ~~**Lembretes semanais criados antes de 2026-09-11 podem ter a data de início errada.**~~ **Resolvido em 2026-09-11 corrigindo na leitura**: `LocalRepository.fromJson` reancora o lembrete semanal cujo `schedule.at` cai num dia da semana que ele não repete — o registro contradiz a si mesmo, e só o bug produz isso — e deixa todos os outros intactos. Foi preferido a uma migração versionada porque `StudyData` não tem versão de esquema (o `2` é do envelope de backup) e `fromJson` já é o único ponto por onde passam `localStorage`, `replace` e restauração de backup. *(encontrado ao tornar a suíte independente de fuso, 2026-09-11)*
 
 ## Critério de conclusão
 

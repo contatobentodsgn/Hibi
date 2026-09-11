@@ -2,6 +2,7 @@ import type { Goal, Habit, Note, Reminder, ScheduleBlock, StudyData, Task } from
 import { createActivityRecord, isActivityRecord } from '../domain/activity';
 import type { ActivityInput, ActivityRecord } from '../domain/activity';
 import { folderOf, NO_FOLDER } from '../domain/folders';
+import { repairWeeklyAnchor } from '../domain/recurrence';
 
 type NewTask = Omit<Task, 'id'>;
 type NewHabit = Omit<Habit, 'id'>;
@@ -36,6 +37,11 @@ export class LocalRepository {
       notes: Array.isArray(parsed.notes) ? parsed.notes : [],
       habits: Array.isArray(parsed.habits) ? parsed.habits : [],
       goals: Array.isArray(parsed.goals) ? parsed.goals : [],
+      // `StudyData` não tem versão de esquema (o `2` versiona o envelope de backup, não o workspace),
+      // e este é o único ponto por onde todo dado persistido entra: o `localStorage`, o `replace` e a
+      // restauração de backup passam aqui. É onde a reancoragem dos lembretes semanais gravados com
+      // o dia errado cabe — e como o App reescreve o workspace a cada mudança, ela só corre uma vez.
+      reminders: parsed.reminders.map(repairWeeklyAnchor),
     };
     return repository;
   }
