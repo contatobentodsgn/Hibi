@@ -187,7 +187,7 @@ describe('study views', () => {
 
   it('exposes habits and goals through the dock menu and commands', () => {
     const menu = renderToStaticMarkup(<DockMoreMenu active="home" onSelect={onEvent} />);
-    const palette = renderToStaticMarkup(<CommandPalette data={data} onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} />);
+    const palette = renderToStaticMarkup(<CommandPalette data={data} onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} conversations={{ conversations: [], activeId: null, query: '', saveFailed: false, record: onEvent, select: onEvent, create: onEvent, remove: onEvent, removeAll: onEvent, search: onEvent }} />);
 
     expect(menu).toContain('Hábitos');
     expect(menu).toContain('Metas');
