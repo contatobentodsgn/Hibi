@@ -255,8 +255,9 @@ app.whenReady().then(async () => {
     const saved = connectorSettings.save(connectorId, patch);
     // O endpoint entra na construção do conector, então o gerenciador é refeito.
     // Isso descarta ações já preparadas de propósito: uma ação preparada contra o
-    // endpoint anterior não deve ser executada contra um endpoint novo.
-    if (patch?.endpoint !== undefined) integrationManager = createIntegrationManager({ connectors: buildConnectors(connectorSettings), keychain: secureKeychain });
+    // endpoint anterior não deve ser executada contra um endpoint novo. A auditoria,
+    // ao contrário, atravessa a reconstrução: `withConnectors` leva o log junto.
+    if (patch?.endpoint !== undefined) integrationManager = integrationManager.withConnectors(buildConnectors(connectorSettings));
     return saved;
   });
   ipcMain.handle('hibi:oauth:supported', (_event, connectorId) => oauthService.supports(connectorId));
