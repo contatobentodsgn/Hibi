@@ -109,7 +109,12 @@ test('trocar o idioma troca o dock na hora e persiste', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });
 
+// O seed traz blocos fixos de 07 a 11/09/2026 e a Semana abre na data local real: sem fixar o
+// relógio, o rótulo do período mudaria com a data real. Data montada com componentes locais.
+const seedToday = () => new Date(2026, 8, 7, 10, 0, 0);
+
 test('a Agenda lembra a última visualização', async ({ page }) => {
+  await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await dock(page).getByRole('button', { name: 'Agenda', exact: true }).click();
   await page.getByRole('tab', { name: 'Semana' }).click();

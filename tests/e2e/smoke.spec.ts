@@ -6,8 +6,13 @@ const goMore = async (page: Page, name: string) => { await dock(page).getByRole(
 const goWeek = async (page: Page) => { await go(page, 'Agenda'); await page.getByRole('tab', { name: 'Semana' }).click(); };
 const goDay = async (page: Page) => { await go(page, 'Agenda'); await page.getByRole('tab', { name: 'Dia' }).click(); };
 const openCommands = (page: Page) => dock(page).getByRole('button', { name: 'Comandos' }).click();
+// O seed traz blocos fixos de 07 a 11/09/2026, e Início, Dia e Semana abrem na data local real.
+// Sem fixar o relógio, estes cenários passariam só enquanto a data real estivesse nesse intervalo.
+// A data é montada com componentes locais (Node e Chromium herdam o mesmo TZ), como em stats.spec.ts.
+const seedToday = () => new Date(2026, 8, 7, 10, 0, 0);
 
 test('navega pelo calendário e abre comandos', async ({ page }) => {
+  await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await expect(page.getByText('Make room for')).toBeVisible();
   await goWeek(page);
@@ -29,6 +34,7 @@ test('todas as seções principais são navegáveis', async ({ page }) => {
 });
 
 test('paleta de comandos permite navegação por teclado', async ({ page }) => {
+  await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await openCommands(page);
   const palette = page.getByRole('dialog', { name: 'Paleta de comandos' });
@@ -138,6 +144,7 @@ test('abas de Settings alternam conteúdo funcional', async ({ page }) => {
 });
 
 test('restaura um backup completo pela interface sem incluir dados do Keychain', async ({ page }) => {
+  await page.clock.install({ time: seedToday() });
   await page.goto('/');
   const backup = await page.evaluate(() => {
     const data = JSON.parse(window.localStorage.getItem('hibi-study-data') ?? '{}');
@@ -160,6 +167,7 @@ test('restaura um backup completo pela interface sem incluir dados do Keychain',
 });
 
 test('navegação diária e semanal atualiza o período', async ({ page }) => {
+  await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await goDay(page);
   await expect(page.getByText('MONDAY · 07 SEPTEMBER 2026')).toBeVisible();
@@ -258,6 +266,7 @@ test('edita deadline de uma task por formulário acessível e permite remover', 
 });
 
 test('filtros do calendário usam as categorias reais dos blocos', async ({ page }) => {
+  await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await goWeek(page);
   await page.getByRole('button', { name: 'Wellbeing', exact: true }).click();
@@ -279,6 +288,7 @@ test('Foco e pausa aplicam a duração escolhida antes de iniciar', async ({ pag
 });
 
 test('filtros do Day exibem blocos fixos e pausas', async ({ page }) => {
+  await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await goDay(page);
   await page.getByRole('button', { name: 'Wellbeing', exact: true }).click();
