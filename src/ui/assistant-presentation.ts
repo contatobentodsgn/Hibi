@@ -7,6 +7,9 @@ export const failurePresentationFor = (failure: AiProviderFailure) => {
   if (failure.code === 'rate_limited') return { title: 'Rate limit reached', detail: `The provider is temporarily limiting requests.${failure.retryAfterMs ? ` Try again in about ${Math.max(1, Math.ceil(failure.retryAfterMs / 1_000))} seconds.` : ''}`, canRetry: true, canUseLocalFallback: true };
   if (failure.code === 'unavailable') return { title: 'Provider unavailable', detail: 'The provider is temporarily unavailable. You can retry or continue locally.', canRetry: true, canUseLocalFallback: true };
   if (failure.code === 'cancelled') return { title: 'Request cancelled', detail: 'No action was performed.', canRetry: true, canUseLocalFallback: false };
+  // O pedido é que foi recusado (endpoint ou id de modelo errado): oferecer "tentar de novo" aqui
+  // só repetiria a mesma configuração inválida, então a saída é corrigir os Ajustes ou ir de local.
+  if (failure.code === 'invalid_request') return { title: 'Check the endpoint and model', detail: 'The provider rejected the request itself. Check the endpoint and the model id in AI settings; retrying will not help.', canRetry: false, canUseLocalFallback: true };
   return { title: 'Invalid provider response', detail: 'The provider returned an invalid response. No action was performed.', canRetry: true, canUseLocalFallback: true };
 };
 export const companionEventFor = (kind: 'listening' | 'thinking' | 'acting' | 'confirmation' | 'result' | 'error', requestId: string, text: string, nowMs: number): CompanionEvent => {
