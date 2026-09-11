@@ -32,7 +32,8 @@ jobs:
           node-version: 25
           cache: npm
       - run: npm ci
-      # Vitest e node --test; os testes do addon nativo funcionam sem o binário compilado.
+      # Vitest e node --test. Sem o binário do addon (que só compila no macOS), `host.test.cjs`
+      # se pula explicitamente, com motivo no relatório; quem o exercita é o job macos-native.
       - run: npm test
       # O mesmo suite bem a leste do UTC. Um dia de calendário montado a partir de um instante fixo
       # em -03:00 passa no fuso de cima e quebra aqui, que foi como lembretes semanais chegaram a
@@ -70,4 +71,7 @@ jobs:
       - run: npm ci
       - run: npm --prefix native/notch ci
       - run: npm run native:build
+      # Único lugar onde o binário compilado é exercitado de verdade: com o addon presente,
+      # `native/notch/host.test.cjs` cria o NSPanel, mede o frame na tela real e o destrói,
+      # em vez de se pular. É o que torna este job mais que uma recompilação.
       - run: node --test native/notch/*.test.cjs electron/*.test.cjs
