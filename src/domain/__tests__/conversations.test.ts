@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appendMessage, createConversation, sanitizeConversation, titleFor } from '../conversations'
+import { appendMessage, createConversation, pruneConversations, sanitizeConversation, searchConversations, titleFor } from '../conversations'
 
 const at = (hour: number) => new Date(2026, 8, 11, hour, 0).toISOString()
 
@@ -44,5 +44,23 @@ describe('conversations', () => {
     expect(sanitizeConversation({ id: 'c-2', title: 'sem mensagens', createdAt: at(9), updatedAt: at(9), messages: 'nope' })).toBeUndefined()
     expect(sanitizeConversation({ ...valid, messages: [{ role: 'ghost', text: 'x', at: at(9) }] })).toBeUndefined()
     expect(sanitizeConversation(null)).toBeUndefined()
+  })
+
+  it('searches the text of messages, not only titles', () => {
+    const first = appendMessage(createConversation('agenda da semana', at(9), 'c-1'), { role: 'assistant', text: 'Reunião com o cliente Kabrito', at: at(9) })
+    const second = createConversation('lista de compras', at(10), 'c-2')
+
+    expect(searchConversations([first, second], 'kabrito').map((item) => item.id)).toEqual(['c-1'])
+    expect(searchConversations([first, second], 'LISTA').map((item) => item.id)).toEqual(['c-2'])
+    expect(searchConversations([first, second], '   ').map((item) => item.id)).toEqual(['c-1', 'c-2'])
+  })
+
+  it('prunes the oldest conversation once the cap is reached', () => {
+    const many = Array.from({ length: 51 }, (_, index) => createConversation(`pergunta ${index}`, new Date(2026, 8, 11, 9, index).toISOString(), `c-${index}`))
+    const pruned = pruneConversations(many, { maxConversations: 50 })
+
+    expect(pruned).toHaveLength(50)
+    expect(pruned.some((item) => item.id === 'c-0')).toBe(false)
+    expect(pruned[0].id).toBe('c-50')
   })
 })

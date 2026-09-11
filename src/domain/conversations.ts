@@ -48,3 +48,18 @@ export function sanitizeConversation(value: unknown): Conversation | undefined {
   if (messages.some((message) => message === undefined)) return undefined
   return { id: record.id, title: record.title.slice(0, 120), createdAt: record.createdAt, updatedAt: record.updatedAt, messages: messages as ConversationMessage[] }
 }
+
+export const MAX_CONVERSATIONS = 50
+
+/** Busca no que foi dito: procurar só no título esconderia a conversa que interessa. */
+export function searchConversations(conversations: readonly Conversation[], query: string): readonly Conversation[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return conversations
+  return conversations.filter((conversation) =>
+    conversation.title.toLowerCase().includes(needle) || conversation.messages.some((message) => message.text.toLowerCase().includes(needle)))
+}
+
+/** Mais recente primeiro; a mais antiga cai ao estourar o teto. */
+export function pruneConversations(conversations: readonly Conversation[], { maxConversations = MAX_CONVERSATIONS } = {}): readonly Conversation[] {
+  return [...conversations].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)).slice(0, maxConversations)
+}
