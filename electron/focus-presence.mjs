@@ -49,13 +49,23 @@ export function sanitizePresenceSettings(value) {
   };
 }
 
+export const FOCUS_MOODS = ['bored', 'normal', 'excited'];
+const WORKING_LOOP_BY_MOOD = Object.freeze({
+  bored: 'working_laptop_bored_loop',
+  normal: 'working_laptop_normal_loop',
+  excited: 'working_laptop_excited_loop',
+});
+
 /**
  * O loop que o companion toca com a sessão rodando. Mesma regra do `resolveCompanionFocusLoopAnimationId`
- * do original: "music" toca `listening_music_loop`; o resto, o notebook. O original escolhia entre
- * bored/normal/excited pelo humor; o Hibi não mede humor, então fica no `normal`.
+ * do original: "music" toca `listening_music_loop` qualquer que seja o humor; o resto, o notebook no humor
+ * do momento. O original tirava o humor de rastreamento de atividade (app em primeiro plano, domínio, URL,
+ * título da página), que o Hibi não coleta e não vai coletar: aqui o humor sai só do que o Hibi já
+ * registra (ver `src/ui/focus-mood.ts`). Sem humor, `normal` — é o que o pacote do dispositivo leva.
  */
-export function resolveFocusLoopAnimationId(preference) {
-  return preference === 'music' ? 'listening_music_loop' : 'working_laptop_normal_loop';
+export function resolveFocusLoopAnimationId(preference, mood = 'normal') {
+  if (preference === 'music') return 'listening_music_loop';
+  return Object.hasOwn(WORKING_LOOP_BY_MOOD, mood) ? WORKING_LOOP_BY_MOOD[mood] : WORKING_LOOP_BY_MOOD.normal;
 }
 
 /**

@@ -68,6 +68,17 @@ describe('companion reducer', () => {
       .toEqual({ entry: null, loop: null, staticFrame: 'listening_music_loop', reducedMotion: true });
   });
 
+  // O humor chega pela mesma regra da tela de Foco; com "music" o loop de música toca igual.
+  it('plays the laptop loop in the mood of the moment, and the music loop whatever the mood', () => {
+    const excited = reduceCompanion(initialCompanionState, { type: 'focus.started', requestId: 'focus-a', nowMs: 0, focusLoopAnimation: 'focus', focusMood: 'excited' });
+    expect(excited.animation).toEqual({ entry: 'working_laptop_in', loop: 'working_laptop_excited_loop', reducedMotion: false });
+    expect(reduceCompanion(initialCompanionState, { type: 'focus.started', requestId: 'focus-b', nowMs: 0, focusMood: 'bored' }).animation.loop).toBe('working_laptop_bored_loop');
+    expect(reduceCompanion(initialCompanionState, { type: 'focus.started', requestId: 'focus-c', nowMs: 0, focusLoopAnimation: 'music', focusMood: 'excited' }).animation)
+      .toEqual({ entry: null, loop: 'listening_music_loop', reducedMotion: false });
+    expect(reduceCompanion(initialCompanionState, { type: 'focus.started', requestId: 'focus-d', nowMs: 0, focusMood: 'excited', reducedMotion: true }).animation)
+      .toEqual({ entry: null, loop: null, staticFrame: 'working_laptop_excited_loop', reducedMotion: true });
+  });
+
   it('asks whether the person is still there, and offers to resume, with buttons that capture the pointer', () => {
     const actions = [{ id: 'confirm', label: 'Ainda estou aqui' }, { id: 'cancel', label: 'Pausar' }];
     const check = reduceCompanion(initialCompanionState, { type: 'focus.idle_check', requestId: 'focus-idle-1', text: 'Você ainda está aí?', actions, nowMs: 0, expiresInMs: 60_000 });

@@ -1,5 +1,5 @@
 import type { CompanionAction, CompanionAnimation, CompanionEvent, CompanionKind, CompanionPresentation } from './contracts';
-import { resolveFocusLoopAnimationId, type FocusLoopAnimation } from '../../electron/focus-presence.mjs';
+import { resolveFocusLoopAnimationId, type FocusLoopAnimation, type FocusMood } from '../../electron/focus-presence.mjs';
 
 export type { CompanionAction, CompanionAnimation, CompanionEvent, CompanionKind, CompanionPresentation } from './contracts';
 
@@ -29,7 +29,7 @@ const priorityFor = (kind: CompanionKind): number => ({
   error: 100,
 })[kind];
 
-const animationFor = (kind: CompanionKind, reducedMotion: boolean, reminderAnimation?: string, focusLoop?: FocusLoopAnimation): CompanionAnimation => {
+const animationFor = (kind: CompanionKind, reducedMotion: boolean, reminderAnimation?: string, focusLoop?: FocusLoopAnimation, focusMood?: FocusMood): CompanionAnimation => {
   const normal: Record<CompanionKind, Omit<CompanionAnimation, 'reducedMotion'>> = {
     hidden: { entry: null, loop: null },
     idle: { entry: null, loop: 'idle_01_loop' },
@@ -38,8 +38,8 @@ const animationFor = (kind: CompanionKind, reducedMotion: boolean, reminderAnima
     acting: { entry: null, loop: 'creating_task_loop' },
     confirmation: { entry: 'confirmation', loop: null },
     result: { entry: 'taby_response_ready_in', loop: 'taby_response_ready_loop' },
-    // O loop do foco é o ajuste "Animação durante o foco", resolvido pela mesma regra da tela de Foco.
-    focus: { entry: focusLoop === 'music' ? null : 'working_laptop_in', loop: resolveFocusLoopAnimationId(focusLoop) },
+    // O loop do foco é o ajuste "Animação durante o foco" no humor do momento, pela mesma regra da tela de Foco.
+    focus: { entry: focusLoop === 'music' ? null : 'working_laptop_in', loop: resolveFocusLoopAnimationId(focusLoop, focusMood) },
     reminder: { entry: reminderAnimation ?? 'waiting_01', loop: null },
     error: { entry: 'disappointed', loop: null },
   };
@@ -57,11 +57,12 @@ const presentation = (
   actions: readonly CompanionAction[] = [],
   reminderAnimation?: string,
   focusLoop?: FocusLoopAnimation,
+  focusMood?: FocusMood,
 ): CompanionPresentation => ({
   requestId: event.requestId,
   kind,
   priority: priorityFor(kind),
-  animation: animationFor(kind, event.reducedMotion === true, reminderAnimation, focusLoop),
+  animation: animationFor(kind, event.reducedMotion === true, reminderAnimation, focusLoop, focusMood),
   text: event.text ?? null,
   actions,
   interaction: actions.length > 0 ? 'capture' : 'passthrough',
@@ -91,7 +92,7 @@ export function reduceCompanion(state: CompanionPresentation, event: CompanionEv
       return canReplace(state, candidate) ? candidate : state;
     }
     case 'focus.started': {
-      const candidate = presentation('focus', event, [], undefined, event.focusLoopAnimation);
+      const candidate = presentation('focus', event, [], undefined, event.focusLoopAnimation, event.focusMood);
       return canReplace(state, candidate) ? candidate : state;
     }
     // As duas perguntas de presença têm botões, então capturam o ponteiro como uma confirmação.

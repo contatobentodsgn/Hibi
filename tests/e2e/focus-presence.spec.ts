@@ -148,6 +148,8 @@ test('com "perguntar", a volta muda a pergunta, e "Descontar" tira o tempo ausen
   await away(page, 300);
   const question = prompt(page, 'Você ainda está aí?');
   await expect(question).toBeVisible();
+  // Esperando a volta, o companion trabalha entediado.
+  await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', /working_laptop_bored_loop\.mp4$/);
 
   // 20 minutos de relógio sem resposta; a sessão segue contando até a volta.
   await page.clock.runFor(20 * 60_000);
@@ -159,6 +161,8 @@ test('com "perguntar", a volta muda a pergunta, e "Descontar" tira o tempo ausen
   // Os 5 minutos parados antes da pergunta e os 20 esperando a resposta.
   await expect(review).toContainText('Você ficou 25 minutos sem mexer no Mac. Esse tempo foi foco?');
   await expect(question).toHaveCount(0);
+  // A pessoa voltou: o companion deixa de esperar.
+  await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', /working_laptop_normal_loop\.mp4$/);
   // No companion: a pergunta anterior é descartada e a nova aparece no lugar.
   await expect.poll(async () => (await calls(page)).some((call) => call.startsWith('hide:focus-idle-'))).toBe(true);
   await expect.poll(async () => (await calls(page)).some((call) => call.startsWith('show:confirmation:focus-returned-'))).toBe(true);
