@@ -16,6 +16,7 @@ const realNotifications = require("./notifications.mjs");
 const realNotchWindow = require("./notch-window.cjs");
 const realNotchTest = require("./notch-test.cjs");
 const realAiConfig = require("./ai-config.cjs");
+const { PRESENCE_POLL_MS } = require("./focus-presence.mjs");
 
 // Os canais que o renderer pode chamar. A lista é mantida à mão de propósito:
 // remover um handler sem mexer aqui é uma quebra de contrato com o preload.
@@ -25,6 +26,7 @@ const EXPECTED_CHANNELS = [
   "hibi:login-item",
   "hibi:notifications:sync",
   "hibi:notifications:test",
+  "hibi:focus:watch-presence",
   "hibi:ai:run",
   "hibi:ai:cancel",
   "hibi:ai-config:get",
@@ -115,6 +117,10 @@ async function loadMain({ seedUserData } = {}) {
   let loginItem = { openAtLogin: false };
   let notificationSupported = true;
   let readyPromise = null;
+  // O relógio de inatividade do sistema, e quantas vezes alguém o consultou: é assim que se prova que
+  // não há polling sem sessão.
+  let systemIdleSeconds = 0;
+  let idleQueries = 0;
 
   class BrowserWindowFake {
     constructor(options) {
@@ -179,6 +185,7 @@ async function loadMain({ seedUserData } = {}) {
     powerMonitor: {
       on: (event, listener) => { powerEvents.push([event, listener]); },
       removeListener: (event, listener) => { removedEvents.push([event, listener]); },
+      getSystemIdleTime: () => { idleQueries += 1; return systemIdleSeconds; },
     },
   };
 
@@ -300,6 +307,13 @@ async function loadMain({ seedUserData } = {}) {
     event,
     mainWindow: () => windows[0],
     setNotificationSupported: (value) => { notificationSupported = value; },
+    setSystemIdleSeconds: (value) => { systemIdleSeconds = value; },
+    idleQueries: () => idleQueries,
+    // Dispara um evento de energia em todos os ouvintes vivos, como o Electron faria.
+    firePower: (name) => {
+      const removed = new Set(removedEvents.filter(([event]) => event === name).map(([, listener]) => listener));
+      for (const [event, listener] of powerEvents) if (event === name && !removed.has(listener)) listener();
+    },
     invoke: (channel, ...args) => {
       const handler = handlers.get(channel);
       assert.ok(handler, `canal não registrado: ${channel}`);
@@ -737,12 +751,20 @@ test("hibi:notifications:sync entrega ao agendador os ajustes e a janela de foco
   assert.deepEqual(harness.captured.syncCalls.at(-1)?.context, context);
 });
 
-test("preload repassa os ajustes e a janela de foco junto das entradas", () => {
+// Carrega o `preload.cjs` de verdade com o `electron` dublado e devolve a API exposta ao renderer,
+// o que ele invocou e os ouvintes que registrou por canal.
+function loadPreload() {
   const exposed = {};
   const invoked = [];
+  const listeners = new Map();
   const electronStub = {
     contextBridge: { exposeInMainWorld: (key, api) => { exposed[key] = api; } },
-    ipcRenderer: { invoke: (...args) => { invoked.push(args); return Promise.resolve(); }, on() {}, removeListener() {}, send() {} },
+    ipcRenderer: {
+      invoke: (...args) => { invoked.push(args); return Promise.resolve(); },
+      on: (channel, listener) => { listeners.set(channel, [...(listeners.get(channel) ?? []), listener]); },
+      removeListener: (channel, listener) => { listeners.set(channel, (listeners.get(channel) ?? []).filter((item) => item !== listener)); },
+      send() {},
+    },
   };
   delete require.cache[PRELOAD_PATH];
   const originalLoad = Module._load;
@@ -751,9 +773,151 @@ test("preload repassa os ajustes e a janela de foco junto das entradas", () => {
     return originalLoad.call(this, request, parent, isMain);
   };
   try { require(PRELOAD_PATH); } finally { Module._load = originalLoad; delete require.cache[PRELOAD_PATH]; }
+  const deliver = (channel, ...args) => { for (const listener of listeners.get(channel) ?? []) listener({ sender: null }, ...args); };
+  return { api: exposed.hibiDesktop, invoked, listeners, deliver };
+}
+
+test("preload repassa os ajustes e a janela de foco junto das entradas", () => {
+  const { api, invoked } = loadPreload();
+  const exposed = { hibiDesktop: api };
 
   const entries = [{ id: "reminder:1" }];
   const context = { settings: { sessionMinutes: 25, activeStart: "09:00", activeEnd: "17:00", nudgePreset: "work" }, focusUntilMs: 123 };
   exposed.hibiDesktop.syncNotifications(entries, context);
   assert.deepEqual(invoked.at(-1), ["hibi:notifications:sync", entries, context]);
+});
+
+// Presença durante o foco. O relógio e o intervalo são dublados com `t.mock.timers` ANTES de carregar o
+// processo principal: é o `setInterval` global que o monitor arma, e o `Date.now()` que ele carimba.
+const PRESENCE_CHANNEL = "hibi:focus:presence";
+const PRESENCE_START_MS = 1_800_000_000_000;
+const presenceSent = (harness) => harness.mainWindow().sent.filter(([channel]) => channel === PRESENCE_CHANNEL).map(([, event]) => event);
+const POWER_PRESENCE_EVENTS = ["lock-screen", "suspend", "unlock-screen", "resume"];
+
+test("presença: sem sessão de foco não há polling nem ouvinte de bloqueio e sono", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval", "Date"], now: PRESENCE_START_MS });
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  harness.setSystemIdleSeconds(3_600);
+  t.mock.timers.tick(PRESENCE_POLL_MS * 30);
+  assert.equal(harness.idleQueries(), 0);
+  // O único ouvinte de energia é o `resume` do notch, que já existia.
+  assert.deepEqual(harness.powerEvents.map(([event]) => event), ["resume"]);
+  assert.deepEqual(presenceSent(harness), []);
+
+  // Um pedido malformado não liga nada.
+  await harness.invoke("hibi:focus:watch-presence", "sim");
+  await harness.invoke("hibi:focus:watch-presence", { watching: "true", idleMinutes: 5 });
+  t.mock.timers.tick(PRESENCE_POLL_MS * 3);
+  assert.equal(harness.idleQueries(), 0);
+
+  // A sessão começa, com a pessoa ali: consulta a cada intervalo. A sessão acaba: para de consultar e
+  // solta os ouvintes — e a hora de teclado parado que vem depois não vira evento.
+  harness.setSystemIdleSeconds(0);
+  assert.deepEqual(await harness.invoke("hibi:focus:watch-presence", { watching: true, idleMinutes: 5 }), { watching: true });
+  t.mock.timers.tick(PRESENCE_POLL_MS * 2);
+  assert.equal(harness.idleQueries(), 2);
+  assert.deepEqual(await harness.invoke("hibi:focus:watch-presence", { watching: false, idleMinutes: 5 }), { watching: false });
+  harness.setSystemIdleSeconds(3_600);
+  t.mock.timers.tick(PRESENCE_POLL_MS * 30);
+  assert.equal(harness.idleQueries(), 2);
+  assert.deepEqual(harness.removedEvents.map(([event]) => event).sort(), [...POWER_PRESENCE_EVENTS].sort());
+  // Uma ausência de 1 hora sem sessão nunca virou evento.
+  assert.deepEqual(presenceSent(harness), []);
+});
+
+test("presença: inatividade acima do limiar durante a sessão emite ausência, e o retorno emite retorno", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval", "Date"], now: PRESENCE_START_MS });
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  await harness.invoke("hibi:focus:watch-presence", { watching: true, idleMinutes: 5 });
+  harness.setSystemIdleSeconds(299);
+  t.mock.timers.tick(PRESENCE_POLL_MS);
+  assert.deepEqual(presenceSent(harness), [], "abaixo do limiar não há ausência");
+
+  harness.setSystemIdleSeconds(300);
+  t.mock.timers.tick(PRESENCE_POLL_MS);
+  const awayAtMs = Date.now();
+  assert.deepEqual(presenceSent(harness), [{ type: "away", reason: "idle", idleSeconds: 300, atMs: awayAtMs }]);
+
+  // Seguir ocioso não repete o aviso.
+  harness.setSystemIdleSeconds(310);
+  t.mock.timers.tick(PRESENCE_POLL_MS);
+  assert.equal(presenceSent(harness).length, 1);
+
+  harness.setSystemIdleSeconds(1);
+  t.mock.timers.tick(PRESENCE_POLL_MS);
+  assert.deepEqual(presenceSent(harness).at(-1), { type: "returned", reason: "idle", awaySeconds: 300 + 20, atMs: awayAtMs + PRESENCE_POLL_MS * 2 });
+});
+
+test("presença: bloquear a tela e dormir contam como ausência por energia, e a volta só vem com a tela desbloqueada", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval", "Date"], now: PRESENCE_START_MS });
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  // Sem sessão, bloquear a tela não é assunto de ninguém.
+  harness.firePower("lock-screen");
+  assert.deepEqual(presenceSent(harness), []);
+
+  await harness.invoke("hibi:focus:watch-presence", { watching: true, idleMinutes: 5 });
+  harness.setSystemIdleSeconds(40);
+  harness.firePower("lock-screen");
+  assert.deepEqual(presenceSent(harness), [{ type: "away", reason: "power", idleSeconds: 40, atMs: PRESENCE_START_MS }]);
+
+  harness.firePower("suspend");
+  t.mock.timers.tick(3_600_000);
+  harness.firePower("resume");
+  assert.equal(presenceSent(harness).length, 1, "acordou, mas ainda está na tela de senha");
+
+  harness.firePower("unlock-screen");
+  assert.deepEqual(presenceSent(harness).at(-1), { type: "returned", reason: "power", awaySeconds: 40 + 3_600, atMs: PRESENCE_START_MS + 3_600_000 });
+});
+
+test("before-quit desliga a vigia de presença junto dos outros serviços", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval", "Date"], now: PRESENCE_START_MS });
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  await harness.invoke("hibi:focus:watch-presence", { watching: true, idleMinutes: 1 });
+  harness.quit();
+  harness.setSystemIdleSeconds(600);
+  t.mock.timers.tick(PRESENCE_POLL_MS * 10);
+  assert.equal(harness.idleQueries(), 0);
+  assert.deepEqual(presenceSent(harness), []);
+});
+
+// Os testes acima param no `webContents.send` do processo principal. Este leva o MESMO evento, pelo
+// MESMO canal, através do `preload.cjs` real até o callback que o renderer registrou — e o pedido de
+// vigia do renderer de volta até o handler registrado no `whenReady`.
+test("o evento de presença atravessa a ponte: processo principal → preload → renderer, e a vigia volta", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval", "Date"], now: PRESENCE_START_MS });
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const preload = loadPreload();
+
+  const received = [];
+  const unsubscribe = preload.api.onFocusPresence((event) => received.push(event));
+
+  // Renderer pede vigia pela ponte; o pedido chega ao handler do processo principal.
+  preload.api.watchFocusPresence({ watching: true, idleMinutes: 1 });
+  const [channel, request] = preload.invoked.at(-1);
+  assert.equal(channel, "hibi:focus:watch-presence");
+  assert.deepEqual(await harness.invoke(channel, request), { watching: true });
+
+  harness.setSystemIdleSeconds(60);
+  t.mock.timers.tick(PRESENCE_POLL_MS);
+  const emitted = harness.mainWindow().sent.filter(([sentChannel]) => sentChannel === PRESENCE_CHANNEL);
+  assert.equal(emitted.length, 1);
+  for (const [sentChannel, ...args] of emitted) preload.deliver(sentChannel, ...args);
+  assert.deepEqual(received, [{ type: "away", reason: "idle", idleSeconds: 60, atMs: PRESENCE_START_MS + PRESENCE_POLL_MS }]);
+
+  // Lixo no canal não chega ao renderer, e cancelar a assinatura solta o ouvinte de verdade.
+  preload.deliver(PRESENCE_CHANNEL, null);
+  assert.equal(received.length, 1);
+  unsubscribe();
+  assert.deepEqual(preload.listeners.get(PRESENCE_CHANNEL), []);
+  preload.deliver(PRESENCE_CHANNEL, emitted[0][1]);
+  assert.equal(received.length, 1);
 });

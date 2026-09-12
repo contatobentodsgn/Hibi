@@ -7,6 +7,8 @@ import type { NotificationEntry } from '../domain/notifications'
 // corrompido no armazenamento vira o padrão em vez de derrubar a tela ou silenciar o app.
 export { DEFAULT_FOCUS_SETTINGS, NUDGE_PRESETS, SESSION_LENGTHS, sanitizeFocusSettings }
 export type { FocusSettings, NudgePreset }
+export { AWAY_BEHAVIORS, FOCUS_LOOP_ANIMATIONS, IDLE_MINUTES, SCREEN_TIMEOUT_SECONDS } from '../../electron/focus-presence.mjs'
+export type { AwayBehavior, FocusLoopAnimation } from '../../electron/focus-presence.mjs'
 
 export const FOCUS_SETTINGS_STORAGE_KEY = 'hibi-focus-settings'
 

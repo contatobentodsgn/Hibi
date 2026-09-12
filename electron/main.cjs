@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, Notification, screen, shell, powerMonitor }
 const path = require("node:path");
 const crypto = require('node:crypto');
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.mjs");
+const { createPresenceMonitor } = require("./focus-presence.mjs");
 const { createMainAiRuntime, replaceAiRequestCoordinator } = require("./ai-runtime.cjs");
 const { createAiConfiguration, createMacKeychain, verifyAndSaveAiConfiguration } = require('./ai-config.cjs');
 const { createIntegrationManager } = require('./integrations.cjs');
@@ -21,6 +22,7 @@ const nativeNotchBridge = require("../native/notch/index.cjs");
 
 let mainWindow;
 let notificationScheduler;
+let presenceMonitor;
 let aiRuntime;
 let aiRequestCoordinator;
 let aiConfiguration;
@@ -205,6 +207,11 @@ app.whenReady().then(async () => {
   // O contexto de foco (janela da sessão em andamento e ajustes) chega junto das entradas: o portão
   // que decide o que fica quieto mora no agendador, e o renderer é quem conhece o estado da sessão.
   ipcMain.handle("hibi:notifications:sync", (_event, entries, context) => { notificationScheduler.sync(sanitizeEntries(entries), context); });
+  // Presença durante o foco. O renderer pede vigia só com uma sessão rodando (ou pausada por ausência,
+  // esperando a volta); sem pedido não há intervalo nem ouvinte de bloqueio e sono. Ausência e retorno
+  // voltam por um canal só deles: é a tela de Foco que decide perguntar, pausar ou seguir contando.
+  presenceMonitor = createPresenceMonitor({ powerMonitor, onChange: (event) => sendToMainWindow('hibi:focus:presence', event) });
+  ipcMain.handle("hibi:focus:watch-presence", (_event, request) => presenceMonitor.watch(request));
   ipcMain.handle("hibi:notifications:test", () => {
     if (!Notification.isSupported()) return false;
     const notification = new Notification({ title: "Hibi", body: "Native notifications are working." });
@@ -287,7 +294,7 @@ app.whenReady().then(async () => {
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
-app.on("before-quit", () => { detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
+app.on("before-quit", () => { detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
 module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent, routeNotchAction, isRendererPresentationAllowed };

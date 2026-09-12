@@ -58,6 +58,25 @@ describe('companion reducer', () => {
     expect(focus.interaction).toBe('passthrough');
   });
 
+  // O ajuste "Animação durante o foco" chega ao companion pela mesma regra da tela de Foco.
+  it('plays the focus loop chosen in the settings', () => {
+    const focus = reduceCompanion(initialCompanionState, { type: 'focus.started', requestId: 'focus-a', nowMs: 0, focusLoopAnimation: 'focus' });
+    const music = reduceCompanion(initialCompanionState, { type: 'focus.started', requestId: 'focus-b', nowMs: 0, focusLoopAnimation: 'music' });
+    expect(focus.animation).toEqual({ entry: 'working_laptop_in', loop: 'working_laptop_normal_loop', reducedMotion: false });
+    expect(music.animation).toEqual({ entry: null, loop: 'listening_music_loop', reducedMotion: false });
+    expect(reduceCompanion(initialCompanionState, { type: 'focus.started', requestId: 'focus-c', nowMs: 0, focusLoopAnimation: 'music', reducedMotion: true }).animation)
+      .toEqual({ entry: null, loop: null, staticFrame: 'listening_music_loop', reducedMotion: true });
+  });
+
+  it('asks whether the person is still there, and offers to resume, with buttons that capture the pointer', () => {
+    const actions = [{ id: 'confirm', label: 'Ainda estou aqui' }, { id: 'cancel', label: 'Pausar' }];
+    const check = reduceCompanion(initialCompanionState, { type: 'focus.idle_check', requestId: 'focus-idle-1', text: 'Você ainda está aí?', actions, nowMs: 0, expiresInMs: 60_000 });
+    expect(check).toMatchObject({ requestId: 'focus-idle-1', kind: 'confirmation', actions, interaction: 'capture', expiresAtMs: 60_000 });
+
+    const resume = reduceCompanion(check, { type: 'focus.resume_prompt', requestId: 'focus-resume-1', pauseReason: 'away', text: 'Retomar?', actions, nowMs: 10 });
+    expect(resume).toMatchObject({ requestId: 'focus-resume-1', kind: 'confirmation', interaction: 'capture' });
+  });
+
   it('turns a completed focus session into a short result presentation', () => {
     const completed = reduceCompanion(initialCompanionState, {
       type: 'focus.completed', requestId: 'focus-complete', text: 'Focus complete', nowMs: 0, expiresInMs: 3_000,

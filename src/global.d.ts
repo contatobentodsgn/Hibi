@@ -1,5 +1,6 @@
 import type { NotificationEntry } from './domain/notifications';
 import type { FocusSettings } from '../electron/focus-gate.mjs';
+import type { PresenceEvent, PresenceWatchRequest } from '../electron/focus-presence.mjs';
 import type { ImportCandidate } from './integrations/imports';
 import type { AiNormalizedUsage, AiProviderRequest, AiProviderStreamEvent } from './ai/contracts';
 import type { ConnectorSettings, IntegrationAuditEvent, IntegrationAuthorization, IntegrationExecutionResult, IntegrationImportTarget, IntegrationStatus, NotionDataSourceDiscovery, PreparedIntegrationAction } from './integrations/contracts';
@@ -56,7 +57,9 @@ declare global {
       onCompanionPresentation?: (callback: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' }) => void) => () => void;
       onCompanionAction?: (callback: (action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void) => () => void;
       onNotificationTriggered?: (callback: (entry: NotificationEntry) => void) => () => void;
-      onLocalApiConfirmation?: (callback: (intent: { confirmationId: string; kind: string; payload: Record<string, unknown> }) => void) => () => void;
+      watchFocusPresence?: (request: PresenceWatchRequest) => Promise<{ watching: boolean }>;
+      onFocusPresence?: (callback: (event: PresenceEvent) => void) => () => void;
+      onLocalApiConfirmation?:(callback: (intent: { confirmationId: string; kind: string; payload: Record<string, unknown> }) => void) => () => void;
     };
   }
 }

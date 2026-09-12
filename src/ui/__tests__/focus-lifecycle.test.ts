@@ -1,9 +1,76 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { abandonFocus, completeFocus, IDLE_FOCUS_LIFECYCLE, ignoresDurationChoice, pauseFocus, startFocus, stepFocusLifecycle, type FocusLifecycleAction, type FocusLifecycleState } from '../focus-lifecycle';
+import { abandonFocus, completeFocus, IDLE_FOCUS_LIFECYCLE, ignoresDurationChoice, pauseFocus, pauseFocusForAway, remainingSeconds, startFocus, stepFocusLifecycle, type FocusLifecycleAction, type FocusLifecycleState } from '../focus-lifecycle';
+import { createActivityRecord } from '../../domain/activity';
+import { focusActivity } from '../../domain/activity-events';
+import { calculateStats, resolveStatsPeriod } from '../../domain/stats';
 
 const minute = 60_000;
 const limit = 25 * minute;
+
+// O tempo em que ninguém estava na frente do Mac não pode virar minuto de foco no /stats.
+describe('pausa por ausência', () => {
+  it('pausa com motivo "away" e desconta o período ocioso já detectado', () => {
+    const running = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+    // Detectada aos 12 minutos, com 5 minutos de teclado parado: a pessoa saiu aos 7.
+    const paused = pauseFocusForAway(running, 12 * minute, { sinceMs: 7 * minute });
+    expect(paused.event).toEqual({ type: 'paused', pauseReason: 'away' });
+    expect(paused.state).toEqual({ phase: 'paused', accumulatedMs: 7 * minute, limitMs: limit, pauseReason: 'away' });
+    // A tela devolve os minutos ausentes: faltam 18, não 13.
+    expect(remainingSeconds(paused.state)).toBe(18 * 60);
+  });
+
+  it('com a volta já percebida, só o trecho ausente sai — o tempo depois da volta conta', () => {
+    const running = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+    const paused = pauseFocusForAway(running, 15 * minute, { sinceMs: 5 * minute, untilMs: 11 * minute });
+    expect(paused.state.accumulatedMs).toBe(9 * minute);
+  });
+
+  it('nunca desconta tempo de antes da retomada, que já estava fora da contagem', () => {
+    let state = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+    state = pauseFocus(state, 4 * minute).state;
+    state = startFocus(state, 20 * minute, limit).state;
+    const paused = pauseFocusForAway(state, 23 * minute, { sinceMs: 10 * minute });
+    expect(paused.state.accumulatedMs).toBe(4 * minute);
+    expect(pauseFocusForAway(state, 23 * minute, { sinceMs: 30 * minute }).state.accumulatedMs).toBe(7 * minute);
+  });
+
+  it('só pausa uma sessão rodando, e passa pela máquina de estados só no modo foco', () => {
+    const paused: FocusLifecycleState = { phase: 'paused', accumulatedMs: minute, limitMs: limit };
+    expect(pauseFocusForAway(paused, 5 * minute, { sinceMs: 0 })).toEqual({ state: paused });
+    expect(pauseFocusForAway(IDLE_FOCUS_LIFECYCLE, 5, { sinceMs: 0 })).toEqual({ state: IDLE_FOCUS_LIFECYCLE });
+
+    const running = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+    const action: FocusLifecycleAction = { type: 'pause-away', absence: { sinceMs: 2 * minute } };
+    expect(stepFocusLifecycle('focus', action, running, 6 * minute, limit)).toEqual(pauseFocusForAway(running, 6 * minute, { sinceMs: 2 * minute }));
+    expect(stepFocusLifecycle('break', action, running, 6 * minute, limit)).toEqual({ state: IDLE_FOCUS_LIFECYCLE });
+  });
+
+  it('retomar limpa o motivo e continua do tempo presente', () => {
+    const away = pauseFocusForAway(startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state, 12 * minute, { sinceMs: 7 * minute }).state;
+    const resumed = startFocus(away, 30 * minute, limit);
+    expect(resumed.state).toEqual({ phase: 'running', accumulatedMs: 7 * minute, runningSince: 30 * minute, limitMs: limit });
+    expect(resumed.event).toEqual({ type: 'resumed', endsAtMs: 30 * minute + 18 * minute });
+  });
+
+  it('o /stats soma só os minutos presentes', () => {
+    const sessionLimit = 50 * minute;
+    const reference = new Date(2026, 8, 10, 12, 0);
+    const at = reference.toISOString();
+    const period = resolveStatsPeriod('today', reference);
+    const focusMinutesOf = (focusedMinutes: number | undefined) => calculateStats([createActivityRecord(focusActivity('completed', focusedMinutes, at))], period).focusMinutes;
+
+    // Começa às 0, sai aos 10, a ausência é percebida aos 15, retoma aos 40 e conclui aos 60.
+    const started = startFocus(IDLE_FOCUS_LIFECYCLE, 0, sessionLimit).state;
+    const withDiscount = completeFocus(startFocus(pauseFocusForAway(started, 15 * minute, { sinceMs: 10 * minute }).state, 40 * minute, sessionLimit).state, 60 * minute);
+    const withoutDiscount = completeFocus(startFocus(pauseFocus(started, 15 * minute).state, 40 * minute, sessionLimit).state, 60 * minute);
+
+    expect(withDiscount.event).toEqual({ type: 'completed', focusedMinutes: 30 });
+    expect(focusMinutesOf(withDiscount.event?.focusedMinutes)).toBe(30);
+    // Pausar "agora", sem descontar, teria somado os 5 minutos em que ninguém estava ali.
+    expect(focusMinutesOf(withoutDiscount.event?.focusedMinutes)).toBe(35);
+  });
+});
 
 describe('focus lifecycle', () => {
   it('starts an idle session and resumes a paused one', () => {
