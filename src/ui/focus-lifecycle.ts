@@ -8,7 +8,11 @@ export type FocusPauseReason = 'away' | 'manual';
  */
 export type FocusAbsence = Readonly<{ sinceMs: number; untilMs?: number }>;
 
-export type FocusLifecycleAction = 'start' | 'pause' | 'complete' | 'abandon' | Readonly<{ type: 'pause-away'; absence: FocusAbsence }>;
+export type FocusLifecycleAction =
+  | 'start' | 'pause' | 'complete' | 'abandon'
+  | Readonly<{ type: 'pause-away'; absence: FocusAbsence }>
+  // A pessoa voltou e disse que o tempo ausente não foi foco: desconta sem pausar.
+  | Readonly<{ type: 'discount-away'; absence: FocusAbsence }>;
 
 export interface FocusLifecycleState {
   phase: FocusLifecyclePhase;
@@ -67,9 +71,42 @@ export function startFocus(state: FocusLifecycleState, nowMs: number, limitMs: n
   };
 }
 
-export function pauseFocus(state: FocusLifecycleState, nowMs: number): FocusLifecycleStep {
+/**
+ * O tempo presente desta corrida sem o período ausente. É a regra única de interseção: só o trecho que
+ * caiu DENTRO desta corrida é descontado — antes de `runningSince` a sessão já estava pausada e nada foi
+ * contado —, o fim da ausência nunca passa de agora, o resultado nunca fica negativo e respeita a duração.
+ */
+const withoutAbsence = (state: FocusLifecycleState & { runningSince: number }, nowMs: number, absence: FocusAbsence) => {
+  const elapsed = Math.max(0, nowMs - state.runningSince);
+  const from = Math.max(state.runningSince, absence.sinceMs);
+  const until = Math.min(nowMs, absence.untilMs ?? nowMs);
+  const awayMs = Math.min(elapsed, Math.max(0, until - from));
+  const present = Math.max(0, state.accumulatedMs + elapsed - awayMs);
+  return { awayMs, accumulatedMs: state.limitMs === undefined ? present : Math.min(state.limitMs, present) };
+};
+const isRunning = (state: FocusLifecycleState): state is FocusLifecycleState & { runningSince: number } => state.phase === 'running' && state.runningSince !== undefined;
+
+/**
+ * Desconta o período ausente SEM mudar a fase: a pessoa voltou e respondeu que aquele tempo não foi foco,
+ * então a sessão segue rodando a partir de agora com o tempo medido já sem a ausência. Sem nada a
+ * descontar, o estado volta intacto.
+ */
+export function discountAwayTime(state: FocusLifecycleState, nowMs: number, absence: FocusAbsence): FocusLifecycleStep {
+  if (!isRunning(state)) return { state };
+  const { awayMs, accumulatedMs } = withoutAbsence(state, nowMs, absence);
+  if (awayMs === 0) return { state };
+  return { state: { phase: 'running', accumulatedMs, runningSince: nowMs, ...withLimit(state.limitMs) } };
+}
+
+// Uma pergunta de presença sem resposta: presença não confirmada não conta como foco, então o tempo
+// ausente sai antes de a sessão ser pausada, concluída ou abandonada.
+const settle = (state: FocusLifecycleState, nowMs: number, pendingAbsence: FocusAbsence | undefined) =>
+  pendingAbsence === undefined ? state : discountAwayTime(state, nowMs, pendingAbsence).state;
+
+export function pauseFocus(state: FocusLifecycleState, nowMs: number, pendingAbsence?: FocusAbsence): FocusLifecycleStep {
   if (state.phase !== 'running') return { state };
-  return { state: { phase: 'paused', accumulatedMs: measuredMs(state, nowMs), ...withLimit(state.limitMs) }, event: { type: 'paused' } };
+  const settled = settle(state, nowMs, pendingAbsence);
+  return { state: { phase: 'paused', accumulatedMs: measuredMs(settled, nowMs), ...withLimit(state.limitMs) }, event: { type: 'paused' } };
 }
 
 /**
@@ -78,16 +115,11 @@ export function pauseFocus(state: FocusLifecycleState, nowMs: number): FocusLife
  * Quando a ausência é percebida, o limiar de inatividade já passou: a sessão contou minutos com o Mac
  * parado. Pausar "agora" deixaria esses minutos no /stats, que soma o `focusedMinutes` de cada sessão.
  * Por isso o período ausente sai do tempo medido. Só o trecho que caiu DENTRO desta corrida é
- * descontado — antes de `runningSince` a sessão já estava pausada e nada foi contado.
+ * descontado — antes de `runningSince` a sessão já estava pausada e nada foi contado (ver `withoutAbsence`).
  */
 export function pauseFocusForAway(state: FocusLifecycleState, nowMs: number, absence: FocusAbsence): FocusLifecycleStep {
-  if (state.phase !== 'running' || state.runningSince === undefined) return { state };
-  const elapsed = Math.max(0, nowMs - state.runningSince);
-  const from = Math.max(state.runningSince, absence.sinceMs);
-  const until = Math.min(nowMs, absence.untilMs ?? nowMs);
-  const awayMs = Math.min(elapsed, Math.max(0, until - from));
-  const present = state.accumulatedMs + elapsed - awayMs;
-  const accumulatedMs = state.limitMs === undefined ? present : Math.min(state.limitMs, present);
+  if (!isRunning(state)) return { state };
+  const { accumulatedMs } = withoutAbsence(state, nowMs, absence);
   return {
     state: { phase: 'paused', accumulatedMs, ...withLimit(state.limitMs), pauseReason: 'away' },
     event: { type: 'paused', pauseReason: 'away' },
@@ -99,25 +131,32 @@ export function remainingSeconds(state: FocusLifecycleState): number | null {
   return state.limitMs === undefined ? null : Math.max(0, Math.ceil((state.limitMs - state.accumulatedMs) / 1000));
 }
 
-export function completeFocus(state: FocusLifecycleState, nowMs: number): FocusLifecycleStep {
-  if (state.phase === 'idle') return { state };
-  return { state: IDLE_FOCUS_LIFECYCLE, event: { type: 'completed', focusedMinutes: focusedMinutes(state, nowMs) } };
+/** Quando a sessão rodando termina pelo tempo medido; `null` fora de uma corrida. É a janela do agendador. */
+export function runningEndsAtMs(state: FocusLifecycleState): number | null {
+  if (!isRunning(state)) return null;
+  return endsAt(state.runningSince, state.limitMs, state.accumulatedMs).endsAtMs ?? null;
 }
 
-export function abandonFocus(state: FocusLifecycleState, nowMs: number): FocusLifecycleStep {
+export function completeFocus(state: FocusLifecycleState, nowMs: number, pendingAbsence?: FocusAbsence): FocusLifecycleStep {
   if (state.phase === 'idle') return { state };
-  return { state: IDLE_FOCUS_LIFECYCLE, event: { type: 'cancelled', focusedMinutes: focusedMinutes(state, nowMs) } };
+  return { state: IDLE_FOCUS_LIFECYCLE, event: { type: 'completed', focusedMinutes: focusedMinutes(settle(state, nowMs, pendingAbsence), nowMs) } };
 }
 
-// Pausas usam o mesmo relógio do foco, mas nunca viram atividade de foco.
-export function stepFocusLifecycle(mode: 'focus' | 'break', action: FocusLifecycleAction, state: FocusLifecycleState, nowMs: number, limitMs: number): FocusLifecycleStep {
+export function abandonFocus(state: FocusLifecycleState, nowMs: number, pendingAbsence?: FocusAbsence): FocusLifecycleStep {
+  if (state.phase === 'idle') return { state };
+  return { state: IDLE_FOCUS_LIFECYCLE, event: { type: 'cancelled', focusedMinutes: focusedMinutes(settle(state, nowMs, pendingAbsence), nowMs) } };
+}
+
+// Pausas usam o mesmo relógio do foco, mas nunca viram atividade de foco. `pendingAbsence` é a ausência
+// de uma pergunta de presença ainda sem resposta: pausar, concluir ou abandonar a desconta primeiro.
+export function stepFocusLifecycle(mode: 'focus' | 'break', action: FocusLifecycleAction, state: FocusLifecycleState, nowMs: number, limitMs: number, pendingAbsence?: FocusAbsence): FocusLifecycleStep {
   if (mode === 'break') return { state: IDLE_FOCUS_LIFECYCLE };
-  if (typeof action === 'object') return pauseFocusForAway(state, nowMs, action.absence);
+  if (typeof action === 'object') return action.type === 'pause-away' ? pauseFocusForAway(state, nowMs, action.absence) : discountAwayTime(state, nowMs, action.absence);
   switch (action) {
     case 'start': return startFocus(state, nowMs, limitMs);
-    case 'pause': return pauseFocus(state, nowMs);
-    case 'complete': return completeFocus(state, nowMs);
-    case 'abandon': return abandonFocus(state, nowMs);
+    case 'pause': return pauseFocus(state, nowMs, pendingAbsence);
+    case 'complete': return completeFocus(state, nowMs, pendingAbsence);
+    case 'abandon': return abandonFocus(state, nowMs, pendingAbsence);
   }
 }
 

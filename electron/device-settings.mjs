@@ -26,6 +26,7 @@ export function buildDeviceSettingsPackage(settings) {
     version: DEVICE_SETTINGS_VERSION,
     screenTimeoutSeconds: safe.screenTimeoutSeconds,
     focusLoopAnimation: safe.focusLoopAnimation,
+    // Sem humor: o humor é de runtime (ausência, sessões do dia), não um ajuste. O aparelho recebe o loop normal.
     focusLoopAnimationId: resolveFocusLoopAnimationId(safe.focusLoopAnimation),
   };
 }

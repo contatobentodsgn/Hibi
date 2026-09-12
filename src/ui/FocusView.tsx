@@ -1,10 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { absenceStartMs, decideAwayResponse, resolveFocusLoopAnimationId, sanitizePresenceEvent, type PresenceEvent, type PresenceWatchRequest } from '../../electron/focus-presence.mjs';
 import type { CompanionEvent } from '../companion/contracts';
+import type { ActivityRecord } from '../domain/activity';
+import { localNoon, todayKey } from '../domain/date-context';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { pluralize } from '../i18n/plural';
 import { CompanionAnimation } from './CompanionAnimation';
-import { IDLE_FOCUS_LIFECYCLE, ignoresDurationChoice, remainingSeconds, stepFocusLifecycle, type FocusAbsence, type FocusLifecycleAction, type FocusLifecycleEvent } from './focus-lifecycle';
+import { IDLE_FOCUS_LIFECYCLE, ignoresDurationChoice, remainingSeconds, runningEndsAtMs, stepFocusLifecycle, type FocusAbsence, type FocusLifecycleAction, type FocusLifecycleEvent } from './focus-lifecycle';
+import { deriveFocusMood, focusSessionsCompletedToday } from './focus-mood';
 import { DEFAULT_FOCUS_SETTINGS, type AwayBehavior, type FocusLoopAnimation } from './focus-settings';
 
 export type FocusMode = 'focus' | 'break';
@@ -14,12 +17,15 @@ export type FocusPresenceBridge = Readonly<{
   subscribe?: (callback: (event: PresenceEvent) => void) => () => void;
 }>;
 type CompanionActionInput = Readonly<{ requestId: string; actionId: 'confirm' | 'cancel' }>;
-type Props = { onEvent: (action: string, detail: string, result?: string) => void; onFocusStarted?: () => void; onFocusCompleted?: () => void; onFocusLifecycle?: (event: FocusLifecycleEvent) => void; onFocusWindowChange?: (endsAtMs: number | null) => void; mode?: FocusMode; onModeChange?: (mode: FocusMode) => void; sessionMinutes?: number; awayBehavior?: AwayBehavior; idleMinutes?: number; focusLoopAnimation?: FocusLoopAnimation; presence?: FocusPresenceBridge; onCompanionEvent?: (event: CompanionEvent) => void; subscribeCompanionActions?: (callback: (action: CompanionActionInput) => void) => () => void };
+type Props = { onEvent: (action: string, detail: string, result?: string) => void; onFocusStarted?: () => void; onFocusCompleted?: () => void; onFocusLifecycle?: (event: FocusLifecycleEvent) => void; onFocusWindowChange?: (endsAtMs: number | null) => void; mode?: FocusMode; onModeChange?: (mode: FocusMode) => void; sessionMinutes?: number; awayBehavior?: AwayBehavior; idleMinutes?: number; focusLoopAnimation?: FocusLoopAnimation; activity?: readonly ActivityRecord[]; presence?: FocusPresenceBridge; onCompanionEvent?: (event: CompanionEvent) => void; subscribeCompanionActions?: (callback: (action: CompanionActionInput) => void) => () => void };
 
 // A pergunta do `focus.idle_check` e a oferta do `focus.resume_prompt`, cada uma com o id da
 // apresentação no companion — é por ele que uma resposta dada no notch encontra a pergunta daqui.
+// `away-review` é a mesma pergunta depois que a volta foi percebida: aí já se sabe quanto tempo a pessoa
+// ficou fora, e o que se pergunta é se aquele tempo foi foco.
 type PresencePrompt =
   | Readonly<{ kind: 'idle-check'; requestId: string; absence: FocusAbsence; idleSeconds: number }>
+  | Readonly<{ kind: 'away-review'; requestId: string; absence: Required<FocusAbsence> }>
   | Readonly<{ kind: 'resume'; requestId: string }>;
 
 // Foco e pausa usam o mesmo relógio, mas nunca os mesmos eventos: uma pausa concluída não pode contar
@@ -27,7 +33,7 @@ type PresencePrompt =
 const BREAK_DURATIONS: readonly number[] = [5, 10, 15];
 const PROMPT_EXPIRES_MS = 60_000;
 
-export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLifecycle, onFocusWindowChange, mode = 'focus', onModeChange, sessionMinutes, awayBehavior, idleMinutes, focusLoopAnimation, presence, onCompanionEvent, subscribeCompanionActions }: Props) {
+export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLifecycle, onFocusWindowChange, mode = 'focus', onModeChange, sessionMinutes, awayBehavior, idleMinutes, focusLoopAnimation, activity, presence, onCompanionEvent, subscribeCompanionActions }: Props) {
   const t = useT();
   const { language } = useLocale();
   const onBreak = mode === 'break';
@@ -45,6 +51,9 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
   // Só uma pausa AUTOMÁTICA por ausência espera a volta: quem respondeu "Pausar" já está na frente do
   // Mac, e oferecer retomar segundos depois seria insistir.
   const [awaitingReturn, setAwaitingReturn] = useState(false);
+  // Sessões concluídas hoje no registro local: recontadas quando o registro muda ou o dia vira.
+  const today = todayKey();
+  const completedToday = useMemo(() => focusSessionsCompletedToday(activity ?? [], localNoon(today)), [activity, today]);
   // Refs, não estado: o cancelamento sai de um cleanup, que só enxerga valores da renderização em que foi criado.
   const lifecycle = useRef(IDLE_FOCUS_LIFECYCLE);
   const promptRef = useRef<PresencePrompt | null>(null);
@@ -69,13 +78,21 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
     promptRef.current = next;
     setPrompt(next);
   };
+  // A ausência de uma pergunta de presença ainda sem resposta. Quem fecha a pergunta lê isto ANTES de fechá-la.
+  const pendingAbsence = (): FocusAbsence | undefined => { const open = promptRef.current; return open && open.kind !== 'resume' ? open.absence : undefined; };
+  const minutesText = (ms: number) => pluralize(language, Math.max(1, Math.round(ms / 60_000)), 'focus.count.minute.one', 'focus.count.minute.other');
+  const awayReviewText = (absence: Required<FocusAbsence>) => t('focus.presence.awayReview.title').replace('{duration}', () => minutesText(absence.untilMs - absence.sinceMs));
 
   // A duração escolhida limita o tempo medido: com o notebook dormindo, o relógio de parede corre e a contagem não.
-  const emitLifecycle = (action: FocusLifecycleAction) => {
-    const step = stepFocusLifecycle(mode, action, lifecycle.current, Date.now(), duration * 60_000);
+  // Presença não confirmada não conta como foco: com uma pergunta de presença aberta, pausar, concluir ou
+  // abandonar desconta o tempo ausente antes do evento.
+  const emitLifecycle = (action: FocusLifecycleAction, pending: FocusAbsence | undefined = pendingAbsence()) => {
+    const step = stepFocusLifecycle(mode, action, lifecycle.current, Date.now(), duration * 60_000, pending);
     lifecycle.current = step.state;
     setPausedAway(step.state.phase === 'paused' && step.state.pauseReason === 'away');
     if (typeof action === 'string') setAwaiting(false);
+    // A pausa que descontou a ausência devolve os minutos ao mostrador.
+    if (pending && action === 'pause' && step.state.phase === 'paused') { const left = remainingSeconds(step.state); if (left !== null) setSeconds(left); }
     if (step.event) {
       onFocusWindowRef.current?.(step.event.type === 'started' || step.event.type === 'resumed' ? step.event.endsAtMs ?? null : null);
       onFocusLifecycleRef.current?.(step.event);
@@ -95,22 +112,25 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
   // conclusão precisa virar exatamente um evento — o /stats conta sessões a partir deles.
   useEffect(() => {
     if (!running || seconds > 0) return;
+    // A pergunta de presença sem resposta entra na conclusão: o tempo ausente sai antes do evento.
+    const pending = pendingAbsence();
     setRunning(false);
     setSeconds(duration * 60);
     replacePrompt(null);
     if (onBreak) onEvent('break-complete', 'Completed break', 'pass');
-    else { emitLifecycle('complete'); onFocusCompleted?.(); onEvent('focus-complete', 'Completed focus session', 'pass'); }
+    else { emitLifecycle('complete', pending); onFocusCompleted?.(); onEvent('focus-complete', 'Completed focus session', 'pass'); }
   }, [running, seconds, duration, onBreak, onEvent, onFocusCompleted]);
   // Escolher outra duração com a sessão pausada zera o relógio: a sessão anterior foi abandonada.
   // A mesma duração não muda nada, para um clique no botão já ativo não descartar a sessão.
   const chooseDuration = (minutes: number) => { if (ignoresDurationChoice({ mode, running, paused: lifecycle.current.phase === 'paused' || seconds < duration * 60, selectedMinutes: duration, nextMinutes: minutes })) return; emitLifecycle('abandon'); replacePrompt(null); setDuration(minutes); setSeconds(minutes * 60); onEvent(onBreak ? 'break-duration' : 'focus-duration', `${minutes} minute ${onBreak ? 'break' : 'session'}`, 'pass'); };
   const toggle = () => {
     const starting = !running;
+    const pending = pendingAbsence();
     setRunning(starting);
     replacePrompt(null);
     if (onBreak) { onEvent(starting ? 'break-start' : 'break-stop', starting ? 'Started break' : 'Stopped break', 'pass'); return; }
     if (starting) onFocusStarted?.();
-    emitLifecycle(starting ? 'start' : 'pause');
+    emitLifecycle(starting ? 'start' : 'pause', pending);
     onEvent(starting ? 'focus-start' : 'focus-stop', starting ? 'Started Post 1 focus' : 'Stopped focus session', 'pass');
   };
 
@@ -124,6 +144,24 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
     if (left !== null) setSeconds(left);
     setAwaiting(awaitReturn);
     onEvent('focus-away', 'Paused focus session: away', 'paused');
+  };
+
+  // "Descontar" depois da volta: o período ausente sai SEM pausar — a pessoa está de volta. O mostrador e a
+  // janela que segura os lembretes passam a contar com os minutos devolvidos.
+  const discountAway = (absence: FocusAbsence) => {
+    const before = lifecycle.current;
+    emitLifecycle({ type: 'discount-away', absence });
+    if (lifecycle.current === before) return;
+    const left = remainingSeconds(lifecycle.current);
+    if (left !== null) setSeconds(left);
+    onFocusWindowRef.current?.(runningEndsAtMs(lifecycle.current));
+    onEvent('focus-away', 'Discounted time away from focus session', 'discounted');
+  };
+
+  const askAboutAbsence = (absence: Required<FocusAbsence>) => {
+    const requestId = `focus-returned-${crypto.randomUUID()}`;
+    replacePrompt({ kind: 'away-review', requestId, absence });
+    companionRef.current?.({ type: 'focus.idle_check', requestId, text: awayReviewText(absence), nowMs: Date.now(), expiresInMs: PROMPT_EXPIRES_MS, actions: [{ id: 'confirm', label: t('focus.presence.countIt') }, { id: 'cancel', label: t('focus.presence.discountIt') }] });
   };
 
   const offerResume = () => {
@@ -140,17 +178,21 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
       const absence: FocusAbsence = { sinceMs: absenceStartMs(event) };
       if (response === 'pause') { pauseForAway(absence, true); return; }
       // Sem resposta, nada muda: a sessão segue contando como estava.
-      if (response === 'ask' && promptRef.current?.kind !== 'idle-check') {
+      const open = promptRef.current;
+      if (response === 'ask' && open?.kind !== 'idle-check') {
+        // Uma volta ainda sem resposta não foi confirmada como foco: aquele tempo sai antes da nova pergunta.
+        if (open?.kind === 'away-review') discountAway(open.absence);
         const requestId = `focus-idle-${crypto.randomUUID()}`;
         replacePrompt({ kind: 'idle-check', requestId, absence, idleSeconds: event.idleSeconds });
         companionRef.current?.({ type: 'focus.idle_check', requestId, text: t('focus.presence.idleCheck.title'), nowMs: Date.now(), expiresInMs: PROMPT_EXPIRES_MS, actions: [{ id: 'confirm', label: t('focus.presence.stillHere') }, { id: 'cancel', label: t('focus.presence.pause') }] });
       }
       return;
     }
-    // A volta fecha o período ausente da pergunta ainda aberta: se a pessoa pausar depois, o tempo em
-    // que ela já estava de volta conta como foco.
+    // A volta com a pergunta ainda aberta muda a pergunta. Quem se afastou de verdade não respondeu, e na
+    // volta "Ainda estou aqui" contaria o tempo fora como foco. Agora a duração é conhecida, e o que se
+    // pergunta é se aquele tempo foi foco — o período termina na volta, e o que veio depois conta.
     const open = promptRef.current;
-    if (open?.kind === 'idle-check' && open.absence.untilMs === undefined) replacePrompt({ ...open, absence: { ...open.absence, untilMs: event.atMs } });
+    if (open?.kind === 'idle-check') askAboutAbsence({ sinceMs: open.absence.sinceMs, untilMs: event.atMs });
     if (awaitingReturnRef.current && lifecycle.current.phase === 'paused' && lifecycle.current.pauseReason === 'away') { setAwaiting(false); offerResume(); }
   };
 
@@ -161,6 +203,13 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
     if (stillHere) { onEvent('focus-presence', 'Confirmed presence during focus', 'present'); return; }
     pauseForAway(open.absence, false);
   };
+  const answerAwayReview = (countsAsFocus: boolean) => {
+    const open = promptRef.current;
+    if (open?.kind !== 'away-review') return;
+    replacePrompt(null);
+    if (countsAsFocus) { onEvent('focus-presence', 'Counted time away as focus', 'present'); return; }
+    discountAway(open.absence);
+  };
   const answerResume = (resume: boolean) => {
     if (promptRef.current?.kind !== 'resume') return;
     replacePrompt(null);
@@ -170,6 +219,7 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
     const open = promptRef.current;
     if (!open || action?.requestId !== open.requestId) return;
     if (open.kind === 'idle-check') answerIdleCheck(action.actionId === 'confirm');
+    else if (open.kind === 'away-review') answerAwayReview(action.actionId === 'confirm');
     else answerResume(action.actionId === 'confirm');
   };
   // As assinaturas são feitas uma vez; o que elas chamam é sempre o da renderização mais recente.
@@ -192,13 +242,16 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
   const heading = onBreak ? (running ? t('focus.breakTitle') : t('focus.breakReady')) : (running ? 'Post 1 — Kabrito digital' : 'Ready to focus.');
   const subhead = onBreak ? (running ? t('focus.breakRunning') : `${duration} ${t('focus.breakOnClock')}`) : (running ? 'One clear block. No back-to-back nudges.' : `Pick a task — ${duration}m on the clock.`);
   const action = onBreak ? (running ? t('focus.stopBreak') : t('focus.startBreak')) : (running ? 'Pause session' : 'Start focus');
-  const idleDuration = (idleSeconds: number) => pluralize(language, Math.max(1, Math.round(idleSeconds / 60)), 'focus.count.minute.one', 'focus.count.minute.other');
   const promptCard = prompt?.kind === 'idle-check'
-    ? <div role="alert" className="notice focus-presence-prompt" style={{ margin: '16px auto 0', maxWidth: 520 }}><div><strong>{t('focus.presence.idleCheck.title')}</strong><p>{t('focus.presence.idleCheck.detail').replace('{duration}', () => idleDuration(prompt.idleSeconds))}</p></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={() => answerIdleCheck(true)}>{t('focus.presence.stillHere')}</button><button className="outline" onClick={() => answerIdleCheck(false)}>{t('focus.presence.pause')}</button></div></div>
+    ? <div role="alert" className="notice focus-presence-prompt" style={{ margin: '16px auto 0', maxWidth: 520 }}><div><strong>{t('focus.presence.idleCheck.title')}</strong><p>{t('focus.presence.idleCheck.detail').replace('{duration}', () => minutesText(prompt.idleSeconds * 1000))}</p></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={() => answerIdleCheck(true)}>{t('focus.presence.stillHere')}</button><button className="outline" onClick={() => answerIdleCheck(false)}>{t('focus.presence.pause')}</button></div></div>
+    : prompt?.kind === 'away-review'
+    ? <div role="alert" className="notice focus-presence-prompt" style={{ margin: '16px auto 0', maxWidth: 520 }}><div><strong>{awayReviewText(prompt.absence)}</strong></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={() => answerAwayReview(true)}>{t('focus.presence.countIt')}</button><button className="outline" onClick={() => answerAwayReview(false)}>{t('focus.presence.discountIt')}</button></div></div>
     : prompt?.kind === 'resume'
       ? <div role="alert" className="notice focus-presence-prompt" style={{ margin: '16px auto 0', maxWidth: 520 }}><div><strong>{t('focus.presence.resume.title')}</strong></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={() => answerResume(true)}>{t('focus.presence.resume')}</button><button className="outline" onClick={() => answerResume(false)}>{t('focus.presence.notNow')}</button></div></div>
       : null;
-  // O loop tocado com a sessão rodando é o ajuste "Animação durante o foco"; o movimento reduzido do
-  // sistema continua valendo dentro de CompanionAnimation.
-  return <div className="focus-view"><div className="eyebrow">{onBreak ? t('focus.breakEyebrow') : 'FOCUS MODE · LOCAL SESSION'}</div><CompanionAnimation state={running && !onBreak ? resolveFocusLoopAnimationId(focusLoopAnimation) : 'idle'} label={onBreak ? t('focus.breakCompanion') : 'Focus companion'} /><div className={`focus-ring ${running ? 'is-running' : ''}`}><span>{time}</span><small>{t('focus.minutes')}</small></div><h1>{heading}</h1><p className="subhead">{subhead}</p><button className="primary focus-button" onClick={toggle}>{action}</button>{promptCard}{pausedAway && !running && <p className="muted" role="status">{t('focus.presence.pausedAway')}</p>}<div className="focus-options">{DURATIONS.map((minutes) => <button key={minutes} className={`filter ${duration === minutes ? 'active' : ''}`} aria-pressed={DURATIONS.length > 1 ? duration === minutes : undefined} disabled={running} onClick={() => chooseDuration(minutes)}>{onBreak ? `${minutes}m` : `${minutes}m focus`}</button>)}<button className="outline" disabled={running} onClick={() => onModeChange?.(onBreak ? 'focus' : 'break')}>{onBreak ? t('focus.backToFocus') : t('focus.takeBreak')}</button></div>{!onBreak && <p className="muted">{t('focus.quiet')}</p>}</div>;
+  // O loop tocado com a sessão rodando é o ajuste "Animação durante o foco" no humor do momento: entediado
+  // enquanto uma ausência espera a volta, animado a partir da terceira sessão concluída hoje. O movimento
+  // reduzido do sistema continua valendo dentro de CompanionAnimation.
+  const focusMood = deriveFocusMood({ awayPending: prompt?.kind === 'idle-check' || awaitingReturn, completedToday });
+  return <div className="focus-view"><div className="eyebrow">{onBreak ? t('focus.breakEyebrow') : 'FOCUS MODE · LOCAL SESSION'}</div><CompanionAnimation state={running && !onBreak ? resolveFocusLoopAnimationId(focusLoopAnimation, focusMood) : 'idle'} label={onBreak ? t('focus.breakCompanion') : 'Focus companion'} /><div className={`focus-ring ${running ? 'is-running' : ''}`}><span>{time}</span><small>{t('focus.minutes')}</small></div><h1>{heading}</h1><p className="subhead">{subhead}</p><button className="primary focus-button" onClick={toggle}>{action}</button>{promptCard}{pausedAway && !running && <p className="muted" role="status">{t('focus.presence.pausedAway')}</p>}<div className="focus-options">{DURATIONS.map((minutes) => <button key={minutes} className={`filter ${duration === minutes ? 'active' : ''}`} aria-pressed={DURATIONS.length > 1 ? duration === minutes : undefined} disabled={running} onClick={() => chooseDuration(minutes)}>{onBreak ? `${minutes}m` : `${minutes}m focus`}</button>)}<button className="outline" disabled={running} onClick={() => onModeChange?.(onBreak ? 'focus' : 'break')}>{onBreak ? t('focus.backToFocus') : t('focus.takeBreak')}</button></div>{!onBreak && <p className="muted">{t('focus.quiet')}</p>}</div>;
 }

@@ -1,3 +1,5 @@
+import type { FocusMood } from '../../electron/focus-presence.mjs';
+
 export type CompanionKind =
   | 'hidden'
   | 'idle'
@@ -46,7 +48,8 @@ export type CompanionEvent =
   | (PresentationEvent & { type: 'ai.stage'; stage: CompanionAiStage })
   | (PresentationEvent & { type: 'ai.result' })
   | (PresentationEvent & { type: 'confirmation.requested'; actions: readonly CompanionAction[] })
-  | (PresentationEvent & { type: 'focus.started'; focusLoopAnimation?: 'focus' | 'music' })
+  // `focusMood` é de runtime: escolhe entre os loops do notebook; com "music" o loop de música toca igual.
+  | (PresentationEvent & { type: 'focus.started'; focusLoopAnimation?: 'focus' | 'music'; focusMood?: FocusMood })
   // O `focus.idle_check` do original: com a sessão rodando e ninguém no Mac, o companion pergunta.
   | (PresentationEvent & { type: 'focus.idle_check'; actions: readonly CompanionAction[] })
   // O `focus.resume_prompt` do original: na volta de uma pausa por ausência, oferece retomar.

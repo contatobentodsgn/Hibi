@@ -16,6 +16,18 @@ describe('pacote de ajustes do dispositivo', () => {
     });
   });
 
+  // O humor é de runtime (ausência, sessões do dia), não um ajuste: o pacote não o carrega e continua igual.
+  it('não mudou com o humor: leva a preferência e o loop normal de "trabalhando"', () => {
+    expect(buildDeviceSettingsPackage(DEFAULT_FOCUS_SETTINGS)).toEqual({
+      schema: DEVICE_SETTINGS_SCHEMA,
+      version: DEVICE_SETTINGS_VERSION,
+      screenTimeoutSeconds: 60,
+      focusLoopAnimation: 'focus',
+      focusLoopAnimationId: 'working_laptop_normal_loop',
+    });
+    expect(DEVICE_SETTINGS_VERSION).toBe(1);
+  });
+
   it('leva o valor saneado: um timeout fora da lista chega ao aparelho como o padrão', () => {
     expect(buildDeviceSettingsPackage({ screenTimeoutSeconds: 7 }).screenTimeoutSeconds).toBe(60);
     expect(buildDeviceSettingsPackage({ screenTimeoutSeconds: '300' }).screenTimeoutSeconds).toBe(60);
