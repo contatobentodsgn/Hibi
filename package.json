@@ -44,6 +44,9 @@
       "hardenedRuntime": true,
       "entitlements": "electron/entitlements.mac.plist",
       "entitlementsInherit": "electron/entitlements.mac.plist"
+      ,"extendInfo": {
+        "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose."
+      }
     },
     "afterSign": "scripts/notarize.cjs"
   },

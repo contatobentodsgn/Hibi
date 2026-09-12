@@ -199,6 +199,20 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       appendAudit({ action: 'list-import-targets', connectorId: id, detail: `Listed ${safe.length} import targets.` });
       return safe;
     },
+    async readCalendarEvents(id, input = {}) {
+      const connector = getConnector(id);
+      if (typeof connector.fetchCalendarEvents !== 'function') throw new Error('This integration does not expose calendar events.');
+      const credential = await keychain.get(accountFor(id));
+      if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
+      const events = await connector.fetchCalendarEvents({ credential, calendarId: input.calendarId, timeMin: input.timeMin, timeMax: input.timeMax, request: safeFetchFor(connector) });
+      const safe = (Array.isArray(events) ? events : []).slice(0, MAX_IMPORT_CANDIDATES).flatMap((event) => {
+        if (!boundedText(event?.remoteId, 240) || !boundedText(event?.title, 240) || !boundedText(event?.startsAt, 240) || !boundedText(event?.endsAt, 240)) return [];
+        if (Number.isNaN(Date.parse(event.startsAt)) || Number.isNaN(Date.parse(event.endsAt))) return [];
+        return [{ remoteId: event.remoteId, ...(boundedText(event.revision, 240) ? { revision: event.revision } : {}), title: event.title, startsAt: event.startsAt, endsAt: event.endsAt, allDay: event.allDay === true, ...(event.cancelled === true ? { cancelled: true } : {}) }];
+      });
+      appendAudit({ action: 'calendar-read', connectorId: id, detail: `Read ${safe.length} calendar events.` });
+      return safe;
+    },
     async discoverDataSource(id, databaseId) {
       const connector = getConnector(id);
       if (typeof connector.discoverDataSource !== 'function' || !boundedText(databaseId, 240)) throw new Error('This integration cannot discover a data source.');

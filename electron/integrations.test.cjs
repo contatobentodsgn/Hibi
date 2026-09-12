@@ -126,6 +126,27 @@ test('reporta a falha do teste de conexão sem vazar a credencial', async () => 
   assert.match(result.detail, /\[redacted\]/);
 });
 
+test('reads calendar events through the safe main-process transport without returning a credential', async () => {
+  const store = keychain();
+  await store.set('integration:calendar', 'credential-never-rendered');
+  let received;
+  const manager = createIntegrationManager({ keychain: store, connectors: [{
+    id: 'calendar', label: 'Calendar', allowedHosts: ['calendar.example.test'], capabilities: ['import'],
+    async fetchCalendarEvents(input) {
+      received = input;
+      return [{ remoteId: 'remote-1', title: 'Planning', startsAt: '2026-09-14T09:00:00.000Z', endsAt: '2026-09-14T10:00:00.000Z', allDay: false, privateBody: 'do not return' }];
+    },
+  }] });
+
+  const events = await manager.readCalendarEvents('calendar', { calendarId: 'primary', timeMin: '2026-09-14T00:00:00.000Z', timeMax: '2026-09-15T00:00:00.000Z' });
+
+  assert.equal(received.credential, 'credential-never-rendered');
+  assert.equal(typeof received.request, 'function');
+  assert.deepEqual(events, [{ remoteId: 'remote-1', title: 'Planning', startsAt: '2026-09-14T09:00:00.000Z', endsAt: '2026-09-14T10:00:00.000Z', allDay: false }]);
+  assert.equal(JSON.stringify(events).includes('credential-never-rendered'), false);
+  assert.equal(JSON.stringify(events).includes('do not return'), false);
+});
+
 test('lista alvos de importação limitados e normalizados', async () => {
   const store = keychain();
   await store.set('integration:fixture', 'token');

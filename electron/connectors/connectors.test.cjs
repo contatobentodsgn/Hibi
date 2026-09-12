@@ -4,6 +4,20 @@ const { createNotionConnector, NOTION_VERSION } = require('./notion.cjs');
 const { createSlackConnector } = require('./slack.cjs');
 const { createEmailConnector } = require('./email.cjs');
 const { createRemoteNotificationConnector } = require('./remote-notifications.cjs');
+const { createConnectorSettings } = require('../connector-settings.cjs');
+const { buildConnectors } = require('./index.cjs');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+test('ships Google Calendar with an official OAuth PKCE configuration', () => {
+  const settings = createConnectorSettings({ filePath: path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hibi-google-calendar-')), 'connectors.json') });
+  const google = buildConnectors(settings).find((connector) => connector.id === 'google-calendar');
+
+  assert.equal(google?.oauth?.pkce, true);
+  assert.equal(google?.oauth?.authorizationUrl, 'https://accounts.google.com/o/oauth2/v2/auth');
+  assert.equal(google?.oauth?.tokenUrl, 'https://oauth2.googleapis.com/token');
+});
 
 test('normalizes a Notion page without copying its body', () => {
   const notion = createNotionConnector();
