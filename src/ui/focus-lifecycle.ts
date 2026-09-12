@@ -137,9 +137,26 @@ export function runningEndsAtMs(state: FocusLifecycleState): number | null {
   return endsAt(state.runningSince, state.limitMs, state.accumulatedMs).endsAtMs ?? null;
 }
 
+/**
+ * Parcela mínima da duração planejada, com presença confirmada, para uma sessão que chegou ao fim contar
+ * como concluída. Presença não confirmada na maior parte da sessão não é sessão concluída: quem se afastou
+ * e não respondeu chega ao zero com poucos minutos medidos, e contar isso como sessão inflaria o dia no
+ * /stats e deixaria o companion animado sem ninguém na frente do Mac.
+ */
+export const MIN_PRESENT_SHARE_FOR_COMPLETION = 0.5;
+
+/** Se o tempo medido basta para concluir. Sem duração não há o que comparar, e a sessão conclui como sempre. */
+export function reachesCompletion(measuredMs: number, limitMs: number | undefined): boolean {
+  return limitMs === undefined || measuredMs >= limitMs * MIN_PRESENT_SHARE_FOR_COMPLETION;
+}
+
+// Depois de descontar a ausência sem resposta, a sessão abaixo da metade vira `cancelled` com os minutos
+// medidos: o /stats continua somando esses minutos, mas não conta a sessão.
 export function completeFocus(state: FocusLifecycleState, nowMs: number, pendingAbsence?: FocusAbsence): FocusLifecycleStep {
   if (state.phase === 'idle') return { state };
-  return { state: IDLE_FOCUS_LIFECYCLE, event: { type: 'completed', focusedMinutes: focusedMinutes(settle(state, nowMs, pendingAbsence), nowMs) } };
+  const settled = settle(state, nowMs, pendingAbsence);
+  const type = reachesCompletion(measuredMs(settled, nowMs), state.limitMs) ? 'completed' : 'cancelled';
+  return { state: IDLE_FOCUS_LIFECYCLE, event: { type, focusedMinutes: focusedMinutes(settled, nowMs) } };
 }
 
 export function abandonFocus(state: FocusLifecycleState, nowMs: number, pendingAbsence?: FocusAbsence): FocusLifecycleStep {

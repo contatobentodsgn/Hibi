@@ -3,6 +3,8 @@ import { absenceStartMs, decideAwayResponse, resolveFocusLoopAnimationId, saniti
 import type { CompanionEvent } from '../companion/contracts';
 import type { ActivityRecord } from '../domain/activity';
 import { localNoon, todayKey } from '../domain/date-context';
+import { translate } from '../i18n/dictionary';
+import type { Locale } from '../i18n/format';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { pluralize } from '../i18n/plural';
 import { CompanionAnimation } from './CompanionAnimation';
@@ -33,6 +35,12 @@ type PresencePrompt =
 const BREAK_DURATIONS: readonly number[] = [5, 10, 15];
 const PROMPT_EXPIRES_MS = 60_000;
 
+/** O aviso da sessão que chegou ao fim sem presença bastante para contar como concluída. */
+export const notCompletedText = (locale: Locale, presentMinutes: number, plannedMinutes: number): string => {
+  const minutes = (count: number) => pluralize(locale, count, 'focus.count.minute.one', 'focus.count.minute.other');
+  return translate(locale, 'focus.presence.notCompleted').replace('{present}', () => minutes(presentMinutes)).replace('{planned}', () => minutes(plannedMinutes));
+};
+
 export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLifecycle, onFocusWindowChange, mode = 'focus', onModeChange, sessionMinutes, awayBehavior, idleMinutes, focusLoopAnimation, activity, presence, onCompanionEvent, subscribeCompanionActions }: Props) {
   const t = useT();
   const { language } = useLocale();
@@ -51,6 +59,9 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
   // Só uma pausa AUTOMÁTICA por ausência espera a volta: quem respondeu "Pausar" já está na frente do
   // Mac, e oferecer retomar segundos depois seria insistir.
   const [awaitingReturn, setAwaitingReturn] = useState(false);
+  // A última sessão chegou ao zero sem presença confirmada em metade da duração: a tela diz por que ela não
+  // contou, em vez de a sessão sumir calada. Some quando outra sessão começa.
+  const [notCompleted, setNotCompleted] = useState<Readonly<{ presentMinutes: number; plannedMinutes: number }> | null>(null);
   // Sessões concluídas hoje no registro local: recontadas quando o registro muda ou o dia vira.
   const today = todayKey();
   const completedToday = useMemo(() => focusSessionsCompletedToday(activity ?? [], localNoon(today)), [activity, today]);
@@ -86,7 +97,7 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
   // A duração escolhida limita o tempo medido: com o notebook dormindo, o relógio de parede corre e a contagem não.
   // Presença não confirmada não conta como foco: com uma pergunta de presença aberta, pausar, concluir ou
   // abandonar desconta o tempo ausente antes do evento.
-  const emitLifecycle = (action: FocusLifecycleAction, pending: FocusAbsence | undefined = pendingAbsence()) => {
+  const emitLifecycle = (action: FocusLifecycleAction, pending: FocusAbsence | undefined = pendingAbsence()): FocusLifecycleEvent | undefined => {
     const step = stepFocusLifecycle(mode, action, lifecycle.current, Date.now(), duration * 60_000, pending);
     lifecycle.current = step.state;
     setPausedAway(step.state.phase === 'paused' && step.state.pauseReason === 'away');
@@ -97,10 +108,11 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
       onFocusWindowRef.current?.(step.event.type === 'started' || step.event.type === 'resumed' ? step.event.endsAtMs ?? null : null);
       onFocusLifecycleRef.current?.(step.event);
     }
+    return step.event;
   };
   // Sair da tela ou trocar de modo abandona a sessão iniciada. No mount/unmount extra do StrictMode
   // nada foi iniciado ainda, então não há evento.
-  useEffect(() => () => emitLifecycle('abandon'), [mode]);
+  useEffect(() => () => { emitLifecycle('abandon'); }, [mode]);
   useEffect(() => () => { const open = promptRef.current; if (open) companionRef.current?.({ type: 'presentation.dismissed', requestId: open.requestId }); }, []);
   useEffect(() => {
     if (!running) return;
@@ -117,19 +129,28 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
     setRunning(false);
     setSeconds(duration * 60);
     replacePrompt(null);
-    if (onBreak) onEvent('break-complete', 'Completed break', 'pass');
-    else { emitLifecycle('complete', pending); onFocusCompleted?.(); onEvent('focus-complete', 'Completed focus session', 'pass'); }
+    if (onBreak) { onEvent('break-complete', 'Completed break', 'pass'); return; }
+    const ended = emitLifecycle('complete', pending);
+    // Sem presença confirmada em metade da duração a sessão foi rebaixada a cancelada: nada de comemoração
+    // no companion nem de focus-complete, e a tela avisa quanto da sessão teve alguém na frente do Mac.
+    if (ended?.type === 'cancelled') {
+      setNotCompleted({ presentMinutes: ended.focusedMinutes ?? 0, plannedMinutes: duration });
+      onEvent('focus-cancel', 'Focus session did not count as completed: presence confirmed for less than half of it', 'cancelled');
+      return;
+    }
+    onFocusCompleted?.();
+    onEvent('focus-complete', 'Completed focus session', 'pass');
   }, [running, seconds, duration, onBreak, onEvent, onFocusCompleted]);
   // Escolher outra duração com a sessão pausada zera o relógio: a sessão anterior foi abandonada.
   // A mesma duração não muda nada, para um clique no botão já ativo não descartar a sessão.
-  const chooseDuration = (minutes: number) => { if (ignoresDurationChoice({ mode, running, paused: lifecycle.current.phase === 'paused' || seconds < duration * 60, selectedMinutes: duration, nextMinutes: minutes })) return; emitLifecycle('abandon'); replacePrompt(null); setDuration(minutes); setSeconds(minutes * 60); onEvent(onBreak ? 'break-duration' : 'focus-duration', `${minutes} minute ${onBreak ? 'break' : 'session'}`, 'pass'); };
+  const chooseDuration = (minutes: number) => { if (ignoresDurationChoice({ mode, running, paused: lifecycle.current.phase === 'paused' || seconds < duration * 60, selectedMinutes: duration, nextMinutes: minutes })) return; emitLifecycle('abandon'); replacePrompt(null); setNotCompleted(null); setDuration(minutes); setSeconds(minutes * 60); onEvent(onBreak ? 'break-duration' : 'focus-duration', `${minutes} minute ${onBreak ? 'break' : 'session'}`, 'pass'); };
   const toggle = () => {
     const starting = !running;
     const pending = pendingAbsence();
     setRunning(starting);
     replacePrompt(null);
     if (onBreak) { onEvent(starting ? 'break-start' : 'break-stop', starting ? 'Started break' : 'Stopped break', 'pass'); return; }
-    if (starting) onFocusStarted?.();
+    if (starting) { setNotCompleted(null); onFocusStarted?.(); }
     emitLifecycle(starting ? 'start' : 'pause', pending);
     onEvent(starting ? 'focus-start' : 'focus-stop', starting ? 'Started Post 1 focus' : 'Stopped focus session', 'pass');
   };
@@ -253,5 +274,5 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
   // enquanto uma ausência espera a volta, animado a partir da terceira sessão concluída hoje. O movimento
   // reduzido do sistema continua valendo dentro de CompanionAnimation.
   const focusMood = deriveFocusMood({ awayPending: prompt?.kind === 'idle-check' || awaitingReturn, completedToday });
-  return <div className="focus-view"><div className="eyebrow">{onBreak ? t('focus.breakEyebrow') : 'FOCUS MODE · LOCAL SESSION'}</div><CompanionAnimation state={running && !onBreak ? resolveFocusLoopAnimationId(focusLoopAnimation, focusMood) : 'idle'} label={onBreak ? t('focus.breakCompanion') : 'Focus companion'} /><div className={`focus-ring ${running ? 'is-running' : ''}`}><span>{time}</span><small>{t('focus.minutes')}</small></div><h1>{heading}</h1><p className="subhead">{subhead}</p><button className="primary focus-button" onClick={toggle}>{action}</button>{promptCard}{pausedAway && !running && <p className="muted" role="status">{t('focus.presence.pausedAway')}</p>}<div className="focus-options">{DURATIONS.map((minutes) => <button key={minutes} className={`filter ${duration === minutes ? 'active' : ''}`} aria-pressed={DURATIONS.length > 1 ? duration === minutes : undefined} disabled={running} onClick={() => chooseDuration(minutes)}>{onBreak ? `${minutes}m` : `${minutes}m focus`}</button>)}<button className="outline" disabled={running} onClick={() => onModeChange?.(onBreak ? 'focus' : 'break')}>{onBreak ? t('focus.backToFocus') : t('focus.takeBreak')}</button></div>{!onBreak && <p className="muted">{t('focus.quiet')}</p>}</div>;
+  return <div className="focus-view"><div className="eyebrow">{onBreak ? t('focus.breakEyebrow') : 'FOCUS MODE · LOCAL SESSION'}</div><CompanionAnimation state={running && !onBreak ? resolveFocusLoopAnimationId(focusLoopAnimation, focusMood) : 'idle'} label={onBreak ? t('focus.breakCompanion') : 'Focus companion'} /><div className={`focus-ring ${running ? 'is-running' : ''}`}><span>{time}</span><small>{t('focus.minutes')}</small></div><h1>{heading}</h1><p className="subhead">{subhead}</p><button className="primary focus-button" onClick={toggle}>{action}</button>{promptCard}{pausedAway && !running && <p className="muted" role="status">{t('focus.presence.pausedAway')}</p>}{notCompleted && !running && !onBreak && <p className="muted focus-not-completed" role="status">{notCompletedText(language, notCompleted.presentMinutes, notCompleted.plannedMinutes)}</p>}<div className="focus-options">{DURATIONS.map((minutes) => <button key={minutes} className={`filter ${duration === minutes ? 'active' : ''}`} aria-pressed={DURATIONS.length > 1 ? duration === minutes : undefined} disabled={running} onClick={() => chooseDuration(minutes)}>{onBreak ? `${minutes}m` : `${minutes}m focus`}</button>)}<button className="outline" disabled={running} onClick={() => onModeChange?.(onBreak ? 'focus' : 'break')}>{onBreak ? t('focus.backToFocus') : t('focus.takeBreak')}</button></div>{!onBreak && <p className="muted">{t('focus.quiet')}</p>}</div>;
 }

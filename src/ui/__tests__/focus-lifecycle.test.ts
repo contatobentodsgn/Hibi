@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { abandonFocus, completeFocus, discountAwayTime, IDLE_FOCUS_LIFECYCLE, ignoresDurationChoice, pauseFocus, pauseFocusForAway, remainingSeconds, runningEndsAtMs, startFocus, stepFocusLifecycle, type FocusLifecycleAction, type FocusLifecycleState } from '../focus-lifecycle';
+import { abandonFocus, completeFocus, discountAwayTime, IDLE_FOCUS_LIFECYCLE, ignoresDurationChoice, MIN_PRESENT_SHARE_FOR_COMPLETION, pauseFocus, pauseFocusForAway, reachesCompletion, remainingSeconds, runningEndsAtMs, startFocus, stepFocusLifecycle, type FocusLifecycleAction, type FocusLifecycleState } from '../focus-lifecycle';
+import { notCompletedText } from '../FocusView';
 import { createActivityRecord } from '../../domain/activity';
 import { focusActivity } from '../../domain/activity-events';
 import { calculateStats, resolveStatsPeriod } from '../../domain/stats';
@@ -134,12 +135,14 @@ describe('desconto da ausência sem pausar', () => {
     // Sessão de 25: começa às 0, sai aos 1, a pergunta abre aos 6 e ninguém responde até o contador zerar aos 25.
     const running = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
     const unanswered = stepFocusLifecycle('focus', 'complete', running, 25 * minute, limit, { sinceMs: 1 * minute });
-    expect(unanswered).toEqual({ state: IDLE_FOCUS_LIFECYCLE, event: { type: 'completed', focusedMinutes: 1 } });
-    expect(statsOf(unanswered.event)).toMatchObject({ focusSessions: 1, focusMinutes: 1 });
+    // 1 minuto presente de 25 não é sessão concluída: vira cancelada, e os minutos medidos continuam somando.
+    expect(unanswered).toEqual({ state: IDLE_FOCUS_LIFECYCLE, event: { type: 'cancelled', focusedMinutes: 1 } });
+    expect(statsOf(unanswered.event)).toMatchObject({ focusSessions: 0, focusMinutes: 1 });
     // Sem a pergunta aberta, os mesmos 25 minutos contariam inteiros.
     expect(statsOf(stepFocusLifecycle('focus', 'complete', running, 25 * minute, limit).event).focusMinutes).toBe(25);
 
-    // A volta aos 26 sem resposta até o fim, numa sessão de 50: só os 25 minutos ausentes saem.
+    // A volta aos 26 sem resposta até o fim, numa sessão de 50: só os 25 minutos ausentes saem, e os 25
+    // presentes são exatamente a metade — a sessão conclui.
     const long = startFocus(IDLE_FOCUS_LIFECYCLE, 0, sessionLimit).state;
     const returnedUnanswered = completeFocus(long, 50 * minute, { sinceMs: 1 * minute, untilMs: 26 * minute });
     expect(returnedUnanswered.event).toEqual({ type: 'completed', focusedMinutes: 25 });
@@ -155,6 +158,76 @@ describe('desconto da ausência sem pausar', () => {
     expect(paused.state.pauseReason).toBeUndefined();
     // "Começar" nunca desconta: não há corrida para descontar.
     expect(stepFocusLifecycle('focus', 'start', IDLE_FOCUS_LIFECYCLE, 0, sessionLimit, { sinceMs: 0 })).toEqual(startFocus(IDLE_FOCUS_LIFECYCLE, 0, sessionLimit));
+  });
+});
+
+// Quem se afastou e não respondeu chega ao zero com poucos minutos presentes. Uma sessão só conta como
+// concluída com presença confirmada em pelo menos metade da duração planejada; abaixo disso vira cancelada.
+describe('conclusão só com presença em metade da sessão', () => {
+  const reference = new Date(2026, 8, 10, 12, 0);
+  const recordOf = (event: { type: string; focusedMinutes?: number } | undefined) =>
+    createActivityRecord(focusActivity(event?.type === 'completed' ? 'completed' : 'cancelled', event?.focusedMinutes, reference.toISOString()));
+  const running = () => startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+
+  it('a parcela mínima é a metade, e sem duração qualquer tempo conclui', () => {
+    expect(MIN_PRESENT_SHARE_FOR_COMPLETION).toBe(0.5);
+    expect(reachesCompletion(12.5 * minute, limit)).toBe(true);
+    expect(reachesCompletion(12.5 * minute - 1, limit)).toBe(false);
+    expect(reachesCompletion(0, undefined)).toBe(true);
+    const unlimited: FocusLifecycleState = { phase: 'running', accumulatedMs: 0, runningSince: 0 };
+    expect(completeFocus(unlimited, 1 * minute, { sinceMs: 30_000 }).event).toEqual({ type: 'completed', focusedMinutes: 1 });
+  });
+
+  it('abaixo da metade, depois do desconto da ausência, vira cancelada com os minutos medidos', () => {
+    // 25 minutos de relógio, a pessoa saiu aos 12 e ninguém respondeu: 12 presentes, menos da metade.
+    expect(completeFocus(running(), 25 * minute, { sinceMs: 12 * minute })).toEqual({ state: IDLE_FOCUS_LIFECYCLE, event: { type: 'cancelled', focusedMinutes: 12 } });
+    // Um milissegundo abaixo da metade já não conclui.
+    expect(completeFocus(running(), 25 * minute, { sinceMs: 12.5 * minute - 1 }).event).toEqual({ type: 'cancelled', focusedMinutes: 12 });
+    // O mesmo pela máquina de estados, que é por onde a tela passa.
+    expect(stepFocusLifecycle('focus', 'complete', running(), 25 * minute, limit, { sinceMs: 1 * minute }).event).toEqual({ type: 'cancelled', focusedMinutes: 1 });
+  });
+
+  it('exatamente a metade conclui', () => {
+    expect(completeFocus(running(), 25 * minute, { sinceMs: 12.5 * minute })).toEqual({ state: IDLE_FOCUS_LIFECYCLE, event: { type: 'completed', focusedMinutes: 13 } });
+    const long = startFocus(IDLE_FOCUS_LIFECYCLE, 0, 50 * minute).state;
+    expect(completeFocus(long, 50 * minute, { sinceMs: 10 * minute, untilMs: 35 * minute }).event).toEqual({ type: 'completed', focusedMinutes: 25 });
+  });
+
+  it('a sessão sem ausência conclui com a duração inteira', () => {
+    expect(stepFocusLifecycle('focus', 'complete', running(), 25 * minute, limit)).toEqual({ state: IDLE_FOCUS_LIFECYCLE, event: { type: 'completed', focusedMinutes: 25 } });
+  });
+
+  it('a pausa manual para o contador, então a sessão pausada ainda chega ao fim concluída', () => {
+    // Começa às 0, pausa aos 10, retoma aos 40 e o contador zera aos 55: 25 medidos em 55 de relógio.
+    let state = stepFocusLifecycle('focus', 'pause', running(), 10 * minute, limit).state;
+    state = stepFocusLifecycle('focus', 'start', state, 40 * minute, limit).state;
+    expect(stepFocusLifecycle('focus', 'complete', state, 55 * minute, limit).event).toEqual({ type: 'completed', focusedMinutes: 25 });
+  });
+
+  it('a ausência já descontada na volta não rebaixa: o contador segue e a sessão chega ao fim inteira', () => {
+    // "Descontar" aos 20 devolve 15 minutos ao mostrador; o zero só chega aos 40, com os 25 presentes.
+    const discounted = discountAwayTime(running(), 20 * minute, { sinceMs: 5 * minute, untilMs: 20 * minute }).state;
+    expect(completeFocus(discounted, 40 * minute).event).toEqual({ type: 'completed', focusedMinutes: 25 });
+  });
+
+  it('a pausa de descanso não é afetada: não vira evento de foco nenhum', () => {
+    expect(stepFocusLifecycle('break', 'complete', running(), 25 * minute, limit, { sinceMs: 1 * minute })).toEqual({ state: IDLE_FOCUS_LIFECYCLE });
+    expect(stepFocusLifecycle('break', 'complete', IDLE_FOCUS_LIFECYCLE, 5 * minute, 5 * minute)).toEqual({ state: IDLE_FOCUS_LIFECYCLE });
+  });
+
+  it('no /stats a sessão rebaixada soma os minutos e não soma sessão', () => {
+    const demoted = completeFocus(running(), 25 * minute, { sinceMs: 1 * minute }).event;
+    const whole = completeFocus(running(), 25 * minute).event;
+    const period = resolveStatsPeriod('today', reference);
+    expect(calculateStats([recordOf(demoted)], period)).toMatchObject({ focusSessions: 0, focusMinutes: 1 });
+    expect(calculateStats([recordOf(demoted), recordOf(whole)], period)).toMatchObject({ focusSessions: 1, focusMinutes: 26 });
+  });
+
+  it('o aviso diz quanto da sessão teve presença, com plural certo nos dois idiomas', () => {
+    expect(notCompletedText('pt', 1, 25)).toBe('A sessão não contou como concluída: você esteve presente em 1 minuto de 25 minutos.');
+    expect(notCompletedText('pt', 0, 25)).toBe('A sessão não contou como concluída: você esteve presente em 0 minutos de 25 minutos.');
+    expect(notCompletedText('en', 1, 25)).toBe('The session did not count as completed: you were present for 1 minute of 25 minutes.');
+    expect(notCompletedText('en', 12, 25)).toBe('The session did not count as completed: you were present for 12 minutes of 25 minutes.');
   });
 });
 
@@ -191,7 +264,8 @@ describe('focus lifecycle', () => {
   });
 
   it('rounds to the nearest minute', () => {
-    const running = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+    // Sem duração nenhuma parcela mínima se aplica: só o arredondamento está em jogo.
+    const running: FocusLifecycleState = { phase: 'running', accumulatedMs: 0, runningSince: 0 };
     expect(completeFocus(running, 29_999).event).toEqual({ type: 'completed', focusedMinutes: 0 });
     expect(completeFocus(running, 30_000).event).toEqual({ type: 'completed', focusedMinutes: 1 });
     expect(completeFocus(running, 24 * minute + 40_000).event).toEqual({ type: 'completed', focusedMinutes: 25 });
@@ -200,7 +274,7 @@ describe('focus lifecycle', () => {
   it('never measures negative time when the clock goes backwards', () => {
     const running = startFocus(IDLE_FOCUS_LIFECYCLE, 10 * minute, limit).state;
     expect(pauseFocus(running, 0).state.accumulatedMs).toBe(0);
-    expect(completeFocus(running, 0).event).toEqual({ type: 'completed', focusedMinutes: 0 });
+    expect(completeFocus(running, 0).event?.focusedMinutes).toBe(0);
     expect(abandonFocus(running, 0).event).toEqual({ type: 'cancelled', focusedMinutes: 0 });
   });
 
@@ -265,8 +339,9 @@ describe('stepFocusLifecycle', () => {
   const actions: FocusLifecycleAction[] = ['start', 'pause', 'start', 'complete', 'start', 'abandon'];
 
   it('follows the lifecycle in focus mode', () => {
+    // Uma sessão de 2 minutos: a conclusão aos 3 chega com os 2 medidos, a sessão inteira.
     let state = IDLE_FOCUS_LIFECYCLE;
-    const events = actions.map((action, index) => { const step = stepFocusLifecycle('focus', action, state, index * minute, limit); state = step.state; return step.event?.type; });
+    const events = actions.map((action, index) => { const step = stepFocusLifecycle('focus', action, state, index * minute, 2 * minute); state = step.state; return step.event?.type; });
     expect(events).toEqual(['started', 'paused', 'resumed', 'completed', 'started', 'cancelled']);
   });
 
@@ -335,6 +410,18 @@ describe('FocusView lifecycle wiring', () => {
     expect(updaters).toContain('setSeconds((value) => Math.max(0, value - 1))');
     for (const updater of updaters) expect(updater).not.toMatch(/emitLifecycle|onFocusLifecycle/);
     expect(source.indexOf("emitLifecycle('complete'")).toBeGreaterThan(source.indexOf('if (!running || seconds > 0) return;'));
+  });
+
+  // A conclusão rebaixada não comemora no companion nem registra focus-complete; registra o cancelamento e avisa.
+  it('only a real completion celebrates; a demoted one records the cancellation and shows why', () => {
+    const effect = source.slice(source.indexOf("const ended = emitLifecycle('complete', pending);"), source.indexOf('}, [running, seconds, duration, onBreak, onEvent, onFocusCompleted]);'));
+    const demoted = effect.slice(effect.indexOf("if (ended?.type === 'cancelled') {"), effect.indexOf('return;') + 'return;'.length);
+    expect(demoted).toContain("onEvent('focus-cancel',");
+    expect(demoted).toContain('setNotCompleted({ presentMinutes: ended.focusedMinutes ?? 0, plannedMinutes: duration });');
+    expect(demoted).not.toMatch(/onFocusCompleted|focus-complete'/);
+    expect(effect.indexOf('onFocusCompleted?.();')).toBeGreaterThan(effect.indexOf(demoted) + demoted.length);
+    expect(source.match(/onFocusCompleted\?\.\(\)/g)).toHaveLength(1);
+    expect(source.match(/'focus-complete'/g)).toHaveLength(1);
   });
 
   it('checks the duration choice before abandoning the paused session', () => {
