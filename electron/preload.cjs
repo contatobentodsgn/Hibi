@@ -4,7 +4,7 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   info: () => ipcRenderer.invoke("hibi:info"),
   getOpenAtLogin: () => ipcRenderer.invoke("hibi:login-item:get"),
   setOpenAtLogin: (enabled) => ipcRenderer.invoke("hibi:login-item", enabled),
-  syncNotifications: (entries) => ipcRenderer.invoke("hibi:notifications:sync", entries),
+  syncNotifications: (entries, context) => ipcRenderer.invoke("hibi:notifications:sync", entries, context),
   showTestNotification: () => ipcRenderer.invoke("hibi:notifications:test")
   ,runAiTurn: (turn) => ipcRenderer.invoke('hibi:ai:run', turn)
   ,cancelAiTurn: (request) => ipcRenderer.invoke('hibi:ai:cancel', request)

@@ -19,6 +19,7 @@ import { SettingsView } from './ui/SettingsView';
 import { InstrumentationView } from './ui/InstrumentationView';
 import { NotesView } from './ui/NotesView';
 import { buildNotificationEntries } from './domain/notifications';
+import { browserFocusSettingsHost, readFocusSettings, writeFocusSettings, type FocusSettings } from './ui/focus-settings';
 import { HabitsView } from './ui/HabitsView';
 import { GoalsView } from './ui/GoalsView';
 import { ReviewView } from './ui/ReviewView';
@@ -82,6 +83,12 @@ export default function App() {
   const updateAiFallbackPolicy = (policy: AiFallbackPolicy) => { aiFallbackPolicyRef.current = policy; setAiFallbackPolicy(policy); try { window.localStorage.setItem(AI_FALLBACK_POLICY_STORAGE_KEY, policy); } catch { /* unavailable storage */ } };
   // Uma ação confirmada do Taby registra como a tela: conclusões e reaberturas. O aviso só aparece na transição para concluída.
   const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskStatusChanged: (before: Task, after: Task) => { recordActivity(taskStatusActivity(before, after.status ?? 'open', new Date().toISOString())); if (before.status !== 'completed' && after.status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${after.title}`, nowMs: Date.now(), expiresInMs: 3_000 }); }, onBlockCreated: (block: ScheduleBlock) => recordActivity(blockActivity('created', block, new Date().toISOString())), onBlockDeleted: (block: ScheduleBlock) => recordActivity(blockActivity('deleted', block, new Date().toISOString())), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 }); }, onAudit: (event: AiAuditEvent) => setAiHistory((current) => appendAiAuditEvent(current, event)), onUsage: (event: { at: string; provider: string; model: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number }; outcome: 'completed'; fallback: boolean }) => setAiUsage((current) => appendAiUsageRecord(current, event)), ...(window.hibiDesktop?.prepareIntegrationAction && window.hibiDesktop?.executeApprovedIntegrationAction ? { integrations: { prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => window.hibiDesktop!.prepareIntegrationAction!(input), executeApproved: (input: { actionId: string; confirmationId: string }) => window.hibiDesktop!.executeApprovedIntegrationAction!(input) as Promise<{ ok: boolean; remoteId?: string }> } } : {}) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider(repository)), new HeuristicAiProvider(), () => aiFallbackPolicyRef.current); });
+  // Ajustes de Foco e a janela da sessão em andamento. Os dois existem aqui só para serem entregues ao
+  // agendador junto das entradas: é lá, em electron/focus-gate.cjs, que a decisão de silenciar vale.
+  const [focusSettingsHost] = useState(browserFocusSettingsHost);
+  const [focusSettings, setFocusSettings] = useState<FocusSettings>(() => readFocusSettings(focusSettingsHost.storage));
+  const updateFocusSettings = (next: FocusSettings) => { setFocusSettings(next); writeFocusSettings(focusSettingsHost.storage, next); };
+  const [focusUntilMs, setFocusUntilMs] = useState<number | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const [reminderCreateOpen, setReminderCreateOpen] = useState(false);
@@ -280,8 +287,8 @@ export default function App() {
   React.useEffect(() => { void window.hibiDesktop?.syncLocalApiWorkspace?.({ tasks: data.tasks, reminders: data.reminders, blocks: data.blocks }); }, [data]);
   React.useEffect(() => {
     const syncNotifications = window.hibiDesktop?.syncNotifications;
-    if (syncNotifications) void syncNotifications(buildNotificationEntries(data)).catch(() => undefined);
-  }, [data]);
+    if (syncNotifications) void syncNotifications(buildNotificationEntries(data), { settings: focusSettings, focusUntilMs }).catch(() => undefined);
+  }, [data, focusSettings, focusUntilMs]);
   React.useEffect(() => window.hibiDesktop?.onNotificationTriggered?.((entry) => {
     dispatchCompanion({ type: 'reminder.triggered', requestId: companionId('reminder'), text: entry.title, nowMs: Date.now(), expiresInMs: 7_000, animationId: entry.kind === 'deadline' ? 'warning_01' : undefined });
   }) ?? (() => undefined), []);
@@ -331,14 +338,14 @@ export default function App() {
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'agenda': case 'day': case 'week': return <AgendaView {...props} data={data} mode={route === 'agenda' ? undefined : route} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onModeChange={(mode) => setRoute(mode)} />;
-      case 'focus': case 'break': return <FocusView key={route} {...props} mode={route === 'break' ? 'break' : 'focus'} onModeChange={(next) => navigate(next)} onFocusLifecycle={(event) => recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString()))} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
-      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} />;
+      case 'focus': case 'break': return <FocusView key={route} {...props} mode={route === 'break' ? 'break' : 'focus'} onModeChange={(next) => navigate(next)} sessionMinutes={focusSettings.sessionMinutes} onFocusWindowChange={setFocusUntilMs} onFocusLifecycle={(event) => recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString()))} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000 })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
+      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} focusSettings={focusSettings} onFocusSettingsChange={updateFocusSettings} />;
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} onClearAiHistory={clearAiHistory} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;
       default: return <HomeView {...props} data={data} onOpenCommands={openPalette} />;
     }
-  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, folderFilter, openPalette]);
+  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, folderFilter, openPalette, focusSettings]);
 
   return (
     <AppShell active={route} onNavigate={(key) => {

@@ -1,4 +1,5 @@
 import type { NotificationEntry } from './domain/notifications';
+import type { FocusSettings } from '../electron/focus-gate.cjs';
 import type { ImportCandidate } from './integrations/imports';
 import type { AiNormalizedUsage, AiProviderRequest, AiProviderStreamEvent } from './ai/contracts';
 import type { ConnectorSettings, IntegrationAuditEvent, IntegrationAuthorization, IntegrationExecutionResult, IntegrationImportTarget, IntegrationStatus, NotionDataSourceDiscovery, PreparedIntegrationAction } from './integrations/contracts';
@@ -10,7 +11,7 @@ declare global {
       info: () => Promise<{ name: string; version: string; localOnly: boolean }>;
       getOpenAtLogin?: () => Promise<boolean>;
       setOpenAtLogin?: (enabled: boolean) => Promise<boolean>;
-      syncNotifications?: (entries: NotificationEntry[]) => Promise<void>;
+      syncNotifications?: (entries: NotificationEntry[], context?: { settings: FocusSettings; focusUntilMs: number | null }) => Promise<void>;
       showTestNotification?: () => Promise<boolean>;
       runAiTurn?: (turn: { request: AiProviderRequest; correlationId: string }) => Promise<{ content: string; providerLabel: string; model: string; requestId?: string; correlationId?: string; usage?: AiNormalizedUsage }>;
       cancelAiTurn?: (request: { correlationId: string; requestId?: string }) => Promise<boolean>;

@@ -202,7 +202,9 @@ app.whenReady().then(async () => {
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
   ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
   ipcMain.handle("hibi:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });
-  ipcMain.handle("hibi:notifications:sync", (_event, entries) => { notificationScheduler.sync(sanitizeEntries(entries)); });
+  // O contexto de foco (janela da sessão em andamento e ajustes) chega junto das entradas: o portão
+  // que decide o que fica quieto mora no agendador, e o renderer é quem conhece o estado da sessão.
+  ipcMain.handle("hibi:notifications:sync", (_event, entries, context) => { notificationScheduler.sync(sanitizeEntries(entries), context); });
   ipcMain.handle("hibi:notifications:test", () => {
     if (!Notification.isSupported()) return false;
     const notification = new Notification({ title: "Hibi", body: "Native notifications are working." });
