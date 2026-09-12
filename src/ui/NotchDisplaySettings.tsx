@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { AUTO_NOTCH_VALUE, disconnectedPreference, fillDisplay, notchDisplayOptions, notchTestMessage, resolvedNotchDisplay, selectedNotchValue, type NotchDisplayState } from './notch-display';
+import { TintSettings } from './TintSettings';
 
 type Props = { onEvent: (action: string, detail: string, result?: string) => void };
 
@@ -55,7 +56,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
     return () => window.removeEventListener('focus', retry);
   }, [loadFailed, state]);
 
-  if (!available) return <Row title={t('settings.notch.title')} detail={t('settings.notch.detail')}><span className="setting-value">{t('settings.notch.desktopOnly')}</span></Row>;
+  if (!available) return <><TintSettings onEvent={onEvent} /><Row title={t('settings.notch.title')} detail={t('settings.notch.detail')}><span className="setting-value">{t('settings.notch.desktopOnly')}</span></Row></>;
 
   const choose = async (value: string) => {
     const setDisplay = window.hibiDesktop?.setNotchDisplay;
@@ -93,6 +94,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   // Precedência da nota da linha: falha ao salvar > falha ao ler > aviso de desconectado.
   const rowNote = saveFailed ? t('settings.notch.saveFailed') : loadFailed ? t('settings.notch.loadFailed') : fallback;
   return <>
+    <TintSettings onEvent={onEvent} />
     <Row title={t('settings.notch.title')} detail={t('settings.notch.detail')} note={rowNote} noteId={rowNote ? NOTE_ID : undefined}>
       {/* Travado durante o teste: o resultado precisa nomear o monitor que foi testado. */}
       <select aria-label={t('settings.notch.title')} aria-describedby={rowNote ? NOTE_ID : undefined} disabled={!state || testing} value={state ? selectedNotchValue(state) : AUTO_NOTCH_VALUE} onChange={(event) => void choose(event.target.value)}>
