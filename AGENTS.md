@@ -45,9 +45,11 @@ Estes arquivos aparecem em quase toda mudança. Sem protocolo, cada PR conflita.
 
 ## 3. Fluxo de trabalho
 
-1. **Nunca use o mesmo diretório que a outra IA.**
-   - O Codex, se rodar neste Mac, usa um clone próprio fora do repositório do Claude (ex.: `/Volumes/Games/Projetos/Hibi/Hibi-codex`).
-   - O Claude trabalha em `.worktrees/<nome>` e remove esses worktrees depois do merge. Não crie nada seu ali.
+1. **Nunca use o mesmo diretório de trabalho que a outra IA.**
+   - **O Codex trabalha no checkout principal** (`/Volumes/Games/Projetos/Hibi/Hibi`). Ele é do Codex: o Claude não troca de branch, não faz `pull` nem `merge` e não edita arquivos ali.
+   - **O Claude trabalha só em `.worktrees/<nome>`**, que é ignorado pelo git, e remove esses worktrees depois do merge. O Codex não cria nada ali, **nunca roda `git clean -x` nem `-X`** (isso apagaria os worktrees do Claude) e não apaga essa pasta.
+   - Os dois compartilham o mesmo `.git`. Não mexa em branch nem em worktree da outra IA.
+   - Antes de cada item, o Codex atualiza o checkout (`git switch main && git pull --ff-only`) e só então cria a branch `codex/<item>`.
 2. **Branches com prefixo:** `claude/...` ou `codex/...`. Não mexa em branch com o prefixo da outra IA.
 3. **Um item por PR**, pequeno. Antes de abrir, `git fetch origin main && git rebase origin/main`.
 4. **Merge só com a CI verde e mergeabilidade `CLEAN`, um PR de cada vez.** Quem mergeia depois rebaseia de novo e espera a CI outra vez.
