@@ -1,6 +1,7 @@
 const test = require('node:test');
 const { after } = require('node:test');
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const bridge = require('./index.cjs');
@@ -17,6 +18,11 @@ const ADDON_PATH = path.join(__dirname, 'build/Release/hibi_notch.node');
 const addonBuilt = fs.existsSync(ADDON_PATH);
 const NO_ADDON = 'addon não compilado em native/notch/build/Release/hibi_notch.node — rode `npm run native:build`';
 const NO_SCREENS = 'NSScreen.screens vazio: esta sessão não tem window server para abrir um painel';
+// O app carrega o addon no Node embutido no Electron, não no Node do sistema que roda este arquivo.
+// Fora do app, `require('electron')` devolve o caminho do binário e lança quando ele não foi baixado.
+let electronBinary = null;
+try { electronBinary = require('electron'); } catch { electronBinary = null; }
+const NO_ELECTRON = 'binário do Electron não instalado (ELECTRON_SKIP_BINARY_DOWNLOAD): falta o runtime onde o app carrega o addon';
 
 // Os números do contrato passivo, afirmados aqui contra o frame real em vez de por regex no fonte.
 const HOST_WIDTH = 256;
@@ -193,6 +199,46 @@ test('teardown desfaz o host e é idempotente', (t) => {
   // Chamado duas vezes no desligamento do app, não pode estourar na segunda.
   assert.equal(bridge.teardown(), undefined);
   assert.equal(bridge.hostDiagnostics().created, false);
+});
+
+// O roteiro do antigo `scripts/native-notch-smoke.cjs` (adaptador público, createHost, showHost,
+// diagnóstico, destroy), que rodava sob `electron` e só imprimia JSON. Aqui roda no mesmo runtime,
+// com asserção. O `screen` do Electron não existe nesse modo; o smoke também não afirmava nada sobre ele.
+test('no runtime do Electron, onde o app o carrega, o mesmo binário cria, mostra e destrói o painel', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  if (!electronBinary) return t.skip(NO_ELECTRON);
+  const script = `
+    const bridge = require(${JSON.stringify(path.join(__dirname, 'index.cjs'))});
+    const adapter = bridge.createNotchAdapter({ platform: process.platform, isPackaged: false });
+    const screens = adapter.screenGeometry();
+    const out = { electron: process.versions.electron, id: adapter.id, available: adapter.available(), screens };
+    if (screens.length > 0) {
+      out.created = adapter.createHost(() => {});
+      out.shown = adapter.showHost(${JSON.stringify(passive('runtime-electron'))}, screens[0].displayId);
+      out.shownDiagnostics = adapter.hostDiagnostics();
+      out.destroyed = adapter.destroyHost();
+      out.destroyedDiagnostics = adapter.hostDiagnostics();
+    }
+    process.stdout.write(JSON.stringify(out));
+  `;
+  const run = spawnSync(electronBinary, ['-e', script], {
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  assert.equal(run.status, 0, `o Electron saiu com ${run.status} (sinal ${run.signal}): ${run.stderr}`);
+  const out = JSON.parse(run.stdout);
+  assert.equal(typeof out.electron, 'string', 'o roteiro precisa ter rodado no Node do Electron');
+  assert.equal(out.id, 'public');
+  assert.equal(out.available, true, 'o binário não carregou no runtime do Electron');
+  if (out.screens.length === 0) return t.skip(NO_SCREENS);
+  assert.equal(out.created, true);
+  assert.equal(out.shown, true);
+  assert.equal(out.shownDiagnostics.visible, true);
+  assert.equal(out.shownDiagnostics.requestId, 'runtime-electron');
+  assert.deepEqual(out.shownDiagnostics.frame, expectedFrame(out.screens[0]));
+  assert.equal(out.destroyed, true);
+  assert.equal(out.destroyedDiagnostics.created, false);
 });
 
 test('o adaptador público entrega o host real do binário, e não só o contrato seguro', (t) => {
