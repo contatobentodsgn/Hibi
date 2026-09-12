@@ -29,7 +29,7 @@ function createGoogleCalendarConnector({ request, oauth } = {}) {
     return transport(new URL(path, api).toString(), init);
   };
   const headers = (credential) => ({ Authorization: `Bearer ${credential}`, Accept: 'application/json' });
-  const defaultOauth = { pkce: true, authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth', tokenUrl: 'https://oauth2.googleapis.com/token', scopes: ['https://www.googleapis.com/auth/calendar'] };
+  const defaultOauth = { pkce: true, authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth', tokenUrl: 'https://oauth2.googleapis.com/token', scopes: ['https://www.googleapis.com/auth/calendar'], authorizationParams: { access_type: 'offline', prompt: 'consent' } };
   return {
     id: 'google-calendar', label: 'Google Calendar', allowedHosts: ['www.googleapis.com', 'accounts.google.com', 'oauth2.googleapis.com'], capabilities: ['import', 'write', 'sync'],
     ...(oauth === null ? {} : { oauth: oauth ? { ...defaultOauth, ...oauth } : defaultOauth }),

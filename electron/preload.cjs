@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,getCalendarSyncState: () => ipcRenderer.invoke('hibi:calendar-sync:state')
   ,requestAppleCalendarAccess: () => ipcRenderer.invoke('hibi:calendar-sync:request-apple-access')
   ,discoverGoogleCalendars: () => ipcRenderer.invoke('hibi:calendar-sync:discover-google-calendars')
+  ,readCalendarSyncEvents: (input) => ipcRenderer.invoke('hibi:calendar-sync:read-events', input)
   ,configureWebhook: (secret) => ipcRenderer.invoke('hibi:webhook:configure', secret)
   ,startWebhook: () => ipcRenderer.invoke('hibi:webhook:start')
   ,stopWebhook: () => ipcRenderer.invoke('hibi:webhook:stop')

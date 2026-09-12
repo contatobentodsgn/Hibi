@@ -269,6 +269,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:calendar-sync:state', () => calendarSyncService.getState());
   ipcMain.handle('hibi:calendar-sync:request-apple-access', () => calendarSyncService.requestAppleAccess());
   ipcMain.handle('hibi:calendar-sync:discover-google-calendars', () => calendarSyncService.discoverGoogleCalendars());
+  ipcMain.handle('hibi:calendar-sync:read-events', (_event, input) => calendarSyncService.readEvents(input));
   ipcMain.handle('hibi:local-api:sync-workspace', (_event, value) => {
     const safe = value && typeof value === 'object' ? value : {};
     localApiWorkspace = { tasks: Array.isArray(safe.tasks) ? safe.tasks.slice(0, 5_000) : [], reminders: Array.isArray(safe.reminders) ? safe.reminders.slice(0, 5_000) : [], blocks: Array.isArray(safe.blocks) ? safe.blocks.slice(0, 5_000) : [] };

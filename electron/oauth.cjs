@@ -8,6 +8,7 @@ const CALLBACK_PATH = '/oauth/callback';
 const base64url = (bytes) => bytes.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const boundedSecret = (value) => typeof value === 'string' && value.trim().length > 0 && value.length <= MAX_TOKEN_BYTES;
 const isClientId = (value) => typeof value === 'string' && /^[\w.:-]{1,200}$/.test(value);
+const RESERVED_AUTHORIZATION_PARAMETERS = new Set(['response_type', 'client_id', 'redirect_uri', 'state', 'code_challenge', 'code_challenge_method', 'scope']);
 
 const accessAccount = (connectorId) => `integration:${connectorId}`;
 const refreshAccount = (connectorId) => `integration:${connectorId}:refresh`;
@@ -23,7 +24,12 @@ function oauthConfigFor(connector) {
     if (!allowed.has(url.hostname.toLowerCase())) throw new Error(`Integration ${label} URL is not allowed for this connector.`);
     return url;
   };
-  return { authorizationUrl: endpoint(config.authorizationUrl, 'authorization'), tokenUrl: endpoint(config.tokenUrl, 'token'), scopes: Array.isArray(config.scopes) ? config.scopes.filter((scope) => typeof scope === 'string' && scope) : [] };
+  const authorizationParams = {};
+  for (const [key, value] of Object.entries(config.authorizationParams ?? {})) {
+    if (!/^[a-z][a-z0-9_]{0,79}$/i.test(key) || RESERVED_AUTHORIZATION_PARAMETERS.has(key) || typeof value !== 'string' || !value || value.length > 240) throw new Error('Integration authorization parameters are invalid.');
+    authorizationParams[key] = value;
+  }
+  return { authorizationUrl: endpoint(config.authorizationUrl, 'authorization'), tokenUrl: endpoint(config.tokenUrl, 'token'), scopes: Array.isArray(config.scopes) ? config.scopes.filter((scope) => typeof scope === 'string' && scope) : [], authorizationParams };
 }
 
 // O corpo da resposta de token nunca é registrado nem devolvido ao renderer:
@@ -136,6 +142,7 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
       authorization.searchParams.set('code_challenge', challenge);
       authorization.searchParams.set('code_challenge_method', 'S256');
       if (config.scopes.length > 0) authorization.searchParams.set('scope', config.scopes.join(' '));
+      for (const [key, value] of Object.entries(config.authorizationParams)) authorization.searchParams.set(key, value);
 
       let timer;
       const code = await new Promise((resolve, reject) => {

@@ -40,3 +40,28 @@ test('asks EventKit for access before declaring the Mac calendar connected', asy
   assert.equal(requested, true);
   assert.equal((await service.getState()).sources[0].state, 'connected');
 });
+
+test('reads selected Apple and Google events through one bounded serializable shape', async () => {
+  const eventKit = {
+    available: () => true,
+    authorizationStatus: () => 'full-access',
+    listCalendars: () => [],
+    listEvents: ({ start, end, calendarIds }) => [{ id: 'apple-event', calendarId: calendarIds[0], title: 'Mac meeting', startsAt: start, endsAt: end, allDay: false, writable: true }],
+  };
+  const integrations = {
+    listStatus: async () => [{ id: 'google-calendar', state: 'connected' }],
+    listImportTargets: async () => [],
+    readCalendarEvents: async (_id, input) => [{ remoteId: 'google-event', title: 'Google meeting', startsAt: input.timeMin, endsAt: input.timeMax, allDay: false }],
+  };
+  const service = createCalendarSyncService({ eventKit, integrations, settings: { get: () => ({ targets: [] }) } });
+
+  const result = await service.readEvents({
+    start: '2026-09-14T00:00:00.000Z', end: '2026-09-15T00:00:00.000Z',
+    calendars: [{ sourceId: 'apple', id: 'apple:apple-cal' }, { sourceId: 'google', id: 'google:primary' }],
+  });
+
+  assert.deepEqual(result, [
+    { sourceId: 'apple', calendarId: 'apple:apple-cal', remoteId: 'apple-event', title: 'Mac meeting', startsAt: '2026-09-14T00:00:00.000Z', endsAt: '2026-09-15T00:00:00.000Z', allDay: false, writable: true },
+    { sourceId: 'google', calendarId: 'google:primary', remoteId: 'google-event', title: 'Google meeting', startsAt: '2026-09-14T00:00:00.000Z', endsAt: '2026-09-15T00:00:00.000Z', allDay: false, writable: false },
+  ]);
+});

@@ -51,6 +51,7 @@ const EXPECTED_CHANNELS = [
   "hibi:calendar-sync:state",
   "hibi:calendar-sync:request-apple-access",
   "hibi:calendar-sync:discover-google-calendars",
+  "hibi:calendar-sync:read-events",
   "hibi:local-api:sync-workspace",
   "hibi:local-api:start",
   "hibi:local-api:stop",

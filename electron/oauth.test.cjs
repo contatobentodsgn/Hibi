@@ -76,6 +76,25 @@ test('monta uma autorização PKCE com S256, state e callback de loopback', asyn
   assert.equal(keychain.store.get('integration:fixture:refresh'), 'refresh-1');
 });
 
+test('preserves validated provider authorization parameters without replacing PKCE fields', async () => {
+  const keychain = memoryKeychain();
+  let opened;
+  const google = {
+    id: 'google-calendar', label: 'Google Calendar', allowedHosts: ['accounts.google.com', 'oauth2.googleapis.com'], capabilities: ['import'],
+    oauth: { pkce: true, authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth', tokenUrl: 'https://oauth2.googleapis.com/token', scopes: ['https://www.googleapis.com/auth/calendar'], authorizationParams: { access_type: 'offline', prompt: 'consent' } },
+  };
+  const service = createOAuthService({ keychain, getConnector: () => google, openExternal: (url) => { opened = new URL(url); }, fetch: async () => jsonResponse({ access_token: 'access-1', refresh_token: 'refresh-1' }) });
+
+  const pending = service.authorize('google-calendar', { clientId: 'client-123' });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(opened.searchParams.get('access_type'), 'offline');
+  assert.equal(opened.searchParams.get('prompt'), 'consent');
+  assert.equal(opened.searchParams.get('code_challenge_method'), 'S256');
+  await service.cancel();
+  await assert.rejects(pending, /cancelled/);
+});
+
 test('recusa reutilizar o state do callback e encerra o servidor de loopback', async () => {
   const keychain = memoryKeychain();
   let opened;
