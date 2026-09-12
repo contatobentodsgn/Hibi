@@ -1,7 +1,9 @@
 export type ThemePreference = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
+export type TintPreference = 'aurora' | 'ocean' | 'moss' | 'iris' | 'rose'
 
 export const THEME_STORAGE_KEY = 'hibi-theme'
+export const TINT_STORAGE_KEY = 'hibi-tint'
 
 export type ThemeHost = Readonly<{
   storage: Pick<Storage, 'getItem' | 'setItem'>
@@ -10,6 +12,7 @@ export type ThemeHost = Readonly<{
 }>
 
 export const isThemePreference = (value: unknown): value is ThemePreference => value === 'system' || value === 'light' || value === 'dark'
+export const isTintPreference = (value: unknown): value is TintPreference => value === 'aurora' || value === 'ocean' || value === 'moss' || value === 'iris' || value === 'rose'
 
 export function resolveTheme(preference: ThemePreference, systemPrefersDark: boolean): ResolvedTheme {
   if (preference === 'system') return systemPrefersDark ? 'dark' : 'light'
@@ -20,14 +23,24 @@ export function readThemePreference(storage: Pick<Storage, 'getItem'>): ThemePre
   try { const saved = storage.getItem(THEME_STORAGE_KEY); return isThemePreference(saved) ? saved : 'system' } catch { return 'system' }
 }
 
+export function readTintPreference(storage: Pick<Storage, 'getItem'>): TintPreference {
+  try { const saved = storage.getItem(TINT_STORAGE_KEY); return isTintPreference(saved) ? saved : 'aurora' } catch { return 'aurora' }
+}
+
 // Aplica o tema agora e, em `system`, segue o sistema até a função devolvida ser chamada.
-export function applyThemePreference(preference: ThemePreference, host: ThemeHost): () => void {
+export function applyThemePreference(preference: ThemePreference, host: ThemeHost, tint = readTintPreference(host.storage)): () => void {
   try { host.storage.setItem(THEME_STORAGE_KEY, preference) } catch { /* armazenamento indisponível */ }
   host.root.setAttribute('data-theme', resolveTheme(preference, host.media.matches))
+  host.root.setAttribute('data-tint', tint)
   if (preference !== 'system') return () => undefined
   const listener = (event: { matches: boolean }) => host.root.setAttribute('data-theme', resolveTheme('system', event.matches))
   host.media.addEventListener('change', listener)
   return () => host.media.removeEventListener('change', listener)
+}
+
+export function applyTintPreference(tint: TintPreference, host: ThemeHost): void {
+  try { host.storage.setItem(TINT_STORAGE_KEY, tint) } catch { /* armazenamento indisponível */ }
+  host.root.setAttribute('data-tint', tint)
 }
 
 const noopStorage: Pick<Storage, 'getItem' | 'setItem'> = { getItem: () => null, setItem: () => undefined }
