@@ -76,12 +76,28 @@ describe('workspace backups', () => {
   // duração, horário ativo e intensidade dos lembretes, sem nada de credencial.
   it('round-trips the focus settings, and defaults them on a backup exported before they existed', () => {
     const seed = createSeedData();
-    const focus = { sessionMinutes: 50, activeStart: '08:00', activeEnd: '20:00', nudgePreset: 'calm' as const };
+    const focus = { ...DEFAULT_FOCUS_SETTINGS, sessionMinutes: 50, activeStart: '08:00', activeEnd: '20:00', nudgePreset: 'calm' as const };
     const restored = parseWorkspaceBackup(JSON.stringify(createWorkspaceBackup(seed, { language: 'pt', twentyFourHour: true, focus })), createSeedData());
     expect(restored.preferences.focus).toEqual(focus);
 
     const legacy = { app: 'Hibi', version: 2, exportedAt: '2026-09-08T10:00:00.000Z', data: seed, preferences: { language: 'pt', twentyFourHour: true } };
     expect(parseWorkspaceBackup(JSON.stringify(legacy), createSeedData()).preferences.focus).toEqual(DEFAULT_FOCUS_SETTINGS);
+  });
+
+  // Os quatro ajustes de presença — o timeout de tela do Taby incluído — são preferência segura e
+  // entram no backup. Um backup exportado antes deles restaura os campos antigos e ganha os padrões.
+  it('round-trips the presence settings, and defaults them on a backup exported before they existed', () => {
+    const seed = createSeedData();
+    const focus = { ...DEFAULT_FOCUS_SETTINGS, idleMinutes: 10, awayBehavior: 'pause' as const, focusLoopAnimation: 'music' as const, screenTimeoutSeconds: 300 };
+    const exported = JSON.parse(JSON.stringify(createWorkspaceBackup(seed, { language: 'pt', twentyFourHour: true, focus })));
+    expect(exported.preferences.focus).toMatchObject({ idleMinutes: 10, awayBehavior: 'pause', focusLoopAnimation: 'music', screenTimeoutSeconds: 300 });
+    expect(parseWorkspaceBackup(JSON.stringify(exported), createSeedData()).preferences.focus).toEqual(focus);
+
+    const beforePresence = { app: 'Hibi', version: 2, exportedAt: '2026-09-08T10:00:00.000Z', data: seed, preferences: { language: 'pt', twentyFourHour: true, focus: { sessionMinutes: 50, activeStart: '08:00', activeEnd: '20:00', nudgePreset: 'calm' } } };
+    expect(parseWorkspaceBackup(JSON.stringify(beforePresence), createSeedData()).preferences.focus).toEqual({ ...DEFAULT_FOCUS_SETTINGS, sessionMinutes: 50, activeStart: '08:00', activeEnd: '20:00', nudgePreset: 'calm' });
+
+    const corrupted = { ...beforePresence, preferences: { ...beforePresence.preferences, focus: { idleMinutes: 'muito', awayBehavior: 'fugir', screenTimeoutSeconds: -1 } } };
+    expect(parseWorkspaceBackup(JSON.stringify(corrupted), createSeedData()).preferences.focus).toEqual(DEFAULT_FOCUS_SETTINGS);
   });
 
   it('carries no conversation text, because conversations live outside StudyData', () => {

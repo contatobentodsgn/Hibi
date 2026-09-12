@@ -1,17 +1,23 @@
 import React, { useSyncExternalStore } from 'react';
 import { companionAssets } from '../assets/companion-assets';
 
-export type CompanionState = 'working' | 'idle' | 'completed' | 'reminder';
+import type { FocusLoopAnimationId } from '../../electron/focus-presence.mjs';
+
+// Os dois loops do foco entram pelo id que `resolveFocusLoopAnimationId` devolve: a tela de Foco não
+// escolhe o vídeo por conta própria, pergunta à mesma regra que monta o pacote do dispositivo.
+export type CompanionState = 'working' | 'idle' | 'completed' | 'reminder' | FocusLoopAnimationId;
 type CompanionVideo = { readonly kind: 'video'; readonly url: string };
 const stateAssets = {
   working: companionAssets.animations.notch.workingLoop,
   idle: companionAssets.animations.notch.idle01Loop,
   completed: companionAssets.animations.notch.taskCompleted,
   reminder: companionAssets.animations.notch.waiting01,
+  working_laptop_normal_loop: companionAssets.animations.notch.workingLaptopNormalLoop,
+  listening_music_loop: companionAssets.animations.notch.listeningMusicLoop,
 } satisfies Record<CompanionState, CompanionVideo>;
 type Fallback = { kind: 'fallback'; symbol: string };
 export type CompanionAnimationSource = CompanionVideo | Fallback;
-const fallbackSymbols: Record<CompanionState, string> = { working: '●', idle: '○', completed: '✓', reminder: '!' };
+const fallbackSymbols: Record<CompanionState, string> = { working: '●', idle: '○', completed: '✓', reminder: '!', working_laptop_normal_loop: '●', listening_music_loop: '♪' };
 
 export function companionAnimationForState(state: CompanionState, reducedMotion = false): CompanionAnimationSource {
   return reducedMotion ? { kind: 'fallback', symbol: fallbackSymbols[state] } : stateAssets[state];

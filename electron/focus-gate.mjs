@@ -26,11 +26,17 @@
 // carregar ("does not provide an export named DEFAULT_FOCUS_SETTINGS") com testes, tsc e build
 // verdes. Em ESM os três leem o mesmo arquivo — e o Node do Electron faz `require()` de `.mjs`.
 //
-// FORA DE ESCOPO, DE PROPÓSITO
-// O app original tinha nove elementos de Foco. Três ficaram de fora: comportamento quando ausente,
-// timeout de tela e loop visual. Os três pertencem ao dispositivo físico Taby e ao host visual — este
-// app não tem sensor de presença, não controla a tela e não tem painel para repetir animação. Listar
-// controles sem hardware que os honre é precisamente como "09:00–17:00" virou decoração no original.
+// OS AJUSTES DE PRESENÇA PASSAM POR ESTA MESMA PORTA, MAS NÃO PELO PORTÃO
+// O app original tinha nove elementos de Foco. Os quatro que faltavam — tempo de inatividade,
+// comportamento quando ausente, loop visual e timeout de tela — moram em `focus-presence.mjs` e são
+// saneados aqui dentro de `sanitizeFocusSettings`, para armazenamento, backup e agendador enxergarem um
+// objeto só. Nenhum deles entra em `nextDelivery`: presença não muda o que um lembrete faz.
+// Três são honrados pelo próprio Mac: o processo principal lê `powerMonitor.getSystemIdleTime()` e os
+// eventos de bloqueio e sono enquanto há sessão, e a tela de Foco pergunta, pausa ou segue contando;
+// o loop visual troca o vídeo do companion. O timeout de tela não tem o que governar neste Mac: é
+// entregue no pacote de `device-settings.mjs` ao futuro adaptador do Taby, e a tela diz isso.
+
+import { DEFAULT_PRESENCE_SETTINGS, sanitizePresenceSettings } from './focus-presence.mjs';
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -48,6 +54,7 @@ export const DEFAULT_FOCUS_SETTINGS = Object.freeze({
   activeStart: '09:00',
   activeEnd: '17:00',
   nudgePreset: 'work',
+  ...DEFAULT_PRESENCE_SETTINGS,
 });
 
 // Hora de parede local, como todo o resto do app (ver domain/wall-clock e domain/date-context):
@@ -92,6 +99,7 @@ export function sanitizeFocusSettings(value) {
     activeStart: ordered ? activeStart : DEFAULT_FOCUS_SETTINGS.activeStart,
     activeEnd: ordered ? activeEnd : DEFAULT_FOCUS_SETTINGS.activeEnd,
     nudgePreset,
+    ...sanitizePresenceSettings(input),
   };
 }
 

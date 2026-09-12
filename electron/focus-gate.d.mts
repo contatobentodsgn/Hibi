@@ -3,14 +3,17 @@
 // a prévia em Ajustes e o disparo real nunca podem divergir. Este `.d.mts` é o que deixa o `tsc`
 // enxergar esse arquivo com `allowJs: false`.
 
+import type { PresenceSettings } from './focus-presence.mjs';
+
 export type NudgePreset = 'calm' | 'work' | 'wellbeing';
 
+// Os quatro ajustes de presença viajam no mesmo objeto (ver focus-presence.mjs); o portão não os lê.
 export type FocusSettings = {
   sessionMinutes: number;
   activeStart: string;
   activeEnd: string;
   nudgePreset: NudgePreset;
-};
+} & PresenceSettings;
 
 export type GatedEntry = {
   kind: 'deadline' | 'reminder';

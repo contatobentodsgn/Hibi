@@ -14,11 +14,17 @@ describe('focus-settings', () => {
 
   it('os ajustes sobrevivem a recarregar', () => {
     const { store, storage } = fakeStorage(null)
-    const chosen = { sessionMinutes: 50, activeStart: '08:30', activeEnd: '19:00', nudgePreset: 'calm' as const }
+    const chosen = { sessionMinutes: 50, activeStart: '08:30', activeEnd: '19:00', nudgePreset: 'calm' as const, idleMinutes: 10, awayBehavior: 'pause' as const, focusLoopAnimation: 'music' as const, screenTimeoutSeconds: 300 }
     writeFocusSettings(storage, chosen)
 
     // Uma leitura nova, do mesmo armazenamento, como aconteceria depois de fechar e reabrir o app.
     expect(readFocusSettings({ getItem: (key: string) => store.get(key) ?? null })).toEqual(chosen)
+  })
+
+  // Um armazenamento gravado antes dos ajustes de presença existirem não perde o que já tinha.
+  it('um ajuste salvo antes da presença mantém os campos antigos e ganha os padrões novos', () => {
+    const legacy = { sessionMinutes: 50, activeStart: '08:30', activeEnd: '19:00', nudgePreset: 'calm' }
+    expect(readFocusSettings(fakeStorage(JSON.stringify(legacy)).storage)).toEqual({ ...DEFAULT_FOCUS_SETTINGS, ...legacy })
   })
 
   it('cai no padrão para JSON corrompido ou valor fora do conjunto conhecido', () => {
