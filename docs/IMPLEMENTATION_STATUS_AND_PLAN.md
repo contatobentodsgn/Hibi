@@ -2,7 +2,7 @@
 
 Atualizado em 2026-09-11. Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
 
-Última bateria completa no `main` (`c7f9d90`): 607 testes Vitest em 74 arquivos, 271 `node --test`, 114 e2e Playwright, `tsc` sem erros e build de produção com o addon nativo. A suíte dá **o mesmo resultado** em `America/Sao_Paulo` e em `Pacific/Kiritimati` (UTC+14), e a CI roda as duas: foi por não rodar assim que lembretes semanais chegaram a ser gravados no dia errado, e que um lembrete sem recorrência tocava horas fora do horário mostrado na tela.
+Última bateria completa no `main` (`65c8b06`): 621 testes Vitest em 76 arquivos, 299 `node --test`, 114 e2e Playwright, `tsc` sem erros, build de produção com o addon nativo, e os verificadores `parity:check` (18 invariantes) e `safety:renderer`, que agora rodam na CI. A suíte dá **o mesmo resultado** em `America/Sao_Paulo` e em `Pacific/Kiritimati` (UTC+14), e a CI roda as duas: foi por não rodar assim que lembretes semanais chegaram a ser gravados no dia errado, e que um lembrete sem recorrência tocava horas fora do horário mostrado na tela.
 
 ## Status atual
 
@@ -33,6 +33,8 @@ Atualizado em 2026-09-11. Este documento é a fonte operacional do status atual 
 | Hábitos | Ancorado no dia local | A tela tinha `TODAY = '2026-09-07'` fixo no código e derivava o dia com `toISOString().slice(0,10)`, que devolve o dia **UTC**: marcar um hábito gravava no dia errado e a sequência contava a partir de um "hoje" que não existe. `weekDates` ainda misturava dois calendários — âncora em `-03:00`, releitura em UTC —, deslocando a janela de segunda a domingo. Agora "hoje" sai de `todayKey(now)` a cada render, com `now` injetável para teste, e toda conversão passa por `date-context`. |
 | Horário de bloco e lembrete | Hora de parede flutuante | Gravado sem fuso — `2026-09-11T08:00:00` —, então 08:00 é 08:00 onde a pessoa estiver (semântica de `DTSTART` sem `TZID`); ver a [spec](superpowers/specs/2026-09-11-floating-local-time-design.md). Antes, todo horário levava `-03:00` codificado para qualquer usuário, e o campo era lido de duas formas contraditórias: por fatia de string nas telas e como instante absoluto no `i18n/format`. Isso fazia o **mesmo lembrete das 09:00 tocar em horários reais diferentes conforme repetisse ou não** — 09:00 se recorrente, 21:00 em Tóquio se de uma vez só —, uma série sob UTC−11 disparar um dia inteiro antes, e a exportação de calendário sair inválida (`20260911T0800000300`, o offset grudado). O agendador passou a ler dígitos, ficando igual com `-03:00`, `Z` ou sem sufixo; o dado já gravado é convertido no `LocalRepository.fromJson` para os dígitos de São Paulo antes de perder o sufixo, **preservando exatamente o que cada pessoa via**, e valor já flutuante volta pelo mesmo objeto, sem cópia. Nenhuma tela mudou: `useFormat()` não tinha consumidor de produção. |
 | Cobertura de comportamento | Reforçada em três frentes | Três lacunas da mesma forma foram fechadas em 2026-09-11: um teste que **existe, passa e não exercita nada**. No addon nativo, a guarda `if (!bridge.available())` era código morto (`Available()` é `return true` fixo), então as asserções sumiam exatamente na máquina onde teriam valor; sabotar `kPassiveHeight` de 38 para 48 quebra 4 dos testes novos enquanto os regex sobre o `.mm` passam cegos, 6/6. No cartão da API local, a "cobertura" eram asserções sobre o texto-fonte do `App.tsx`; a mutação em que o app aplica a escrita sem confirmar derruba os 5 e2e novos. Na confirmação do Notion, o cartão já era clicado, mas o dublê registrava só o que **sairia** para o Notion — tudo que era gravado neste Mac passava sem observação, e o caminho puramente local (sem `actionId`, em que a barreira existe só para proteger o workspace) nunca era exercitado. Asserções de texto-fonte foram removidas onde o comportamento passou a cobrir; as de **ausência** ficaram, porque ausência nenhum e2e observa. O Vitest caiu de 608 para 607 e o e2e subiu de 103 para 114: menos teste de formato, mais teste de consequência. |
+| **Ajustes de Foco** | **Implementado, com o portão coberto de ponta a ponta** | A tela de Foco prometia "lembretes ficam quietos durante o foco, exceto os importantes", e nada cumpria isso: o agendador não tinha nenhuma noção de foco. Agora um portão único (`electron/focus-gate.mjs`), ao lado do agendador, decide o horário ativo, a sessão em andamento e o intervalo entre nudges. Silenciar **adia** em vez de descartar: um lembrete de bem-estar que vence no meio da sessão toca quando ela termina, e prazos e lembretes importantes tocam na hora. Configurações › Foco governa a duração da sessão, o horário ativo e o preset de intensidade, com a prévia de alertas por dia calculada pela **mesma** função do portão. O teste de igualdade entre a prévia e o portão encontrou um lembrete adiado que nunca chegaria. Remover o portão derruba 13 testes, e tirar o contexto do handler ou do preload derruba o teste da ponte correspondente. O portão e o agendador viraram ESM porque o dev server do Vite servia o CommonJS cru e o app em desenvolvimento não montava, com `npm test`, `tsc` e build verdes. O `require()` do `.mjs` foi verificado no Node do Electron, inclusive de dentro de um asar. A inatividade ainda não existe (ver Fase 5). |
+| Verificadores de auditoria | Na CI | `parity:check` morria com `ENOENT` lendo `src/ui/AppShell.tsx`, que tinha mudado de lugar. `safety:renderer` reprovava declarações de tipo do `global.d.ts`. Como nenhum dos dois rodava na CI, `npm run audit` não podia passar e ninguém percebeu. Agora um arquivo ausente vira `FAIL` com o caminho, rotas e comandos são conferidos importando os dados reais, e os tipos são removidos pelo stripper do Node antes da varredura, sem exceção por arquivo. Os dois rodam na CI e reprovam sob mutação: rota fora do dock, `Dock.tsx` ausente, dia derivado de ISO e `require` nativo real no renderer. |
 | Importação | Implementado localmente | CSV/JSON/ICS e leitura por conector a partir das fontes escolhidas, com prévia, deduplicação por referência remota, conflitos e aplicação local da decisão. |
 | Compartilhamento | Implementado localmente | Convites somente leitura assinados e expirados. |
 | Teste com provedor real | **Validado ao vivo** | Groq (`api.groq.com`, `openai/gpt-oss-120b`) em 2026-09-11: streaming com deltas, proveniência, consumo (337 tokens) e cancelamento real de um turno em voo. 401, limite de uso e indisponibilidade com retry são exercitados com respostas injetadas e carimbados `simulated` no relatório — não há como forçá-los num provedor real sem sujar a conta. A validação revelou e corrigiu um defeito no próprio harness: os eventos eram passados como terceiro argumento de `run()`, que aceita dois, então o relatório saía sem evento nenhum e um provedor que não streamasse teria passado. O relatório nunca traz a chave nem o texto. |
@@ -58,13 +60,14 @@ Referência: Hey Taby 0.2.2 e 0.2.3, pelas auditorias em `/Volumes/SSD/app/node_
 | Configurações gerais | Idioma, tema, formato de hora, abrir ao iniciar o Mac (ausente no original) e monitor do notch. |
 | Dados | Exportação e restauração de backup JSON sem segredos (ausente no original). |
 | Feedback e diagnóstico | Parcial: feedback, bug e ideia viram nota local; pacote de diagnóstico JSON exportável. |
+| Ajustes de Foco | O horário ativo, a duração da sessão e a intensidade dos nudges governam de fato o disparo, com prévia de alertas por dia. Lembretes de bem-estar ficam quietos durante o foco e tocam quando a sessão acaba. Ver "Ajustes de Foco" no Status atual. |
 
 ### Falta
 
 | Do original | Situação no Hibi | Observação |
 | --- | --- | --- |
 | Review da 0.2.3 com sugestões (`duplicate_task`, `missing_schedule`) | Ausente — o Review é um resumo | Evitar os defeitos auditados: números como identificadores, agrupar duplicidades, recalcular após mudanças, dispensa em lote, evidência da confiança. |
-| Ajustes de Foco (horário ativo, ausência, inatividade, pomodoro, timeout de tela, loop visual, intensidade dos nudges) | Ausentes | A aba Foco mostra só a duração fixa de 25 minutos. |
+| Ajustes de Foco: inatividade | Ausente | O horário ativo, a duração da sessão, a intensidade dos nudges e a prévia de alertas já existem e governam o disparo. Falta pausar a sessão quando o Mac fica ocioso. Ausência, timeout de tela e loop visual ficaram de fora por decisão. |
 | Ajustes gerais: tint, tamanho do Taby, local de exibição, atalho global, atividade de apps | Ausentes | No original o atalho global aparecia desabilitado. |
 | Zona invisível no topo que abre o Taby | Ausente | A auditoria aponta que ela é pouco descobrível; se entrar, precisa de indicação visível. |
 | Dados em SQLite com restore points automáticos | Ausente — `localStorage` com backup JSON manual | O original declarava restore points, mas não criava nenhum. |
@@ -79,6 +82,7 @@ Referência: Hey Taby 0.2.2 e 0.2.3, pelas auditorias em `/Volumes/SSD/app/node_
 ### Fora do escopo por decisão
 
 - **Desenhar sobre a câmera.** O original eleva a janela com interfaces privadas do WindowServer. O Hibi usa só APIs públicas: o cartão fica abaixo da câmera. Ver `docs/notch-reference-analysis.md`.
+- **Ausência, timeout de tela e loop visual nos Ajustes de Foco.** Pertencem ao dispositivo físico Taby e ao host visual do original. Listá-los como ajustes, sem hardware para honrá-los, repetiria o defeito que a auditoria encontrou: controles que não governam comportamento.
 
 ## Plano restante
 
@@ -151,7 +155,8 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 
 1. [x] Concluir as estatísticas dedicadas (PR #7, merge `6984c20`; Tasks 3–8, com checagem no app Electron de produção).
 2. [x] Salvar as conversas do Taby, com lista de chats, busca e novo chat. As conversas ficam **neste Mac**, fora do `StudyData`, e **não entram no backup do workspace** — restaurar noutra máquina traz tarefas, notas e atividade, não os chats. Abrir o app (ou recarregar) começa numa **thread vazia**, com as conversas anteriores listadas ao lado; a primeira pergunta é que cria a conversa. Ver "Conversas do Taby" no Status atual.
-3. [ ] Ajustes de Foco: horário ativo, inatividade, pomodoro e intensidade dos nudges, com prévia de quantos alertas por dia.
+3. [x] Ajustes de Foco: horário ativo, duração da sessão e intensidade dos nudges, com prévia de quantos alertas por dia calculada pela mesma função que decide o disparo. Ver "Ajustes de Foco" no Status atual.
+   - [ ] Inatividade: pausar a sessão quando o Mac fica ocioso. Não depende de hardware, porque o Electron expõe o tempo ocioso do sistema. Ficou fora da primeira entrega.
 4. [ ] Review com sugestões de duplicata e de agenda ausente, sem os falsos positivos auditados no original.
 5. [ ] Persistência em SQLite com restore points antes de lotes e migrações.
 6. [ ] Ajustes gerais restantes: atalho global, tamanho e local de exibição do Taby, tint e atividade de apps.
@@ -162,7 +167,11 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 
 ### Pendências registradas
 
-Nenhuma pendência em aberto em 2026-09-11. As que estavam registradas aqui foram fechadas e o que cada uma passou a garantir está na tabela de **Status atual**, com a evidência. Itens novos entram nesta lista em ordem de gravidade; "tarefa criada" significa que já existe trabalho aberto para o item.
+Fora das listas de fases, em ordem de gravidade. As pendências fechadas estão na tabela de **Status atual**, com a evidência. "Tarefa criada" significa que já existe trabalho aberto para o item.
+
+- **O app empacotado leva os testes do processo principal.** `build.files` inclui `electron/**/*`, então os `*.test.cjs` entram no `app.asar`. Isso apareceu ao empacotar `electron/` para validar o `require` do `.mjs`. Não quebra nada, mas é código de teste dentro do produto. *(2026-09-11)*
+- **`scripts/native-notch-smoke.cjs` ficou redundante.** Ele só imprime JSON, não tem asserção e não pode falhar. O binário do notch passou a ser exercitado por `native/notch/host.test.cjs`. *(2026-09-11)*
+- **`safety:renderer` depende de uma API experimental.** `stripTypeScriptTypes` ainda é experimental no Node 25 e imprime `ExperimentalWarning`. Se a API mudar, o verificador quebra de forma visível na CI. *(2026-09-11)*
 
 
 ## Critério de conclusão
@@ -178,6 +187,8 @@ npm test
 npx tsc --noEmit
 npm run build
 npx playwright test
+npm run parity:check
+npm run safety:renderer
 npm run test:providers:live
 npm run test:connectors:live
 ```
