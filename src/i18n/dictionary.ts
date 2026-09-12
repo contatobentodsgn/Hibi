@@ -299,6 +299,14 @@ const pt = {
   'taby.deleteAllConfirm': 'Apagar todas as conversas salvas? Isto não pode ser desfeito.',
   'taby.saveFailed': 'Não foi possível salvar a conversa.',
   'taby.localOnly': 'As conversas ficam neste Mac e não entram no backup do workspace.',
+  // Tint é do Codex: acrescente somente neste bloco, sem reordenar chaves vizinhas.
+  'tint.title': 'Cor de destaque',
+  'tint.detail': 'Muda a assinatura visual e os estados de foco, sem alterar as cores da agenda.',
+  'tint.aurora': 'Aurora',
+  'tint.ocean': 'Oceano',
+  'tint.moss': 'Musgo',
+  'tint.iris': 'Íris',
+  'tint.rose': 'Rosa',
 } as const
 
 export type DictionaryKey = keyof typeof pt
@@ -597,6 +605,14 @@ const en: Record<DictionaryKey, string> = {
   'taby.deleteAllConfirm': 'Delete every saved conversation? This cannot be undone.',
   'taby.saveFailed': 'The conversation could not be saved.',
   'taby.localOnly': 'Conversations stay on this Mac and are not included in the workspace backup.',
+  // Tint is owned by Codex: add only within this block and do not reorder neighbouring keys.
+  'tint.title': 'App tint',
+  'tint.detail': 'Changes the visual signature and focus states without changing calendar category colours.',
+  'tint.aurora': 'Aurora',
+  'tint.ocean': 'Ocean',
+  'tint.moss': 'Moss',
+  'tint.iris': 'Iris',
+  'tint.rose': 'Rose',
 }
 
 export const dictionary: Record<Locale, Record<DictionaryKey, string>> = { pt, en }

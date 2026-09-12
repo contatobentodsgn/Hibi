@@ -47,4 +47,15 @@ describe('tokens.css', () => {
     expect(aliases['--blue']).toBe('var(--cat-learning-soft)')
     expect(aliases['--amber']).toBe('var(--cat-important-soft)')
   })
+
+  it.each(['ocean', 'moss', 'iris', 'rose'])('mantém categoria estável e texto legível no tint %s', (tint) => {
+    for (const themeName of ['light', 'dark'] as const) {
+      const tinted = block(css, `:root[data-theme="${themeName}"][data-tint="${tint}"]`)
+      const base = themeName === 'light' ? light : dark
+      expect(tinted['--accent']).toMatch(/^#[0-9a-f]{6}$/)
+      expect(tinted['--cat-work']).toBeUndefined()
+      expect(tinted['--cat-break']).toBeUndefined()
+      expect(contrastRatio(base['--text-on-accent']!, tinted['--accent']!), `${tint} ${themeName}: texto sobre acento`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
 })

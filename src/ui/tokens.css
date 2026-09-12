@@ -90,6 +90,17 @@
   --bg-scrim: rgba(0, 0, 0, 0.68);
 }
 
+/* Tint troca somente a assinatura visual e o foco. Categorias continuam estáveis para que
+   trabalho, pausa, aprendizado e prioridade não mudem de significado com a preferência. */
+:root[data-theme="light"][data-tint="ocean"] { --accent: #5fc4df; --accent-soft: #d8f5fb; --stroke-focus: #5fc4df; --text-hero: #19677d; }
+:root[data-theme="dark"][data-tint="ocean"] { --accent: #5fc4df; --accent-soft: #183842; --stroke-focus: #8fdef0; --text-hero: #8fdef0; }
+:root[data-theme="light"][data-tint="moss"] { --accent: #9bd55d; --accent-soft: #e6f6cf; --stroke-focus: #7daf3e; --text-hero: #4b7220; }
+:root[data-theme="dark"][data-tint="moss"] { --accent: #9bd55d; --accent-soft: #2c421b; --stroke-focus: #b9e786; --text-hero: #b9e786; }
+:root[data-theme="light"][data-tint="iris"] { --accent: #b7a4ff; --accent-soft: #ebe7ff; --stroke-focus: #8c78d9; --text-hero: #5e4bb0; }
+:root[data-theme="dark"][data-tint="iris"] { --accent: #b7a4ff; --accent-soft: #342d56; --stroke-focus: #d2c8ff; --text-hero: #d2c8ff; }
+:root[data-theme="light"][data-tint="rose"] { --accent: #ff99b5; --accent-soft: #ffe2eb; --stroke-focus: #d86989; --text-hero: #a74161; }
+:root[data-theme="dark"][data-tint="rose"] { --accent: #ff99b5; --accent-soft: #512837; --stroke-focus: #ffc2d2; --text-hero: #ffc2d2; }
+
 /* Ponte com theme.css: as 8 variáveis antigas seguem os tokens. Este arquivo é importado
    depois de theme.css, então estas definições vencem as de lá. Some quando a última tela migrar. */
 :root /* aliases */ {
