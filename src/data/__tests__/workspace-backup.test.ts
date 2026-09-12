@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createSeedData } from '../seed-data';
 import { createActivityRecord } from '../../domain/activity';
 import { createWorkspaceBackup, parseWorkspaceBackup, WORKSPACE_BACKUP_VERSION } from '../workspace-backup';
+import { DEFAULT_FOCUS_SETTINGS } from '../../ui/focus-settings';
 
 describe('workspace backups', () => {
   it('round-trips every local workspace collection and safe preferences', () => {
@@ -10,7 +11,7 @@ describe('workspace backups', () => {
     const backup = createWorkspaceBackup(seed, { language: 'pt', twentyFourHour: true }, '2026-09-08T10:00:00.000Z');
     const restored = parseWorkspaceBackup(JSON.stringify(backup), createSeedData());
     expect(restored.data).toEqual(seed);
-    expect(restored.preferences).toEqual({ language: 'pt', twentyFourHour: true });
+    expect(restored.preferences).toEqual({ language: 'pt', twentyFourHour: true, focus: DEFAULT_FOCUS_SETTINGS });
     expect(JSON.stringify(restored)).not.toMatch(/api[_-]?key|keychain|token/i);
   });
 
@@ -27,7 +28,7 @@ describe('workspace backups', () => {
     const restored = parseWorkspaceBackup(JSON.stringify(backup), createSeedData());
     expect(restored.version).toBe(2);
     expect(restored.data.activity).toEqual(seed.activity);
-    expect(restored.preferences).toEqual({ language: 'en', twentyFourHour: false });
+    expect(restored.preferences).toEqual({ language: 'en', twentyFourHour: false, focus: DEFAULT_FOCUS_SETTINGS });
   });
 
   it('upgrades a version 1 backup without activity into a version 2 backup with an empty ledger', () => {
@@ -37,7 +38,7 @@ describe('workspace backups', () => {
     const restored = parseWorkspaceBackup(JSON.stringify(legacy), createSeedData());
     expect(restored.version).toBe(2);
     expect(restored.data.activity).toEqual([]);
-    expect(restored.preferences).toEqual({ language: 'pt', twentyFourHour: true });
+    expect(restored.preferences).toEqual({ language: 'pt', twentyFourHour: true, focus: DEFAULT_FOCUS_SETTINGS });
   });
 
   it('rejects a backup with a malformed activity record', () => {
@@ -69,6 +70,18 @@ describe('workspace backups', () => {
 
   it('exposes WORKSPACE_BACKUP_VERSION as 2', () => {
     expect(WORKSPACE_BACKUP_VERSION).toBe(2);
+  });
+
+  // A aba Dados promete restaurar "safe preferences", e os ajustes de Foco são exatamente isso:
+  // duração, horário ativo e intensidade dos lembretes, sem nada de credencial.
+  it('round-trips the focus settings, and defaults them on a backup exported before they existed', () => {
+    const seed = createSeedData();
+    const focus = { sessionMinutes: 50, activeStart: '08:00', activeEnd: '20:00', nudgePreset: 'calm' as const };
+    const restored = parseWorkspaceBackup(JSON.stringify(createWorkspaceBackup(seed, { language: 'pt', twentyFourHour: true, focus })), createSeedData());
+    expect(restored.preferences.focus).toEqual(focus);
+
+    const legacy = { app: 'Hibi', version: 2, exportedAt: '2026-09-08T10:00:00.000Z', data: seed, preferences: { language: 'pt', twentyFourHour: true } };
+    expect(parseWorkspaceBackup(JSON.stringify(legacy), createSeedData()).preferences.focus).toEqual(DEFAULT_FOCUS_SETTINGS);
   });
 
   it('carries no conversation text, because conversations live outside StudyData', () => {
