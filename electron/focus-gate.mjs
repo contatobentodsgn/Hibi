@@ -19,6 +19,13 @@
 // chama para armar cada timer. Uma prévia que pudesse discordar da realidade é exatamente o defeito
 // que este módulo existe para não repetir. Há um teste que prende essa igualdade.
 //
+// POR QUE ESM, E NÃO COMMONJS
+// Este arquivo atravessa três pipelines: `require` no processo principal, Vitest/Rollup no teste e no
+// build, e o dev server do Vite no `npm run desktop`. O dev server não converte CommonJS de fora do
+// node_modules: servia `module.exports = {…}` a um import ESM nomeado, e o renderer quebrava ao
+// carregar ("does not provide an export named DEFAULT_FOCUS_SETTINGS") com testes, tsc e build
+// verdes. Em ESM os três leem o mesmo arquivo — e o Node do Electron faz `require()` de `.mjs`.
+//
 // FORA DE ESCOPO, DE PROPÓSITO
 // O app original tinha nove elementos de Foco. Três ficaram de fora: comportamento quando ausente,
 // timeout de tela e loop visual. Os três pertencem ao dispositivo físico Taby e ao host visual — este
@@ -29,14 +36,14 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 // Durações oferecidas na tela de Ajustes. 25 continua sendo o padrão: atualizar o app não pode mudar
 // o hábito de ninguém.
-const SESSION_LENGTHS = [15, 25, 50];
+export const SESSION_LENGTHS = [15, 25, 50];
 
 // Presets nomeados em vez de um campo de intervalo cru. Cada um é o intervalo mínimo, em minutos,
 // entre dois alertas NÃO importantes. Os 30 e 40 minutos do original foram apontados pela própria
 // auditoria como excesso de opção sem significado; aqui são três intenções legíveis.
-const NUDGE_PRESETS = { calm: 90, work: 45, wellbeing: 15 };
+export const NUDGE_PRESETS = { calm: 90, work: 45, wellbeing: 15 };
 
-const DEFAULT_FOCUS_SETTINGS = Object.freeze({
+export const DEFAULT_FOCUS_SETTINGS = Object.freeze({
   sessionMinutes: 25,
   activeStart: '09:00',
   activeEnd: '17:00',
@@ -71,7 +78,7 @@ function isTime(value) {
  * Sempre devolve um objeto completo e válido, campo a campo. Um ajuste corrompido cai no padrão em
  * vez de derrubar o agendamento: o pior resultado possível aqui seria um app que para de lembrar.
  */
-function sanitizeFocusSettings(value) {
+export function sanitizeFocusSettings(value) {
   const input = value && typeof value === 'object' ? value : {};
   const sessionMinutes = SESSION_LENGTHS.includes(input.sessionMinutes) ? input.sessionMinutes : DEFAULT_FOCUS_SETTINGS.sessionMinutes;
   const nudgePreset = Object.prototype.hasOwnProperty.call(NUDGE_PRESETS, input.nudgePreset) ? input.nudgePreset : DEFAULT_FOCUS_SETTINGS.nudgePreset;
@@ -89,7 +96,7 @@ function sanitizeFocusSettings(value) {
 }
 
 /** O fim da sessão de foco em andamento, ou null. Valores estranhos viram null: sem foco, sem portão. */
-function sanitizeFocusUntil(value) {
+export function sanitizeFocusUntil(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
@@ -102,12 +109,12 @@ function sanitizeFocusUntil(value) {
  * prefere avisar demais a engolir um lembrete — um alerta a mais incomoda, um a menos perde o
  * compromisso.
  */
-function isExempt(entry) {
+export function isExempt(entry) {
   return entry.category !== 'wellbeing';
 }
 
 /** O primeiro instante >= `ms` que cai dentro do horário ativo. */
-function withinActiveHours(ms, settings) {
+export function withinActiveHours(ms, settings) {
   const start = minutesOfDay(settings.activeStart);
   const end = minutesOfDay(settings.activeEnd);
   const date = new Date(ms);
@@ -122,7 +129,7 @@ function withinActiveHours(ms, settings) {
  * Puro: mesma entrada, mesma saída, sem relógio nem timers por perto — é o que permite que o
  * agendador e a prévia façam a mesma pergunta e recebam a mesma resposta.
  */
-function nextDelivery(entry, occurrenceMs, context) {
+export function nextDelivery(entry, occurrenceMs, context) {
   if (isExempt(entry)) return occurrenceMs;
   const settings = context.settings;
   // 1. Horário ativo. Passa pelo mesmo portão que o foco de propósito: o defeito do original nasceu
@@ -150,7 +157,7 @@ const MAX_OCCURRENCES_PER_ENTRY = 200;
  * exatamente como o agendador pergunta. `nextOccurrence` entra por parâmetro para manter este módulo
  * sem dependências (notifications.cjs já depende dele; o contrário fecharia um ciclo).
  */
-function countDailyAlerts({ entries, settings, dayStartMs, nextOccurrence, focusUntilMs = null }) {
+export function countDailyAlerts({ entries, settings, dayStartMs, nextOccurrence, focusUntilMs = null }) {
   const dayEndMs = localInstant(dayAfter(new Date(dayStartMs)), 0);
   const occurrences = [];
   for (const entry of entries) {
@@ -176,15 +183,3 @@ function countDailyAlerts({ entries, settings, dayStartMs, nextOccurrence, focus
   }
   return count;
 }
-
-module.exports = {
-  DEFAULT_FOCUS_SETTINGS,
-  NUDGE_PRESETS,
-  SESSION_LENGTHS,
-  countDailyAlerts,
-  isExempt,
-  nextDelivery,
-  sanitizeFocusSettings,
-  sanitizeFocusUntil,
-  withinActiveHours,
-};

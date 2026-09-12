@@ -1,5 +1,5 @@
 import type { NotificationEntry } from './domain/notifications';
-import type { FocusSettings } from '../electron/focus-gate.cjs';
+import type { FocusSettings } from '../electron/focus-gate.mjs';
 import type { ImportCandidate } from './integrations/imports';
 import type { AiNormalizedUsage, AiProviderRequest, AiProviderStreamEvent } from './ai/contracts';
 import type { ConnectorSettings, IntegrationAuditEvent, IntegrationAuthorization, IntegrationExecutionResult, IntegrationImportTarget, IntegrationStatus, NotionDataSourceDiscovery, PreparedIntegrationAction } from './integrations/contracts';

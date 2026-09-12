@@ -8,7 +8,7 @@ export interface NotificationEntry {
   at: string;
   recurrence?: RecurrenceRule;
   /**
-   * A categoria viaja como campo próprio porque o portão de foco (`electron/focus-gate.cjs`) precisa
+   * A categoria viaja como campo próprio porque o portão de foco (`electron/focus-gate.mjs`) precisa
    * dela para decidir o que silenciar durante uma sessão. Antes ela só existia derretida na frase de
    * `body` ("Important reminder."), e casar uma decisão de agendamento com texto de interface seria
    * frágil — bastaria traduzir a frase para o portão parar de funcionar.

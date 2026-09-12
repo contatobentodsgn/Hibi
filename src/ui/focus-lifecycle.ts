@@ -14,7 +14,7 @@ export interface FocusLifecycleEvent {
   focusedMinutes?: number;
   /**
    * Quando esta sessão termina, em tempo absoluto. É a janela que o agendador precisa para segurar os
-   * lembretes de bem-estar (ver electron/focus-gate.cjs). Sai daqui porque é aqui que a duração e o
+   * lembretes de bem-estar (ver electron/focus-gate.mjs). Sai daqui porque é aqui que a duração e o
    * tempo já medido moram — um segundo relógio em outro lugar poderia discordar deste.
    */
   endsAtMs?: number;

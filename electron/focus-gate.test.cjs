@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { DEFAULT_FOCUS_SETTINGS, NUDGE_PRESETS, isExempt, nextDelivery, sanitizeFocusSettings, sanitizeFocusUntil, withinActiveHours } = require('./focus-gate.cjs');
+const { DEFAULT_FOCUS_SETTINGS, NUDGE_PRESETS, isExempt, nextDelivery, sanitizeFocusSettings, sanitizeFocusUntil, withinActiveHours } = require('./focus-gate.mjs');
 
 // O portão decide em hora de parede local, como todo o resto do app. Por isso todo instante aqui é
 // montado com componentes locais: ancorar qualquer lado a um offset fixo esconderia justamente o bug

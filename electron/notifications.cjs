@@ -1,4 +1,4 @@
-const { isExempt, nextDelivery, sanitizeFocusSettings, sanitizeFocusUntil } = require('./focus-gate.cjs');
+const { isExempt, nextDelivery, sanitizeFocusSettings, sanitizeFocusUntil } = require('./focus-gate.mjs');
 
 const MAX_TIMEOUT_MS = 2_147_000_000;
 const MAX_ENTRIES = 1000;

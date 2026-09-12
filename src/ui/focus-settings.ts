@@ -1,4 +1,4 @@
-import { DEFAULT_FOCUS_SETTINGS, NUDGE_PRESETS, SESSION_LENGTHS, countDailyAlerts, sanitizeFocusSettings, type FocusSettings, type NudgePreset } from '../../electron/focus-gate.cjs'
+import { DEFAULT_FOCUS_SETTINGS, NUDGE_PRESETS, SESSION_LENGTHS, countDailyAlerts, sanitizeFocusSettings, type FocusSettings, type NudgePreset } from '../../electron/focus-gate.mjs'
 import { nextOccurrence } from '../../electron/notifications.cjs'
 import type { NotificationEntry } from '../domain/notifications'
 

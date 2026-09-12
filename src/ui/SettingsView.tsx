@@ -89,7 +89,7 @@ const NUDGE_PRESET_IDS: readonly NudgePreset[] = ['calm', 'work', 'wellbeing'];
 
 /**
  * Ajustes › Foco. Cada controle aqui governa o comportamento de verdade — o valor escolhido desce
- * para o portão em `electron/focus-gate.cjs`, que é quem decide o que dispara e quando.
+ * para o portão em `electron/focus-gate.mjs`, que é quem decide o que dispara e quando.
  *
  * Foi assim de propósito: o app original entregou uma aba de Foco que NÃO governava nada (o horário
  * ativo dizia 09:00–17:00 e os lembretes apareciam o dia todo), e uma versão depois continuava sem

@@ -1,6 +1,6 @@
-// Tipos do portão de foco. O módulo em si é CommonJS porque o agendador (`notifications.cjs`, o
-// processo principal) precisa dele via `require`; o renderer importa o MESMO arquivo, para que a
-// prévia em Ajustes e o disparo real nunca possam divergir. Este `.d.cts` é o que deixa o `tsc`
+// Tipos do portão de foco. O módulo é ESM para que os dois lados leiam o MESMO arquivo: o agendador
+// (`notifications.cjs`, processo principal) via `require()` de `.mjs`, e o renderer via import — assim
+// a prévia em Ajustes e o disparo real nunca podem divergir. Este `.d.mts` é o que deixa o `tsc`
 // enxergar esse arquivo com `allowJs: false`.
 
 export type NudgePreset = 'calm' | 'work' | 'wellbeing';

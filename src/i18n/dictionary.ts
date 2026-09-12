@@ -116,7 +116,7 @@ const pt = {
   'focus.stopBreak': 'Encerrar pausa',
   'focus.breakCompanion': 'Companion em pausa',
   'focus.minutes': 'MINUTOS',
-  // Esta frase só pode existir porque o portão em electron/focus-gate.cjs a cumpre. Antes ela era
+  // Esta frase só pode existir porque o portão em electron/focus-gate.mjs a cumpre. Antes ela era
   // apenas texto na tela: o agendador não tinha noção nenhuma de foco.
   'focus.quiet': 'Lembretes de bem-estar ficam quietos durante o foco e chegam quando a sessão termina. Os marcados como Importante sempre passam.',
   'focus.settings.session.title': 'Duração da sessão',

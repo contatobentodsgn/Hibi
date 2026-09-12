@@ -1,5 +1,5 @@
 import type { StudyData } from '../domain/models';
-import { sanitizeFocusSettings, type FocusSettings } from '../../electron/focus-gate.cjs';
+import { sanitizeFocusSettings, type FocusSettings } from '../../electron/focus-gate.mjs';
 import { LocalRepository } from './local-repository';
 
 export const WORKSPACE_BACKUP_VERSION = 2;
