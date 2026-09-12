@@ -2,6 +2,7 @@ const { createNotionConnector } = require('./notion.cjs');
 const { createSlackConnector } = require('./slack.cjs');
 const { createEmailConnector } = require('./email.cjs');
 const { createRemoteNotificationConnector } = require('./remote-notifications.cjs');
+const { createGoogleCalendarConnector } = require('./google-calendar.cjs');
 
 // Um endpoint configurado troca a base do conector e, com ela, o allowlist de
 // hosts: nenhuma outra origem passa a ser permitida por causa disso.
@@ -37,6 +38,7 @@ function buildConnectors(settings) {
     createSlackConnector(connectorOptionsFor(settings, 'slack')),
     createEmailConnector(connectorOptionsFor(settings, 'email')),
     createRemoteNotificationConnector(connectorOptionsFor(settings, 'remote-notifications')),
+    createGoogleCalendarConnector(connectorOptionsFor(settings, 'google-calendar')),
   ];
 }
 
