@@ -32,6 +32,11 @@ jobs:
           node-version: 25
           cache: npm
       - run: npm ci
+      # Verificadores estáticos: só leem arquivos, rodam em menos de um segundo e não dependem do
+      # macOS. Fora da CI eles apodreceram sem ninguém ver (um lia um caminho que já não existia e o
+      # outro reprovava declarações de tipo); aqui uma quebra aparece no PR.
+      - run: npm run parity:check
+      - run: npm run safety:renderer
       # Vitest e node --test. Sem o binário do addon (que só compila no macOS), `host.test.cjs`
       # se pula explicitamente, com motivo no relatório; quem o exercita é o job macos-native.
       - run: npm test
