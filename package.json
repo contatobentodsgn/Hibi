@@ -14,7 +14,7 @@
     "check:companion-assets": "node scripts/check-companion-assets.mjs",
     "safety:renderer": "node scripts/renderer-safety-check.mjs",
     "parity:check": "node scripts/parity-check.mjs",
-    "audit": "npm run parity:check && npm run build && npm test && npm run test:e2e",
+    "audit": "npm run parity:check && npm run safety:renderer && npm run build && npm test && npm run test:e2e",
     "test": "vitest run src --exclude 'src/**/._*' --exclude '**/.worktrees/**' && node --test electron/*.test.cjs electron/connectors/*.test.cjs native/notch/*.test.cjs scripts/*.test.mjs",
     "test:e2e": "playwright test",
     "test:providers:live": "node scripts/test-live-providers.mjs",
