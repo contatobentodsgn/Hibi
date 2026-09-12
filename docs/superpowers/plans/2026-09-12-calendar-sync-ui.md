@@ -16,10 +16,10 @@
 - Create: `src/ui/calendar-sync.ts`
 - Create: `src/ui/__tests__/calendar-sync.test.ts`
 
-- [ ] Write a failing test that accepts only `apple` and `google`, safe calendar modes, and a conflict with a bounded summary.
-- [ ] Run the focused test and confirm the contract is absent.
-- [ ] Add serializable renderer-only types: `CalendarSyncState`, `CalendarSyncSource`, `CalendarSyncCalendar`, `CalendarSyncConflict` and `CalendarSyncMode`.
-- [ ] Re-run the focused test and prove it passes; mutate an accepted provider and observe the test fail.
+- [x] Write a failing test that accepts only `apple` and `google`, safe calendar modes, and a conflict with a bounded summary.
+- [x] Run the focused test and confirm the contract is absent.
+- [x] Add serializable renderer-only types: `CalendarSyncState`, `CalendarSyncSource`, `CalendarSyncCalendar`, `CalendarSyncConflict` and `CalendarSyncMode`.
+- [x] Re-run the focused test and prove it passes; mutate an accepted provider and observe the test fail.
 
 ### Task 2: Build the connected-calendar panel
 
@@ -28,11 +28,11 @@
 - Create: `src/ui/calendar-sync.css`
 - Create: `src/ui/__tests__/CalendarSyncPanel.test.tsx`
 
-- [ ] Write a failing static-render test for provider state, selected calendar controls, a last-sync label, safe error, and a conflict action.
-- [ ] Run it and confirm it fails before the panel exists.
-- [ ] Implement the panel with accessible grouped controls and callbacks for connection, mode selection, sync and conflict resolution.
-- [ ] Add responsive styles that preserve theme and tint tokens; re-run the test and prove it passes.
-- [ ] Mutate a conflict button to remove its accessible label, observe failure, then restore it.
+- [x] Write a failing static-render test for provider state, selected calendar controls, a last-sync label, safe error, and a conflict action.
+- [x] Run it and confirm it fails before the panel exists.
+- [x] Implement the panel with accessible grouped controls and callbacks for connection, mode selection, sync and conflict resolution.
+- [x] Add responsive styles that preserve theme and tint tokens; re-run the test and prove it passes.
+- [x] Mutate a conflict button to remove its accessible label, observe failure, then restore it.
 
 ### Task 3: Mount only after the bridge contract lands
 
