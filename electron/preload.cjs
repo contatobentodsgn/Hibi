@@ -59,5 +59,7 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,onCompanionPresentation: (callback) => { const listener = (_event, presentation) => callback(presentation); ipcRenderer.on('hibi:companion:presentation', listener); return () => ipcRenderer.removeListener('hibi:companion:presentation', listener); }
   ,onCompanionAction: (callback) => { const listener = (_event, action) => callback(action); ipcRenderer.on('hibi:companion:action', listener); return () => ipcRenderer.removeListener('hibi:companion:action', listener); }
   ,onNotificationTriggered: (callback) => { const listener = (_event, entry) => callback(entry); ipcRenderer.on('hibi:notification:triggered', listener); return () => ipcRenderer.removeListener('hibi:notification:triggered', listener); }
-  ,onLocalApiConfirmation: (callback) => { const listener = (_event, intent) => callback(intent); ipcRenderer.on('hibi:local-api:confirmation', listener); return () => ipcRenderer.removeListener('hibi:local-api:confirmation', listener); }
+  ,watchFocusPresence: (request) => ipcRenderer.invoke('hibi:focus:watch-presence', request)
+  ,onFocusPresence: (callback) => { const listener = (_event, presence) => { if (presence && typeof presence === 'object') callback(presence); }; ipcRenderer.on('hibi:focus:presence', listener); return () => ipcRenderer.removeListener('hibi:focus:presence', listener); }
+  ,onLocalApiConfirmation:(callback) => { const listener = (_event, intent) => callback(intent); ipcRenderer.on('hibi:local-api:confirmation', listener); return () => ipcRenderer.removeListener('hibi:local-api:confirmation', listener); }
 });
