@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, Notification, screen, shell, powerMonitor } = require("electron");
 const path = require("node:path");
 const crypto = require('node:crypto');
-const { createNotificationScheduler, sanitizeEntries } = require("./notifications.cjs");
+const { createNotificationScheduler, sanitizeEntries } = require("./notifications.mjs");
 const { createMainAiRuntime, replaceAiRequestCoordinator } = require("./ai-runtime.cjs");
 const { createAiConfiguration, createMacKeychain, verifyAndSaveAiConfiguration } = require('./ai-config.cjs');
 const { createIntegrationManager } = require('./integrations.cjs');

@@ -1,10 +1,10 @@
-const { isExempt, nextDelivery, sanitizeFocusSettings, sanitizeFocusUntil } = require('./focus-gate.mjs');
+import { isExempt, nextDelivery, sanitizeFocusSettings, sanitizeFocusUntil } from './focus-gate.mjs';
 
-const MAX_TIMEOUT_MS = 2_147_000_000;
-const MAX_ENTRIES = 1000;
-const MAX_ID_LENGTH = 128;
-const MAX_TITLE_LENGTH = 500;
-const MAX_BODY_LENGTH = 500;
+export const MAX_TIMEOUT_MS = 2_147_000_000;
+export const MAX_ENTRIES = 1000;
+export const MAX_ID_LENGTH = 128;
+export const MAX_TITLE_LENGTH = 500;
+export const MAX_BODY_LENGTH = 500;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 // A recurrence that names no time of day has always defaulted to the start of the working morning.
@@ -86,7 +86,7 @@ function validRecurrence(recurrence) {
   return { frequency: recurrence.frequency, startDate: recurrence.startDate, endDate, time, weekdays, timesByWeekday };
 }
 
-function nextOccurrence(entry, afterMs) {
+export function nextOccurrence(entry, afterMs) {
   const first = wallClock(entry.at);
   if (first === null) return null;
   const recurrence = validRecurrence(entry.recurrence);
@@ -120,7 +120,7 @@ function nextOccurrence(entry, afterMs) {
   return null;
 }
 
-function sanitizeEntries(entries) {
+export function sanitizeEntries(entries) {
   if (!Array.isArray(entries)) return [];
   return entries.slice(0, MAX_ENTRIES).flatMap((entry) => {
     if (!entry || typeof entry !== 'object') return [];
@@ -136,7 +136,7 @@ function sanitizeEntries(entries) {
   });
 }
 
-function createNotificationScheduler({ NotificationClass, now = Date.now, setTimeout: setTimeoutFn = setTimeout, clearTimeout: clearTimeoutFn = clearTimeout, onTrigger = () => undefined } = {}) {
+export function createNotificationScheduler({ NotificationClass, now = Date.now, setTimeout: setTimeoutFn = setTimeout, clearTimeout: clearTimeoutFn = clearTimeout, onTrigger = () => undefined } = {}) {
   const timers = new Map();
   // Ocorrências retidas pelo portão, por id. Sem este registro, terminar a sessão de foco mais cedo
   // PERDERIA o lembrete: o sync seguinte recalcularia a partir de agora e `nextOccurrence` descarta
@@ -229,4 +229,3 @@ function createNotificationScheduler({ NotificationClass, now = Date.now, setTim
   };
 }
 
-module.exports = { MAX_TIMEOUT_MS, MAX_ENTRIES, MAX_ID_LENGTH, MAX_TITLE_LENGTH, MAX_BODY_LENGTH, createNotificationScheduler, nextOccurrence, sanitizeEntries };

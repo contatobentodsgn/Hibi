@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createNotificationScheduler, nextOccurrence, sanitizeEntries } = require('./notifications.cjs');
+const { createNotificationScheduler, nextOccurrence, sanitizeEntries } = require('./notifications.mjs');
 const { DEFAULT_FOCUS_SETTINGS, countDailyAlerts } = require('./focus-gate.mjs');
 
 // O agendador dispara no relógio de parede de quem usa o app: uma das 09:00 toca às 09:00 locais em

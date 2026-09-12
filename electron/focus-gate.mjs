@@ -2,7 +2,7 @@
 //
 // POR QUE ELE MORA AQUI, AO LADO DO AGENDADOR
 // A tela de Foco sempre prometeu "lembretes ficam quietos durante o foco, exceto os importantes", e
-// nada cumpria: `grep focus electron/notifications.cjs electron/main.cjs` voltava vazio. O agendador é
+// nada cumpria: `grep focus` no agendador e em `electron/main.cjs` voltava vazio. O agendador é
 // o único lugar que decide QUANDO algo dispara — ele é dono dos timers. Um portão no renderer só
 // conseguiria esconder o alerta depois de a notificação nativa já ter tocado. Por isso a decisão
 // desce até aqui, e o renderer manda apenas o CONTEXTO (janela de foco e ajustes) junto das entradas.
@@ -20,7 +20,7 @@
 // que este módulo existe para não repetir. Há um teste que prende essa igualdade.
 //
 // POR QUE ESM, E NÃO COMMONJS
-// Este arquivo atravessa três pipelines: `require` no processo principal, Vitest/Rollup no teste e no
+// Este arquivo atravessa três pipelines: o processo principal (via `notifications.mjs`), Vitest/Rollup no teste e no
 // build, e o dev server do Vite no `npm run desktop`. O dev server não converte CommonJS de fora do
 // node_modules: servia `module.exports = {…}` a um import ESM nomeado, e o renderer quebrava ao
 // carregar ("does not provide an export named DEFAULT_FOCUS_SETTINGS") com testes, tsc e build
@@ -155,7 +155,7 @@ const MAX_OCCURRENCES_PER_ENTRY = 200;
  *
  * Não estima — percorre as ocorrências reais do dia e pergunta a `nextDelivery`, entrada por entrada,
  * exatamente como o agendador pergunta. `nextOccurrence` entra por parâmetro para manter este módulo
- * sem dependências (notifications.cjs já depende dele; o contrário fecharia um ciclo).
+ * sem dependências (notifications.mjs já depende dele; o contrário fecharia um ciclo).
  */
 export function countDailyAlerts({ entries, settings, dayStartMs, nextOccurrence, focusUntilMs = null }) {
   const dayEndMs = localInstant(dayAfter(new Date(dayStartMs)), 0);

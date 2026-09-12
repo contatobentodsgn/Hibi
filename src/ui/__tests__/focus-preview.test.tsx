@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { countDailyAlerts, nextDelivery } from '../../../electron/focus-gate.mjs';
-import { nextOccurrence } from '../../../electron/notifications.cjs';
+import { nextOccurrence } from '../../../electron/notifications.mjs';
 import { createSeedData } from '../../data/seed-data';
 import { buildNotificationEntries } from '../../domain/notifications';
 import type { Reminder, StudyData } from '../../domain/models';

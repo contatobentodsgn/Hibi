@@ -12,7 +12,7 @@ const NOTCH_WINDOW_PATH = require.resolve("./notch-window.cjs");
 // Carregados fora do patch de `Module._load`: os dublês reaproveitam o que é puro
 // (validPresentation, NOTCH_TEST_PREFIX, o próprio agendador) e só trocam o que
 // tocaria disco de verdade, rede, Keychain ou addon nativo.
-const realNotifications = require("./notifications.cjs");
+const realNotifications = require("./notifications.mjs");
 const realNotchWindow = require("./notch-window.cjs");
 const realNotchTest = require("./notch-test.cjs");
 const realAiConfig = require("./ai-config.cjs");
@@ -243,7 +243,7 @@ async function loadMain({ seedUserData } = {}) {
     },
     "./webhooks.cjs": { createWebhookService: () => webhookService },
     "./oauth.cjs": { createOAuthService: (options) => { captured.oauth = options; return oauthService; } },
-    "./notifications.cjs": {
+    "./notifications.mjs": {
       ...realNotifications,
       createNotificationScheduler: (options) => { captured.scheduler = options; return realNotifications.createNotificationScheduler(options); },
     },

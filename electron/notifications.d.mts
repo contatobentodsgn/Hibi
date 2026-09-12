@@ -1,5 +1,6 @@
 // Tipos do agendador. Como `focus-gate.d.mts`, este arquivo existe para o `tsc` (com `allowJs: false`)
-// enxergar um módulo CommonJS que o renderer também importa: a prévia em Ajustes precisa de
+// enxergar um módulo ESM que o processo principal carrega com `require()` e o renderer importa. É ESM
+// pelo mesmo motivo do portão: o dev server do Vite não serve CommonJS a um import. E o renderer importa: a prévia em Ajustes precisa de
 // `nextOccurrence` para percorrer as ocorrências do dia com a MESMA regra que o agendador aplica.
 
 import type { FocusSettings } from './focus-gate.mjs';
