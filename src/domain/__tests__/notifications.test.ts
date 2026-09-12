@@ -31,6 +31,9 @@ describe('buildNotificationEntries', () => {
         // enquanto a data real estivesse na janela antiga do seed.
         at: data.reminders[0].schedule.at,
         recurrence: data.reminders[0].schedule.recurrence,
+        // A categoria viaja como campo próprio: é ela que o portão de foco lê para decidir o que
+        // silenciar durante uma sessão, em vez de casar com o texto de `body`.
+        category: 'important',
       },
     ]);
   });

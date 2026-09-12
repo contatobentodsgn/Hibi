@@ -7,6 +7,13 @@ export interface NotificationEntry {
   body: string;
   at: string;
   recurrence?: RecurrenceRule;
+  /**
+   * A categoria viaja como campo próprio porque o portão de foco (`electron/focus-gate.cjs`) precisa
+   * dela para decidir o que silenciar durante uma sessão. Antes ela só existia derretida na frase de
+   * `body` ("Important reminder."), e casar uma decisão de agendamento com texto de interface seria
+   * frágil — bastaria traduzir a frase para o portão parar de funcionar.
+   */
+  category?: 'important' | 'wellbeing';
 }
 
 export function buildNotificationEntries(data: StudyData): NotificationEntry[] {
@@ -29,6 +36,7 @@ export function buildNotificationEntries(data: StudyData): NotificationEntry[] {
       body: `${reminder.category === 'important' ? 'Important' : 'Wellbeing'} reminder.`,
       at: reminder.schedule.at,
       recurrence: reminder.schedule.recurrence,
+      category: reminder.category,
     }));
 
   return [...deadlines, ...reminders];
