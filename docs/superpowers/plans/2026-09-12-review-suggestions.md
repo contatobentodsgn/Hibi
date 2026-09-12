@@ -21,7 +21,7 @@
 - [x] Add bounded suggestion types, stable ids, evidence and `findReviewSuggestions` without changing stored workspace data.
 - [x] Re-run the focused domain test and verify it passes.
 - [x] Prove the duplicate test bites by temporarily breaking exact grouping, observe failure, then revert the mutation.
-- [ ] Commit only `src/domain/review.ts` and its test.
+- [x] Commit only `src/domain/review.ts` and its test.
 
 ### Task 2: Render and dismiss suggestions
 
@@ -55,7 +55,7 @@
 **Files:**
 - No status-document edits; Claude owns `docs/IMPLEMENTATION_STATUS_AND_PLAN.md`.
 
-- [ ] Run `npm test` and `TZ=Pacific/Kiritimati npm test`, checking each exit code.
-- [ ] Run `npm run parity:check`, `npm run safety:renderer`, `npx tsc --noEmit`, and `npm run build`, checking each exit code.
-- [ ] Run `HIBI_E2E_PORT=4380 npx playwright test`, checking its exit code.
+- [x] Run `npm test` and `TZ=Pacific/Kiritimati npm test`, checking each exit code.
+- [x] Run `npm run parity:check`, `npm run safety:renderer`, `npx tsc --noEmit`, and `npm run build`, checking each exit code.
+- [x] Run `HIBI_E2E_PORT=4380 npx playwright test`, checking its exit code.
 - [ ] Fetch `origin/main`, rebase the branch, rerun the complete battery if the rebase changes code, push, and open a PR with the required body.
