@@ -165,6 +165,9 @@ const pt = {
   'focus.presence.resume.title': 'Você voltou. Retomar a sessão?',
   'focus.presence.resume': 'Retomar',
   'focus.presence.notNow': 'Agora não',
+  'focus.presence.awayReview.title': 'Você ficou {duration} sem mexer no Mac. Esse tempo foi foco?',
+  'focus.presence.countIt': 'Contar',
+  'focus.presence.discountIt': 'Descontar',
 
   'settings.language.title': 'Idioma',
   'settings.language.detail': 'Idioma da interface',
@@ -459,6 +462,9 @@ const en: Record<DictionaryKey, string> = {
   'focus.presence.resume.title': 'You are back. Resume the session?',
   'focus.presence.resume': 'Resume',
   'focus.presence.notNow': 'Not now',
+  'focus.presence.awayReview.title': 'You left the Mac untouched for {duration}. Was that time focus?',
+  'focus.presence.countIt': 'Count it',
+  'focus.presence.discountIt': "Don't count it",
 
   'settings.language.title': 'Language',
   'settings.language.detail': 'Interface language',

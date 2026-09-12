@@ -126,6 +126,94 @@ test('com "perguntar", responder "Ainda estou aqui" pelo notch fecha a pergunta 
   await expect(clockFace(page)).toHaveText('18:00');
 });
 
+// O que o /stats mostra em "Hoje": o cartão "Tempo de foco" e a coluna de foco da tabela do dia.
+async function openStatsToday(page: Page) {
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Estatísticas', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Estatísticas', level: 1 })).toBeVisible();
+  const today = page.getByRole('group', { name: 'Período', exact: true }).getByRole('button', { name: 'Hoje', exact: true });
+  await today.click();
+  await expect(today).toHaveAttribute('aria-pressed', 'true');
+  const focusCard = page.getByRole('region', { name: 'Resumo', exact: true }).getByRole('listitem').filter({ has: page.getByText('Tempo de foco', { exact: true }) });
+  // Na tabela de "Hoje" as células são: tarefas, foco, planejado, concluído.
+  const focusCell = page.getByRole('table', { name: /^Valores por dia, / }).getByRole('row').nth(1).getByRole('cell').nth(1);
+  return { focusCard, focusCell };
+}
+
+// Quem se afastou de verdade não responde. Na volta, "Ainda estou aqui" contaria os minutos fora como foco:
+// a pergunta muda para "Esse tempo foi foco?", e "Descontar" devolve o tempo sem pausar a sessão.
+test('com "perguntar", a volta muda a pergunta, e "Descontar" tira o tempo ausente sem pausar', async ({ page }) => {
+  await startFocusSession(page, { sessionMinutes: 50 });
+  await page.clock.runFor(6 * 60_000);
+  await away(page, 300);
+  const question = prompt(page, 'Você ainda está aí?');
+  await expect(question).toBeVisible();
+
+  // 20 minutos de relógio sem resposta; a sessão segue contando até a volta.
+  await page.clock.runFor(20 * 60_000);
+  await expect(clockFace(page)).toHaveText('24:00');
+  await returned(page, 25 * 60);
+
+  const review = prompt(page, 'Esse tempo foi foco?');
+  await expect(review).toBeVisible();
+  // Os 5 minutos parados antes da pergunta e os 20 esperando a resposta.
+  await expect(review).toContainText('Você ficou 25 minutos sem mexer no Mac. Esse tempo foi foco?');
+  await expect(question).toHaveCount(0);
+  // No companion: a pergunta anterior é descartada e a nova aparece no lugar.
+  await expect.poll(async () => (await calls(page)).some((call) => call.startsWith('hide:focus-idle-'))).toBe(true);
+  await expect.poll(async () => (await calls(page)).some((call) => call.startsWith('show:confirmation:focus-returned-'))).toBe(true);
+
+  await review.getByRole('button', { name: 'Descontar' }).click();
+  await expect(review).toHaveCount(0);
+  // A sessão continua rodando, e o mostrador devolve os 25 minutos: só 1 minuto presente foi medido.
+  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await expect(clockFace(page)).toHaveText('49:00');
+  await page.clock.runFor(60_000);
+  await expect(clockFace(page)).toHaveText('48:00');
+  await expect.poll(async () => (await calls(page)).some((call) => call.startsWith('hide:focus-returned-'))).toBe(true);
+
+  // Sair da tela abandona a sessão com 2 minutos presentes, não os 27 do relógio de parede.
+  const { focusCard, focusCell } = await openStatsToday(page);
+  await expect(focusCell).toHaveText('2');
+  await expect(focusCard.locator('.stats-card-value')).toHaveText('2 min');
+  expect((await focusActivity(page)).filter((record) => record.type === 'focus.cancelled').map((record) => record.durationMinutes)).toEqual([2]);
+});
+
+test('com "perguntar", a pergunta sem resposta até o fim da sessão não conta o tempo ausente', async ({ page }) => {
+  await startFocusSession(page);
+  await page.clock.runFor(6 * 60_000);
+  await away(page, 300);
+  await expect(prompt(page, 'Você ainda está aí?')).toBeVisible();
+
+  // Ninguém volta: o contador chega a zero com a pergunta aberta, 20 minutos de relógio depois dela.
+  await page.clock.runFor(19 * 60_000);
+  await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
+  await expect(prompt(page, 'Você ainda está aí?')).toHaveCount(0);
+
+  // Dos 25 minutos da sessão, só o primeiro teve alguém na frente do Mac.
+  const { focusCard, focusCell } = await openStatsToday(page);
+  await expect(focusCell).toHaveText('1');
+  await expect(focusCard.locator('.stats-card-value')).toHaveText('1 min');
+  await expect(focusCard).toContainText('Sessões concluídas: 1');
+  expect((await focusActivity(page)).filter((record) => record.type === 'focus.completed').map((record) => record.durationMinutes)).toEqual([1]);
+});
+
+test('com "perguntar", "Contar" depois da volta mantém o tempo ausente como foco', async ({ page }) => {
+  await startFocusSession(page, { sessionMinutes: 50 });
+  await page.clock.runFor(6 * 60_000);
+  await away(page, 300);
+  await page.clock.runFor(4 * 60_000);
+  await returned(page, 9 * 60);
+
+  const review = prompt(page, 'Esse tempo foi foco?');
+  await expect(review).toContainText('Você ficou 9 minutos sem mexer no Mac.');
+  await companionAction(page, 'focus-returned-', 'confirm');
+
+  await expect(review).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await expect(clockFace(page)).toHaveText('40:00');
+});
+
 test('com "pausar", a ausência pausa sozinha sem contar o tempo ausente, e a volta oferece retomar', async ({ page }) => {
   await startFocusSession(page, { awayBehavior: 'pause', idleMinutes: 2 });
   await expect.poll(() => calls(page)).toContain('watch:true:2');
