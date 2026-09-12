@@ -58,4 +58,4 @@
 - [x] Run `npm test` and `TZ=Pacific/Kiritimati npm test`, checking each exit code.
 - [x] Run `npm run parity:check`, `npm run safety:renderer`, `npx tsc --noEmit`, and `npm run build`, checking each exit code.
 - [x] Run `HIBI_E2E_PORT=4380 npx playwright test`, checking its exit code.
-- [ ] Fetch `origin/main`, rebase the branch, rerun the complete battery if the rebase changes code, push, and open a PR with the required body.
+- [x] Fetch `origin/main`, rebase the branch, rerun the complete battery if the rebase changes code, push, and open a PR with the required body.
