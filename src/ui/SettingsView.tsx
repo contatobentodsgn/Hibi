@@ -11,7 +11,8 @@ import type { DictionaryKey } from '../i18n/dictionary';
 import type { Locale } from '../i18n/format';
 import { useThemePreference } from './theme-context';
 import { isThemePreference } from './theme';
-import { DEFAULT_FOCUS_SETTINGS, NUDGE_PRESETS, SESSION_LENGTHS, previewDailyAlerts, sanitizeFocusSettings, type FocusSettings, type NudgePreset } from './focus-settings';
+import { AWAY_BEHAVIORS, DEFAULT_FOCUS_SETTINGS, FOCUS_LOOP_ANIMATIONS, IDLE_MINUTES, NUDGE_PRESETS, SCREEN_TIMEOUT_SECONDS, SESSION_LENGTHS, previewDailyAlerts, sanitizeFocusSettings, type AwayBehavior, type FocusLoopAnimation, type FocusSettings, type NudgePreset } from './focus-settings';
+import { getCurrentAdapterStatuses } from '../domain/adapter-status';
 import { buildNotificationEntries } from '../domain/notifications';
 import { pluralize } from '../i18n/plural';
 import type { NotionLocalMutation } from '../integrations/notion-apply';
@@ -109,6 +110,13 @@ export function FocusSettingsPanel({ settings, onChange, data, onEvent }: { sett
   // timer no agendador. Uma prévia capaz de discordar da realidade é exatamente como "09:00–17:00"
   // virou enfeite no app original.
   const alertsPerDay = previewDailyAlerts(buildNotificationEntries(data), settings);
+  // "30 segundos", "1 minuto", "5 minutos": nunca `after 1 minutes`, o plural quebrado do original.
+  const duration = (totalSeconds: number) => totalSeconds < 60 ? pluralize(language, totalSeconds, 'focus.count.second.one', 'focus.count.second.other') : minutes(Math.round(totalSeconds / 60));
+  const withDuration = (key: DictionaryKey, totalSeconds: number) => fillTemplate(t(key), { duration: duration(totalSeconds) });
+  // O timeout de tela só tem quem o honre com o Taby conectado. Hoje o adaptador de hardware está
+  // indisponível, e a tela diz isso em vez de fingir que o ajuste mudou alguma coisa.
+  const tabyConnected = getCurrentAdapterStatuses().some((adapter) => adapter.id === 'hardware' && adapter.status === 'available');
+  const watchesPresence = settings.awayBehavior !== 'keep';
   return <>
     <Setting title={t('focus.settings.session.title')} detail={t('focus.settings.session.detail')}>
       <select aria-label={t('focus.settings.session.title')} value={settings.sessionMinutes} onChange={(event) => update({ sessionMinutes: Number(event.target.value) }, `session ${event.target.value}m`)}>
@@ -128,6 +136,29 @@ export function FocusSettingsPanel({ settings, onChange, data, onEvent }: { sett
     </Setting>
     <Setting title={t('focus.settings.preview.title')} detail={t('focus.settings.preview.detail')}>
       <span className="setting-value">{pluralize(language, alertsPerDay, 'focus.count.alert.one', 'focus.count.alert.other')}</span>
+    </Setting>
+    <Setting title={t('focus.settings.away.title')} detail={t('focus.settings.away.detail')}>
+      <select aria-label={t('focus.settings.away.title')} value={settings.awayBehavior} onChange={(event) => update({ awayBehavior: event.target.value as AwayBehavior }, `away ${event.target.value}`)}>
+        {AWAY_BEHAVIORS.map((behavior) => <option key={behavior} value={behavior}>{t(`focus.settings.away.${behavior}` as DictionaryKey)}</option>)}
+      </select>
+    </Setting>
+    <Setting title={t('focus.settings.idle.title')} detail={watchesPresence ? t('focus.settings.idle.detail') : t('focus.settings.idle.detailKeep')}>
+      <select aria-label={t('focus.settings.idle.title')} disabled={!watchesPresence} value={settings.idleMinutes} onChange={(event) => update({ idleMinutes: Number(event.target.value) }, `idle ${event.target.value}m`)}>
+        {IDLE_MINUTES.map((value) => <option key={value} value={value}>{withDuration('focus.settings.idle.option', value * 60)}</option>)}
+      </select>
+    </Setting>
+    <Setting title={t('focus.settings.loop.title')} detail={t('focus.settings.loop.detail')}>
+      <select aria-label={t('focus.settings.loop.title')} value={settings.focusLoopAnimation} onChange={(event) => update({ focusLoopAnimation: event.target.value as FocusLoopAnimation }, `loop ${event.target.value}`)}>
+        {FOCUS_LOOP_ANIMATIONS.map((loop) => <option key={loop} value={loop}>{t(`focus.settings.loop.${loop}` as DictionaryKey)}</option>)}
+      </select>
+    </Setting>
+    <Setting title={t('focus.settings.screen.title')} detail={t('focus.settings.screen.detail')}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <select aria-label={t('focus.settings.screen.title')} value={settings.screenTimeoutSeconds} onChange={(event) => update({ screenTimeoutSeconds: Number(event.target.value) }, `taby screen ${event.target.value}s`)}>
+          {SCREEN_TIMEOUT_SECONDS.map((value) => <option key={value} value={value}>{withDuration('focus.settings.screen.option', value)}</option>)}
+        </select>
+        {!tabyConnected && <b className="pill amber">{t('focus.settings.screen.disconnected')}</b>}
+      </div>
     </Setting>
     <p className="muted">{t('focus.quiet')}</p>
   </>;

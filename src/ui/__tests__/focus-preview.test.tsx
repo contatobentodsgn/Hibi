@@ -5,7 +5,7 @@ import { nextOccurrence } from '../../../electron/notifications.mjs';
 import { createSeedData } from '../../data/seed-data';
 import { buildNotificationEntries } from '../../domain/notifications';
 import type { Reminder, StudyData } from '../../domain/models';
-import { DEFAULT_FOCUS_SETTINGS, previewDailyAlerts } from '../focus-settings';
+import { DEFAULT_FOCUS_SETTINGS, previewDailyAlerts, type FocusSettings } from '../focus-settings';
 import { pluralize } from '../../i18n/plural';
 import { FocusSettingsPanel } from '../SettingsView';
 
@@ -89,7 +89,58 @@ describe('Ajustes › Foco', () => {
   });
 });
 
+describe('Ajustes › Foco › presença', () => {
+  const panelWith = (settings: FocusSettings) => renderToStaticMarkup(<FocusSettingsPanel settings={settings} data={withReminders([])} onEvent={() => undefined} />);
+
+  it('mostra os quatro ajustes, cada um dizendo a consequência', () => {
+    const markup = panelWith(DEFAULT_FOCUS_SETTINGS);
+
+    expect(markup).toContain('aria-label="Tempo de inatividade"');
+    expect(markup).toContain('aria-label="Quando você se afastar"');
+    expect(markup).toContain('aria-label="Animação durante o foco"');
+    expect(markup).toContain('aria-label="Timeout de tela do Taby"');
+    expect(markup).toContain('Perguntar se ainda estou aqui');
+    expect(markup).toContain('Pausar e não contar o tempo ausente');
+    expect(markup).toContain('Continuar contando, inclusive o tempo ausente');
+    expect(markup).toContain('Ouvindo música');
+    // A prévia de alertas continua lá, ao lado dos ajustes novos.
+    expect(markup).toContain('Alertas por dia');
+  });
+
+  // O timeout de tela não tem o que governar neste Mac: a tela precisa dizer isso sem ambiguidade.
+  it('diz que o timeout de tela só vale com o Taby conectado, e que ele não está', () => {
+    const markup = panelWith(DEFAULT_FOCUS_SETTINGS);
+
+    expect(markup).toContain('Só vale com o dispositivo Taby conectado. Neste Mac não muda nada');
+    expect(markup).toContain('Taby não conectado');
+  });
+
+  // `after 1 minutes` é o defeito do original.
+  it('pluraliza as durações das opções', () => {
+    const markup = panelWith(DEFAULT_FOCUS_SETTINGS);
+
+    expect(markup).toContain('Depois de 1 minuto parado');
+    expect(markup).toContain('Depois de 5 minutos parado');
+    expect(markup).toContain('Apagar a tela depois de 30 segundos');
+    expect(markup).toContain('Apagar a tela depois de 1 minuto<');
+    expect(markup).not.toMatch(/\b1 minutos\b/);
+  });
+
+  it('com "Continuar contando", o tempo de inatividade fica desligado e diz por quê', () => {
+    expect(panelWith({ ...DEFAULT_FOCUS_SETTINGS, awayBehavior: 'keep' })).toMatch(/<select aria-label="Tempo de inatividade" disabled=""/);
+    expect(panelWith({ ...DEFAULT_FOCUS_SETTINGS, awayBehavior: 'keep' })).toContain('Sem efeito enquanto “Continuar contando” estiver escolhido');
+    expect(panelWith({ ...DEFAULT_FOCUS_SETTINGS, awayBehavior: 'ask' })).not.toMatch(/<select aria-label="Tempo de inatividade" disabled=""/);
+  });
+});
+
 describe('pluralização', () => {
+  it('trata segundos como os minutos, nos dois idiomas', () => {
+    expect(pluralize('pt', 1, 'focus.count.second.one', 'focus.count.second.other')).toBe('1 segundo');
+    expect(pluralize('pt', 30, 'focus.count.second.one', 'focus.count.second.other')).toBe('30 segundos');
+    expect(pluralize('en', 1, 'focus.count.second.one', 'focus.count.second.other')).toBe('1 second');
+    expect(pluralize('en', 30, 'focus.count.second.one', 'focus.count.second.other')).toBe('30 seconds');
+  });
+
   it('trata o 1 como singular e todo o resto como plural, nos dois idiomas', () => {
     expect(pluralize('en', 1, 'focus.count.minute.one', 'focus.count.minute.other')).toBe('1 minute');
     expect(pluralize('en', 25, 'focus.count.minute.one', 'focus.count.minute.other')).toBe('25 minutes');
