@@ -26,6 +26,8 @@ const companionAction = (page: Page, prefix: string, actionId: 'confirm' | 'canc
     const shown = e2e.calls.filter((call) => call.startsWith(`show:confirmation:${prefix}`)).at(-1);
     if (shown) e2e.companionAction({ requestId: shown.split(':')[2]!, actionId });
   }, { prefix, actionId });
+// O App persiste a instrumentação em `hibi-events`: é dali que sai o que a tela registrou de fato.
+const recordedActions = (page: Page) => page.evaluate(() => (JSON.parse(window.localStorage.getItem('hibi-events') ?? '[]') as { action: string }[]).map((event) => event.action));
 const focusActivity = (page: Page) => page.evaluate(() => (JSON.parse(window.localStorage.getItem('hibi-study-data') ?? '{}').activity ?? []) as { type: string; durationMinutes?: number }[]);
 
 // O e2e roda no build web, sem `window.hibiDesktop`. O dublê faz o papel do processo principal: guarda
@@ -112,7 +114,7 @@ test('com "perguntar", a ausência durante o foco vira pergunta, e "Pausar" para
   await expect(prompt(page, 'Você voltou')).toHaveCount(0);
 });
 
-test('com "perguntar", responder "Ainda estou aqui" pelo notch fecha a pergunta e a sessão segue contando', async ({ page }) => {
+test('com "perguntar", responder "Ainda estou aqui" pelo notch fecha a pergunta, a sessão segue contando e conclui', async ({ page }) => {
   await startFocusSession(page);
   await page.clock.runFor(6 * 60_000);
   await away(page, 300);
@@ -124,6 +126,15 @@ test('com "perguntar", responder "Ainda estou aqui" pelo notch fecha a pergunta 
   await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
   await page.clock.runFor(60_000);
   await expect(clockFace(page)).toHaveText('18:00');
+
+  // Com a presença confirmada, a sessão chega ao zero inteira e conta como concluída, com a comemoração.
+  await page.clock.runFor(18 * 60_000);
+  await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
+  await expect.poll(async () => (await calls(page)).some((call) => call.startsWith('show:result:focus-'))).toBe(true);
+  await expect.poll(() => recordedActions(page)).toContain('focus-complete');
+  await expect(page.getByRole('status').filter({ hasText: 'A sessão não contou como concluída' })).toHaveCount(0);
+  expect((await focusActivity(page)).filter((record) => record.type === 'focus.completed').map((record) => record.durationMinutes)).toEqual([25]);
+  expect((await focusActivity(page)).filter((record) => record.type === 'focus.cancelled')).toEqual([]);
 });
 
 // O que o /stats mostra em "Hoje": o cartão "Tempo de foco" e a coluna de foco da tabela do dia.
@@ -183,7 +194,8 @@ test('com "perguntar", a volta muda a pergunta, e "Descontar" tira o tempo ausen
   expect((await focusActivity(page)).filter((record) => record.type === 'focus.cancelled').map((record) => record.durationMinutes)).toEqual([2]);
 });
 
-test('com "perguntar", a pergunta sem resposta até o fim da sessão não conta o tempo ausente', async ({ page }) => {
+// Uma sessão só conta como concluída com presença confirmada em pelo menos metade da duração.
+test('com "perguntar", a pergunta sem resposta até o fim da sessão não conta o tempo ausente nem a sessão como concluída', async ({ page }) => {
   await startFocusSession(page);
   await page.clock.runFor(6 * 60_000);
   await away(page, 300);
@@ -194,12 +206,20 @@ test('com "perguntar", a pergunta sem resposta até o fim da sessão não conta 
   await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
   await expect(prompt(page, 'Você ainda está aí?')).toHaveCount(0);
 
-  // Dos 25 minutos da sessão, só o primeiro teve alguém na frente do Mac.
+  // A sessão não some calada: a tela diz por que ela não contou.
+  await expect(page.getByRole('status').filter({ hasText: 'A sessão não contou como concluída: você esteve presente em 1 minuto de 25 minutos.' })).toBeVisible();
+  // Sem comemoração no companion e sem focus-complete; o que fica registrado é o cancelamento.
+  await expect.poll(() => recordedActions(page)).toContain('focus-cancel');
+  expect(await recordedActions(page)).not.toContain('focus-complete');
+  expect((await calls(page)).filter((call) => call.startsWith('show:result:'))).toEqual([]);
+
+  // Dos 25 minutos da sessão, só o primeiro teve alguém na frente do Mac: o minuto soma, a sessão não.
   const { focusCard, focusCell } = await openStatsToday(page);
   await expect(focusCell).toHaveText('1');
   await expect(focusCard.locator('.stats-card-value')).toHaveText('1 min');
-  await expect(focusCard).toContainText('Sessões concluídas: 1');
-  expect((await focusActivity(page)).filter((record) => record.type === 'focus.completed').map((record) => record.durationMinutes)).toEqual([1]);
+  await expect(focusCard).toContainText('Sessões concluídas: 0');
+  expect((await focusActivity(page)).filter((record) => record.type === 'focus.cancelled').map((record) => record.durationMinutes)).toEqual([1]);
+  expect((await focusActivity(page)).filter((record) => record.type === 'focus.completed')).toEqual([]);
 });
 
 test('com "perguntar", "Contar" depois da volta mantém o tempo ausente como foco', async ({ page }) => {

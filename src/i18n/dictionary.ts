@@ -168,6 +168,7 @@ const pt = {
   'focus.presence.awayReview.title': 'Você ficou {duration} sem mexer no Mac. Esse tempo foi foco?',
   'focus.presence.countIt': 'Contar',
   'focus.presence.discountIt': 'Descontar',
+  'focus.presence.notCompleted': 'A sessão não contou como concluída: você esteve presente em {present} de {planned}.',
 
   'settings.language.title': 'Idioma',
   'settings.language.detail': 'Idioma da interface',
@@ -465,6 +466,7 @@ const en: Record<DictionaryKey, string> = {
   'focus.presence.awayReview.title': 'You left the Mac untouched for {duration}. Was that time focus?',
   'focus.presence.countIt': 'Count it',
   'focus.presence.discountIt': "Don't count it",
+  'focus.presence.notCompleted': 'The session did not count as completed: you were present for {present} of {planned}.',
 
   'settings.language.title': 'Language',
   'settings.language.detail': 'Interface language',

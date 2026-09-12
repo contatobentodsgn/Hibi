@@ -3,6 +3,7 @@ import { FOCUS_MOODS, resolveFocusLoopAnimationId, type FocusMood } from '../../
 import { createActivityRecord, type ActivityRecord } from '../../domain/activity';
 import { focusActivity } from '../../domain/activity-events';
 import { companionAnimationForState } from '../CompanionAnimation';
+import { completeFocus, IDLE_FOCUS_LIFECYCLE, startFocus } from '../focus-lifecycle';
 import { deriveFocusMood, EXCITED_AFTER_COMPLETED_TODAY, focusSessionsCompletedToday } from '../focus-mood';
 
 // Datas montadas com componentes locais: o dia é o do relógio de quem usa o app, em qualquer fuso.
@@ -45,6 +46,25 @@ describe('humor do companion durante o foco', () => {
     // Na véspera, perto da meia-noite, as sessões de hoje ainda são de amanhã.
     expect(focusSessionsCompletedToday(twoToday, new Date(2026, 8, 10, 23, 59, 59))).toBe(2);
     expect(focusSessionsCompletedToday(twoToday, new Date(2026, 8, 12, 0, 0))).toBe(0);
+  });
+
+  // Duas sessões sem ninguém na frente do Mac não podem deixar o companion animado.
+  it('duas sessões rebaixadas por falta de presença hoje não deixam o companion animado', () => {
+    const now = new Date(2026, 8, 11, 15, 0);
+    const minute = 60_000;
+    const limit = 25 * minute;
+    // Cada uma: 25 minutos de relógio, a pessoa saiu no primeiro e ninguém respondeu até o zero.
+    const unattended = completeFocus(startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state, limit, { sinceMs: minute }).event!;
+    expect(unattended).toEqual({ type: 'cancelled', focusedMinutes: 1 });
+    const demoted = [new Date(2026, 8, 11, 9, 0), new Date(2026, 8, 11, 10, 0)].map((at) => createActivityRecord(focusActivity(unattended.type as 'cancelled', unattended.focusedMinutes, at.toISOString())));
+    expect(focusSessionsCompletedToday(demoted, now)).toBe(0);
+    expect(deriveFocusMood({ awayPending: false, completedToday: focusSessionsCompletedToday(demoted, now) })).toBe('normal');
+
+    // As mesmas duas sessões com alguém presente o tempo todo concluem, e aí sim o companion fica animado.
+    const attended = completeFocus(startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state, limit).event!;
+    expect(attended.type).toBe('completed');
+    const whole = [new Date(2026, 8, 11, 9, 0), new Date(2026, 8, 11, 10, 0)].map((at) => createActivityRecord(focusActivity(attended.type as 'completed', attended.focusedMinutes, at.toISOString())));
+    expect(deriveFocusMood({ awayPending: false, completedToday: focusSessionsCompletedToday(whole, now) })).toBe('excited');
   });
 
   it('não conta registros semeados, como o /stats', () => {
