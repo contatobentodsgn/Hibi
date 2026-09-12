@@ -1,8 +1,10 @@
-const MAX_TIMEOUT_MS = 2_147_000_000;
-const MAX_ENTRIES = 1000;
-const MAX_ID_LENGTH = 128;
-const MAX_TITLE_LENGTH = 500;
-const MAX_BODY_LENGTH = 500;
+import { isExempt, nextDelivery, sanitizeFocusSettings, sanitizeFocusUntil } from './focus-gate.mjs';
+
+export const MAX_TIMEOUT_MS = 2_147_000_000;
+export const MAX_ENTRIES = 1000;
+export const MAX_ID_LENGTH = 128;
+export const MAX_TITLE_LENGTH = 500;
+export const MAX_BODY_LENGTH = 500;
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 // A recurrence that names no time of day has always defaulted to the start of the working morning.
@@ -84,7 +86,7 @@ function validRecurrence(recurrence) {
   return { frequency: recurrence.frequency, startDate: recurrence.startDate, endDate, time, weekdays, timesByWeekday };
 }
 
-function nextOccurrence(entry, afterMs) {
+export function nextOccurrence(entry, afterMs) {
   const first = wallClock(entry.at);
   if (first === null) return null;
   const recurrence = validRecurrence(entry.recurrence);
@@ -118,7 +120,7 @@ function nextOccurrence(entry, afterMs) {
   return null;
 }
 
-function sanitizeEntries(entries) {
+export function sanitizeEntries(entries) {
   if (!Array.isArray(entries)) return [];
   return entries.slice(0, MAX_ENTRIES).flatMap((entry) => {
     if (!entry || typeof entry !== 'object') return [];
@@ -127,16 +129,42 @@ function sanitizeEntries(entries) {
     if (wallClock(entry.at) === null) return [];
     const recurrence = validRecurrence(entry.recurrence);
     if (entry.recurrence && !recurrence) return [];
-    return [{ id: entry.id, kind: entry.kind, title: entry.title.trim(), body: entry.body.trim(), at: entry.at, recurrence }];
+    // A categoria só viaja quando é uma das duas conhecidas, e some quando ausente: é ela que o
+    // portão de foco lê para decidir o que silenciar.
+    const category = entry.category === 'important' || entry.category === 'wellbeing' ? entry.category : undefined;
+    return [{ id: entry.id, kind: entry.kind, title: entry.title.trim(), body: entry.body.trim(), at: entry.at, recurrence, ...(category ? { category } : {}) }];
   });
 }
 
-function createNotificationScheduler({ NotificationClass, now = Date.now, setTimeout: setTimeoutFn = setTimeout, clearTimeout: clearTimeoutFn = clearTimeout, onTrigger = () => undefined } = {}) {
+export function createNotificationScheduler({ NotificationClass, now = Date.now, setTimeout: setTimeoutFn = setTimeout, clearTimeout: clearTimeoutFn = clearTimeout, onTrigger = () => undefined } = {}) {
   const timers = new Map();
+  // Ocorrências retidas pelo portão, por id. Sem este registro, terminar a sessão de foco mais cedo
+  // PERDERIA o lembrete: o sync seguinte recalcularia a partir de agora e `nextOccurrence` descarta
+  // uma ocorrência já vencida. Silenciar é adiar, e adiar exige lembrar o que foi adiado.
+  const deferred = new Map();
+  let focusSettings = sanitizeFocusSettings(undefined);
+  let focusUntilMs = null;
+  // O último alerta não isento que saiu de fato, para o intervalo do preset valer entre entradas
+  // diferentes e não só dentro de uma.
+  let lastNudgeAtMs = null;
 
   function clear() {
     for (const timer of timers.values()) clearTimeoutFn(timer);
     timers.clear();
+  }
+
+  function gateContext() {
+    return { settings: focusSettings, focusUntilMs, lastNudgeAtMs };
+  }
+
+  // Uma ocorrência retida vale enquanto o lembrete for o mesmo. Se o horário ou a recorrência mudarem,
+  // o que estava adiado deixou de existir e a ocorrência é recalculada do zero.
+  function signatureOf(entry) {
+    return JSON.stringify([entry.at, entry.recurrence ?? null]);
+  }
+
+  function hold(entry, occurrenceMs) {
+    deferred.set(entry.id, { occurrenceMs, signature: signatureOf(entry) });
   }
 
   function show(entry) {
@@ -150,29 +178,54 @@ function createNotificationScheduler({ NotificationClass, now = Date.now, setTim
   }
 
   function schedule(entry) {
-    const occurrence = nextOccurrence(entry, now());
-    if (occurrence === null) return;
-    const delay = occurrence - now();
+    // Uma ocorrência já retida continua valendo; só quando não há nada adiado é que se pergunta a
+    // próxima. É isso que faz o lembrete preso na sessão sair quando a sessão acaba, em vez de sumir.
+    const held = deferred.get(entry.id);
+    const occurrence = held && held.signature === signatureOf(entry) ? held.occurrenceMs : nextOccurrence(entry, now());
+    if (occurrence === null || occurrence === undefined) {
+      deferred.delete(entry.id);
+      return;
+    }
+    // O PORTÃO. O agendador é o único que sabe quando algo dispara, então é aqui que a decisão vale.
+    const delivery = nextDelivery(entry, occurrence, gateContext());
+    if (delivery > occurrence) hold(entry, occurrence);
+    else deferred.delete(entry.id);
     const timer = setTimeoutFn(() => {
       timers.delete(entry.id);
-      if (occurrence > now()) {
+      // Rearma quando o timer foi fatiado (MAX_TIMEOUT_MS) ou quando o portão empurrou a entrega para
+      // mais tarde enquanto este timer corria — outro alerta pode ter consumido o intervalo do preset.
+      if (delivery > now() || nextDelivery(entry, occurrence, gateContext()) > now()) {
+        // Prende a ocorrência ANTES de reagendar. Sem isto, `nextOccurrence` recomeçaria de agora e a
+        // ocorrência de hoje — que acabou de ser adiada — seria pulada para a de amanhã: o lembrete
+        // silenciado nunca chegaria. Adiar só é diferente de descartar se o adiado for lembrado.
+        hold(entry, occurrence);
         schedule(entry);
         return;
       }
+      deferred.delete(entry.id);
       show(entry);
       onTrigger(entry);
+      if (!isExempt(entry)) lastNudgeAtMs = now();
       if (entry.recurrence) schedule(entry);
-    }, Math.min(Math.max(delay, 1), MAX_TIMEOUT_MS));
+    }, Math.min(Math.max(delivery - now(), 1), MAX_TIMEOUT_MS));
     timers.set(entry.id, timer);
   }
 
   return {
-    sync(entries) {
+    // O renderer manda a janela de foco e os ajustes JUNTO das entradas: ele é quem conhece o estado
+    // da sessão, e já re-sincroniza a cada mudança. Assim o horário ativo, o foco e a intensidade dos
+    // nudges passam todos pelo mesmo portão, em vez de serem decididos em telas separadas.
+    sync(entries, context) {
       clear();
-      for (const entry of sanitizeEntries(entries)) schedule(entry);
+      focusSettings = sanitizeFocusSettings(context && context.settings);
+      focusUntilMs = sanitizeFocusUntil(context && context.focusUntilMs);
+      const sanitized = sanitizeEntries(entries);
+      // Uma entrada que saiu do snapshot (apagada, pausada) não tem mais nada a adiar.
+      const present = new Set(sanitized.map((entry) => entry.id));
+      for (const id of [...deferred.keys()]) if (!present.has(id)) deferred.delete(id);
+      for (const entry of sanitized) schedule(entry);
     },
     clear,
   };
 }
 
-module.exports = { MAX_TIMEOUT_MS, MAX_ENTRIES, MAX_ID_LENGTH, MAX_TITLE_LENGTH, MAX_BODY_LENGTH, createNotificationScheduler, nextOccurrence, sanitizeEntries };

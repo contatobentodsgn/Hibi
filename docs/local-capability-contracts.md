@@ -33,7 +33,7 @@ This is the reconstructed contract surface for the Hibi study replica. It descri
 
 - `buildNotificationEntries` emits one entry per active deadline/reminder, with stable IDs prefixed `deadline:` or `reminder:` and bodies derived from the entity kind/category ([notifications.ts](../src/domain/notifications.ts)).
 - The renderer calls the optional `window.hibiDesktop.syncNotifications` API whenever the snapshot changes; the browser-only build can run without that preload API ([App.tsx](../src/App.tsx), [global.d.ts](../src/global.d.ts)).
-- Preload exposes notification synchronization and testing alongside app info and launch-at-login controls; the main-process scheduler sanitizes payloads, clears stale timers on sync, respects daily/weekly recurrence and end dates, and uses Electron `Notification` when a timer fires ([preload.cjs](../electron/preload.cjs), [main.cjs](../electron/main.cjs), [notifications.cjs](../electron/notifications.cjs)). These behaviors are covered by [notifications.test.cjs](../electron/notifications.test.cjs).
+- Preload exposes notification synchronization and testing alongside app info and launch-at-login controls; the main-process scheduler sanitizes payloads, clears stale timers on sync, respects daily/weekly recurrence and end dates, and uses Electron `Notification` when a timer fires ([preload.cjs](../electron/preload.cjs), [main.cjs](../electron/main.cjs), [notifications.mjs](../electron/notifications.mjs)). These behaviors are covered by [notifications.test.cjs](../electron/notifications.test.cjs).
 
 ### AI and hardware
 

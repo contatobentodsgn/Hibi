@@ -12,6 +12,12 @@ export interface FocusLifecycleState {
 export interface FocusLifecycleEvent {
   type: 'started' | 'paused' | 'resumed' | 'completed' | 'cancelled';
   focusedMinutes?: number;
+  /**
+   * Quando esta sessão termina, em tempo absoluto. É a janela que o agendador precisa para segurar os
+   * lembretes de bem-estar (ver electron/focus-gate.mjs). Sai daqui porque é aqui que a duração e o
+   * tempo já medido moram — um segundo relógio em outro lugar poderia discordar deste.
+   */
+  endsAtMs?: number;
 }
 
 export interface FocusLifecycleStep {
@@ -32,13 +38,20 @@ const measuredMs = (state: FocusLifecycleState, nowMs: number) => {
 const focusedMinutes = (state: FocusLifecycleState, nowMs: number) => Math.max(0, Math.round(measuredMs(state, nowMs) / 60_000));
 const withLimit = (limitMs: number | undefined) => (limitMs !== undefined && Number.isFinite(limitMs) && limitMs >= 0 ? { limitMs } : {});
 
+// O fim previsto da sessão: agora mais o que falta medir. Numa retomada desconta o tempo já medido,
+// para o lembrete retido não esperar a duração inteira de novo.
+const endsAt = (nowMs: number, limitMs: number | undefined, accumulatedMs: number) =>
+  limitMs === undefined || !Number.isFinite(limitMs) ? {} : { endsAtMs: nowMs + Math.max(0, limitMs - accumulatedMs) };
+
 export function startFocus(state: FocusLifecycleState, nowMs: number, limitMs: number): FocusLifecycleStep {
   if (state.phase === 'running') return { state };
   const resuming = state.phase === 'paused';
   // A retomada mantém a duração com que a sessão começou.
+  const sessionLimitMs = resuming ? state.limitMs : limitMs;
+  const measuredMs = resuming ? state.accumulatedMs : 0;
   return {
-    state: { phase: 'running', accumulatedMs: resuming ? state.accumulatedMs : 0, runningSince: nowMs, ...withLimit(resuming ? state.limitMs : limitMs) },
-    event: { type: resuming ? 'resumed' : 'started' },
+    state: { phase: 'running', accumulatedMs: measuredMs, runningSince: nowMs, ...withLimit(sessionLimitMs) },
+    event: { type: resuming ? 'resumed' : 'started', ...endsAt(nowMs, sessionLimitMs, measuredMs) },
   };
 }
 

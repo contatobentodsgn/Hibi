@@ -12,7 +12,7 @@ const NOTCH_WINDOW_PATH = require.resolve("./notch-window.cjs");
 // Carregados fora do patch de `Module._load`: os dublês reaproveitam o que é puro
 // (validPresentation, NOTCH_TEST_PREFIX, o próprio agendador) e só trocam o que
 // tocaria disco de verdade, rede, Keychain ou addon nativo.
-const realNotifications = require("./notifications.cjs");
+const realNotifications = require("./notifications.mjs");
 const realNotchWindow = require("./notch-window.cjs");
 const realNotchTest = require("./notch-test.cjs");
 const realAiConfig = require("./ai-config.cjs");
@@ -243,9 +243,18 @@ async function loadMain({ seedUserData } = {}) {
     },
     "./webhooks.cjs": { createWebhookService: () => webhookService },
     "./oauth.cjs": { createOAuthService: (options) => { captured.oauth = options; return oauthService; } },
-    "./notifications.cjs": {
+    "./notifications.mjs": {
       ...realNotifications,
-      createNotificationScheduler: (options) => { captured.scheduler = options; return realNotifications.createNotificationScheduler(options); },
+      createNotificationScheduler: (options) => {
+        captured.scheduler = options;
+        const scheduler = realNotifications.createNotificationScheduler(options);
+        // Registra o que chega no sync de verdade: e a unica forma de provar que o handler repassa o
+        // contexto do renderer, e nao so as entradas.
+        const sync = scheduler.sync;
+        captured.syncCalls = [];
+        scheduler.sync = (entries, context) => { captured.syncCalls.push({ entries, context }); return sync(entries, context); };
+        return scheduler;
+      },
     },
     "./ai-config.cjs": { ...realAiConfig, createMacKeychain: () => keychain },
     "./notch-window.cjs": { ...realNotchWindow, createNotchWindowManager: (options) => { captured.notchWindow = options; return notchManager; } },
@@ -713,4 +722,38 @@ test("before-quit encerra serviços, solta os listeners e destrói a companion",
   assert.deepEqual(harness.oauthService.calls, [["cancel"]]);
   assert.deepEqual(harness.notchManager.calls.at(-1), ["destroy"]);
   assert.deepEqual(harness.removedEvents.map(([event]) => event), ["display-added", "display-removed", "display-metrics-changed", "resume"]);
+});
+
+// A tela de Foco so cumpre "lembretes ficam quietos durante o foco" se os ajustes e a janela da sessao
+// atravessarem a ponte inteira: renderer -> preload -> handler -> agendador. Os testes do agendador o
+// chamam direto, entao sem estes dois uma ponte que voltasse a repassar so as entradas desligaria o
+// silencio no app real com a suite inteira verde.
+test("hibi:notifications:sync entrega ao agendador os ajustes e a janela de foco do renderer", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  const context = { settings: { sessionMinutes: 25, activeStart: "08:00", activeEnd: "18:00", nudgePreset: "work" }, focusUntilMs: 1_900_000_000_000 };
+  await harness.invoke("hibi:notifications:sync", [], context);
+  assert.deepEqual(harness.captured.syncCalls.at(-1)?.context, context);
+});
+
+test("preload repassa os ajustes e a janela de foco junto das entradas", () => {
+  const exposed = {};
+  const invoked = [];
+  const electronStub = {
+    contextBridge: { exposeInMainWorld: (key, api) => { exposed[key] = api; } },
+    ipcRenderer: { invoke: (...args) => { invoked.push(args); return Promise.resolve(); }, on() {}, removeListener() {}, send() {} },
+  };
+  delete require.cache[PRELOAD_PATH];
+  const originalLoad = Module._load;
+  Module._load = function (request, parent, isMain) {
+    if (request === "electron" && parent?.filename === PRELOAD_PATH) return electronStub;
+    return originalLoad.call(this, request, parent, isMain);
+  };
+  try { require(PRELOAD_PATH); } finally { Module._load = originalLoad; delete require.cache[PRELOAD_PATH]; }
+
+  const entries = [{ id: "reminder:1" }];
+  const context = { settings: { sessionMinutes: 25, activeStart: "09:00", activeEnd: "17:00", nudgePreset: "work" }, focusUntilMs: 123 };
+  exposed.hibiDesktop.syncNotifications(entries, context);
+  assert.deepEqual(invoked.at(-1), ["hibi:notifications:sync", entries, context]);
 });

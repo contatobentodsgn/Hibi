@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createNotificationScheduler, nextOccurrence, sanitizeEntries } = require('./notifications.cjs');
+const { createNotificationScheduler, nextOccurrence, sanitizeEntries } = require('./notifications.mjs');
+const { DEFAULT_FOCUS_SETTINGS, countDailyAlerts } = require('./focus-gate.mjs');
 
 // O agendador dispara no relógio de parede de quem usa o app: uma das 09:00 toca às 09:00 locais em
 // qualquer fuso. Por isso todo "agora" e todo disparo esperado neste arquivo é montado com
@@ -229,4 +230,117 @@ test('limits the notification batch without discarding valid entries within the 
 
   assert.equal(sanitizeEntries(entries).length, 1000);
   assert.equal(sanitizeEntries(entries).at(-1).id, 'reminder:999');
+});
+
+// --- O portão de foco, provado no agendador -------------------------------------------------------
+// A tela de Foco sempre prometeu que lembretes ficam quietos durante a sessão. Até aqui nada cumpria:
+// o agendador não tinha noção nenhuma de foco. Estes testes são a prova de que a frase virou verdade.
+
+const wellbeing = { id: 'reminder:water', kind: 'reminder', category: 'wellbeing', title: 'Beber água', body: 'Wellbeing reminder.' };
+
+test('um lembrete de bem-estar que vence no meio da sessão não dispara durante — e dispara depois', () => {
+  const harness = createHarness(localMs('2026-09-11T14:00'));
+  harness.scheduler.sync([{ ...wellbeing, at: '2026-09-11T14:10:00' }], { focusUntilMs: localMs('2026-09-11T14:25') });
+
+  // Armado para o fim da sessão (25 min), não para as 14:10 em que venceria.
+  assert.equal([...harness.timers.values()][0].delay, 25 * 60 * 1000);
+
+  // No instante em que venceria, nada sai.
+  harness.setNow(localMs('2026-09-11T14:10'));
+  harness.fireNext();
+  assert.deepEqual(harness.shown, []);
+
+  // Terminada a sessão, sai.
+  harness.setNow(localMs('2026-09-11T14:25'));
+  harness.fireNext();
+  assert.equal(harness.shown.length, 1);
+});
+
+// Silenciar é adiar, não descartar: sem o registro de adiamento, `nextOccurrence` descartaria uma
+// ocorrência já vencida no sync seguinte e o lembrete sumiria para sempre.
+test('encerrar a sessão mais cedo entrega o lembrete retido em vez de perdê-lo', () => {
+  const harness = createHarness(localMs('2026-09-11T14:00'));
+  const entries = [{ ...wellbeing, at: '2026-09-11T14:10:00' }];
+  harness.scheduler.sync(entries, { focusUntilMs: localMs('2026-09-11T14:25') });
+
+  harness.setNow(localMs('2026-09-11T14:15'));
+  harness.scheduler.sync(entries, { focusUntilMs: null });
+
+  assert.equal([...harness.timers.values()][0].delay, 1, 'entrega imediata, porque já venceu');
+  harness.fireNext();
+  assert.equal(harness.shown.length, 1);
+});
+
+test('um lembrete importante dispara na hora, com a sessão em andamento', () => {
+  const harness = createHarness(localMs('2026-09-11T14:00'));
+  harness.scheduler.sync([{ ...wellbeing, id: 'reminder:call', category: 'important', at: '2026-09-11T14:10:00' }], { focusUntilMs: localMs('2026-09-11T14:25') });
+
+  assert.equal([...harness.timers.values()][0].delay, 10 * 60 * 1000);
+  harness.setNow(localMs('2026-09-11T14:10'));
+  harness.fireNext();
+  assert.equal(harness.shown.length, 1);
+});
+
+test('nada não importante dispara fora do horário ativo', () => {
+  const harness = createHarness(localMs('2026-09-11T21:00'));
+  harness.scheduler.sync([{ ...wellbeing, at: '2026-09-11T22:00:00' }], {});
+
+  harness.setNow(localMs('2026-09-11T22:00'));
+  harness.fireNext();
+  assert.deepEqual(harness.shown, [], '22:00 está fora de 09:00–17:00');
+
+  harness.setNow(localMs('2026-09-12T09:00'));
+  harness.fireNext();
+  assert.equal(harness.shown.length, 1, 'sai na abertura do horário ativo seguinte');
+});
+
+// Roda o dia inteiro no agendador, disparando os timers em ordem cronológica real.
+function simulateDay(entries, context, dayStartMs, dayEndMs) {
+  let now = dayStartMs;
+  const shown = [];
+  const timers = new Map();
+  let nextId = 1;
+  const scheduler = createNotificationScheduler({
+    now: () => now,
+    setTimeout: (callback, delay) => { const id = nextId++; timers.set(id, { callback, at: now + delay }); return id; },
+    clearTimeout: (id) => { timers.delete(id); },
+    NotificationClass: class { constructor(options) { shown.push({ ...options, at: now }); } show() {} },
+  });
+  scheduler.sync(entries, context);
+  for (let guard = 0; guard < 500; guard += 1) {
+    let chosenId = null;
+    let chosen = null;
+    for (const [id, timer] of timers) if (chosen === null || timer.at < chosen.at) { chosen = timer; chosenId = id; }
+    if (chosen === null || chosen.at >= dayEndMs) break;
+    timers.delete(chosenId);
+    now = chosen.at;
+    chosen.callback();
+  }
+  return shown;
+}
+
+// A prévia mostrada em Ajustes NÃO é uma estimativa paralela: ela chama `nextDelivery`, a mesma
+// função que arma cada timer. Uma prévia que pudesse discordar da realidade é exatamente como
+// "09:00–17:00" virou enfeite no app original. Este teste prende a igualdade.
+test('a prévia de alertas por dia e o portão são a mesma função: os números batem', () => {
+  const daily = (id, time, category) => ({
+    id, kind: 'reminder', category, title: id, body: 'Reminder.',
+    at: `2026-09-11T${time}:00`, recurrence: { frequency: 'daily', time, startDate: '2026-09-11' },
+  });
+  const entries = sanitizeEntries([
+    daily('reminder:dawn', '07:30', 'wellbeing'),
+    daily('reminder:noon', '12:00', 'wellbeing'),
+    daily('reminder:noonish', '12:10', 'wellbeing'),
+    daily('reminder:night', '22:00', 'wellbeing'),
+    daily('reminder:class', '13:00', 'important'),
+  ]);
+  const dayStartMs = localMs('2026-09-11T00:00');
+  const dayEndMs = localMs('2026-09-12T00:00');
+
+  const predicted = countDailyAlerts({ entries, settings: DEFAULT_FOCUS_SETTINGS, dayStartMs, nextOccurrence });
+  const actual = simulateDay(entries, { settings: DEFAULT_FOCUS_SETTINGS }, dayStartMs, dayEndMs);
+
+  assert.equal(actual.length, predicted);
+  // E a contagem é mesmo o efeito do portão, não um empate trivial em zero.
+  assert.ok(predicted > 0 && predicted < entries.length, `previu ${predicted} de ${entries.length} lembretes`);
 });

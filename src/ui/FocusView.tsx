@@ -2,18 +2,22 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useT } from '../i18n/LocaleProvider';
 import { CompanionAnimation } from './CompanionAnimation';
 import { IDLE_FOCUS_LIFECYCLE, ignoresDurationChoice, stepFocusLifecycle, type FocusLifecycleAction, type FocusLifecycleEvent } from './focus-lifecycle';
+import { DEFAULT_FOCUS_SETTINGS } from './focus-settings';
 
 export type FocusMode = 'focus' | 'break';
-type Props = { onEvent: (action: string, detail: string, result?: string) => void; onFocusStarted?: () => void; onFocusCompleted?: () => void; onFocusLifecycle?: (event: FocusLifecycleEvent) => void; mode?: FocusMode; onModeChange?: (mode: FocusMode) => void };
+type Props = { onEvent: (action: string, detail: string, result?: string) => void; onFocusStarted?: () => void; onFocusCompleted?: () => void; onFocusLifecycle?: (event: FocusLifecycleEvent) => void; onFocusWindowChange?: (endsAtMs: number | null) => void; mode?: FocusMode; onModeChange?: (mode: FocusMode) => void; sessionMinutes?: number };
 
 // Foco e pausa usam o mesmo relógio, mas nunca os mesmos eventos: uma pausa concluída não pode contar
 // como sessão de foco — o /stats soma sessões e minutos a partir de focus.*.
-const DURATIONS: Record<FocusMode, readonly number[]> = { focus: [25], break: [5, 10, 15] };
+const BREAK_DURATIONS: readonly number[] = [5, 10, 15];
 
-export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLifecycle, mode = 'focus', onModeChange }: Props) {
+export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLifecycle, onFocusWindowChange, mode = 'focus', onModeChange, sessionMinutes }: Props) {
   const t = useT();
   const onBreak = mode === 'break';
-  const initial = DURATIONS[mode][0]!;
+  // A duração da sessão vem de Ajustes › Foco. O padrão continua 25: atualizar o app não muda o
+  // hábito de ninguém.
+  const DURATIONS: readonly number[] = onBreak ? BREAK_DURATIONS : [sessionMinutes ?? DEFAULT_FOCUS_SETTINGS.sessionMinutes];
+  const initial = DURATIONS[0]!;
   const [running, setRunning] = useState(false);
   const [duration, setDuration] = useState(initial);
   const [seconds, setSeconds] = useState(initial * 60);
@@ -21,11 +25,18 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
   const lifecycle = useRef(IDLE_FOCUS_LIFECYCLE);
   const onFocusLifecycleRef = useRef(onFocusLifecycle);
   useEffect(() => { onFocusLifecycleRef.current = onFocusLifecycle; });
+  // A janela da sessão é avisada à parte do ledger de atividade: são dois assuntos diferentes — um
+  // alimenta o /stats, o outro diz ao agendador até quando segurar os lembretes de bem-estar.
+  const onFocusWindowRef = useRef(onFocusWindowChange);
+  useEffect(() => { onFocusWindowRef.current = onFocusWindowChange; });
   // A duração escolhida limita o tempo medido: com o notebook dormindo, o relógio de parede corre e a contagem não.
   const emitLifecycle = (action: FocusLifecycleAction) => {
     const step = stepFocusLifecycle(mode, action, lifecycle.current, Date.now(), duration * 60_000);
     lifecycle.current = step.state;
-    if (step.event) onFocusLifecycleRef.current?.(step.event);
+    if (step.event) {
+      onFocusWindowRef.current?.(step.event.type === 'started' || step.event.type === 'resumed' ? step.event.endsAtMs ?? null : null);
+      onFocusLifecycleRef.current?.(step.event);
+    }
   };
   // Sair da tela ou trocar de modo abandona a sessão iniciada. No mount/unmount extra do StrictMode
   // nada foi iniciado ainda, então não há evento.
@@ -60,5 +71,5 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
   const heading = onBreak ? (running ? t('focus.breakTitle') : t('focus.breakReady')) : (running ? 'Post 1 — Kabrito digital' : 'Ready to focus.');
   const subhead = onBreak ? (running ? t('focus.breakRunning') : `${duration} ${t('focus.breakOnClock')}`) : (running ? 'One clear block. No back-to-back nudges.' : `Pick a task — ${duration}m on the clock.`);
   const action = onBreak ? (running ? t('focus.stopBreak') : t('focus.startBreak')) : (running ? 'Pause session' : 'Start focus');
-  return <div className="focus-view"><div className="eyebrow">{onBreak ? t('focus.breakEyebrow') : 'FOCUS MODE · LOCAL SESSION'}</div><CompanionAnimation state={running && !onBreak ? 'working' : 'idle'} label={onBreak ? t('focus.breakCompanion') : 'Focus companion'} /><div className={`focus-ring ${running ? 'is-running' : ''}`}><span>{time}</span><small>{t('focus.minutes')}</small></div><h1>{heading}</h1><p className="subhead">{subhead}</p><button className="primary focus-button" onClick={toggle}>{action}</button><div className="focus-options">{DURATIONS[mode].map((minutes) => <button key={minutes} className={`filter ${duration === minutes ? 'active' : ''}`} aria-pressed={DURATIONS[mode].length > 1 ? duration === minutes : undefined} disabled={running} onClick={() => chooseDuration(minutes)}>{onBreak ? `${minutes}m` : `${minutes}m focus`}</button>)}<button className="outline" disabled={running} onClick={() => onModeChange?.(onBreak ? 'focus' : 'break')}>{onBreak ? t('focus.backToFocus') : t('focus.takeBreak')}</button></div>{!onBreak && <p className="muted">Reminders are quiet during focus unless marked Important.</p>}</div>;
+  return <div className="focus-view"><div className="eyebrow">{onBreak ? t('focus.breakEyebrow') : 'FOCUS MODE · LOCAL SESSION'}</div><CompanionAnimation state={running && !onBreak ? 'working' : 'idle'} label={onBreak ? t('focus.breakCompanion') : 'Focus companion'} /><div className={`focus-ring ${running ? 'is-running' : ''}`}><span>{time}</span><small>{t('focus.minutes')}</small></div><h1>{heading}</h1><p className="subhead">{subhead}</p><button className="primary focus-button" onClick={toggle}>{action}</button><div className="focus-options">{DURATIONS.map((minutes) => <button key={minutes} className={`filter ${duration === minutes ? 'active' : ''}`} aria-pressed={DURATIONS.length > 1 ? duration === minutes : undefined} disabled={running} onClick={() => chooseDuration(minutes)}>{onBreak ? `${minutes}m` : `${minutes}m focus`}</button>)}<button className="outline" disabled={running} onClick={() => onModeChange?.(onBreak ? 'focus' : 'break')}>{onBreak ? t('focus.backToFocus') : t('focus.takeBreak')}</button></div>{!onBreak && <p className="muted">{t('focus.quiet')}</p>}</div>;
 }

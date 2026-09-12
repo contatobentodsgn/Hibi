@@ -1,4 +1,5 @@
 import type { StudyData } from '../domain/models';
+import { sanitizeFocusSettings, type FocusSettings } from '../../electron/focus-gate.mjs';
 import { LocalRepository } from './local-repository';
 
 export const WORKSPACE_BACKUP_VERSION = 2;
@@ -6,6 +7,12 @@ export const WORKSPACE_BACKUP_VERSION = 2;
 export type WorkspacePreferences = {
   language: 'pt' | 'en';
   twentyFourHour: boolean;
+  /**
+   * Os ajustes de Foco são preferência local e segura — duração, horário ativo e intensidade dos
+   * lembretes —, exatamente o que a aba Dados promete restaurar. Entram sem virar versão 3: um backup
+   * antigo, sem este campo, restaura com o padrão em vez de ser recusado.
+   */
+  focus: FocusSettings;
 };
 
 export type WorkspaceBackup = {
@@ -27,8 +34,12 @@ type WorkspaceBackupV1Input = {
 
 const SUPPORTED_INPUT_VERSIONS = [1, 2] as const;
 
-export function createWorkspaceBackup(data: StudyData, preferences: WorkspacePreferences, exportedAt = new Date().toISOString()): WorkspaceBackup {
-  return { app: 'Hibi', version: WORKSPACE_BACKUP_VERSION, exportedAt, data: JSON.parse(JSON.stringify(data)) as StudyData, preferences };
+// Na entrada os ajustes de Foco são opcionais: um chamador que não os conhece continua válido, e o
+// backup gravado sempre sai com eles preenchidos.
+export type WorkspacePreferencesInput = Omit<WorkspacePreferences, 'focus'> & { focus?: FocusSettings };
+
+export function createWorkspaceBackup(data: StudyData, preferences: WorkspacePreferencesInput, exportedAt = new Date().toISOString()): WorkspaceBackup {
+  return { app: 'Hibi', version: WORKSPACE_BACKUP_VERSION, exportedAt, data: JSON.parse(JSON.stringify(data)) as StudyData, preferences: { ...preferences, focus: sanitizeFocusSettings(preferences.focus) } };
 }
 
 export function parseWorkspaceBackup(json: string, seed: StudyData): WorkspaceBackup {
@@ -39,6 +50,9 @@ export function parseWorkspaceBackup(json: string, seed: StudyData): WorkspaceBa
   if (backup.app !== 'Hibi' || !(SUPPORTED_INPUT_VERSIONS as readonly number[]).includes(backup.version as number) || typeof backup.exportedAt !== 'string' || !backup.data || !backup.preferences) throw new Error('This file is not a compatible Hibi workspace backup.');
   if (backup.preferences.language !== 'pt' && backup.preferences.language !== 'en') throw new Error('The backup has an unsupported language preference.');
   if (typeof backup.preferences.twentyFourHour !== 'boolean') throw new Error('The backup has an invalid time format preference.');
+  // Um ajuste de Foco ausente ou corrompido cai no padrão: nenhum backup válido é recusado por causa
+  // de um campo que nem existia quando ele foi exportado.
+  backup.preferences = { ...backup.preferences, focus: sanitizeFocusSettings((backup.preferences as WorkspacePreferences).focus) };
   // fromJson valida os registros de atividade (schema, duplicatas) e preenche `activity: []` quando ausente (backup v1).
   const normalized = LocalRepository.fromJson(seed, JSON.stringify(backup.data)).snapshot();
   return createWorkspaceBackup(normalized, backup.preferences, backup.exportedAt);

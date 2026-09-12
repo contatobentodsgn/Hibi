@@ -191,6 +191,8 @@ describe('study views', () => {
     expect(focus).toContain('25m focus');
     expect(focus).not.toContain('5m break');
     expect(focus).toContain('Fazer uma pausa');
+    // A frase só permanece na tela porque o portão em electron/focus-gate.mjs a cumpre.
+    expect(focus).toContain('ficam quietos durante o foco');
 
     const pause = renderToStaticMarkup(<FocusView onEvent={onEvent} mode="break" />);
     expect(pause).toContain('PAUSA · SESSÃO LOCAL');
@@ -198,7 +200,7 @@ describe('study views', () => {
     expect(pause).toContain('>15m</button>');
     expect(pause).toContain('5 min de pausa no relógio.');
     expect(pause).toContain('Voltar ao foco');
-    expect(pause).not.toContain('Reminders are quiet during focus');
+    expect(pause).not.toContain('ficam quietos durante o foco');
   });
 
   it('lists the release and hardware surfaces in Help', () => {

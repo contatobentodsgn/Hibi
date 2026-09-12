@@ -12,7 +12,7 @@ Module._load = function (request, parent, isMain) {
       Notification: {},
     };
   }
-  if (request === "./notifications.cjs") return { createNotificationScheduler() { return { clear() {} }; } };
+  if (request === "./notifications.mjs") return { createNotificationScheduler() { return { clear() {} }; } };
   return originalLoad.call(this, request, parent, isMain);
 };
 const { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent, routeNotchAction, isRendererPresentationAllowed } = require("./main.cjs");

@@ -8,7 +8,7 @@ const limit = 25 * minute;
 describe('focus lifecycle', () => {
   it('starts an idle session and resumes a paused one', () => {
     const started = startFocus(IDLE_FOCUS_LIFECYCLE, 1_000, limit);
-    expect(started.event).toEqual({ type: 'started' });
+    expect(started.event).toEqual({ type: 'started', endsAtMs: 1_000 + limit });
     expect(started.state).toEqual({ phase: 'running', accumulatedMs: 0, runningSince: 1_000, limitMs: limit });
 
     const paused = pauseFocus(started.state, 1_000 + 4 * minute);
@@ -16,7 +16,8 @@ describe('focus lifecycle', () => {
     expect(paused.state).toEqual({ phase: 'paused', accumulatedMs: 4 * minute, limitMs: limit });
 
     const resumed = startFocus(paused.state, 10 * minute, limit);
-    expect(resumed.event).toEqual({ type: 'resumed' });
+    // A retomada desconta os 4 minutos já medidos: o lembrete retido não espera a sessão inteira de novo.
+    expect(resumed.event).toEqual({ type: 'resumed', endsAtMs: 10 * minute + (limit - 4 * minute) });
     expect(resumed.state).toEqual({ phase: 'running', accumulatedMs: 4 * minute, runningSince: 10 * minute, limitMs: limit });
   });
 
@@ -86,6 +87,18 @@ describe('focus lifecycle', () => {
 
   it('does not complete an idle session', () => {
     expect(completeFocus(IDLE_FOCUS_LIFECYCLE, minute)).toEqual({ state: IDLE_FOCUS_LIFECYCLE });
+  });
+
+  // A janela que o agendador usa para segurar os lembretes de bem-estar sai daqui, e só daqui: um
+  // segundo relógio em outro lugar poderia discordar deste.
+  it('announces when the running session ends, and announces nothing once it stops', () => {
+    expect(startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).event?.endsAtMs).toBe(limit);
+    expect(startFocus(IDLE_FOCUS_LIFECYCLE, 5 * minute, 50 * minute).event?.endsAtMs).toBe(55 * minute);
+
+    const running = startFocus(IDLE_FOCUS_LIFECYCLE, 0, limit).state;
+    expect(pauseFocus(running, 4 * minute).event?.endsAtMs).toBeUndefined();
+    expect(completeFocus(running, limit).event?.endsAtMs).toBeUndefined();
+    expect(abandonFocus(running, 4 * minute).event?.endsAtMs).toBeUndefined();
   });
 
   it('emits nothing after a completion is replayed', () => {
