@@ -194,3 +194,5 @@ npm run test:connectors:live
 ```
 
 Os dois últimos comandos devem permanecer recusando a execução, com código de saída 1, até que o opt-in e os parâmetros seguros estejam presentes.
+
+`npx playwright test` sobe o próprio servidor na porta **4273** e **falha** se ela já estiver ocupada, em vez de reaproveitar um servidor que pode ser de outro worktree. Antes, a porta fixa 5173 com `reuseExistingServer: true` fazia dois worktrees rodando e2e ao mesmo tempo testarem o app errado sem nenhum aviso, e isso chegou a acontecer. Para rodar e2e em dois worktrees de propósito, defina `HIBI_E2E_PORT` com outra porta.
