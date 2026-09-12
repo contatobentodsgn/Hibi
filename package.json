@@ -30,7 +30,11 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "native/notch/*.cjs",
+      "native/notch/adapters/*.cjs",
       "native/notch/build/Release/*.node",
+      "!{electron,native}/**/*.test.*",
+      "!electron/**/*.d.{mts,cts}",
       "package.json"
     ],
     "mac": {
