@@ -46,7 +46,11 @@ export type CompanionEvent =
   | (PresentationEvent & { type: 'ai.stage'; stage: CompanionAiStage })
   | (PresentationEvent & { type: 'ai.result' })
   | (PresentationEvent & { type: 'confirmation.requested'; actions: readonly CompanionAction[] })
-  | (PresentationEvent & { type: 'focus.started' })
+  | (PresentationEvent & { type: 'focus.started'; focusLoopAnimation?: 'focus' | 'music' })
+  // O `focus.idle_check` do original: com a sessão rodando e ninguém no Mac, o companion pergunta.
+  | (PresentationEvent & { type: 'focus.idle_check'; actions: readonly CompanionAction[] })
+  // O `focus.resume_prompt` do original: na volta de uma pausa por ausência, oferece retomar.
+  | (PresentationEvent & { type: 'focus.resume_prompt'; pauseReason: 'away' | 'manual'; actions: readonly CompanionAction[] })
   | (PresentationEvent & { type: 'focus.completed' })
   | (PresentationEvent & { type: 'reminder.triggered'; actions?: readonly CompanionAction[]; animationId?: string })
   | (PresentationEvent & { type: 'error.raised'; actions?: readonly CompanionAction[] })
