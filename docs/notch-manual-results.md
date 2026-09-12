@@ -70,6 +70,9 @@ Observations, not failures:
 - The smoke utility invokes the AppKit bridge directly, so it deliberately presents
   on the current main display (`displayId: 3`). It does **not** exercise Hibi's
   companion display-selection policy; the 2026-09-10 runs above do.
+- Later removed: `scripts/native-notch-smoke.cjs` and `npm run native:notch:smoke`. The smoke only
+  printed diagnostics and could not fail. The same bridge calls now run with assertions in
+  `native/notch/host.test.cjs` (`npm test`), in Node and inside Electron's runtime.
 
 ## Completed on this Mac
 
