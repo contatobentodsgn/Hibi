@@ -17,6 +17,9 @@ test('uma conversa do Taby sobrevive ao recarregar e pode ser apagada', async ({
   await page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' }).fill('quais tarefas vencem hoje?');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(list(page)).toContainText('quais tarefas vencem hoje?');
+  const status = page.getByRole('region', { name: 'Assistant conversation status', exact: true });
+  await expect(status).toContainText('Messages in this conversation');
+  await expect(status).toContainText('Response ready');
 
   await page.reload();
   await openTaby(page);
