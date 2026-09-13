@@ -48,6 +48,13 @@ describe('study views', () => {
     expect(markup).toContain('8 open');
   });
 
+  it('mounts the task summary and exposes a textual deadline state per open task', () => {
+    const markup = renderToStaticMarkup(<TasksView data={data} onEvent={onEvent} onTaskStatusChange={onEvent} />);
+
+    expect(markup).toContain('Task execution summary');
+    expect(markup).toContain('data-deadline-state=');
+  });
+
   it('renders accessible task creation and editing controls without prompt actions', () => {
     const markup = renderToStaticMarkup(
       <TasksView

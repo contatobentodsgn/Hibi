@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import type { EntityStatus, StudyData } from '../domain/models';
 import { folderOf, listFolders } from '../domain/folders';
 import { useT } from '../i18n/LocaleProvider';
+import { todayKey } from '../domain/date-context';
+import { TasksAtelierSummary } from './TasksAtelierSummary';
+import { deriveTaskRhythm, type TaskDeadlineState } from './task-rhythm';
 
 type Props = {
   data: StudyData;
@@ -26,6 +29,8 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
   const [editTitle, setEditTitle] = useState('');
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const openTasks = data.tasks.filter((task) => task.status !== 'completed' && task.status !== 'paused');
+  const today = todayKey();
+  const rhythm = deriveTaskRhythm(data.tasks, today);
   const allFolders = listFolders(data);
   // Só cai para "Todas" quando a pasta pedida não existe em lugar nenhum (nem em tarefas, nem em
   // notas) — chip removido, ou initialFolder que nunca existiu. Uma pasta sem tarefas nesta tela
@@ -39,19 +44,29 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
 
   return <View title="Tasks" meta={`${openTasks.length} open · local study data`} action={creating ? 'Cancel' : '+ New task'} onAction={() => { setCreating(!creating); setNewTitle(''); }}>
     {creating && <form className="quick-input" onSubmit={submitNewTask} aria-label="Create task"><label htmlFor="new-task-title">Task title</label><input id="new-task-title" aria-label="New task title" value={newTitle} onChange={(event) => setNewTitle(event.target.value)} autoFocus /><button className="primary" type="submit">Add task</button></form>}
+    <TasksAtelierSummary tasks={data.tasks} today={today} />
     <div className="filter-row"><button className={`filter ${scope === 'open' ? 'active' : ''}`} onClick={() => { setScope('open'); onEvent('filter', 'Tasks · Open'); }}>Open {openTasks.length}</button><button className={`filter ${scope === 'all' ? 'active' : ''}`} onClick={() => { setScope('all'); onEvent('filter', 'Tasks · All'); }}>All {data.tasks.length}</button><button className={`filter ${activeFolder === null ? 'active' : ''}`} aria-pressed={activeFolder === null} onClick={() => setFolder(null)}>{`${t('folders.label')} · ${t('folders.all')}`}</button>{visibleFolders.map((entry) => <button key={`folder-${entry.name}`} className={`filter ${activeFolder === entry.name ? 'active' : ''}`} aria-pressed={activeFolder === entry.name} onClick={() => { setFolder(activeFolder === entry.name ? null : entry.name); onEvent('filter', `Tasks · Folder · ${entry.name || 'none'}`); }}>{`${t('folders.label')} · ${entry.name || t('folders.none')} ${entry.tasks}`}</button>)}<button className={`filter sort ${deadlineSort ? 'active' : ''}`} onClick={() => { setDeadlineSort(!deadlineSort); onEvent('sort', 'Tasks · Deadline'); }}>Deadline ↕</button></div>
     <section className="list-card">{visibleTasks.map((task) => {
       const completed = task.status === 'completed';
       const paused = task.status === 'paused';
-      return <div className="task-row" key={task.id}>
+      const deadlineState = rhythm.deadlineStateById[task.id] ?? 'none';
+      return <div className="task-row" data-deadline-state={deadlineState} key={task.id}>
         <button className={`check ${completed ? 'checked' : ''}`} aria-label={`${completed ? 'Reopen' : 'Complete'} ${task.title}`} onClick={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }}>{completed ? '✓' : ''}</button>
-        {editingId === task.id ? <form onSubmit={(event) => submitRename(event, task.id, task.title)}><label htmlFor={`rename-${task.id}`}>Task title</label><input id={`rename-${task.id}`} aria-label={`Rename ${task.title}`} value={editTitle} onChange={(event) => setEditTitle(event.target.value)} autoFocus /><button className="primary" type="submit">Save</button><button className="outline" type="button" onClick={() => setEditingId(null)}>Cancel</button></form> : <div><strong>{task.title}</strong><span>{task.durationMinutes} min · {folderOf(task) || t('folders.none')} · {task.deadline ? `deadline ${task.deadline.replace('T', ' ')}` : 'sem deadline'} · {paused ? 'paused' : task.category}</span></div>}
+        {editingId === task.id ? <form onSubmit={(event) => submitRename(event, task.id, task.title)}><label htmlFor={`rename-${task.id}`}>Task title</label><input id={`rename-${task.id}`} aria-label={`Rename ${task.title}`} value={editTitle} onChange={(event) => setEditTitle(event.target.value)} autoFocus /><button className="primary" type="submit">Save</button><button className="outline" type="button" onClick={() => setEditingId(null)}>Cancel</button></form> : <div><strong>{task.title}</strong><span>{task.durationMinutes} min · {folderOf(task) || t('folders.none')} · {deadlineLabel(deadlineState, task.deadline)} · {paused ? 'paused' : task.category}</span></div>}
         {folderOf(task) && <span className="tag orange">{folderOf(task)}</span>}
         {editingId !== task.id && <div className="heading-actions"><button className="more" aria-label={`Rename ${task.title}`} onClick={() => startEditing(task.id, task.title)}>Rename</button><button className="more" aria-label={`Set deadline for ${task.title}`} onClick={() => onEditTaskDeadline?.(task.id)}>Deadline</button><button className="more" aria-label={`Delete ${task.title}`} onClick={() => setPendingDelete({ id: task.id, title: task.title })}>Delete</button></div>}
       </div>;
     })}{!visibleTasks.length && <p className="empty">No tasks match these filters.</p>}</section>
     {pendingDelete && <DeleteConfirmation title={pendingDelete.title} onCancel={() => setPendingDelete(null)} onConfirm={() => { onDeleteTask?.(pendingDelete.id); setPendingDelete(null); }} />}
   </View>;
+}
+
+function deadlineLabel(state: TaskDeadlineState, deadline?: string): string {
+  if (!deadline) return 'No deadline';
+  const value = deadline.replace('T', ' ');
+  if (state === 'overdue') return `Overdue · ${value}`;
+  if (state === 'today') return `Due today · ${value}`;
+  return `Due ${value}`;
 }
 
 function DeleteConfirmation({ title, onCancel, onConfirm }: { title: string; onCancel: () => void; onConfirm: () => void }) {
