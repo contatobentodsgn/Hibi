@@ -15,6 +15,7 @@ import { CommandPalette } from '../palette/CommandPalette';
 import type { AssistantTurnControls } from '../useAssistantTurn';
 import { FocusView } from '../FocusView';
 import { HelpView } from '../HelpView';
+import { TasksAtelierSummary } from '../TasksAtelierSummary';
 
 const data = createSeedData();
 const onEvent = () => undefined;
@@ -66,6 +67,16 @@ describe('study views', () => {
     expect(markup).toContain('aria-label="Set deadline for Kabrito Post 01"');
     expect(markup).toContain('aria-label="Delete Kabrito Post 01"');
     expect(markup).not.toContain('window.prompt');
+  });
+
+  it('renders a named task execution summary with deadline states in text', () => {
+    const markup = renderToStaticMarkup(<TasksAtelierSummary tasks={data.tasks} today={keyFromToday(0)} />);
+
+    expect(markup).toContain('aria-label="Task execution summary"');
+    expect(markup).toContain('Next action');
+    expect(markup).toContain('Overdue');
+    expect(markup).toContain('Due today');
+    expect(markup).toContain('Without deadline');
   });
 
   it('renders reminders from the study snapshot', () => {
