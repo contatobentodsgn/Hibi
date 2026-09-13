@@ -1,0 +1,6 @@
+.focus-atelier-summary { display:grid; grid-template-columns:repeat(3,1fr); width:min(620px,100%); margin:22px auto 8px; overflow:hidden; border:1px solid var(--line); border-radius:16px; background:var(--surface,#fff); text-align:left; }
+.focus-atelier-summary>div { display:grid; gap:5px; padding:14px 16px; border-right:1px solid var(--line); }
+.focus-atelier-summary>div:last-child { border-right:0; }
+.focus-atelier-summary span { color:var(--muted); font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+.focus-atelier-summary strong { font-size:.9rem; }
+@media (max-width:640px) { .focus-atelier-summary { grid-template-columns:1fr; } .focus-atelier-summary>div { border-right:0; border-bottom:1px solid var(--line); } .focus-atelier-summary>div:last-child { border-bottom:0; } }
