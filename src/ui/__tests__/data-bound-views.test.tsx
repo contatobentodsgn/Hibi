@@ -193,6 +193,8 @@ describe('study views', () => {
     expect(focus).toContain('25m focus');
     expect(focus).not.toContain('5m break');
     expect(focus).toContain('Fazer uma pausa');
+    expect(focus).toContain('aria-label="Focus session summary"');
+    expect(focus).toContain('Sessions today');
     // A frase só permanece na tela porque o portão em electron/focus-gate.mjs a cumpre.
     expect(focus).toContain('ficam quietos durante o foco');
 
