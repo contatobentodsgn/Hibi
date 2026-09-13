@@ -16,6 +16,7 @@ import type { AssistantTurnControls } from '../useAssistantTurn';
 import { FocusView } from '../FocusView';
 import { HelpView } from '../HelpView';
 import { AgendaAvailability } from '../AgendaAvailability';
+import { deriveDayRhythm } from '../day-rhythm';
 
 const data = createSeedData();
 const onEvent = () => undefined;
@@ -139,9 +140,11 @@ describe('study views', () => {
 
   it('shows the blocks of the real local day on Home', () => {
     const markup = renderToStaticMarkup(<HomeView data={agenda} onEvent={onEvent} onNavigate={onEvent} />);
+    const wallClock = new Date().toTimeString().slice(0, 5);
+    const contextualBlock = deriveDayRhythm(agenda.blocks, keyFromToday(0), wallClock).now;
 
     expect(markup).toContain(homeLabel(0));
-    expect(markup).toContain('Kabrito Post 01');
+    expect(markup).toContain(contextualBlock?.title ?? 'No block scheduled');
     expect(markup).toContain('8 work blocks planned today');
   });
 
