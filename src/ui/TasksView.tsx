@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { EntityStatus, StudyData } from '../domain/models';
 import { folderOf, listFolders } from '../domain/folders';
 import { useT } from '../i18n/LocaleProvider';
+import { WorkspaceState } from './WorkspaceState';
 
 type Props = {
   data: StudyData;
@@ -49,7 +50,7 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
         {folderOf(task) && <span className="tag orange">{folderOf(task)}</span>}
         {editingId !== task.id && <div className="heading-actions"><button className="more" aria-label={`Rename ${task.title}`} onClick={() => startEditing(task.id, task.title)}>Rename</button><button className="more" aria-label={`Set deadline for ${task.title}`} onClick={() => onEditTaskDeadline?.(task.id)}>Deadline</button><button className="more" aria-label={`Delete ${task.title}`} onClick={() => setPendingDelete({ id: task.id, title: task.title })}>Delete</button></div>}
       </div>;
-    })}{!visibleTasks.length && <p className="empty">No tasks match these filters.</p>}</section>
+    })}{!visibleTasks.length && <WorkspaceState title="No tasks match" detail="No tasks match these filters. Try another filter or create a task for this workspace." action="Show all tasks" onAction={() => { setFolder(null); setScope('all'); }} />}</section>
     {pendingDelete && <DeleteConfirmation title={pendingDelete.title} onCancel={() => setPendingDelete(null)} onConfirm={() => { onDeleteTask?.(pendingDelete.id); setPendingDelete(null); }} />}
   </View>;
 }

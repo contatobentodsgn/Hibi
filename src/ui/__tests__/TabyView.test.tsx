@@ -90,6 +90,17 @@ describe('TabyView capability boundaries', () => {
 });
 
 describe('TabyView conversations', () => {
+  it('presents a local conversation save failure as a reusable alert state', () => {
+    const markup = renderToStaticMarkup(
+      <LocaleProvider initialLanguage="pt" host={host}>
+        <TabyView data={createSeedData()} turn={inertTurn} conversations={{ ...conversations, saveFailed: true }} />
+      </LocaleProvider>,
+    );
+
+    expect(markup).toMatch(/workspace-state-error/);
+    expect(markup).toMatch(/role="alert"/);
+  });
+
   it('renders the conversations it is given', () => {
     const markup = renderToStaticMarkup(
       <LocaleProvider initialLanguage="pt" host={host}>

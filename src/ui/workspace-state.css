@@ -1,0 +1,8 @@
+.workspace-state { display: flex; align-items: center; gap: 14px; padding: 26px 24px; color: var(--ink); }
+.workspace-state > span { display: grid; place-items: center; flex: 0 0 auto; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); font-weight: 800; }
+.workspace-state > div { min-width: 0; flex: 1; }
+.workspace-state strong { display: block; font-size: .95rem; }
+.workspace-state p { margin: 5px 0 0; color: var(--muted); font-size: .86rem; line-height: 1.45; }
+.workspace-state-error { background: #fff4dd; }
+.workspace-state-error > span { border-color: #b88637; color: #8c5d08; }
+@media (max-width: 620px) { .workspace-state { align-items: flex-start; flex-wrap: wrap; } .workspace-state .outline { margin-left: 42px; } }
