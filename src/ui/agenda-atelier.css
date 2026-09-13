@@ -1,0 +1,26 @@
+.agenda-availability {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 18px 0 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--surface, #fff);
+}
+
+.agenda-availability > div {
+  display: grid;
+  gap: 5px;
+  padding: 14px 18px;
+  border-right: 1px solid var(--line);
+}
+
+.agenda-availability > div:last-child { border-right: 0; }
+.agenda-availability span { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.agenda-availability strong { color: var(--ink); font-size: 18px; }
+
+@media (max-width: 640px) {
+  .agenda-availability { grid-template-columns: 1fr; }
+  .agenda-availability > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .agenda-availability > div:last-child { border-bottom: 0; }
+}

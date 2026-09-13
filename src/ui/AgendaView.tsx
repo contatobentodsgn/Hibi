@@ -4,6 +4,8 @@ import type { ScheduleBlock, StudyData } from '../domain/models'
 import { DayView } from './DayView'
 import { WeekView } from './WeekView'
 import { browserAgendaHost, readAgendaMode, writeAgendaMode, type AgendaHost, type AgendaMode } from './agenda-storage'
+import { AgendaAvailability } from './AgendaAvailability'
+import { shiftDayKey, todayKey } from '../domain/date-context'
 
 export type { AgendaMode } from './agenda-storage'
 
@@ -25,6 +27,8 @@ export function AgendaView({ data, mode, onEvent, onCreateBlock, onDeleteBlock, 
   const [agendaHost] = useState<AgendaHost>(() => host ?? browserAgendaHost())
   const [storedMode, setStoredMode] = useState<AgendaMode>(() => readAgendaMode(agendaHost.storage))
   const current = mode ?? storedMode
+  const today = todayKey()
+  const availabilityDays = current === 'day' ? [today] : Array.from({ length: 7 }, (_, index) => shiftDayKey(today, index))
   const select = (next: AgendaMode) => {
     setStoredMode(next)
     writeAgendaMode(agendaHost.storage, next)
@@ -36,6 +40,7 @@ export function AgendaView({ data, mode, onEvent, onCreateBlock, onDeleteBlock, 
       <button type="button" role="tab" className={`filter${current === 'day' ? ' active' : ''}`} aria-selected={current === 'day'} onClick={() => select('day')}>{t('agenda.day')}</button>
       <button type="button" role="tab" className={`filter${current === 'week' ? ' active' : ''}`} aria-selected={current === 'week'} onClick={() => select('week')}>{t('agenda.week')}</button>
     </div>
+    <AgendaAvailability blocks={data.blocks} days={availabilityDays} />
     {current === 'day' ? <DayView data={data} onEvent={onEvent} onCreateBlock={onCreateBlock} onDeleteBlock={onDeleteBlock} /> : <WeekView data={data} onEvent={onEvent} onCreateBlock={onCreateBlock} onDeleteBlock={onDeleteBlock} />}
   </div>
 }

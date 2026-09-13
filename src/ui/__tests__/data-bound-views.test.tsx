@@ -15,6 +15,7 @@ import { CommandPalette } from '../palette/CommandPalette';
 import type { AssistantTurnControls } from '../useAssistantTurn';
 import { FocusView } from '../FocusView';
 import { HelpView } from '../HelpView';
+import { AgendaAvailability } from '../AgendaAvailability';
 
 const data = createSeedData();
 const onEvent = () => undefined;
@@ -96,6 +97,17 @@ describe('study views', () => {
     expect(markup).toContain(`${shortLabel(0)} — ${shortLabel(6)}`);
     expect(markup).toContain('Aula de inglês');
     expect(markup).toContain('THU');
+  });
+
+  it('summarizes planned time, focus blocks, and an available window in the agenda', () => {
+    const markup = renderToStaticMarkup(
+      <AgendaAvailability blocks={agenda.blocks} days={[keyFromToday(0)]} wallClock="08:30" />,
+    );
+
+    expect(markup).toContain('aria-label="Agenda availability"');
+    expect(markup).toContain('Time planned');
+    expect(markup).toContain('Focus blocks');
+    expect(markup).toContain('Next free window');
   });
 
   // A data do bloco mais antigo do workspace não é "hoje": um workspace só com blocos velhos
