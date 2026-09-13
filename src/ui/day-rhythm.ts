@@ -35,7 +35,7 @@ export function deriveDayRhythm(blocks: readonly ScheduleBlock[], day: string, w
     .filter((block) => toDateKey(block.start) === day && block.category !== 'break')
     .flatMap((block) => { const value = asTimedBlock(block); return value ? [value] : [] })
     .sort((left, right) => left.startMinutes - right.startMinutes || left.id.localeCompare(right.id))
-  const now = timed.find((block) => block.startMinutes <= nowMinutes && nowMinutes < block.endMinutes) ?? timed.find((block) => block.startMinutes >= nowMinutes) ?? null
+  const now = timed.find((block) => block.startMinutes <= nowMinutes && nowMinutes < block.endMinutes) ?? timed.find((block) => block.startMinutes >= nowMinutes) ?? timed[0] ?? null
   const completed = timed.filter((block) => block.endMinutes <= nowMinutes)
   const later = timed.filter((block) => block !== now && block.startMinutes >= nowMinutes)
   const freeWindows: FreeWindow[] = []

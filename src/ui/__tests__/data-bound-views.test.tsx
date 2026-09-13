@@ -120,6 +120,15 @@ describe('study views', () => {
     expect(markup).toContain('8 work blocks planned today');
   });
 
+  it('renders the contextual next action, progress text, free time and companion on Home', () => {
+    const markup = renderToStaticMarkup(<HomeView data={agenda} onEvent={onEvent} onNavigate={onEvent} />);
+
+    expect(markup).toContain('Start focus');
+    expect(markup).toContain('planned today');
+    expect(markup).toContain('Next free window');
+    expect(markup).toContain('Today companion');
+  });
+
   it('gives day event controls descriptive delete labels', () => {
     const markup = renderToStaticMarkup(
       <DayView data={agenda} onEvent={onEvent} onCreateBlock={onEvent} onDeleteBlock={onEvent} />,
