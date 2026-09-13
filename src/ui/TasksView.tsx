@@ -62,7 +62,7 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
 }
 
 function deadlineLabel(state: TaskDeadlineState, deadline?: string): string {
-  if (!deadline) return 'No deadline';
+  if (!deadline) return 'sem deadline';
   const value = deadline.replace('T', ' ');
   if (state === 'overdue') return `Overdue · ${value}`;
   if (state === 'today') return `Due today · ${value}`;

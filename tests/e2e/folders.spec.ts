@@ -55,7 +55,7 @@ test('/folder lista as pastas com contagens e ↵ abre Tarefas filtrada', async 
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await expect(palette(page)).toHaveCount(0);
-  await expect(page.getByText('Cliente A')).toBeVisible();
+  await expect(page.locator('.list-card').getByText('Cliente A')).toBeVisible();
   await expect(page.getByText('Tarefa solta')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Pasta · Clientes 1' })).toHaveAttribute('aria-pressed', 'true');
   await expect(dock(page).getByRole('button', { name: 'Tarefas', exact: true })).toHaveAttribute('aria-current', 'page');
