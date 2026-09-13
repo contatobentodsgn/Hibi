@@ -58,3 +58,20 @@ test('mantém um evento ICS importado após recarregar o app', async ({ page }) 
   await goWeek(page);
   await expect(page.getByText('Evento persistente')).toBeVisible();
 });
+
+test('mostra um evento de calendário conectado como somente leitura', async ({ page }) => {
+  await page.clock.install({ time: seedToday() });
+  await page.addInitScript(() => {
+    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+      getCalendarSyncState: async () => ({ sources: [{ id: 'apple', provider: 'apple', label: 'Calendário do Mac', state: 'connected' }], calendars: [{ id: 'apple:work', sourceId: 'apple', label: 'Trabalho', mode: 'read-only' }], conflicts: [] }),
+      readCalendarSyncEvents: async () => [{ sourceId: 'apple', calendarId: 'apple:work', remoteId: 'remote-1', title: 'Reunião de cliente', startsAt: '2026-09-07T10:00:00', endsAt: '2026-09-07T11:00:00', allDay: false, writable: true }],
+    };
+  });
+  await page.goto('/');
+  await goWeek(page);
+
+  const external = page.getByRole('region', { name: 'Eventos externos somente leitura' });
+  await expect(external.getByText('Reunião de cliente')).toBeVisible();
+  await expect(external.getByLabel('Somente leitura', { exact: true })).toBeVisible();
+  await expect(external.getByRole('button')).toHaveCount(0);
+});
