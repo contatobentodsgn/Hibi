@@ -136,6 +136,7 @@
 }
 
 .stats-card {
+  position: relative;
   display: grid;
   gap: var(--space-1);
   align-content: start;
@@ -145,6 +146,19 @@
   border-radius: var(--radius-3);
   box-shadow: var(--depth-card);
 }
+
+.stats-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: inherit 0 0 inherit;
+  background: var(--accent);
+}
+
+.stats-card[data-metric="focus"]::before { background: var(--cat-learning); }
+.stats-card[data-metric="habits"]::before { background: var(--cat-wellbeing); }
+.stats-card[data-metric="goals"]::before { background: var(--cat-important); }
 
 .stats-card p { margin: 0; }
 
@@ -187,6 +201,7 @@
 .stats-empty p { margin: 0; }
 
 .stats-chart {
+  position: relative;
   margin: 0;
   display: grid;
   gap: var(--space-3);
@@ -194,6 +209,15 @@
   background: var(--bg-surface-1);
   border: 1px solid var(--stroke-default);
   border-radius: var(--radius-3);
+}
+
+.stats-chart::before {
+  content: '';
+  display: block;
+  width: 52px;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--accent);
 }
 
 .stats-chart-svg {
@@ -313,6 +337,8 @@
   border-radius: var(--radius-3);
 }
 
+.stats-planned .stats-meters { border-left: 4px solid var(--accent); }
+
 .stats-meter {
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr);
@@ -389,6 +415,15 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+
+.stats-export {
+  padding: var(--space-5);
+  border: 1px solid var(--stroke-default);
+  border-radius: var(--radius-3);
+  background: var(--bg-surface-2);
+}
+
+.stats-export .stats-actions { margin-top: var(--space-1); }
 
 .stats-button {
   font: inherit;

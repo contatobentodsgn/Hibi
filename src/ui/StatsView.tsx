@@ -225,7 +225,7 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
             </>
           )}
           {/* Um período vazio também é exportável: o arquivo sai só com o cabeçalho (CSV) ou `[]` (JSON). */}
-          <section className="stats-section" aria-labelledby={`${id}-export`}>
+          <section className="stats-section stats-export" aria-labelledby={`${id}-export`}>
             <h2 id={`${id}-export`} className="stats-section-title">{t('stats.export')}</h2>
             <p className="muted">{t('stats.export.detail')}</p>
             <div className="stats-actions">
@@ -263,7 +263,7 @@ function SummaryCards({ id, report }: { id: string; report: StatsReport }) {
       <h2 id={`${id}-summary`} className="stats-section-title">{t('stats.summary')}</h2>
       <ul className="stats-cards">
         {cards.map((card) => (
-          <li className="stats-card" key={card.key}>
+          <li className="stats-card" data-metric={card.key} key={card.key}>
             <p className="stats-card-label">{card.label}</p>
             <p className="stats-card-value">{card.value}</p>
             {card.detail && <p className="stats-card-detail">{card.detail}</p>}

@@ -84,7 +84,7 @@ const renderContent = (props: Partial<StatsContentProps>) => renderToStaticMarku
   />,
 );
 
-const cards = (markup: string) => [...markup.matchAll(/<li class="stats-card">([\s\S]*?)<\/li>/g)].map((match) => match[1]);
+const cards = (markup: string) => [...markup.matchAll(/<li class="stats-card"[^>]*>([\s\S]*?)<\/li>/g)].map((match) => match[1]);
 const figureOf = (markup: string) => /<figure class="stats-chart">([\s\S]*?)<\/figure>/.exec(markup)?.[1] ?? '';
 const dailyTaskCells = (markup: string) => [...figureOf(markup).matchAll(/<tr><th scope="row">[^<]*<\/th><td>([^<]*)<\/td>/g)].map((match) => match[1]);
 const historyItems = (markup: string) => [...markup.matchAll(/<li class="stats-history-item">([\s\S]*?)<\/li>/g)].map((match) => match[1]);
@@ -113,6 +113,8 @@ describe('StatsView', () => {
   it('shows four summary cards with the previous-period comparison in text', () => {
     const [tasks, focus, habits, goals] = cards(markup);
     expect(cards(markup)).toHaveLength(4);
+    expect(markup).toContain('class="stats-card" data-metric="tasks"');
+    expect(markup).toContain('class="stats-card" data-metric="focus"');
     expect(tasks).toContain('Tarefas concluídas');
     expect(tasks).toContain('>3<');
     expect(tasks).toContain('+2 em relação ao período anterior');
