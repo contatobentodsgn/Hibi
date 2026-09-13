@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { localDateKey, localNoon, todayKey } from '../domain/date-context';
 import type { Habit, StudyData } from '../domain/models';
+import { HabitsAtelierSummary } from './HabitsAtelierSummary';
 
 type HabitChanges = Partial<Omit<Habit, 'id'>>;
 type Props = {
@@ -90,6 +91,7 @@ export function HabitsView({ data, onCreate, onToggleCompletion, onUpdate, onDel
       {newFrequency === 'weekly' && <label htmlFor="new-habit-target">Times per week<input id="new-habit-target" type="number" min="1" step="1" value={newTarget} onChange={(event) => setNewTarget(event.target.value)} required /></label>}
       <button className="primary" type="submit">Add habit</button>
     </form>
+    <HabitsAtelierSummary habits={data.habits} today={today} />
     <section className="list-card">{data.habits.map((habit) => {
       const completedToday = habit.completedDates.includes(today);
       const progress = progressFor(habit, today);

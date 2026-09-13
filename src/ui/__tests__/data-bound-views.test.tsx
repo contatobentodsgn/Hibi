@@ -157,6 +157,21 @@ describe('study views', () => {
     expect(markup).not.toContain('window.prompt');
   });
 
+  it('renders named habits and goals progress summaries', () => {
+    const progressData = {
+      ...data,
+      habits: [{ id: 'habit-1', title: 'Read', frequency: 'daily' as const, targetPerWeek: 7, completedDates: [] }],
+      goals: [{ id: 'goal-1', title: 'Ship', target: 10, current: 7 }],
+    };
+    const habits = renderToStaticMarkup(<HabitsView data={progressData} onCreate={onEvent} onToggleCompletion={onEvent} onUpdate={onEvent} onDelete={onEvent} />);
+    const goals = renderToStaticMarkup(<GoalsView data={progressData} onCreate={onEvent} onProgress={onEvent} onUpdate={onEvent} onDelete={onEvent} />);
+
+    expect(habits).toContain('aria-label="Habits rhythm summary"');
+    expect(habits).toContain('Completed today');
+    expect(goals).toContain('aria-label="Goals direction summary"');
+    expect(goals).toContain('Closest milestone');
+  });
+
   it('renders the empty goals workspace with a create action', () => {
     const markup = renderToStaticMarkup(<GoalsView data={data} onCreate={onEvent} onProgress={onEvent} onUpdate={onEvent} onDelete={onEvent} />);
 
