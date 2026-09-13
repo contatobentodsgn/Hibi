@@ -182,11 +182,11 @@ test('navegação diária e semanal atualiza o período', async ({ page }) => {
 test('filtros de lembretes alteram a lista', async ({ page }) => {
   await page.goto('/');
   await goMore(page, 'Lembretes');
-  await expect(page.getByText('vaga/inglês - Horizontes')).toBeVisible();
+  await expect(page.locator('.list-card').getByText('vaga/inglês - Horizontes')).toBeVisible();
   await page.getByRole('button', { name: /Wellbeing 0/ }).click();
   await expect(page.getByText('No reminders match this filter.')).toBeVisible();
   await page.getByRole('button', { name: /All 1/ }).click();
-  await expect(page.getByText('vaga/inglês - Horizontes')).toBeVisible();
+  await expect(page.locator('.list-card').getByText('vaga/inglês - Horizontes')).toBeVisible();
 });
 
 test('criação de lembrete diário preserva a recorrência', async ({ page }) => {
@@ -198,7 +198,7 @@ test('criação de lembrete diário preserva a recorrência', async ({ page }) =
   await form.getByRole('combobox', { name: 'Schedule type' }).selectOption('daily');
   await form.getByRole('textbox', { name: 'Time' }).fill('08:30');
   await form.getByRole('button', { name: 'Create reminder' }).click();
-  await expect(page.getByText('Revisar agenda')).toBeVisible();
+  await expect(page.locator('.list-card').getByText('Revisar agenda')).toBeVisible();
   await expect(page.getByText('Every day · 08:30')).toBeVisible();
 });
 
@@ -217,7 +217,7 @@ test('criação semanal preseleciona o dia do início e permite escolher categor
   await expect(form.getByRole('checkbox', { name: 'Mon' })).toBeChecked();
   await form.getByRole('textbox', { name: 'Time' }).fill('19:00');
   await form.getByRole('button', { name: 'Create reminder' }).click();
-  await expect(page.getByText('Caminhar')).toBeVisible();
+  await expect(page.locator('.list-card').getByText('Caminhar')).toBeVisible();
   await expect(page.getByText('Mon 19:00')).toBeVisible();
 });
 
