@@ -76,6 +76,8 @@ describe('study views', () => {
     expect(markup).toContain('vaga/inglês - Horizontes');
     expect(markup).toContain('Tue 09:00 · Wed 20:00');
     expect(markup).toContain('1 active');
+    expect(markup).toContain('aria-label="Reminder attention summary"');
+    expect(markup).toContain('Next alert');
   });
 
   it('opens the day on the real local date and renders its blocks', () => {
