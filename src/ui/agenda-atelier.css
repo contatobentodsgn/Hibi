@@ -1,6 +1,6 @@
 .agenda-availability {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 18px 0 24px;
   border: 1px solid var(--line);
   border-radius: 16px;
