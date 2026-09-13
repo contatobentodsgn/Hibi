@@ -98,6 +98,8 @@ describe('TabyView conversations', () => {
     );
     expect(markup).toContain('agenda da semana');
     expect(markup).toContain('Conversas');
+    expect(markup).toContain('aria-label="Assistant conversation status"');
+    expect(markup).toContain('Messages in this conversation');
   });
 
   it('greets through the dictionary instead of a hardcoded string', () => {
