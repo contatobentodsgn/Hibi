@@ -15,6 +15,7 @@ import { CommandPalette } from '../palette/CommandPalette';
 import type { AssistantTurnControls } from '../useAssistantTurn';
 import { FocusView } from '../FocusView';
 import { HelpView } from '../HelpView';
+import { NotesView } from '../NotesView';
 
 const data = createSeedData();
 const onEvent = () => undefined;
@@ -66,6 +67,22 @@ describe('study views', () => {
     expect(markup).toContain('aria-label="Set deadline for Kabrito Post 01"');
     expect(markup).toContain('aria-label="Delete Kabrito Post 01"');
     expect(markup).not.toContain('window.prompt');
+  });
+
+  it('renders a named notes capture summary with contextual counts', () => {
+    const noteData = {
+      ...data,
+      notes: [
+        { id: 'brief', title: 'Client brief', content: 'Context', folder: 'Bento', createdAt: '2026-09-11T08:00:00', updatedAt: '2026-09-12T08:00:00' },
+        { id: 'loose', title: 'Loose thought', content: '', createdAt: '2026-09-11T09:00:00', updatedAt: '2026-09-11T09:00:00' },
+      ],
+    };
+    const markup = renderToStaticMarkup(<NotesView data={noteData} onCreate={onEvent} onUpdate={onEvent} onDelete={onEvent} />);
+
+    expect(markup).toContain('aria-label="Notes capture summary"');
+    expect(markup).toContain('Latest note');
+    expect(markup).toContain('Unfiled');
+    expect(markup).toContain('Showing');
   });
 
   it('renders reminders from the study snapshot', () => {
