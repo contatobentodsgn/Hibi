@@ -63,3 +63,21 @@ test('rejects an event range wider than 366 days before making a request', async
   }), /time range/i);
   assert.equal(requested, false);
 });
+
+test('creates a Google Calendar event only through an approved calendar.create action', async () => {
+  const calls = [];
+  const connector = createGoogleCalendarConnector({ request: async (url, init) => {
+    calls.push({ url, init });
+    return new Response(JSON.stringify({ id: 'remote-event-1', etag: '"revision-1"' }), { status: 200 });
+  } });
+
+  const prepared = connector.prepareWrite({ kind: 'calendar.create', payload: { calendarId: 'primary', title: 'Planejar semana', startsAt: '2026-09-14T09:00:00.000Z', endsAt: '2026-09-14T10:00:00.000Z', allDay: false } });
+  const result = await connector.executeApproved({ kind: prepared.kind, payload: prepared.payload, credential: 'secret-token' });
+
+  assert.deepEqual(result, { remoteId: 'remote-event-1', revision: '"revision-1"' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].init.method, 'POST');
+  assert.match(calls[0].url, /calendars\/primary\/events$/);
+  assert.deepEqual(JSON.parse(calls[0].init.body), { summary: 'Planejar semana', start: { dateTime: '2026-09-14T09:00:00.000Z' }, end: { dateTime: '2026-09-14T10:00:00.000Z' } });
+  assert.equal(calls[0].init.headers.Authorization, 'Bearer secret-token');
+});

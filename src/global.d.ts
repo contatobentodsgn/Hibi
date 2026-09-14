@@ -44,6 +44,9 @@ declare global {
       requestAppleCalendarAccess?: () => Promise<{ state: 'connected'; syncedAt: string }>;
       discoverGoogleCalendars?: () => Promise<readonly { id: string; label: string }[]>;
       readCalendarSyncEvents?: (input: { start: string; end: string; calendars: readonly { sourceId: 'apple' | 'google'; id: string }[] }) => Promise<readonly { sourceId: 'apple' | 'google'; calendarId: string; remoteId: string; title: string; startsAt: string; endsAt: string; allDay: boolean; writable: boolean; cancelled?: boolean }[]>;
+      saveCalendarSyncMode?: (input: { id: string; mode: import('./ui/calendar-sync').CalendarSyncMode }) => Promise<import('./ui/calendar-sync').CalendarSyncState>;
+      prepareCalendarPublish?: (input: { calendarId: string; block: { id: string; title: string; startsAt: string; endsAt: string; allDay?: boolean } }) => Promise<{ id: string; confirmationId: string; requiresConfirmation: true; calendarId: string; summary: string }>;
+      executeApprovedCalendarPublish?: (input: { actionId: string; confirmationId: string }) => Promise<{ remoteId: string }>;
       configureWebhook?: (secret: string) => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       startWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       stopWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;

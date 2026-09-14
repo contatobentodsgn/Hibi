@@ -16,6 +16,7 @@ const { createOAuthService } = require('./oauth.cjs');
 const { createConnectorSettings } = require('./connector-settings.cjs');
 const { buildConnectors } = require('./connectors/index.cjs');
 const { createCalendarSyncService } = require('./calendar-sync-service.cjs');
+const { createCalendarSyncSettings } = require('./calendar-sync-settings.cjs');
 const eventKitCalendar = require('../native/notch/calendar.cjs');
 const { createNotchWindowManager, validPresentation } = require("./notch-window.cjs");
 const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('./notch-settings.cjs');
@@ -34,6 +35,7 @@ let webhookService;
 let connectorSettings;
 let oauthService;
 let calendarSyncService;
+let calendarSyncSettings;
 let localApiWorkspace = { tasks: [], reminders: [], blocks: [] };
 const pendingLocalApiWrites = new Map();
 let notchWindow;
@@ -190,9 +192,10 @@ app.whenReady().then(async () => {
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
   const secureKeychain = createMacKeychain();
   connectorSettings = createConnectorSettings({ filePath: path.join(app.getPath('userData'), 'connector-settings.json') });
+  calendarSyncSettings = createCalendarSyncSettings({ filePath: path.join(app.getPath('userData'), 'calendar-sync.json') });
   integrationManager = createIntegrationManager({ connectors: buildConnectors(connectorSettings), keychain: secureKeychain });
   oauthService = createOAuthService({ keychain: secureKeychain, getConnector: (id) => integrationManager.getConnector(id), openExternal: (url) => shell.openExternal(url) });
-  calendarSyncService = createCalendarSyncService({ eventKit: eventKitCalendar, integrations: integrationManager, settings: connectorSettings });
+  calendarSyncService = createCalendarSyncService({ eventKit: eventKitCalendar, integrations: integrationManager, settings: connectorSettings, calendarSettings: calendarSyncSettings });
   localApi = createLocalApi({ tokenStore: createLocalApiTokenStore({ keychain: createMacKeychain() }), workspace: () => localApiWorkspace, prepareWrite: async (intent) => {
     const confirmationId = `local-api-${crypto.randomUUID()}`;
     pendingLocalApiWrites.set(confirmationId, intent);
@@ -270,6 +273,9 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:calendar-sync:request-apple-access', () => calendarSyncService.requestAppleAccess());
   ipcMain.handle('hibi:calendar-sync:discover-google-calendars', () => calendarSyncService.discoverGoogleCalendars());
   ipcMain.handle('hibi:calendar-sync:read-events', (_event, input) => calendarSyncService.readEvents(input));
+  ipcMain.handle('hibi:calendar-sync:save-calendar-mode', (_event, input) => calendarSyncService.saveCalendarMode(input));
+  ipcMain.handle('hibi:calendar-sync:prepare-publish', (_event, input) => calendarSyncService.preparePublish(input));
+  ipcMain.handle('hibi:calendar-sync:execute-approved', (_event, input) => calendarSyncService.executeApproved(input));
   ipcMain.handle('hibi:local-api:sync-workspace', (_event, value) => {
     const safe = value && typeof value === 'object' ? value : {};
     localApiWorkspace = { tasks: Array.isArray(safe.tasks) ? safe.tasks.slice(0, 5_000) : [], reminders: Array.isArray(safe.reminders) ? safe.reminders.slice(0, 5_000) : [], blocks: Array.isArray(safe.blocks) ? safe.blocks.slice(0, 5_000) : [] };

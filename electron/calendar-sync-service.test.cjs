@@ -65,3 +65,77 @@ test('reads selected Apple and Google events through one bounded serializable sh
     { sourceId: 'google', calendarId: 'google:primary', remoteId: 'google-event', title: 'Google meeting', startsAt: '2026-09-14T00:00:00.000Z', endsAt: '2026-09-15T00:00:00.000Z', allDay: false, writable: false },
   ]);
 });
+
+test('persists a per-calendar mode without enabling writes by default', async () => {
+  let saved = null;
+  let stored = { calendars: [{ id: 'apple:personal', mode: 'read-only' }] };
+  const calendarSettings = {
+    get: () => stored,
+    save: (value) => { saved = value; stored = value; return value; },
+  };
+  const service = createCalendarSyncService({
+    eventKit: { available: () => true, authorizationStatus: () => 'full-access', listCalendars: () => [{ id: 'personal', label: 'Pessoal', writable: true }] },
+    integrations: { listStatus: async () => [] },
+    settings: { get: () => ({ targets: [] }) },
+    calendarSettings,
+  });
+
+  const state = await service.saveCalendarMode({ id: 'apple:personal', mode: 'bidirectional' });
+
+  assert.deepEqual(saved, { calendars: [{ id: 'apple:personal', mode: 'bidirectional' }], sources: [] });
+  assert.equal(state.calendars[0].mode, 'bidirectional');
+});
+
+test('does not publish a Hibi block until its matching confirmation is executed', async () => {
+  const saved = [];
+  const service = createCalendarSyncService({
+    eventKit: { available: () => true, authorizationStatus: () => 'full-access', listCalendars: () => [{ id: 'personal', label: 'Pessoal', writable: true }], saveEvent: (event) => { saved.push(event); return { id: 'remote-1' }; } },
+    integrations: { listStatus: async () => [] },
+    settings: { get: () => ({ targets: [] }) },
+    calendarSettings: { get: () => ({ calendars: [{ id: 'apple:personal', mode: 'bidirectional' }] }), save: () => undefined },
+    randomId: () => 'fixed',
+  });
+
+  const prepared = await service.preparePublish({ calendarId: 'apple:personal', block: { id: 'block-1', title: 'Planejar semana', startsAt: '2026-09-14T09:00:00.000Z', endsAt: '2026-09-14T10:00:00.000Z' } });
+
+  assert.equal(saved.length, 0);
+  assert.deepEqual(prepared, { id: 'calendar-fixed', confirmationId: 'calendar-confirm-fixed', requiresConfirmation: true, calendarId: 'apple:personal', summary: 'Planejar semana' });
+  assert.deepEqual(await service.executeApproved({ actionId: prepared.id, confirmationId: prepared.confirmationId }), { remoteId: 'remote-1' });
+  assert.deepEqual(saved, [{ calendarId: 'personal', title: 'Planejar semana', start: '2026-09-14T09:00:00.000Z', end: '2026-09-14T10:00:00.000Z', allDay: false }]);
+  await assert.rejects(() => service.executeApproved({ actionId: prepared.id, confirmationId: prepared.confirmationId }), /matching confirmation/);
+});
+
+test('delegates an approved Google publish through the integration confirmation contract', async () => {
+  const prepared = [];
+  const service = createCalendarSyncService({
+    eventKit: { available: () => false, authorizationStatus: () => 'unavailable' },
+    integrations: {
+      listStatus: async () => [{ id: 'google-calendar', state: 'connected' }],
+      prepareAction: async (input) => { prepared.push(input); return { id: 'google-action', confirmationId: 'google-confirm' }; },
+      executeApproved: async (input) => ({ ok: input.actionId === 'google-action', remoteId: 'google-event' }),
+    },
+    settings: { get: () => ({ targets: [{ id: 'primary', label: 'Trabalho' }] }) },
+    calendarSettings: { get: () => ({ calendars: [{ id: 'google:primary', mode: 'bidirectional' }] }), save: () => undefined },
+  });
+
+  const publication = await service.preparePublish({ calendarId: 'google:primary', block: { id: 'block-1', title: 'Reunião', startsAt: '2026-09-14T09:00:00.000Z', endsAt: '2026-09-14T10:00:00.000Z' } });
+
+  assert.deepEqual(prepared, [{ connectorId: 'google-calendar', kind: 'calendar.create', payload: { calendarId: 'primary', title: 'Reunião', startsAt: '2026-09-14T09:00:00.000Z', endsAt: '2026-09-14T10:00:00.000Z', allDay: false } }]);
+  assert.equal(publication.id, 'google-action');
+  assert.deepEqual(await service.executeApproved({ actionId: publication.id, confirmationId: publication.confirmationId }), { remoteId: 'google-event' });
+});
+
+test('records the last successful read per source without persisting event details', async () => {
+  let saved;
+  const service = createCalendarSyncService({
+    eventKit: { available: () => true, authorizationStatus: () => 'full-access', listCalendars: () => [], listEvents: () => [] },
+    integrations: { listStatus: async () => [] },
+    settings: { get: () => ({ targets: [] }) },
+    calendarSettings: { get: () => ({ calendars: [], sources: [] }), save: (value) => { saved = value; } },
+    now: () => '2026-09-14T11:00:00.000Z',
+  });
+
+  await service.readEvents({ start: '2026-09-14T00:00:00.000Z', end: '2026-09-15T00:00:00.000Z', calendars: [{ sourceId: 'apple', id: 'apple:personal' }] });
+
+  assert.deepEqual(saved, { calendars: [], sources: [{ id: 'apple', lastSyncedAt: '2026-09-14T11:00:00.000Z' }] });
+});

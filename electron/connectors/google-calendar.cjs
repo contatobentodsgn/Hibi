@@ -5,6 +5,11 @@ const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3/';
 const boundedText = (value, maximum = 240) => typeof value === 'string' && value.trim().length > 0 && value.length <= maximum;
 const parseInstant = (value) => boundedText(value) && !Number.isNaN(Date.parse(value)) ? new Date(value) : null;
 
+function prepareCalendarCreate(payload) {
+  if (!payload || typeof payload !== 'object' || !boundedText(payload.calendarId) || !boundedText(payload.title) || !parseInstant(payload.startsAt) || !parseInstant(payload.endsAt) || parseInstant(payload.endsAt) <= parseInstant(payload.startsAt)) throw new Error('Google Calendar event is invalid.');
+  return { calendarId: payload.calendarId, title: payload.title, startsAt: payload.startsAt, endsAt: payload.endsAt, allDay: payload.allDay === true };
+}
+
 function failureFor(response, fallback) {
   if (response?.status === 401) return new Error('Google Calendar authorization expired. Reconnect this calendar.');
   if (response?.status === 403) return new Error('Google Calendar denied access to this calendar.');
@@ -72,6 +77,22 @@ function createGoogleCalendarConnector({ request, oauth } = {}) {
         if (!pageToken) break;
       }
       return events;
+    },
+    prepareWrite({ kind, payload }) {
+      if (kind !== 'calendar.create') throw new Error('Google Calendar action is unsupported.');
+      return { kind, payload: prepareCalendarCreate(payload) };
+    },
+    async executeApproved({ kind, payload, credential, request: override }) {
+      if (kind !== 'calendar.create') throw new Error('Google Calendar action is unsupported.');
+      const event = prepareCalendarCreate(payload);
+      const body = event.allDay
+        ? { summary: event.title, start: { date: event.startsAt.slice(0, 10) }, end: { date: event.endsAt.slice(0, 10) } }
+        : { summary: event.title, start: { dateTime: event.startsAt }, end: { dateTime: event.endsAt } };
+      const response = await call(`calendars/${encodeURIComponent(event.calendarId)}/events`, { method: 'POST', headers: { ...headers(credential), 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, override);
+      if (!response?.ok) throw failureFor(response, 'Google Calendar could not create the event.');
+      const created = await response.json().catch(() => ({}));
+      if (!boundedText(created?.id)) throw new Error('Google Calendar returned an invalid event.');
+      return { remoteId: created.id, ...(boundedText(created.etag) ? { revision: created.etag } : {}) };
     },
   };
 }
