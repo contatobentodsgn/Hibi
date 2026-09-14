@@ -57,18 +57,33 @@ static Napi::Value Status(const Napi::CallbackInfo& info) { return Napi::String:
 
 static Napi::Value RequestFullAccess(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
-  Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
+  auto deferred = std::make_shared<Napi::Promise::Deferred>(Napi::Promise::Deferred::New(env));
+  Napi::Function settle = Napi::Function::New(env, [deferred](const Napi::CallbackInfo& callback) {
+    if (callback.Length() > 0 && callback[0].ToBoolean().Value()) {
+      deferred->Resolve(Napi::Boolean::New(callback.Env(), true));
+      return;
+    }
+    std::string message = callback.Length() > 1 && callback[1].IsString()
+      ? callback[1].As<Napi::String>().Utf8Value()
+      : "Calendar access was not granted.";
+    deferred->Reject(Napi::Error::New(callback.Env(), message).Value());
+  });
+  auto completion = std::make_shared<Napi::ThreadSafeFunction>(
+    Napi::ThreadSafeFunction::New(env, settle, "CalendarAccessCompletion", 0, 1));
   EKEventStore *eventStore = EventStore();
   void (^finish)(BOOL, NSError *) = ^(BOOL granted, NSError *error) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-      if (granted) { deferred.Resolve(Napi::Boolean::New(env, true)); return; }
-      NSString *message = error.localizedDescription ?: @"Calendar access was not granted.";
-      deferred.Reject(Napi::Error::New(env, message.UTF8String).Value());
+    NSString *message = error.localizedDescription ?: @"Calendar access was not granted.";
+    auto *result = new std::pair<bool, std::string>(granted, message.UTF8String ?: "Calendar access was not granted.");
+    napi_status status = completion->BlockingCall(result, [](Napi::Env jsEnv, Napi::Function callback, std::pair<bool, std::string> *value) {
+      callback.Call({ Napi::Boolean::New(jsEnv, value->first), Napi::String::New(jsEnv, value->second) });
+      delete value;
     });
+    if (status != napi_ok) delete result;
+    completion->Release();
   };
   if (@available(macOS 14.0, *)) [eventStore requestFullAccessToEventsWithCompletion:finish];
   else [eventStore requestAccessToEntityType:EKEntityTypeEvent completion:finish];
-  return deferred.Promise();
+  return deferred->Promise();
 }
 
 static Napi::Value ListCalendars(const Napi::CallbackInfo& info) {
