@@ -160,3 +160,19 @@ test('recovers a crashed renderer once and resets the guard after a successful l
   listeners.get('render-process-gone')({}, { reason: 'crashed' });
   assert.equal(reloads, 2);
 });
+
+test('warns once instead of looping when the renderer crashes again before loading', () => {
+  const listeners = new Map();
+  let reloads = 0;
+  const warnings = [];
+  const target = { isDestroyed: () => false, webContents: { on: (event, listener) => listeners.set(event, listener), reloadIgnoringCache: () => { reloads += 1; } } };
+  attachRendererRecovery(target, { showWarning: (details) => warnings.push(details) });
+
+  listeners.get('render-process-gone')({}, { reason: 'crashed' });
+  listeners.get('render-process-gone')({}, { reason: 'crashed' });
+  listeners.get('render-process-gone')({}, { reason: 'crashed' });
+
+  assert.equal(reloads, 1);
+  assert.equal(warnings.length, 1);
+  assert.deepEqual(warnings[0], { reason: 'crashed' });
+});

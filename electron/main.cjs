@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification, screen, shell, powerMonitor } = require("electron");
+const { app, BrowserWindow, ipcMain, Notification, dialog, screen, shell, powerMonitor } = require("electron");
 const path = require("node:path");
 const crypto = require('node:crypto');
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.mjs");
@@ -149,15 +149,27 @@ function attachNotchLifecycle({ displayService, powerService, manager, onDisplay
   };
 }
 
-function attachRendererRecovery(window) {
+function attachRendererRecovery(window, { showWarning } = {}) {
   let recovering = false;
+  let warned = false;
+  const notify = showWarning ?? ((details, retry) => { void dialog?.showMessageBox?.(window, { type: 'warning', title: 'Hibi', message: 'O Hibi encontrou um problema ao carregar a interface.', detail: 'Você pode tentar carregar novamente ou encerrar o app.', buttons: ['Tentar novamente', 'Encerrar'], defaultId: 0, cancelId: 1, noLink: true }).then(({ response }) => { if (response === 0) retry(); }).catch(() => {}); });
   const recover = () => {
     if (recovering || window?.isDestroyed?.()) return;
+    if (warned) return;
     recovering = true;
     window.webContents?.reloadIgnoringCache?.();
   };
-  window?.webContents?.on?.('render-process-gone', recover);
-  window?.webContents?.on?.('did-finish-load', () => { recovering = false; });
+  const onRendererGone = (_event, details = {}) => {
+    if (window?.isDestroyed?.()) return;
+    if (recovering) {
+      recovering = false;
+      if (!warned) { warned = true; const reason = typeof details.reason === 'string' && details.reason.length <= 80 ? details.reason : 'unknown'; notify({ reason }, () => { recovering = false; warned = false; recover(); }); }
+      return;
+    }
+    recover();
+  };
+  window?.webContents?.on?.('render-process-gone', onRendererGone);
+  window?.webContents?.on?.('did-finish-load', () => { recovering = false; warned = false; });
   return recover;
 }
 
