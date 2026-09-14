@@ -76,10 +76,11 @@ test('assinar a apresentação devolve um cancelador', () => {
 test('a janela do notch é criada com o preload dedicado, não com o do app', () => {
   const source = fs.readFileSync(path.join(__dirname, 'main.cjs'), 'utf8');
   // Compara só a linha da criação: afirmar contra o arquivo inteiro imprime todo o main.cjs quando falha.
-  const creation = source.split('\n').find((line) => line.includes('createNotchWindowManager({')) ?? '';
+  const start = source.indexOf('createNotchWindowManager({');
+  const creation = start >= 0 ? source.slice(start, start + 800) : '';
   assert.ok(creation, 'createNotchWindowManager não foi encontrado em main.cjs');
   assert.ok(
-    creation.includes("preloadPath: path.join(__dirname, 'notch-preload.cjs')"),
+    /preloadPath:\s*path\.join\(__dirname,\s*["']notch-preload\.cjs["']\)/.test(creation),
     'a janela do notch deve ser criada com o preload dedicado',
   );
 });
