@@ -11,28 +11,60 @@ const parseInstant = (value) =>
     ? new Date(value)
     : null;
 
+// Hora sem offset seria lida no fuso da conta Google, não no do Mac. O processo principal sempre manda o
+// instante com offset; aqui só se recusa o que chegar sem ele.
+const WITH_OFFSET = /T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}/;
+const TIME_ZONE = /^[A-Za-z][A-Za-z0-9_+\-/]{0,63}$/;
+// Ids de evento do Google: base32hex minúsculo, de 5 a 1024 caracteres.
+const EVENT_ID = /^[a-v0-9]{5,1024}$/;
+const addDays = (dateKey, days) => {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+};
+
 function prepareCalendarCreate(payload) {
   if (
     !payload ||
     typeof payload !== "object" ||
     !boundedText(payload.calendarId) ||
-    !boundedText(payload.title) ||
-    !parseInstant(payload.startsAt) ||
-    !parseInstant(payload.endsAt) ||
-    parseInstant(payload.endsAt) <= parseInstant(payload.startsAt)
+    !boundedText(payload.title)
   )
     throw new Error("Google Calendar event is invalid.");
+  const allDay = payload.allDay === true;
+  if (
+    allDay
+      ? !DATE_KEY.test(String(payload.startsAt)) || !DATE_KEY.test(String(payload.endsAt))
+      : !WITH_OFFSET.test(String(payload.startsAt)) || !WITH_OFFSET.test(String(payload.endsAt))
+  )
+    throw new Error("Google Calendar event time needs an offset.");
+  const start = parseInstant(payload.startsAt);
+  const end = parseInstant(payload.endsAt);
+  if (!start || !end || end <= start)
+    throw new Error("Google Calendar event is invalid.");
+  if (
+    payload.timeZone !== undefined &&
+    (typeof payload.timeZone !== "string" || !TIME_ZONE.test(payload.timeZone))
+  )
+    throw new Error("Google Calendar time zone is invalid.");
+  if (
+    payload.eventId !== undefined &&
+    (typeof payload.eventId !== "string" || !EVENT_ID.test(payload.eventId))
+  )
+    throw new Error("Google Calendar event identifier is invalid.");
   return {
     calendarId: payload.calendarId,
     title: payload.title,
     startsAt: payload.startsAt,
     endsAt: payload.endsAt,
-    allDay: payload.allDay === true,
+    allDay,
+    ...(payload.timeZone !== undefined ? { timeZone: payload.timeZone } : {}),
+    ...(payload.eventId !== undefined ? { eventId: payload.eventId } : {}),
   };
 }
 
 function prepareCalendarUpdate(payload) {
-  const event = prepareCalendarCreate(payload);
+  const { eventId: _ignored, ...event } = prepareCalendarCreate(payload);
   if (!boundedText(payload.remoteId) || !boundedText(payload.expectedRevision))
     throw new Error("Google Calendar event revision is invalid.");
   return {
@@ -40,6 +72,18 @@ function prepareCalendarUpdate(payload) {
     remoteId: payload.remoteId,
     expectedRevision: payload.expectedRevision,
   };
+}
+
+// O Google trata `end.date` como exclusivo. Um fim à meia-noite já é o dia seguinte; qualquer outro
+// horário ainda ocupa o próprio dia, então o fim avança um dia.
+function allDayRange(startsAt, endsAt) {
+  const start = startsAt.slice(0, 10);
+  const endDay = endsAt.slice(0, 10);
+  const endsAtMidnight =
+    endsAt.length === 10 || /T00:00(?::00(?:\.0+)?)?(?:Z|[+-]|$)/.test(endsAt);
+  let end = endsAtMidnight ? endDay : addDays(endDay, 1);
+  if (end <= start) end = addDays(start, 1);
+  return { start: { date: start }, end: { date: end } };
 }
 
 function failureFor(response, fallback) {
@@ -91,7 +135,12 @@ function createGoogleCalendarConnector({ request, oauth } = {}) {
     pkce: true,
     authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
-    scopes: ["https://www.googleapis.com/auth/calendar"],
+    // Ler e escrever eventos e listar calendários. O escopo `calendar` inteiro também daria
+    // compartilhamento e permissões (ACL), que o Hibi não usa.
+    scopes: [
+      "https://www.googleapis.com/auth/calendar.events",
+      "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+    ],
     authorizationParams: { access_type: "offline", prompt: "consent" },
   };
   return {
@@ -217,21 +266,22 @@ function createGoogleCalendarConnector({ request, oauth } = {}) {
             ? prepareCalendarUpdate(payload)
             : null;
       if (!event) throw new Error("Google Calendar action is unsupported.");
-      const body = event.allDay
-        ? {
-            summary: event.title,
-            start: { date: event.startsAt.slice(0, 10) },
-            end: { date: event.endsAt.slice(0, 10) },
-          }
-        : {
-            summary: event.title,
-            start: { dateTime: event.startsAt },
-            end: { dateTime: event.endsAt },
-          };
+      const zone = event.timeZone ? { timeZone: event.timeZone } : {};
       const isUpdate = kind === "calendar.update";
+      const body = {
+        ...(!isUpdate && event.eventId ? { id: event.eventId } : {}),
+        summary: event.title,
+        ...(event.allDay
+          ? allDayRange(event.startsAt, event.endsAt)
+          : {
+              start: { dateTime: event.startsAt, ...zone },
+              end: { dateTime: event.endsAt, ...zone },
+            }),
+      };
+      const calendarPath = `calendars/${encodeURIComponent(event.calendarId)}/events`;
       const path = isUpdate
-        ? `calendars/${encodeURIComponent(event.calendarId)}/events/${encodeURIComponent(event.remoteId)}`
-        : `calendars/${encodeURIComponent(event.calendarId)}/events`;
+        ? `${calendarPath}/${encodeURIComponent(event.remoteId)}`
+        : calendarPath;
       const response = await call(
         path,
         {
@@ -249,6 +299,24 @@ function createGoogleCalendarConnector({ request, oauth } = {}) {
         throw new Error(
           "Google Calendar event changed elsewhere. Review the conflict.",
         );
+      if (!isUpdate && event.eventId && response?.status === 409) {
+        // O id já existe: é a publicação anterior, cuja gravação local falhou. Devolve esse evento em vez
+        // de criar outro.
+        const existing = await call(
+          `${calendarPath}/${encodeURIComponent(event.eventId)}`,
+          { method: "GET", headers: headers(credential) },
+          override,
+        );
+        if (!existing?.ok)
+          throw failureFor(existing, "Google Calendar could not confirm the existing event.");
+        const found = await existing.json().catch(() => ({}));
+        if (!boundedText(found?.id) || found.status === "cancelled")
+          throw new Error("Google Calendar event identifier is already in use.");
+        return {
+          remoteId: found.id,
+          ...(boundedText(found.etag) ? { revision: found.etag } : {}),
+        };
+      }
       if (!response?.ok)
         throw failureFor(
           response,
