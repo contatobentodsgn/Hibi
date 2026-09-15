@@ -32,6 +32,7 @@
       "native/notch/*.cjs",
       "native/notch/adapters/*.cjs",
       "native/notch/build/Release/*.node",
+      "native/voice/build/hibi-voice",
       "!{electron,native}/**/*.test.*",
       "!electron/**/*.d.{mts,cts}",
       "package.json"
