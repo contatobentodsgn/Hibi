@@ -20,8 +20,14 @@ static NSString *Text(const Napi::Value &value, Napi::Env env, const char *label
 
 static NSDate *Date(const Napi::Value &value, Napi::Env env, const char *label) {
   NSString *text = Text(value, env, label); if (!text) return nil;
+  // O formatador padrão recusa frações de segundo, e `toISOString()` sempre as manda (`…:00.000Z`).
+  // Hora sem fuso continua recusada: o processo principal converte a hora flutuante antes de chegar aqui.
   NSISO8601DateFormatter *formatter = [[NSISO8601DateFormatter alloc] init];
   NSDate *date = [formatter dateFromString:text];
+  if (!date) {
+    formatter.formatOptions = NSISO8601DateFormatWithInternetDateTime | NSISO8601DateFormatWithFractionalSeconds;
+    date = [formatter dateFromString:text];
+  }
   if (!date) Napi::TypeError::New(env, label).ThrowAsJavaScriptException();
   return date;
 }
