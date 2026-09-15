@@ -15,6 +15,9 @@ const unavailable = {
   listEvents: () => {
     throw new Error("macOS EventKit bridge is unavailable.");
   },
+  getEvent: () => {
+    throw new Error("macOS EventKit bridge is unavailable.");
+  },
   saveEvent: () => {
     throw new Error("macOS EventKit bridge is unavailable.");
   },

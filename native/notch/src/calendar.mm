@@ -111,6 +111,19 @@ static Napi::Value ListCalendars(const Napi::CallbackInfo& info) {
   }
 }
 
+static Napi::Object EventObject(Napi::Env env, EKEvent *event) {
+  Napi::Object entry = Napi::Object::New(env);
+  entry.Set("id", event.eventIdentifier.UTF8String);
+  entry.Set("calendarId", event.calendar.calendarIdentifier.UTF8String ?: "");
+  entry.Set("title", (event.title ?: @"Untitled event").UTF8String);
+  entry.Set("startsAt", ISOString(event.startDate).UTF8String);
+  entry.Set("endsAt", ISOString(event.endDate).UTF8String);
+  entry.Set("allDay", Napi::Boolean::New(env, event.allDay));
+  entry.Set("writable", Napi::Boolean::New(env, event.calendar.allowsContentModifications));
+  if (event.lastModifiedDate) entry.Set("revision", ISOString(event.lastModifiedDate).UTF8String);
+  return entry;
+}
+
 static Napi::Value ListEvents(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env(); @autoreleasepool {
     if (!HasCalendarAccess()) { Napi::Error::New(env, "Calendar full access is required.").ThrowAsJavaScriptException(); return env.Null(); }
@@ -135,18 +148,21 @@ static Napi::Value ListEvents(const Napi::CallbackInfo& info) {
     NSUInteger index = 0;
     for (EKEvent *event in events) {
       if (index >= 5000 || !event.eventIdentifier.length || !event.startDate || !event.endDate) continue;
-      Napi::Object entry = Napi::Object::New(env);
-      entry.Set("id", event.eventIdentifier.UTF8String);
-      entry.Set("calendarId", event.calendar.calendarIdentifier.UTF8String ?: "");
-      entry.Set("title", (event.title ?: @"Untitled event").UTF8String);
-      entry.Set("startsAt", ISOString(event.startDate).UTF8String);
-      entry.Set("endsAt", ISOString(event.endDate).UTF8String);
-      entry.Set("allDay", Napi::Boolean::New(env, event.allDay));
-      entry.Set("writable", Napi::Boolean::New(env, event.calendar.allowsContentModifications));
-      if (event.lastModifiedDate) entry.Set("revision", ISOString(event.lastModifiedDate).UTF8String);
-      result.Set(index++, entry);
+      result.Set(index++, EventObject(env, event));
     }
     return result;
+  }
+}
+
+// Busca direta pelo id. É o que separa um evento apagado de um evento movido para fora da janela lida.
+static Napi::Value GetEvent(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env(); @autoreleasepool {
+    if (!HasCalendarAccess()) { Napi::Error::New(env, "Calendar full access is required.").ThrowAsJavaScriptException(); return env.Null(); }
+    if (info.Length() < 1) { Napi::TypeError::New(env, "Calendar event identifier is invalid.").ThrowAsJavaScriptException(); return env.Null(); }
+    NSString *identifier = Text(info[0], env, "Calendar event identifier is invalid.", 240); if (!identifier) return env.Null();
+    EKEvent *event = [EventStore() eventWithIdentifier:identifier];
+    if (!event || !event.eventIdentifier.length || !event.startDate || !event.endDate) return env.Null();
+    return EventObject(env, event);
   }
 }
 
@@ -217,6 +233,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("requestFullAccess", Napi::Function::New(env, RequestFullAccess));
   exports.Set("listCalendars", Napi::Function::New(env, ListCalendars));
   exports.Set("listEvents", Napi::Function::New(env, ListEvents));
+  exports.Set("getEvent", Napi::Function::New(env, GetEvent));
   exports.Set("saveEvent", Napi::Function::New(env, SaveEvent));
   exports.Set("updateEvent", Napi::Function::New(env, UpdateEvent));
   exports.Set("removeEvent", Napi::Function::New(env, RemoveEvent));

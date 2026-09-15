@@ -251,6 +251,22 @@ function createGoogleCalendarConnector({ request, oauth } = {}) {
       }
       return events;
     },
+    // Um evento por id. 404 e 410 são resposta, não falha: o Google confirma que o evento não existe.
+    async fetchCalendarEvent({ credential, calendarId, remoteId, request: override }) {
+      if (!boundedText(calendarId) || !boundedText(remoteId, 1024))
+        throw new Error("Google Calendar event identifier is invalid.");
+      const response = await call(
+        `calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(remoteId)}`,
+        { method: "GET", headers: headers(credential) },
+        override,
+      );
+      if (response?.status === 404 || response?.status === 410) return null;
+      if (!response?.ok)
+        throw failureFor(response, "Google Calendar could not read the event.");
+      const event = normalizeGoogleEvent(await response.json().catch(() => ({})));
+      if (!event) throw new Error("Google Calendar returned an invalid event.");
+      return event;
+    },
     prepareWrite({ kind, payload }) {
       if (kind === "calendar.create")
         return { kind, payload: prepareCalendarCreate(payload) };

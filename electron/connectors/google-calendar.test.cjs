@@ -278,3 +278,36 @@ test("asks Google only for event access and the calendar list", () => {
     "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
   ]);
 });
+
+test("finds a single Google event by id and reports a deleted one as missing", async () => {
+  const calls = [];
+  const window = { start: { dateTime: "2026-09-23T09:00:00-03:00" }, end: { dateTime: "2026-09-23T10:00:00-03:00" } };
+  const responses = {
+    moved: () => okResponse({ id: "moved", etag: '"r2"', summary: "Movido", ...window }),
+    gone: () => new Response("{}", { status: 404 }),
+    purged: () => new Response("{}", { status: 410 }),
+    cancelled: () => okResponse({ id: "cancelled", status: "cancelled", summary: "Cancelado", ...window }),
+  };
+  const connector = createGoogleCalendarConnector({
+    request: async (url, init) => {
+      calls.push(`${init.method} ${url.replace(GOOGLE_CALENDAR_API, "")}`);
+      return responses[decodeURIComponent(url.split("/").pop())]();
+    },
+  });
+  const find = (remoteId) => connector.fetchCalendarEvent({ credential: "secret-token", calendarId: "team@example.test", remoteId });
+
+  assert.deepEqual(await find("moved"), { remoteId: "moved", revision: '"r2"', title: "Movido", startsAt: "2026-09-23T09:00:00-03:00", endsAt: "2026-09-23T10:00:00-03:00", allDay: false });
+  assert.equal(await find("gone"), null);
+  assert.equal(await find("purged"), null);
+  assert.equal((await find("cancelled")).cancelled, true);
+  assert.equal(calls[0], "GET calendars/team%40example.test/events/moved");
+  await assert.rejects(() => find(""), /identifier is invalid/);
+  assert.equal(calls.length, 4);
+});
+
+test("does not mistake an authorization or server failure for a deleted Google event", async () => {
+  for (const [status, message] of [[401, /authorization expired/], [403, /denied access/], [500, /could not read the event/]]) {
+    const connector = createGoogleCalendarConnector({ request: async () => new Response("{}", { status }) });
+    await assert.rejects(() => connector.fetchCalendarEvent({ credential: "secret-token", calendarId: "primary", remoteId: "event-1" }), message);
+  }
+});

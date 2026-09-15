@@ -213,6 +213,21 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       appendAudit({ action: 'calendar-read', connectorId: id, detail: `Read ${safe.length} calendar events.` });
       return safe;
     },
+    async readCalendarEvent(id, input = {}) {
+      const connector = getConnector(id);
+      if (typeof connector.fetchCalendarEvent !== 'function') throw new Error('This integration does not expose single calendar events.');
+      const credential = await keychain.get(accountFor(id));
+      if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
+      const event = await connector.fetchCalendarEvent({ credential, calendarId: input?.calendarId, remoteId: input?.remoteId, request: createReadOnlyFetch(safeFetchFor(connector)) });
+      // `null` é resposta, não falha: o serviço confirmou que o evento não existe mais.
+      if (event === null) {
+        appendAudit({ action: 'calendar-read', connectorId: id, detail: 'Calendar event not found.' });
+        return null;
+      }
+      if (!boundedText(event?.remoteId, 240) || !boundedText(event?.title, 240) || !boundedText(event?.startsAt, 240) || !boundedText(event?.endsAt, 240) || Number.isNaN(Date.parse(event.startsAt)) || Number.isNaN(Date.parse(event.endsAt))) throw new Error('The integration returned an invalid calendar event.');
+      appendAudit({ action: 'calendar-read', connectorId: id, detail: 'Read 1 calendar event.' });
+      return { remoteId: event.remoteId, ...(boundedText(event.revision, 240) ? { revision: event.revision } : {}), title: event.title, startsAt: event.startsAt, endsAt: event.endsAt, allDay: event.allDay === true, ...(event.cancelled === true ? { cancelled: true } : {}) };
+    },
     async discoverDataSource(id, databaseId) {
       const connector = getConnector(id);
       if (typeof connector.discoverDataSource !== 'function' || !boundedText(databaseId, 240)) throw new Error('This integration cannot discover a data source.');
