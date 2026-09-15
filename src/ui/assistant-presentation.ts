@@ -14,7 +14,9 @@ export const failurePresentationFor = (failure: AiProviderFailure) => {
 };
 export const companionEventFor = (kind: 'listening' | 'thinking' | 'acting' | 'confirmation' | 'result' | 'error', requestId: string, text: string, nowMs: number): CompanionEvent => {
   if (kind === 'confirmation') return { type: 'confirmation.requested', requestId, text, nowMs, expiresInMs: 60_000, actions: confirmationPresentationFor(requestId, text).actions };
-  if (kind === 'result') return { type: 'ai.result', requestId, text, nowMs, expiresInMs: 4_000 };
-  if (kind === 'error') return { type: 'error.raised', requestId, text, nowMs, expiresInMs: 5_000 };
+  // Respostas da conversa permanecem no companion; a próxima apresentação as substitui.
+  // Expirar aqui fazia o notch desaparecer poucos segundos depois de enviar a mensagem.
+  if (kind === 'result') return { type: 'ai.result', requestId, text, nowMs };
+  if (kind === 'error') return { type: 'error.raised', requestId, text, nowMs };
   return { type: 'ai.stage', requestId, stage: kind, text, nowMs };
 };
