@@ -49,6 +49,10 @@ const {
   applyNotchDisplay,
 } = require("./notch-settings.cjs");
 const { createNotchTest, NOTCH_TEST_PREFIX } = require("./notch-test.cjs");
+const { showStartupNotch } = require("./notch-startup.cjs");
+const { createWorkspaceDatabase } = require("./workspace-database.cjs");
+const { createElectronUpdateService } = require("./updates.cjs");
+const { createLocalModelService } = require("./local-model-service.cjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
 let mainWindow;
@@ -68,7 +72,10 @@ let localApiWorkspace = { tasks: [], reminders: [], blocks: [] };
 const pendingLocalApiWrites = new Map();
 let notchWindow;
 let notchSettings;
+let workspaceDatabase;
 let notchTest;
+let updateService;
+let localModelService;
 let detachNotchLifecycle = () => {};
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== "1";
 const MAX_AI_STREAM_DELTA = 8000;
@@ -80,6 +87,9 @@ const notchAdapter = nativeNotchBridge.createNotchAdapter({
   allowExperimental: process.env.HIBI_ALLOW_EXPERIMENTAL_NOTCH === "1",
   platform: process.platform,
 });
+const startupNotchAnimationPath = app.isPackaged
+  ? path.join(process.resourcesPath || __dirname, "companion-assets", "animations", "notch", "idle_01_loop.mp4")
+  : path.join(__dirname, "..", "public", "companion-assets", "animations", "notch", "idle_01_loop.mp4");
 
 function isAllowedNavigation(rawUrl) {
   try {
@@ -391,6 +401,12 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  let autoUpdater;
+  if (app.isPackaged && process.env.HIBI_UPDATE_FEED_URL) {
+    try { ({ autoUpdater } = require("electron-updater")); } catch (error) { console.warn("Hibi updater unavailable:", error?.message); }
+  }
+  updateService = createElectronUpdateService({ app, autoUpdater, onEvent: (state) => sendToMainWindow("hibi:updates:state", state) });
+  localModelService = createLocalModelService({ dataRoot: path.join(app.getPath("userData"), ".hibi-local-models") });
   notificationScheduler = createNotificationScheduler({
     NotificationClass: Notification,
     onTrigger: (entry) =>
@@ -413,6 +429,10 @@ app.whenReady().then(async () => {
   oauthService = createOAuthService({
     keychain: secureKeychain,
     getConnector: (id) => integrationManager.getConnector(id),
+    getClientSecret: async (connectorId) => {
+      const account = `integration:${connectorId}:client-secret`;
+      return secureKeychain.has(account) ? secureKeychain.get(account) : undefined;
+    },
     openExternal: (url) => shell.openExternal(url),
   });
   calendarSyncService = createCalendarSyncService({
@@ -445,12 +465,16 @@ app.whenReady().then(async () => {
   notchSettings = createNotchSettings({
     filePath: path.join(app.getPath("userData"), "notch-settings.json"),
   });
+  if (typeof app.getPath === "function") {
+    workspaceDatabase = createWorkspaceDatabase({ filePath: path.join(app.getPath("userData"), "workspace.sqlite") });
+  }
   notchWindow = createNotchWindowManager({
     BrowserWindowClass: BrowserWindow,
     screen,
     preloadPath: path.join(__dirname, "notch-preload.cjs"),
     nativeBridge: notchAdapter,
     preferredDisplayId: notchSettings.get().displayId,
+    size: notchSettings.get().size,
     load: (window) =>
       isDev
         ? window.loadURL(
@@ -475,6 +499,14 @@ app.whenReady().then(async () => {
     version: app.getVersion(),
     localOnly: true,
   }));
+  ipcMain.handle("hibi:updates:state", () => updateService.state());
+  ipcMain.handle("hibi:updates:check", () => updateService.check());
+  ipcMain.handle("hibi:updates:download", () => updateService.download());
+  ipcMain.handle("hibi:updates:install", () => updateService.install());
+  ipcMain.handle("hibi:local-model:state", () => localModelService.state());
+  ipcMain.handle("hibi:local-model:run", (_event, input) => localModelService.run(input));
+  ipcMain.handle("hibi:local-model:cancel", (_event, requestId) => localModelService.cancel(requestId));
+  ipcMain.handle("hibi:local-model:shutdown", () => localModelService.shutdown());
   ipcMain.handle(
     "hibi:login-item:get",
     () => app.getLoginItemSettings().openAtLogin,
@@ -607,16 +639,33 @@ app.whenReady().then(async () => {
   ipcMain.handle("hibi:oauth:supported", (_event, connectorId) =>
     oauthService.supports(connectorId),
   );
-  ipcMain.handle("hibi:oauth:authorize", (_event, connectorId) =>
-    oauthService.authorize(connectorId, {
+  ipcMain.handle("hibi:oauth:authorize", async (_event, connectorId) => {
+    const result = await oauthService.authorize(connectorId, {
       clientId: connectorSettings.get(connectorId).clientId,
-    }),
-  );
+    });
+    if (connectorId === "google-calendar" && result?.connected) {
+      const targets = await integrationManager.listImportTargets(connectorId);
+      connectorSettings.save(connectorId, { targets });
+    }
+    return result;
+  });
   ipcMain.handle("hibi:oauth:refresh", (_event, connectorId) =>
     oauthService.refresh(connectorId, {
       clientId: connectorSettings.get(connectorId).clientId,
     }),
   );
+  ipcMain.handle("hibi:oauth:save-client-secret", async (_event, connectorId, secret) => {
+    const connector = integrationManager.getConnector(connectorId);
+    if (!connector?.oauth || connectorId !== "google-calendar") throw new Error("Client secret is only supported for Google Calendar.");
+    if (typeof secret !== "string" || secret.trim().length === 0 || secret.length > 8_192) throw new Error("A client secret is required.");
+    await secureKeychain.set(`integration:${connectorId}:client-secret`, secret.trim());
+    return { connectorId, configured: true };
+  });
+  ipcMain.handle("hibi:oauth:delete-client-secret", async (_event, connectorId) => {
+    if (connectorId !== "google-calendar") throw new Error("Client secret is only supported for Google Calendar.");
+    await secureKeychain.remove(`integration:${connectorId}:client-secret`);
+    return { connectorId, configured: false };
+  });
   ipcMain.handle("hibi:oauth:cancel", () => oauthService.cancel());
   ipcMain.handle("hibi:calendar-sync:state", () =>
     calendarSyncService.getState(),
@@ -714,10 +763,32 @@ app.whenReady().then(async () => {
   ipcMain.handle("hibi:notch:set-display", (_event, displayId) =>
     applyNotchDisplay(notchSettings, notchWindow, displayId),
   );
+  ipcMain.handle("hibi:notch:size", () => ({ size: notchSettings.get().size }));
+  ipcMain.handle("hibi:notch:set-size", (_event, nextSize) => {
+    const size = nextSize === 'compact' ? 'compact' : 'normal';
+    const current = notchSettings.get();
+    notchSettings.save({ ...current, size });
+    notchWindow.setSize(size);
+    return { size };
+  });
   ipcMain.handle("hibi:notch:test", (_event, locale) =>
     notchTest.run(locale === "en" ? "en" : "pt"),
   );
+  ipcMain.handle("hibi:workspace:load", () => workspaceDatabase?.load() ?? null);
+  ipcMain.handle("hibi:workspace:save", (_event, data) => workspaceDatabase?.save(data) ?? data);
+  ipcMain.handle("hibi:workspace:migrate-legacy", (_event, json) => workspaceDatabase?.migrateLegacy(json) ?? false);
   createWindow();
+  // Aguarda a criação da janela principal para evitar uma corrida ao carregar a overlay visual.
+  showStartupNotch(notchWindow, startupNotchAnimationPath);
+  // Em uma versão empacotada, verifica atualizações depois que a janela já está pronta.
+  // O serviço permanece desabilitado em desenvolvimento e sem feed configurado.
+  if (updateService.enabled) {
+    setTimeout(() => {
+      void updateService.check().catch((error) => {
+        console.warn("Hibi update check failed:", error?.message);
+      });
+    }, 3000);
+  }
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -727,6 +798,7 @@ app.on("before-quit", () => {
   void oauthService?.cancel();
   notificationScheduler?.clear();
   presenceMonitor?.stop();
+  workspaceDatabase?.close();
   void localApi?.stop();
   void webhookService?.stop();
   notchWindow?.destroy();

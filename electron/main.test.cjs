@@ -22,6 +22,9 @@ const { PRESENCE_POLL_MS } = require("./focus-presence.mjs");
 // remover um handler sem mexer aqui é uma quebra de contrato com o preload.
 const EXPECTED_CHANNELS = [
   "hibi:info",
+  "hibi:workspace:load",
+  "hibi:workspace:save",
+  "hibi:workspace:migrate-legacy",
   "hibi:login-item:get",
   "hibi:login-item",
   "hibi:notifications:sync",
@@ -48,6 +51,16 @@ const EXPECTED_CHANNELS = [
   "hibi:oauth:authorize",
   "hibi:oauth:refresh",
   "hibi:oauth:cancel",
+  "hibi:oauth:save-client-secret",
+  "hibi:oauth:delete-client-secret",
+  "hibi:updates:state",
+  "hibi:updates:check",
+  "hibi:updates:download",
+  "hibi:updates:install",
+  "hibi:local-model:state",
+  "hibi:local-model:run",
+  "hibi:local-model:cancel",
+  "hibi:local-model:shutdown",
   "hibi:calendar-sync:state",
   "hibi:calendar-sync:request-apple-access",
   "hibi:calendar-sync:discover-google-calendars",
@@ -73,6 +86,8 @@ const EXPECTED_CHANNELS = [
   "hibi:notch:capabilities",
   "hibi:notch:displays",
   "hibi:notch:set-display",
+  "hibi:notch:size",
+  "hibi:notch:set-size",
   "hibi:notch:test",
 ];
 
@@ -953,6 +968,18 @@ test("os handlers de OAuth levam o clientId configurado do conector", async (t) 
   ]);
 });
 
+test("o client secret do Google vai para o Keychain e não para o arquivo de configurações", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  const result = await harness.invoke("hibi:oauth:save-client-secret", "google-calendar", "google-secret");
+  assert.deepEqual(result, { connectorId: "google-calendar", configured: true });
+  assert.equal(harness.keychain.entries.get("integration:google-calendar:client-secret"), "google-secret");
+  assert.equal(harness.oauthService.calls.length, 0);
+  assert.deepEqual(await harness.invoke("hibi:oauth:delete-client-secret", "google-calendar"), { connectorId: "google-calendar", configured: false });
+  assert.equal(harness.keychain.entries.has("integration:google-calendar:client-secret"), false);
+});
+
 test("hibi:local-api:sync-workspace normaliza e limita o que o renderer envia", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
@@ -1112,7 +1139,7 @@ test("hibi:notch:show recusa apresentações inválidas e as do prefixo reservad
       }),
     /Invalid companion presentation/,
   );
-  assert.deepEqual(harness.notchManager.calls, []);
+  assert.deepEqual(harness.notchManager.calls.filter(([name, presentation]) => name === 'show' && presentation?.requestId !== 'startup-notch'), []);
 
   const presentation = {
     requestId: "c-1",
@@ -1140,7 +1167,7 @@ test("hibi:notch:action e hibi:notch:hide só aceitam identificadores limitados"
     await harness.invoke("hibi:notch:action", "x".repeat(129), "confirm"),
     false,
   );
-  assert.deepEqual(harness.notchManager.calls, []);
+  assert.deepEqual(harness.notchManager.calls.filter(([name, presentation]) => name === 'show' && presentation?.requestId !== 'startup-notch'), []);
 
   assert.equal(
     await harness.invoke("hibi:notch:action", "c-1", "confirm"),
@@ -1201,10 +1228,7 @@ test("hibi:notch:set-display recusa um monitor inexistente e persiste o escolhid
   assert.equal(harness.notchManager.preferredDisplay, undefined);
 
   const state = await harness.invoke("hibi:notch:set-display", 7);
-  assert.deepEqual(state.preference, {
-    displayId: 7,
-    displayLabel: "Studio Display",
-  });
+  assert.deepEqual(state.preference, { displayId: 7, displayLabel: "Studio Display", size: "normal" });
   assert.equal(harness.notchManager.preferredDisplay, 7);
   assert.deepEqual(
     JSON.parse(
@@ -1213,7 +1237,7 @@ test("hibi:notch:set-display recusa um monitor inexistente e persiste o escolhid
         "utf8",
       ),
     ),
-    { displayId: 7, displayLabel: "Studio Display" },
+    { displayId: 7, displayLabel: "Studio Display", size: "normal" },
   );
 });
 

@@ -2,6 +2,23 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("hibiDesktop", {
   info: () => ipcRenderer.invoke("hibi:info"),
+  getUpdateState: () => ipcRenderer.invoke("hibi:updates:state"),
+  checkForUpdate: () => ipcRenderer.invoke("hibi:updates:check"),
+  downloadUpdate: () => ipcRenderer.invoke("hibi:updates:download"),
+  installUpdate: () => ipcRenderer.invoke("hibi:updates:install"),
+  getLocalModelState: () => ipcRenderer.invoke("hibi:local-model:state"),
+  runLocalModel: (input) => ipcRenderer.invoke("hibi:local-model:run", input),
+  cancelLocalModel: (requestId) => ipcRenderer.invoke("hibi:local-model:cancel", requestId),
+  shutdownLocalModel: () => ipcRenderer.invoke("hibi:local-model:shutdown"),
+  onUpdateState: (callback) => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on("hibi:updates:state", listener);
+    return () => ipcRenderer.removeListener("hibi:updates:state", listener);
+  },
+  loadWorkspace: () => ipcRenderer.invoke("hibi:workspace:load"),
+  saveWorkspace: (data) => ipcRenderer.invoke("hibi:workspace:save", data),
+  migrateLegacyWorkspace: (json) =>
+    ipcRenderer.invoke("hibi:workspace:migrate-legacy", json),
   getOpenAtLogin: () => ipcRenderer.invoke("hibi:login-item:get"),
   setOpenAtLogin: (enabled) => ipcRenderer.invoke("hibi:login-item", enabled),
   syncNotifications: (entries, context) =>
@@ -47,6 +64,10 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   refreshIntegrationAuthorization: (connectorId) =>
     ipcRenderer.invoke("hibi:oauth:refresh", connectorId),
   cancelIntegrationAuthorization: () => ipcRenderer.invoke("hibi:oauth:cancel"),
+  saveOauthClientSecret: (connectorId, secret) =>
+    ipcRenderer.invoke("hibi:oauth:save-client-secret", connectorId, secret),
+  deleteOauthClientSecret: (connectorId) =>
+    ipcRenderer.invoke("hibi:oauth:delete-client-secret", connectorId),
   getCalendarSyncState: () => ipcRenderer.invoke("hibi:calendar-sync:state"),
   requestAppleCalendarAccess: () =>
     ipcRenderer.invoke("hibi:calendar-sync:request-apple-access"),
@@ -81,6 +102,8 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   listNotchDisplays: () => ipcRenderer.invoke("hibi:notch:displays"),
   setNotchDisplay: (displayId) =>
     ipcRenderer.invoke("hibi:notch:set-display", displayId),
+  getNotchSize: () => ipcRenderer.invoke("hibi:notch:size"),
+  setNotchSize: (size) => ipcRenderer.invoke("hibi:notch:set-size", size),
   testNotch: (locale) => ipcRenderer.invoke("hibi:notch:test", locale),
   onNotchDisplaysChanged: (callback) => {
     const listener = () => callback();

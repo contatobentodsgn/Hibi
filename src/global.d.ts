@@ -21,6 +21,7 @@ import type {
   PreparedIntegrationAction,
 } from "./integrations/contracts";
 import type { NotchDisplayState, NotchTestResult } from "./ui/notch-display";
+import type { StudyData } from "./domain/models";
 
 declare global {
   interface Window {
@@ -30,6 +31,18 @@ declare global {
         version: string;
         localOnly: boolean;
       }>;
+      getUpdateState?: () => Promise<{ status: string; version: string | null; error: string | null; percent?: number }>;
+      checkForUpdate?: () => Promise<{ status: string; version: string | null; error: string | null; percent?: number }>;
+      downloadUpdate?: () => Promise<{ status: string; version: string | null; error: string | null; percent?: number }>;
+      installUpdate?: () => Promise<void>;
+      getLocalModelState?: () => Promise<{ status: string; modelId: string | null; error: string | null }>;
+      runLocalModel?: (input: { requestId: string; prompt: string }) => Promise<{ requestId: string | null; status: string; text: string }>;
+      cancelLocalModel?: (requestId: string) => Promise<void>;
+      shutdownLocalModel?: () => Promise<void>;
+      onUpdateState?: (callback: (state: { status: string; version: string | null; error: string | null; percent?: number }) => void) => () => void;
+      loadWorkspace?: () => Promise<StudyData | null>;
+      saveWorkspace?: (data: StudyData) => Promise<StudyData>;
+      migrateLegacyWorkspace?: (json: string) => Promise<boolean>;
       getOpenAtLogin?: () => Promise<boolean>;
       setOpenAtLogin?: (enabled: boolean) => Promise<boolean>;
       syncNotifications?: (
@@ -134,6 +147,8 @@ declare global {
         connectorId: string,
       ) => Promise<IntegrationAuthorization>;
       cancelIntegrationAuthorization?: () => Promise<void>;
+      saveOauthClientSecret?: (connectorId: string, secret: string) => Promise<{ connectorId: string; configured: boolean }>;
+      deleteOauthClientSecret?: (connectorId: string) => Promise<{ connectorId: string; configured: boolean }>;
       getCalendarSyncState?: () => Promise<
         import("./ui/calendar-sync").CalendarSyncState
       >;
@@ -291,6 +306,8 @@ declare global {
       setNotchDisplay?: (
         displayId: number | null,
       ) => Promise<NotchDisplayState>;
+      getNotchSize?: () => Promise<{ size: 'normal' | 'compact' }>;
+      setNotchSize?: (size: 'normal' | 'compact') => Promise<{ size: 'normal' | 'compact' }>;
       testNotch?: (locale: "pt" | "en") => Promise<NotchTestResult>;
       onNotchDisplaysChanged?: (callback: () => void) => () => void;
       onCompanionPresentation?: (
