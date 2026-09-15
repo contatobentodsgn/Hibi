@@ -54,6 +54,7 @@ const { createWorkspaceDatabase } = require("./workspace-database.cjs");
 const { createElectronUpdateService } = require("./updates.cjs");
 const { createLocalModelService } = require("./local-model-service.cjs");
 const { createLocalVoiceService } = require("./local-voice.cjs");
+const { createDeviceAdapter } = require("./device-adapter.mjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
 let mainWindow;
@@ -78,6 +79,7 @@ let notchTest;
 let updateService;
 let localModelService;
 let localVoiceService;
+let deviceAdapter;
 let detachNotchLifecycle = () => {};
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== "1";
 const MAX_AI_STREAM_DELTA = 8000;
@@ -410,6 +412,7 @@ app.whenReady().then(async () => {
   updateService = createElectronUpdateService({ app, autoUpdater, onEvent: (state) => sendToMainWindow("hibi:updates:state", state) });
   localModelService = createLocalModelService({ dataRoot: path.join(app.getPath("userData"), ".hibi-local-models") });
   localVoiceService = createLocalVoiceService();
+  deviceAdapter = createDeviceAdapter();
   notificationScheduler = createNotificationScheduler({
     NotificationClass: Notification,
     onTrigger: (entry) =>
@@ -513,6 +516,9 @@ app.whenReady().then(async () => {
   ipcMain.handle("hibi:local-voice:state", () => localVoiceService.state());
   ipcMain.handle("hibi:local-voice:set-locale", (_event, locale) => localVoiceService.setLocale(locale));
   ipcMain.handle("hibi:local-voice:stop", () => localVoiceService.stop());
+  ipcMain.handle("hibi:device:state", () => deviceAdapter.state());
+  ipcMain.handle("hibi:device:connect", () => deviceAdapter.connect());
+  ipcMain.handle("hibi:device:close", () => deviceAdapter.close());
   ipcMain.handle(
     "hibi:login-item:get",
     () => app.getLoginItemSettings().openAtLogin,

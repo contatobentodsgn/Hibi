@@ -42,6 +42,9 @@ declare global {
       getLocalVoiceState?: () => Promise<{ status: string; locale: string; error: string | null }>;
       setLocalVoiceLocale?: (locale: string) => Promise<{ status: string; locale: string; error: string | null }>;
       stopLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null }>;
+      getDeviceState?: () => Promise<{ status: string; firmwareVersion: string | null; capabilities: string[] }>;
+      connectDevice?: () => Promise<{ status: string; firmwareVersion: string | null; capabilities: string[] }>;
+      closeDevice?: () => Promise<void>;
       onUpdateState?: (callback: (state: { status: string; version: string | null; error: string | null; percent?: number }) => void) => () => void;
       loadWorkspace?: () => Promise<StudyData | null>;
       saveWorkspace?: (data: StudyData) => Promise<StudyData>;
