@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import type { CalendarSyncSource } from "./calendar-sync";
 import { CalendarSyncPanel } from "./CalendarSyncPanel";
-import type { CalendarSyncState } from "./calendar-sync";
+import { labelCalendarSources, type CalendarSyncState } from "./calendar-sync";
 import type { ScheduleBlock } from "../domain/models";
 
 type Props = Readonly<{
@@ -35,7 +35,8 @@ export function MacCalendarConnection({ onEvent, blocks = [] }: Props) {
     "O acesso ao Calendário nunca é solicitado silenciosamente.",
   );
   const refresh = async () => {
-    const state = await window.hibiDesktop?.getCalendarSyncState?.();
+    const snapshot = await window.hibiDesktop?.getCalendarSyncState?.();
+    const state = snapshot ? labelCalendarSources(snapshot) : undefined;
     const next = state?.sources.find((entry) => entry.provider === "apple");
     if (next) setSource(next);
     if (state) setSyncState(state);
@@ -205,7 +206,7 @@ export function MacCalendarConnection({ onEvent, blocks = [] }: Props) {
         onChangeMode={(calendar, mode) => {
           void window.hibiDesktop
             ?.saveCalendarSyncMode?.({ id: calendar.id, mode })
-            .then(setSyncState)
+            .then((snapshot) => setSyncState(labelCalendarSources(snapshot)))
             .catch(() =>
               setNotice("Não foi possível salvar o modo do calendário."),
             );

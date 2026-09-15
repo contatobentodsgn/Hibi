@@ -37,6 +37,8 @@ let oauthService;
 let calendarSyncService;
 let calendarSyncSettings;
 let localApiWorkspace = { tasks: [], reminders: [], blocks: [] };
+// Até o renderer mandar o workspace, a sincronização de calendário não sabe quais blocos existem.
+let localApiWorkspaceSynced = false;
 const pendingLocalApiWrites = new Map();
 let notchWindow;
 let notchSettings;
@@ -195,7 +197,7 @@ app.whenReady().then(async () => {
   calendarSyncSettings = createCalendarSyncSettings({ filePath: path.join(app.getPath('userData'), 'calendar-sync.json') });
   integrationManager = createIntegrationManager({ connectors: buildConnectors(connectorSettings), keychain: secureKeychain });
   oauthService = createOAuthService({ keychain: secureKeychain, getConnector: (id) => integrationManager.getConnector(id), openExternal: (url) => shell.openExternal(url) });
-  calendarSyncService = createCalendarSyncService({ eventKit: eventKitCalendar, integrations: integrationManager, settings: connectorSettings, calendarSettings: calendarSyncSettings, workspace: () => localApiWorkspace });
+  calendarSyncService = createCalendarSyncService({ eventKit: eventKitCalendar, integrations: integrationManager, settings: connectorSettings, calendarSettings: calendarSyncSettings, workspace: () => (localApiWorkspaceSynced ? localApiWorkspace : null) });
   localApi = createLocalApi({ tokenStore: createLocalApiTokenStore({ keychain: createMacKeychain() }), workspace: () => localApiWorkspace, prepareWrite: async (intent) => {
     const confirmationId = `local-api-${crypto.randomUUID()}`;
     pendingLocalApiWrites.set(confirmationId, intent);
@@ -281,6 +283,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:local-api:sync-workspace', (_event, value) => {
     const safe = value && typeof value === 'object' ? value : {};
     localApiWorkspace = { tasks: Array.isArray(safe.tasks) ? safe.tasks.slice(0, 5_000) : [], reminders: Array.isArray(safe.reminders) ? safe.reminders.slice(0, 5_000) : [], blocks: Array.isArray(safe.blocks) ? safe.blocks.slice(0, 5_000) : [] };
+    localApiWorkspaceSynced = true;
   });
   ipcMain.handle('hibi:local-api:start', async () => {
     const started = await localApi.start();

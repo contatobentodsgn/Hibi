@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isCalendarSyncMode, isCalendarSyncProvider, type CalendarSyncState } from '../calendar-sync'
+import { isCalendarSyncMode, isCalendarSyncProvider, labelCalendarSources, type CalendarSyncState } from '../calendar-sync'
 
 describe('calendar sync renderer contract', () => {
   it('accepts only the two supported providers and bounded calendar modes', () => {
@@ -21,5 +21,16 @@ describe('calendar sync renderer contract', () => {
 
     expect(state.calendars[0]?.mode).toBe('read-only')
     expect(state.conflicts[0]?.summary).toBe('1 event needs review')
+  })
+
+  it('names each source in the renderer, since the main process sends only identifiers', () => {
+    const state = labelCalendarSources({
+      sources: [{ id: 'apple', provider: 'apple', state: 'connected' }, { id: 'google', provider: 'google', state: 'disconnected' }],
+      calendars: [],
+      conflicts: [],
+    })
+
+    expect(state.sources.map((source) => source.label)).toEqual(['Calendário do Mac', 'Google Calendar'])
+    expect(state.sources[0]?.state).toBe('connected')
   })
 })

@@ -40,11 +40,11 @@ declare global {
       authorizeIntegration?: (connectorId: string) => Promise<IntegrationAuthorization>;
       refreshIntegrationAuthorization?: (connectorId: string) => Promise<IntegrationAuthorization>;
       cancelIntegrationAuthorization?: () => Promise<void>;
-      getCalendarSyncState?: () => Promise<import('./ui/calendar-sync').CalendarSyncState>;
+      getCalendarSyncState?: () => Promise<import('./ui/calendar-sync').CalendarSyncSnapshot>;
       requestAppleCalendarAccess?: () => Promise<{ state: 'connected'; syncedAt: string }>;
       discoverGoogleCalendars?: () => Promise<readonly { id: string; label: string }[]>;
       readCalendarSyncEvents?: (input: { start: string; end: string; calendars: readonly { sourceId: 'apple' | 'google'; id: string }[] }) => Promise<readonly { sourceId: 'apple' | 'google'; calendarId: string; remoteId: string; revision?: string; title: string; startsAt: string; endsAt: string; allDay: boolean; writable: boolean; cancelled?: boolean }[]>;
-      saveCalendarSyncMode?: (input: { id: string; mode: import('./ui/calendar-sync').CalendarSyncMode }) => Promise<import('./ui/calendar-sync').CalendarSyncState>;
+      saveCalendarSyncMode?: (input: { id: string; mode: import('./ui/calendar-sync').CalendarSyncMode }) => Promise<import('./ui/calendar-sync').CalendarSyncSnapshot>;
       prepareCalendarPublish?: (input: { calendarId: string; block: { id: string; title: string; startsAt: string; endsAt: string; allDay?: boolean } }) => Promise<{ id: string; confirmationId: string; requiresConfirmation: true; calendarId: string; summary: string }>;
       executeApprovedCalendarPublish?: (input: { actionId: string; confirmationId: string }) => Promise<{ remoteId: string }>;
       prepareCalendarUpdate?: (input: { calendarId: string; block: { id: string; title: string; startsAt: string; endsAt: string; allDay?: boolean } }) => Promise<{ id: string; confirmationId: string; requiresConfirmation: true; calendarId: string; summary: string }>;

@@ -16,6 +16,7 @@ const realNotifications = require("./notifications.mjs");
 const realNotchWindow = require("./notch-window.cjs");
 const realNotchTest = require("./notch-test.cjs");
 const realAiConfig = require("./ai-config.cjs");
+const realCalendarSync = require("./calendar-sync-service.cjs");
 const { PRESENCE_POLL_MS } = require("./focus-presence.mjs");
 
 // Os canais que o renderer pode chamar. A lista é mantida à mão de propósito:
@@ -273,6 +274,14 @@ async function loadMain({ seedUserData } = {}) {
       },
     },
     "./ai-config.cjs": { ...realAiConfig, createMacKeychain: () => keychain },
+    // O serviço é o de verdade; o dublê só guarda as opções para provar o que o main entrega a ele.
+    "./calendar-sync-service.cjs": {
+      ...realCalendarSync,
+      createCalendarSyncService: (options) => {
+        captured.calendarSync = options;
+        return realCalendarSync.createCalendarSyncService(options);
+      },
+    },
     "./notch-window.cjs": { ...realNotchWindow, createNotchWindowManager: (options) => { captured.notchWindow = options; return notchManager; } },
     "./notch-test.cjs": { ...realNotchTest, createNotchTest: (options) => { captured.notchTest = options; return notchTest; } },
     "../native/notch/index.cjs": { createNotchAdapter: (options) => { captured.adapter = options; return notchAdapter; } },
@@ -929,4 +938,47 @@ test("o evento de presença atravessa a ponte: processo principal → preload �
   assert.deepEqual(preload.listeners.get(PRESENCE_CHANNEL), []);
   preload.deliver(PRESENCE_CHANNEL, emitted[0][1]);
   assert.equal(received.length, 1);
+});
+
+test("os canais de sincronização de calendário respondem a entrada malformada com erro de validação, nunca TypeError", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const channels = [
+    "hibi:calendar-sync:save-calendar-mode",
+    "hibi:calendar-sync:prepare-publish",
+    "hibi:calendar-sync:execute-approved",
+    "hibi:calendar-sync:prepare-update",
+    "hibi:calendar-sync:resolve-conflict",
+  ];
+  const inputs = [
+    undefined,
+    null,
+    "apple:personal",
+    42,
+    [],
+    { calendarId: 7, block: "bloco" },
+    { calendarId: "apple:personal", block: { id: "b", title: "T", startsAt: "amanhã", endsAt: "2026-09-14T10:00:00" } },
+    { id: {}, mode: ["bidirectional"], choice: null, actionId: [], confirmationId: {} },
+  ];
+
+  for (const channel of channels)
+    for (const input of inputs)
+      await assert.rejects(
+        () => harness.invoke(channel, input),
+        (error) => {
+          assert.ok(!(error instanceof TypeError), `${channel} ${JSON.stringify(input)}: ${error.message}`);
+          assert.match(error.message, /invalid|required/i, `${channel} ${JSON.stringify(input)}`);
+          return true;
+        },
+      );
+  assert.equal(fs.existsSync(path.join(harness.userData, "calendar-sync.json")), false);
+});
+
+test("a sincronização de calendário não vê workspace até o renderer mandar um", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  assert.equal(harness.captured.calendarSync.workspace(), null);
+  await harness.invoke("hibi:local-api:sync-workspace", { tasks: [], reminders: [], blocks: [{ id: "block-1" }] });
+  assert.deepEqual(harness.captured.calendarSync.workspace().blocks, [{ id: "block-1" }]);
 });

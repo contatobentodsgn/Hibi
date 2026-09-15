@@ -35,3 +35,16 @@ export type CalendarSyncState = Readonly<{
 
 export const isCalendarSyncProvider = (value: unknown): value is CalendarSyncProvider => value === 'apple' || value === 'google'
 export const isCalendarSyncMode = (value: unknown): value is CalendarSyncMode => value === 'disabled' || value === 'read-only' || value === 'bidirectional'
+
+// O processo principal manda só identificadores de fonte. O nome de cada uma é texto de interface e
+// nasce aqui, no renderer.
+export type CalendarSyncSnapshot = Readonly<Omit<CalendarSyncState, 'sources'> & {
+  sources: readonly Omit<CalendarSyncSource, 'label'>[]
+}>
+
+const SOURCE_LABELS: Readonly<Record<CalendarSyncProvider, string>> = { apple: 'Calendário do Mac', google: 'Google Calendar' }
+
+export const labelCalendarSources = (snapshot: CalendarSyncSnapshot): CalendarSyncState => ({
+  ...snapshot,
+  sources: snapshot.sources.map((source) => ({ ...source, label: SOURCE_LABELS[source.provider] })),
+})
