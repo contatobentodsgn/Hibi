@@ -40,10 +40,10 @@
 - Modify: `src/global.d.ts`
 - Test: `electron/main.test.cjs`
 
-- [ ] Adicionar handlers `hibi:local-model:state`, `hibi:local-model:run`, `hibi:local-model:cancel` e `hibi:local-model:shutdown`, com payloads limitados.
-- [ ] Ligar a API do preload aos eventos de estado e streaming, sem expor `process`, caminhos ou engine.
-- [ ] Testar que todos os canais têm paridade main/preload e que cancelamento é idempotente.
-- [ ] Rodar `node --test electron/main.test.cjs`.
+- [x] Adicionar handlers `hibi:local-model:state`, `hibi:local-model:run`, `hibi:local-model:cancel` e `hibi:local-model:shutdown`, com payloads limitados.
+- [x] Ligar a API do preload aos eventos de estado e streaming, sem expor `process`, caminhos ou engine.
+- [x] Testar que todos os canais têm paridade main/preload e que cancelamento é idempotente.
+- [x] Rodar `node --test electron/main.test.cjs`.
 
 ### Task 4: Voz local
 
