@@ -11,6 +11,7 @@ test("exposes a bounded EventKit calendar bridge contract", () => {
     "requestFullAccess",
     "listCalendars",
     "listEvents",
+    "getEvent",
     "saveEvent",
     "updateEvent",
     "removeEvent",

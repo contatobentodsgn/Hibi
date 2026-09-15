@@ -331,3 +331,34 @@ test('extrai a revisão segura da resposta de página do Notion', async () => {
   const prepared = await manager.prepareAction({ connectorId: 'revision', kind: 'remote.write', payload: {} });
   assert.deepEqual(await manager.executeApproved({ actionId: prepared.id, confirmationId: prepared.confirmationId }), { ok: true, status: 200, remoteId: 'page-1', revision: '2026-09-10T01:00:00.000Z' });
 });
+
+test('reads one calendar event by id through a read-only transport and passes a confirmed deletion through as null', async () => {
+  const store = keychain();
+  await store.set('integration:calendar', 'credential-never-rendered');
+  const received = [];
+  const manager = createIntegrationManager({ keychain: store, connectors: [{
+    id: 'calendar', label: 'Calendar', allowedHosts: ['calendar.example.test'], capabilities: ['import'],
+    async fetchCalendarEvent(input) {
+      received.push(input);
+      await assert.rejects(input.request('https://calendar.example.test/events/x', { method: 'DELETE' }), /cannot perform writes/);
+      if (input.remoteId === 'gone') return null;
+      return { remoteId: 'moved', revision: 'r2', title: 'Movido', startsAt: '2026-09-21T09:00:00-03:00', endsAt: '2026-09-21T10:00:00-03:00', allDay: false, privateBody: 'do not return' };
+    },
+  }] });
+
+  assert.deepEqual(await manager.readCalendarEvent('calendar', { calendarId: 'primary', remoteId: 'moved' }), { remoteId: 'moved', revision: 'r2', title: 'Movido', startsAt: '2026-09-21T09:00:00-03:00', endsAt: '2026-09-21T10:00:00-03:00', allDay: false });
+  assert.equal(await manager.readCalendarEvent('calendar', { calendarId: 'primary', remoteId: 'gone' }), null);
+  assert.deepEqual(received.map((input) => [input.calendarId, input.remoteId, input.credential]), [['primary', 'moved', 'credential-never-rendered'], ['primary', 'gone', 'credential-never-rendered']]);
+  assert.equal((await manager.audit())[0].detail, 'Calendar event not found.');
+});
+
+test('rejects a malformed single calendar event instead of passing it on', async () => {
+  const store = keychain();
+  await store.set('integration:calendar', 'token');
+  const manager = createIntegrationManager({ keychain: store, connectors: [{
+    id: 'calendar', label: 'Calendar', allowedHosts: ['calendar.example.test'], capabilities: ['import'],
+    async fetchCalendarEvent() { return { remoteId: 'event-1', title: 'Planejar', startsAt: 'amanhã', endsAt: '2026-09-21T10:00:00-03:00' }; },
+  }] });
+
+  await assert.rejects(() => manager.readCalendarEvent('calendar', { calendarId: 'primary', remoteId: 'event-1' }), /invalid calendar event/);
+});
