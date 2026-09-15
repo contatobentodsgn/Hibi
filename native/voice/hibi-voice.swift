@@ -21,6 +21,10 @@ struct HibiVoice {
         let locale = args.dropFirst(2).first ?? "pt-BR"
         guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: locale)), recognizer.isAvailable else { emit(["type": "error", "message": "Speech locale unavailable"]); return }
         guard await authorization() == .authorized else { emit(["type": "error", "message": "Speech recognition permission denied"]); return }
+        let microphoneAllowed = await withCheckedContinuation { continuation in
+            AVAudioApplication.requestRecordPermission { continuation.resume(returning: $0) }
+        }
+        guard microphoneAllowed else { emit(["type": "error", "message": "Microphone permission denied"]); return }
         let audio = AVAudioEngine()
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
