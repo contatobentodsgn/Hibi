@@ -7,7 +7,7 @@ type Props = Readonly<{
   onConnect: (source: CalendarSyncSource) => void
   onChangeMode: (calendar: CalendarSyncCalendar, mode: CalendarSyncMode) => void
   onSync: (source: CalendarSyncSource) => void
-  onResolveConflict: (conflict: CalendarSyncConflict) => void
+  onResolveConflict: (conflict: CalendarSyncConflict, choice: 'keep-calendar' | 'keep-hibi') => void
 }>
 
 const errorLabel = (error: CalendarSyncSource['error']) => error === 'invalid-credential' ? 'credential needs attention' : error === 'permission-denied' ? 'permission is required' : error === 'configuration-incomplete' ? 'configuration is incomplete' : 'temporarily unavailable'
@@ -27,6 +27,6 @@ export function CalendarSyncPanel({ state, onConnect, onChangeMode, onSync, onRe
         {(['disabled', 'read-only', 'bidirectional'] as const).map((mode) => <option key={mode} value={mode}>{modeLabel(mode)}</option>)}
       </select>
     </article>)}</div>}
-    {state.conflicts.length > 0 && <div className="calendar-sync-conflicts" aria-label="Conflitos de calendário"><strong>Revisar conflitos</strong>{state.conflicts.map((conflict) => <div className="calendar-sync-conflict" key={conflict.id}><span>{conflict.summary}</span><button className="outline" aria-label={`Resolver conflito: ${conflict.summary}`} onClick={() => onResolveConflict(conflict)}>Revisar</button></div>)}</div>}
+    {state.conflicts.length > 0 && <div className="calendar-sync-conflicts" aria-label="Conflitos de calendário"><strong>Revisar conflitos</strong>{state.conflicts.map((conflict) => <div className="calendar-sync-conflict" key={conflict.id}><span>{conflict.summary}</span><div className="calendar-sync-actions"><button className="outline" aria-label={`Manter calendário: ${conflict.summary}`} onClick={() => onResolveConflict(conflict, 'keep-calendar')}>Manter calendário</button><button className="outline" aria-label={`Manter Hibi: ${conflict.summary}`} onClick={() => onResolveConflict(conflict, 'keep-hibi')}>Manter Hibi</button></div></div>)}</div>}
   </section>
 }

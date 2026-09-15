@@ -20,8 +20,14 @@ static NSString *Text(const Napi::Value &value, Napi::Env env, const char *label
 
 static NSDate *Date(const Napi::Value &value, Napi::Env env, const char *label) {
   NSString *text = Text(value, env, label); if (!text) return nil;
+  // O formatador padrão recusa frações de segundo, e `toISOString()` sempre as manda (`…:00.000Z`).
+  // Hora sem fuso continua recusada: o processo principal converte a hora flutuante antes de chegar aqui.
   NSISO8601DateFormatter *formatter = [[NSISO8601DateFormatter alloc] init];
   NSDate *date = [formatter dateFromString:text];
+  if (!date) {
+    formatter.formatOptions = NSISO8601DateFormatWithInternetDateTime | NSISO8601DateFormatWithFractionalSeconds;
+    date = [formatter dateFromString:text];
+  }
   if (!date) Napi::TypeError::New(env, label).ThrowAsJavaScriptException();
   return date;
 }
@@ -57,18 +63,33 @@ static Napi::Value Status(const Napi::CallbackInfo& info) { return Napi::String:
 
 static Napi::Value RequestFullAccess(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
-  Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
+  auto deferred = std::make_shared<Napi::Promise::Deferred>(Napi::Promise::Deferred::New(env));
+  Napi::Function settle = Napi::Function::New(env, [deferred](const Napi::CallbackInfo& callback) {
+    if (callback.Length() > 0 && callback[0].ToBoolean().Value()) {
+      deferred->Resolve(Napi::Boolean::New(callback.Env(), true));
+      return;
+    }
+    std::string message = callback.Length() > 1 && callback[1].IsString()
+      ? callback[1].As<Napi::String>().Utf8Value()
+      : "Calendar access was not granted.";
+    deferred->Reject(Napi::Error::New(callback.Env(), message).Value());
+  });
+  auto completion = std::make_shared<Napi::ThreadSafeFunction>(
+    Napi::ThreadSafeFunction::New(env, settle, "CalendarAccessCompletion", 0, 1));
   EKEventStore *eventStore = EventStore();
   void (^finish)(BOOL, NSError *) = ^(BOOL granted, NSError *error) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-      if (granted) { deferred.Resolve(Napi::Boolean::New(env, true)); return; }
-      NSString *message = error.localizedDescription ?: @"Calendar access was not granted.";
-      deferred.Reject(Napi::Error::New(env, message.UTF8String).Value());
+    NSString *message = error.localizedDescription ?: @"Calendar access was not granted.";
+    auto *result = new std::pair<bool, std::string>(granted, message.UTF8String ?: "Calendar access was not granted.");
+    napi_status status = completion->BlockingCall(result, [](Napi::Env jsEnv, Napi::Function callback, std::pair<bool, std::string> *value) {
+      callback.Call({ Napi::Boolean::New(jsEnv, value->first), Napi::String::New(jsEnv, value->second) });
+      delete value;
     });
+    if (status != napi_ok) delete result;
+    completion->Release();
   };
   if (@available(macOS 14.0, *)) [eventStore requestFullAccessToEventsWithCompletion:finish];
   else [eventStore requestAccessToEntityType:EKEntityTypeEvent completion:finish];
-  return deferred.Promise();
+  return deferred->Promise();
 }
 
 static Napi::Value ListCalendars(const Napi::CallbackInfo& info) {
@@ -122,6 +143,7 @@ static Napi::Value ListEvents(const Napi::CallbackInfo& info) {
       entry.Set("endsAt", ISOString(event.endDate).UTF8String);
       entry.Set("allDay", Napi::Boolean::New(env, event.allDay));
       entry.Set("writable", Napi::Boolean::New(env, event.calendar.allowsContentModifications));
+      if (event.lastModifiedDate) entry.Set("revision", ISOString(event.lastModifiedDate).UTF8String);
       result.Set(index++, entry);
     }
     return result;
@@ -146,7 +168,33 @@ static Napi::Value SaveEvent(const Napi::CallbackInfo& info) {
     if (input.Has("allDay") && input.Get("allDay").IsBoolean()) event.allDay = input.Get("allDay").As<Napi::Boolean>().Value();
     NSError *error = nil;
     if (![EventStore() saveEvent:event span:EKSpanThisEvent commit:YES error:&error]) { Napi::Error::New(env, (error.localizedDescription ?: @"Calendar event could not be saved.").UTF8String).ThrowAsJavaScriptException(); return env.Null(); }
-    Napi::Object result = Napi::Object::New(env); result.Set("id", event.eventIdentifier.UTF8String); return result;
+    Napi::Object result = Napi::Object::New(env); result.Set("id", event.eventIdentifier.UTF8String); if (event.lastModifiedDate) result.Set("revision", ISOString(event.lastModifiedDate).UTF8String); return result;
+  }
+}
+
+static Napi::Value UpdateEvent(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env(); @autoreleasepool {
+    if (!HasCalendarAccess()) { Napi::Error::New(env, "Calendar full access is required.").ThrowAsJavaScriptException(); return env.Null(); }
+    if (info.Length() < 1 || !info[0].IsObject()) { Napi::TypeError::New(env, "Calendar event is invalid.").ThrowAsJavaScriptException(); return env.Null(); }
+    Napi::Object input = info[0].As<Napi::Object>();
+    NSString *identifier = Text(input.Get("id"), env, "Calendar event identifier is invalid.", 240);
+    NSString *title = Text(input.Get("title"), env, "Calendar event title is invalid.", 240);
+    NSDate *start = Date(input.Get("start"), env, "Calendar event start is invalid.");
+    NSDate *end = Date(input.Get("end"), env, "Calendar event end is invalid.");
+    if (!identifier || !title || !start || !end) return env.Null();
+    if ([end timeIntervalSinceDate:start] <= 0 || [end timeIntervalSinceDate:start] > kMaximumRange) { Napi::RangeError::New(env, "Calendar event range is invalid.").ThrowAsJavaScriptException(); return env.Null(); }
+    EKEvent *event = [EventStore() eventWithIdentifier:identifier];
+    if (!event || !event.calendar.allowsContentModifications) { Napi::Error::New(env, "The selected calendar event cannot be changed.").ThrowAsJavaScriptException(); return env.Null(); }
+    if (input.Has("expectedRevision")) {
+      NSString *expectedRevision = Text(input.Get("expectedRevision"), env, "Calendar event revision is invalid.", 240); if (!expectedRevision) return env.Null();
+      NSString *actualRevision = event.lastModifiedDate ? ISOString(event.lastModifiedDate) : @"";
+      if (![expectedRevision isEqualToString:actualRevision]) { Napi::Error::New(env, "Calendar event changed elsewhere. Review the conflict.").ThrowAsJavaScriptException(); return env.Null(); }
+    }
+    event.title = title; event.startDate = start; event.endDate = end;
+    if (input.Has("allDay") && input.Get("allDay").IsBoolean()) event.allDay = input.Get("allDay").As<Napi::Boolean>().Value();
+    NSError *error = nil;
+    if (![EventStore() saveEvent:event span:EKSpanThisEvent commit:YES error:&error]) { Napi::Error::New(env, (error.localizedDescription ?: @"Calendar event could not be updated.").UTF8String).ThrowAsJavaScriptException(); return env.Null(); }
+    Napi::Object result = Napi::Object::New(env); result.Set("id", event.eventIdentifier.UTF8String); if (event.lastModifiedDate) result.Set("revision", ISOString(event.lastModifiedDate).UTF8String); return result;
   }
 }
 
@@ -170,6 +218,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("listCalendars", Napi::Function::New(env, ListCalendars));
   exports.Set("listEvents", Napi::Function::New(env, ListEvents));
   exports.Set("saveEvent", Napi::Function::New(env, SaveEvent));
+  exports.Set("updateEvent", Napi::Function::New(env, UpdateEvent));
   exports.Set("removeEvent", Napi::Function::New(env, RemoveEvent));
   return exports;
 }

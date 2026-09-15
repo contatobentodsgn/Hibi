@@ -40,10 +40,15 @@ declare global {
       authorizeIntegration?: (connectorId: string) => Promise<IntegrationAuthorization>;
       refreshIntegrationAuthorization?: (connectorId: string) => Promise<IntegrationAuthorization>;
       cancelIntegrationAuthorization?: () => Promise<void>;
-      getCalendarSyncState?: () => Promise<import('./ui/calendar-sync').CalendarSyncState>;
+      getCalendarSyncState?: () => Promise<import('./ui/calendar-sync').CalendarSyncSnapshot>;
       requestAppleCalendarAccess?: () => Promise<{ state: 'connected'; syncedAt: string }>;
       discoverGoogleCalendars?: () => Promise<readonly { id: string; label: string }[]>;
-      readCalendarSyncEvents?: (input: { start: string; end: string; calendars: readonly { sourceId: 'apple' | 'google'; id: string }[] }) => Promise<readonly { sourceId: 'apple' | 'google'; calendarId: string; remoteId: string; title: string; startsAt: string; endsAt: string; allDay: boolean; writable: boolean; cancelled?: boolean }[]>;
+      readCalendarSyncEvents?: (input: { start: string; end: string; calendars: readonly { sourceId: 'apple' | 'google'; id: string }[] }) => Promise<readonly { sourceId: 'apple' | 'google'; calendarId: string; remoteId: string; revision?: string; title: string; startsAt: string; endsAt: string; allDay: boolean; writable: boolean; cancelled?: boolean }[]>;
+      saveCalendarSyncMode?: (input: { id: string; mode: import('./ui/calendar-sync').CalendarSyncMode }) => Promise<import('./ui/calendar-sync').CalendarSyncSnapshot>;
+      prepareCalendarPublish?: (input: { calendarId: string; block: { id: string; title: string; startsAt: string; endsAt: string; allDay?: boolean } }) => Promise<{ id: string; confirmationId: string; requiresConfirmation: true; calendarId: string; summary: string }>;
+      executeApprovedCalendarPublish?: (input: { actionId: string; confirmationId: string }) => Promise<{ remoteId: string }>;
+      prepareCalendarUpdate?: (input: { calendarId: string; block: { id: string; title: string; startsAt: string; endsAt: string; allDay?: boolean } }) => Promise<{ id: string; confirmationId: string; requiresConfirmation: true; calendarId: string; summary: string }>;
+      resolveCalendarConflict?: (input: { id: string; choice: 'keep-calendar' | 'keep-hibi' }) => Promise<{ resolved: true; choice: 'keep-calendar' } | { resolved: false; choice: 'keep-hibi'; action: { id: string; confirmationId: string; requiresConfirmation: true; calendarId: string; summary: string } }>;
       configureWebhook?: (secret: string) => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       startWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       stopWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
