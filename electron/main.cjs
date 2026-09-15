@@ -9,6 +9,7 @@ const {
   powerMonitor,
 } = require("electron");
 const path = require("node:path");
+const fs = require("node:fs");
 const crypto = require("node:crypto");
 const {
   createNotificationScheduler,
@@ -54,6 +55,7 @@ const { createWorkspaceDatabase } = require("./workspace-database.cjs");
 const { createElectronUpdateService } = require("./updates.cjs");
 const { createLocalModelService } = require("./local-model-service.cjs");
 const { createLocalVoiceService } = require("./local-voice.cjs");
+const { createMacVoiceAdapter } = require("./local-voice-macos.cjs");
 const { createDeviceAdapter } = require("./device-adapter.mjs");
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
@@ -410,8 +412,25 @@ app.whenReady().then(async () => {
     try { ({ autoUpdater } = require("electron-updater")); } catch (error) { console.warn("Hibi updater unavailable:", error?.message); }
   }
   updateService = createElectronUpdateService({ app, autoUpdater, onEvent: (state) => sendToMainWindow("hibi:updates:state", state) });
-  localModelService = createLocalModelService({ dataRoot: path.join(app.getPath("userData"), ".hibi-local-models") });
-  localVoiceService = createLocalVoiceService();
+  const projectModelRoot = path.join(__dirname, "..", ".hibi-local-models", "qwen3-1.7b");
+  const packagedModelRoot = path.join(app.getPath("userData"), ".hibi-local-models");
+  const modelRoot = app.isPackaged ? packagedModelRoot : projectModelRoot;
+  let engineFactory;
+  try {
+    ({ createLlamaEngine: engineFactory } = await import("./local-model-engine.mjs"));
+  } catch (error) {
+    console.warn("Hibi local model runtime unavailable:", error?.message);
+  }
+  localModelService = createLocalModelService({ dataRoot: modelRoot, engineFactory: engineFactory ? ({ modelPath }) => engineFactory({ modelPath }) : undefined });
+  try {
+    const manifestPath = path.join(modelRoot, "manifest.json");
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const modelPath = path.join(modelRoot, `${manifest.id}.bin`);
+    if (fs.existsSync(modelPath)) await localModelService.load({ manifest, modelPath });
+  } catch (error) {
+    console.warn("Hibi local model not loaded:", error?.message);
+  }
+  localVoiceService = createLocalVoiceService({ adapter: process.platform === "darwin" ? createMacVoiceAdapter() : undefined });
   deviceAdapter = createDeviceAdapter();
   notificationScheduler = createNotificationScheduler({
     NotificationClass: Notification,
