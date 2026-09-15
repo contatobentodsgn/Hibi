@@ -17,10 +17,10 @@
 - Test: `electron/local-model-contract.test.cjs`
 - Modify: `docs/local-capability-contracts.md`
 
-- [ ] Escrever testes para manifesto versionado, limite de 3 GB, checksum SHA-256 e rejeição de qualquer caminho fora de `.hibi-local-models` dentro do diretório de dados do app.
-- [ ] Implementar `validateModelManifest(manifest, dataRoot)` e `modelPath(manifest, dataRoot)` sem criar diretórios fora de `dataRoot`.
-- [ ] Rodar `node --test electron/local-model-contract.test.cjs` e confirmar todos os casos.
-- [ ] Documentar que o modelo opcional fica no armazenamento do app e nunca no workspace pessoal do Mac.
+- [x] Escrever testes para manifesto versionado, limite de 3 GB, checksum SHA-256 e rejeição de qualquer caminho fora de `.hibi-local-models` dentro do diretório de dados do app.
+- [x] Implementar `validateModelManifest(manifest, dataRoot)` e `modelPath(manifest, dataRoot)` sem criar diretórios fora de `dataRoot`.
+- [x] Rodar `node --test electron/local-model-contract.test.cjs` e confirmar todos os casos.
+- [x] Documentar que o modelo opcional fica no armazenamento do app e nunca no workspace pessoal do Mac.
 
 ### Task 2: Worker offline
 
@@ -28,9 +28,9 @@
 - Create: `electron/local-model-worker.cjs`
 - Test: `electron/local-model-worker.test.cjs`
 
-- [ ] Testar mensagens `load`, `prompt`, `cancel` e `shutdown` com um engine mock que emite três deltas.
-- [ ] Implementar o worker com limite de prompt, limite de saída, cancelamento por request id e ausência de imports de rede.
-- [ ] Rodar `node --test electron/local-model-worker.test.cjs`.
+- [x] Testar mensagens `load`, `prompt`, `cancel` e `shutdown` com um engine mock que emite três deltas.
+- [x] Implementar o worker com limite de prompt, limite de saída, cancelamento por request id e ausência de imports de rede.
+- [x] Rodar `node --test electron/local-model-worker.test.cjs`.
 
 ### Task 3: Ponte principal/preload
 
