@@ -62,6 +62,7 @@ const EXPECTED_CHANNELS = [
   "hibi:local-model:cancel",
   "hibi:local-model:shutdown",
   "hibi:local-voice:state",
+  "hibi:local-voice:listen",
   "hibi:local-voice:set-locale",
   "hibi:local-voice:stop",
   "hibi:device:state",

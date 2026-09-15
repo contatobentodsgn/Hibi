@@ -533,6 +533,7 @@ app.whenReady().then(async () => {
   ipcMain.handle("hibi:local-model:cancel", (_event, requestId) => localModelService.cancel(requestId));
   ipcMain.handle("hibi:local-model:shutdown", () => localModelService.shutdown());
   ipcMain.handle("hibi:local-voice:state", () => localVoiceService.state());
+  ipcMain.handle("hibi:local-voice:listen", () => localVoiceService.listen({ onText: (text) => sendToMainWindow("hibi:local-voice:text", text) }));
   ipcMain.handle("hibi:local-voice:set-locale", (_event, locale) => localVoiceService.setLocale(locale));
   ipcMain.handle("hibi:local-voice:stop", () => localVoiceService.stop());
   ipcMain.handle("hibi:device:state", () => deviceAdapter.state());

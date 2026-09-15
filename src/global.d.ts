@@ -42,6 +42,8 @@ declare global {
       getLocalVoiceState?: () => Promise<{ status: string; locale: string; error: string | null }>;
       setLocalVoiceLocale?: (locale: string) => Promise<{ status: string; locale: string; error: string | null }>;
       stopLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null }>;
+      listenLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null }>;
+      onLocalVoiceText?: (callback: (text: string) => void) => () => void;
       getDeviceState?: () => Promise<{ status: string; firmwareVersion: string | null; capabilities: string[] }>;
       connectDevice?: () => Promise<{ status: string; firmwareVersion: string | null; capabilities: string[] }>;
       closeDevice?: () => Promise<void>;

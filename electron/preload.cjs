@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   getLocalVoiceState: () => ipcRenderer.invoke("hibi:local-voice:state"),
   setLocalVoiceLocale: (locale) => ipcRenderer.invoke("hibi:local-voice:set-locale", locale),
   stopLocalVoice: () => ipcRenderer.invoke("hibi:local-voice:stop"),
+  listenLocalVoice: () => ipcRenderer.invoke("hibi:local-voice:listen"),
+  onLocalVoiceText: (callback) => { const listener = (_event, text) => callback(text); ipcRenderer.on("hibi:local-voice:text", listener); return () => ipcRenderer.removeListener("hibi:local-voice:text", listener); },
   getDeviceState: () => ipcRenderer.invoke("hibi:device:state"),
   connectDevice: () => ipcRenderer.invoke("hibi:device:connect"),
   closeDevice: () => ipcRenderer.invoke("hibi:device:close"),
