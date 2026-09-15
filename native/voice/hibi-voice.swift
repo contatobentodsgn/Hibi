@@ -33,7 +33,12 @@ struct HibiVoice {
             if let result { emit(["type": "text", "final": result.isFinal, "text": result.bestTranscription.formattedString]) }
             if error != nil || result?.isFinal == true { audio.stop(); input.removeTap(onBus: 0); request.endAudio() }
         }
-        let format = input.outputFormat(forBus: 0)
+        let format = input.inputFormat(forBus: 0)
+        guard format.channelCount > 0 else {
+            emit(["type": "error", "message": "Nenhuma entrada de microfone está disponível"])
+            task.cancel()
+            return
+        }
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in request.append(buffer) }
         do { audio.prepare(); try audio.start(); emit(["type": "ready"]) } catch { emit(["type": "error", "message": error.localizedDescription]); task.cancel(); return }
         while audio.isRunning { try? await Task.sleep(for: .milliseconds(100)) }
