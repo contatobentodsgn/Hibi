@@ -14,6 +14,7 @@ event-logs/
 .superpowers/
 .worktrees/
 native/notch/build/
+native/voice/build/
 native/notch/node_modules/
 ._*
 
