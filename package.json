@@ -41,6 +41,10 @@
       {
         "from": "public/companion-assets/animations/notch/idle_01_loop.mp4",
         "to": "companion-assets/animations/notch/idle_01_loop.mp4"
+      },
+      {
+        "from": "native/voice/build/hibi-voice",
+        "to": "native/voice/build/hibi-voice"
       }
     ],
     "mac": {
