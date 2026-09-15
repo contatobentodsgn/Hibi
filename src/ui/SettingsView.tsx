@@ -623,6 +623,8 @@ export function SettingsView({
   const [launchAtLogin, setLaunchAtLogin] = useState(false);
   const [launchNotice, setLaunchNotice] = useState("");
   const [backupNotice, setBackupNotice] = useState("");
+  const [localModelStatus, setLocalModelStatus] = useState("Checking…");
+  const [localVoiceStatus, setLocalVoiceStatus] = useState("Checking…");
   const importRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     let active = true;
@@ -648,6 +650,13 @@ export function SettingsView({
     return () => {
       active = false;
     };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    const bridge = window.hibiDesktop;
+    void bridge?.getLocalModelState?.().then((value) => { if (active) setLocalModelStatus(value.status === "ready" ? "Ready" : "Fallback available"); }).catch(() => { if (active) setLocalModelStatus("Unavailable"); });
+    void bridge?.getLocalVoiceState?.().then((value) => { if (active) setLocalVoiceStatus(value.status === "ready" ? `Ready · ${value.locale}` : "Unavailable offline"); }).catch(() => { if (active) setLocalVoiceStatus("Unavailable"); });
+    return () => { active = false; };
   }, []);
   const testNotification = async () => {
     const shown = (await onTestNotification?.()) ?? false;
@@ -982,7 +991,9 @@ export function SettingsView({
                 <Status name="Local calendar" state="Connected" />
                 <Status name="ICS import/export" state="Available locally" />
                 <Status name="External calendar sync" state="Not configured" />
-                <Status name="Brain / hardware" state="Unavailable offline" />
+                <Status name="Offline brain" state={localModelStatus} />
+                <Status name="Local voice" state={localVoiceStatus} />
+                <Status name="Physical device" state="Protocol required" />
               </div>
             </>
           )}
