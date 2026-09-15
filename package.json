@@ -51,7 +51,9 @@
       "entitlements": "electron/entitlements.mac.plist",
       "entitlementsInherit": "electron/entitlements.mac.plist",
       "extendInfo": {
-        "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose."
+        "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose.",
+        "NSMicrophoneUsageDescription": "Hibi uses the microphone only when you start voice input.",
+        "NSSpeechRecognitionUsageDescription": "Hibi uses speech recognition only when you start voice input."
       }
     },
     "afterSign": "scripts/notarize.cjs",
