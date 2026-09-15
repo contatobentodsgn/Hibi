@@ -1,14 +1,16 @@
-import { getLlama } from "node-llama-cpp";
+import { getLlama, LlamaChatSession } from "node-llama-cpp";
 
 export function createLlamaEngine({ modelPath }) {
   let llama;
   let model;
+  let context;
   let session;
   return {
     async load() {
       llama ??= await getLlama();
       model = await llama.loadModel({ modelPath });
-      session = await model.createChatSession();
+      context = await model.createContext({ contextSize: 2048 });
+      session = new LlamaChatSession({ contextSequence: context.getSequence() });
     },
     async *complete(prompt, { signal } = {}) {
       if (!session) throw new Error("Local model is not loaded.");
@@ -33,10 +35,12 @@ export function createLlamaEngine({ modelPath }) {
     },
     async shutdown() {
       session?.dispose?.();
+      context?.dispose?.();
       model?.dispose?.();
       llama?.dispose?.();
       session = undefined;
       model = undefined;
+      context = undefined;
       llama = undefined;
     },
   };
