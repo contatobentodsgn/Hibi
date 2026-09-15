@@ -19,3 +19,6 @@ native/notch/node_modules/
 
 # Relatórios locais do Vitest
 .vitest/
+
+# Pesos locais do assistente: permanecem na pasta do projeto, mas não entram no Git.
+.hibi-local-models/**/*.bin

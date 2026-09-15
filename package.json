@@ -36,6 +36,12 @@
       "!electron/**/*.d.{mts,cts}",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "public/companion-assets/animations/notch/idle_01_loop.mp4",
+        "to": "companion-assets/animations/notch/idle_01_loop.mp4"
+      }
+    ],
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
@@ -43,14 +49,22 @@
       ],
       "hardenedRuntime": true,
       "entitlements": "electron/entitlements.mac.plist",
-      "entitlementsInherit": "electron/entitlements.mac.plist"
-      ,"extendInfo": {
+      "entitlementsInherit": "electron/entitlements.mac.plist",
+      "extendInfo": {
         "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose."
       }
     },
-    "afterSign": "scripts/notarize.cjs"
+    "afterSign": "scripts/notarize.cjs",
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "${env.HIBI_UPDATE_FEED_URL}"
+      }
+    ]
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
+    "node-llama-cpp": "^3.21.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
