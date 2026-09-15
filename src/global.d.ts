@@ -39,6 +39,9 @@ declare global {
       runLocalModel?: (input: { requestId: string; prompt: string }) => Promise<{ requestId: string | null; status: string; text: string }>;
       cancelLocalModel?: (requestId: string) => Promise<void>;
       shutdownLocalModel?: () => Promise<void>;
+      getLocalVoiceState?: () => Promise<{ status: string; locale: string; error: string | null }>;
+      setLocalVoiceLocale?: (locale: string) => Promise<{ status: string; locale: string; error: string | null }>;
+      stopLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null }>;
       onUpdateState?: (callback: (state: { status: string; version: string | null; error: string | null; percent?: number }) => void) => () => void;
       loadWorkspace?: () => Promise<StudyData | null>;
       saveWorkspace?: (data: StudyData) => Promise<StudyData>;

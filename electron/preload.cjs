@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   runLocalModel: (input) => ipcRenderer.invoke("hibi:local-model:run", input),
   cancelLocalModel: (requestId) => ipcRenderer.invoke("hibi:local-model:cancel", requestId),
   shutdownLocalModel: () => ipcRenderer.invoke("hibi:local-model:shutdown"),
+  getLocalVoiceState: () => ipcRenderer.invoke("hibi:local-voice:state"),
+  setLocalVoiceLocale: (locale) => ipcRenderer.invoke("hibi:local-voice:set-locale", locale),
+  stopLocalVoice: () => ipcRenderer.invoke("hibi:local-voice:stop"),
   onUpdateState: (callback) => {
     const listener = (_event, state) => callback(state);
     ipcRenderer.on("hibi:updates:state", listener);
