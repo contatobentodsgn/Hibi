@@ -331,13 +331,132 @@ test("does not treat an event outside the read window as deleted", async () => {
   assert.deepEqual(calendarSettings.current().conflicts, []);
 });
 
+test("keeps following an event moved outside the read window instead of calling it deleted", async () => {
+  const lookups = [];
+  const moved = { id: "event-1", calendarId: "personal", title: "Planejar semana", startsAt: local("2026-09-21T09:00:00"), endsAt: local("2026-09-21T10:00:00"), revision: "revision-2" };
+  const calendarSettings = memorySettings({ calendars: bidirectional("apple:personal"), links: [link(inside)] });
+  const service = createCalendarSyncService({
+    eventKit: appleKit({ listEvents: () => [], getEvent: (id) => { lookups.push(id); return moved; } }),
+    integrations: { listStatus: async () => [] },
+    settings: noTargets,
+    calendarSettings,
+    workspace: () => ({ blocks: [workspaceBlock()] }),
+  });
+
+  await service.readEvents({ ...DAY, calendars: [{ sourceId: "apple", id: "apple:personal" }] });
+
+  assert.deepEqual(lookups, ["event-1"]);
+  assert.deepEqual(calendarSettings.current().links, [link({ remoteRevision: "revision-2", remoteStartsAt: local("2026-09-21T09:00:00"), remoteEndsAt: local("2026-09-21T10:00:00") })]);
+  assert.deepEqual(calendarSettings.current().conflicts, []);
+});
+
+test("turns a moved event with a changed block into an edit conflict that keep-Hibi updates in place", async () => {
+  const saved = [];
+  const updates = [];
+  const changed = workspaceBlock({ title: "Planejar de novo" });
+  const calendarSettings = memorySettings({ calendars: bidirectional("apple:personal"), links: [link(inside)] });
+  const service = createCalendarSyncService({
+    eventKit: appleKit({
+      listEvents: () => [],
+      getEvent: () => ({ id: "event-1", calendarId: "personal", title: "Planejar semana", startsAt: local("2026-09-21T09:00:00"), endsAt: local("2026-09-21T10:00:00"), revision: "revision-2" }),
+      saveEvent: (event) => { saved.push(event); return { id: "duplicate" }; },
+      updateEvent: (event) => { updates.push(event); return { id: "event-1", revision: "revision-3" }; },
+    }),
+    integrations: { listStatus: async () => [] },
+    settings: noTargets,
+    calendarSettings,
+    workspace: () => ({ blocks: [changed] }),
+  });
+
+  await service.readEvents({ ...DAY, calendars: [{ sourceId: "apple", id: "apple:personal" }] });
+  assert.deepEqual(calendarSettings.current().conflicts, [{ id: "apple:personal:event-1", calendarId: "apple:personal", kind: "concurrent-update", summary: "Planejar de novo", remoteRevision: "revision-2" }]);
+
+  const { action } = await service.resolveConflict({ id: "apple:personal:event-1", choice: "keep-hibi" });
+  await service.executeApproved({ actionId: action.id, confirmationId: action.confirmationId });
+
+  assert.deepEqual(saved, []);
+  assert.deepEqual(updates.map((event) => [event.id, event.start, event.expectedRevision]), [["event-1", local("2026-09-14T09:00:00"), "revision-2"]]);
+  assert.deepEqual(calendarSettings.current().links.map((entry) => entry.remoteId), ["event-1"]);
+});
+
+test("changes nothing when the lookup cannot answer", async () => {
+  const conflict = { id: "apple:personal:event-1", calendarId: "apple:personal", kind: "concurrent-update", summary: "Antes", remoteRevision: "revision-2" };
+  for (const getEvent of [() => { throw new Error("EventKit unavailable"); }, undefined, () => ({ id: "another-event", startsAt: local("2026-09-21T09:00:00"), endsAt: local("2026-09-21T10:00:00") })]) {
+    const calendarSettings = memorySettings({ calendars: bidirectional("apple:personal"), links: [link(inside)], conflicts: [conflict] });
+    const service = createCalendarSyncService({
+      eventKit: appleKit({ listEvents: () => [], ...(getEvent ? { getEvent } : {}) }),
+      integrations: { listStatus: async () => [] },
+      settings: noTargets,
+      calendarSettings,
+      workspace: () => ({ blocks: [workspaceBlock({ title: "Mudou no Hibi" })] }),
+    });
+
+    await service.readEvents({ ...DAY, calendars: [{ sourceId: "apple", id: "apple:personal" }] });
+
+    assert.deepEqual(calendarSettings.current().links, [link(inside)]);
+    assert.deepEqual(calendarSettings.current().conflicts, [conflict]);
+  }
+});
+
+test("confirms a missing Google event through the integration before calling it deleted", async () => {
+  const run = async (answer) => {
+    const asked = [];
+    const calendarSettings = memorySettings({ calendars: bidirectional("google:primary"), links: [link({ calendarId: "google:primary", ...inside })] });
+    const service = createCalendarSyncService({
+      eventKit: noApple,
+      integrations: {
+        listStatus: async () => [],
+        readCalendarEvents: async () => [],
+        readCalendarEvent: async (id, input) => { asked.push([id, input]); return answer; },
+      },
+      settings: googleTargets,
+      calendarSettings,
+      workspace: () => ({ blocks: [workspaceBlock({ title: "Mudou no Hibi" })] }),
+    });
+    await service.readEvents({ ...DAY, calendars: [{ sourceId: "google", id: "google:primary" }] });
+    return { asked, stored: calendarSettings.current() };
+  };
+
+  const deleted = await run(null);
+  assert.deepEqual(deleted.asked, [["google-calendar", { calendarId: "primary", remoteId: "event-1" }]]);
+  assert.deepEqual(deleted.stored.conflicts.map((entry) => entry.kind), ["remote-deleted"]);
+
+  const cancelled = await run({ remoteId: "event-1", title: "x", startsAt: inside.remoteStartsAt, endsAt: inside.remoteEndsAt, cancelled: true });
+  assert.deepEqual(cancelled.stored.conflicts.map((entry) => entry.kind), ["remote-deleted"]);
+
+  const moved = await run({ remoteId: "event-1", title: "x", revision: "revision-1", startsAt: local("2026-09-21T09:00:00"), endsAt: local("2026-09-21T10:00:00") });
+  assert.deepEqual(moved.stored.conflicts, []);
+  assert.equal(moved.stored.links[0].remoteStartsAt, local("2026-09-21T09:00:00"));
+});
+
+test("looks up at most fifty missing events per read and leaves the rest for the next one", async () => {
+  let lookups = 0;
+  const blocks = Array.from({ length: 60 }, (_, index) => workspaceBlock({ id: `block-${index}` }));
+  const calendarSettings = memorySettings({
+    calendars: bidirectional("apple:personal"),
+    links: blocks.map((block, index) => link({ localId: block.id, remoteId: `event-${index}`, localFingerprint: blockFingerprint(block), ...inside })),
+  });
+  const service = createCalendarSyncService({
+    eventKit: appleKit({ listEvents: () => [], getEvent: () => { lookups += 1; return null; } }),
+    integrations: { listStatus: async () => [] },
+    settings: noTargets,
+    calendarSettings,
+    workspace: () => ({ blocks }),
+  });
+
+  await service.readEvents({ ...DAY, calendars: [{ sourceId: "apple", id: "apple:personal" }] });
+
+  assert.equal(lookups, 50);
+  assert.equal(calendarSettings.current().links.length, 10);
+});
+
 test("raises remote-deleted only for a changed block whose event is missing inside the read window", async () => {
   const calendarSettings = memorySettings({
     calendars: bidirectional("apple:personal"),
     links: [link(inside), link({ localId: "block-2", remoteId: "event-2", localFingerprint: blockFingerprint(workspaceBlock({ id: "block-2" })), ...inside })],
   });
   const service = createCalendarSyncService({
-    eventKit: appleKit({ listEvents: () => [] }),
+    eventKit: appleKit({ listEvents: () => [], getEvent: () => null }),
     integrations: { listStatus: async () => [] },
     settings: noTargets,
     calendarSettings,
@@ -446,7 +565,7 @@ test("cuts a long block title in the conflict summary so later reads keep workin
     calendarSettings.save({ calendars: bidirectional("apple:personal"), links: [link(inside)] });
     const longTitle = `Revisar ${"capítulo ".repeat(40)}`;
     const service = createCalendarSyncService({
-      eventKit: appleKit({ listEvents: () => [] }),
+      eventKit: appleKit({ listEvents: () => [], getEvent: () => null }),
       integrations: { listStatus: async () => [] },
       settings: noTargets,
       calendarSettings,

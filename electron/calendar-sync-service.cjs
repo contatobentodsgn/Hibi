@@ -10,6 +10,9 @@ const MAX_PREPARED = 20;
 const MAX_PENDING = 200;
 const MAX_CONFLICTS = 5_000;
 const MAX_CALENDARS_PER_READ = 200;
+// Cada evento ausente da janela custa uma busca pelo id (e, no Google, uma chamada de rede). O que passar do
+// teto fica como está e é reavaliado na próxima leitura.
+const MAX_LOOKUPS_PER_READ = 50;
 const boundedText = (value, maximum = TEXT_LIMIT) =>
   typeof value === "string" &&
   value.trim().length > 0 &&
@@ -278,6 +281,38 @@ function createCalendarSyncService({
     remember(id, { ...entry, confirmationId });
     return confirmation(id, confirmationId, calendarId, block);
   }
+
+  // Busca um evento vinculado pelo id. `null`: o calendário confirmou que ele não existe. `undefined`: não deu
+  // para saber (sem ponte, sem rede, resposta estranha), e então nada deve mudar.
+  const lookupEvent = async (link) => {
+    try {
+      if (link.calendarId.startsWith("apple:")) {
+        if (typeof eventKit.getEvent !== "function") return undefined;
+        const found = eventKit.getEvent(link.remoteId);
+        if (found === null) return null;
+        return boundedText(found?.id) && found.id === link.remoteId && boundedText(found.startsAt) && boundedText(found.endsAt)
+          ? { remoteId: found.id, ...(boundedText(found.revision) ? { revision: found.revision } : {}), startsAt: found.startsAt, endsAt: found.endsAt }
+          : undefined;
+      }
+      if (typeof integrations.readCalendarEvent !== "function") return undefined;
+      const found = await integrations.readCalendarEvent("google-calendar", {
+        calendarId: link.calendarId.slice("google:".length),
+        remoteId: link.remoteId,
+      });
+      if (found === null) return null;
+      return boundedText(found?.remoteId) && found.remoteId === link.remoteId && boundedText(found.startsAt) && boundedText(found.endsAt)
+        ? {
+            remoteId: found.remoteId,
+            ...(boundedText(found.revision) ? { revision: found.revision } : {}),
+            startsAt: found.startsAt,
+            endsAt: found.endsAt,
+            ...(found.cancelled === true ? { cancelled: true } : {}),
+          }
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  };
 
   // Depois de uma falha entre a escrita no EventKit e o registro do vínculo, a nova tentativa procura o
   // evento idêntico que já foi criado antes de criar outro.
@@ -663,20 +698,33 @@ function createCalendarSyncService({
           nextLinks.push(link);
           if (previousConflicts.has(key)) nextConflicts.push(previousConflicts.get(key));
         };
+        let lookups = 0;
         for (const link of list("links")) {
           const key = `${link?.calendarId}:${link?.remoteId}`;
           if (!readCalendarIds.has(link?.calendarId)) {
             nextLinks.push(link);
             continue;
           }
-          const event = eventByRemote.get(key);
+          let event = eventByRemote.get(key);
           const linkStart = toInstant(link.remoteStartsAt);
           const linkEnd = toInstant(link.remoteEndsAt);
-          // Ausência só prova exclusão se o evento deveria estar nesta janela. Um evento de outra semana
-          // simplesmente não veio.
-          const deleted = event
-            ? event.cancelled === true
-            : Boolean(linkStart && linkEnd && linkStart < end && linkEnd > start);
+          let deleted = event?.cancelled === true;
+          // Um evento de outra semana simplesmente não vem. Um evento que deveria estar nesta janela e não veio
+          // pode ter sido apagado ou movido, e só a busca pelo id decide. Sem resposta, nada muda.
+          if (
+            !event &&
+            blocks !== null &&
+            linkStart &&
+            linkEnd &&
+            linkStart < end &&
+            linkEnd > start &&
+            lookups < MAX_LOOKUPS_PER_READ
+          ) {
+            lookups += 1;
+            const found = await lookupEvent(link);
+            if (found === null || found?.cancelled === true) deleted = true;
+            else if (found) event = found;
+          }
           if (blocks === null || (!event && !deleted)) {
             keep(link, key);
             continue;
