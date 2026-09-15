@@ -85,6 +85,9 @@ let localVoiceService;
 let deviceAdapter;
 let detachNotchLifecycle = () => {};
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== "1";
+// Keep the development build identifiable as Hibi in macOS privacy settings.
+app.setName("Hibi");
+app.setAppUserModelId?.("com.hibi.study");
 const MAX_AI_STREAM_DELTA = 8000;
 const MAX_AI_STREAM_DELAY = 60_000;
 const MAX_AI_STREAM_TEXT = 240;

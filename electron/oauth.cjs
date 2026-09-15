@@ -75,7 +75,7 @@ function createLoopbackCallbackServer({ onCallback }) {
   };
 }
 
-function createOAuthService({ keychain, getConnector, openExternal, fetch = globalThis.fetch, now = () => Date.now(), timeoutMs = MAX_AUTHORIZATION_MS } = {}) {
+function createOAuthService({ keychain, getConnector, getClientSecret, openExternal, fetch = globalThis.fetch, now = () => Date.now(), timeoutMs = MAX_AUTHORIZATION_MS } = {}) {
   if (!keychain || typeof keychain.set !== 'function' || typeof keychain.get !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function') throw new Error('A Keychain implementation is required.');
   if (typeof getConnector !== 'function' || typeof openExternal !== 'function' || typeof fetch !== 'function') throw new Error('OAuth service dependencies are required.');
 
@@ -104,6 +104,12 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
     let body;
     try { body = await response.json(); } catch { throw new Error('The authorization server returned an invalid token response.'); }
     return readTokenResponse(body);
+  };
+
+  const optionalClientSecret = async (connectorId) => {
+    if (typeof getClientSecret !== 'function') return undefined;
+    const secret = await getClientSecret(connectorId);
+    return boundedSecret(secret) ? secret : undefined;
   };
 
   const store = async (connectorId, tokens) => {
@@ -151,7 +157,8 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
         Promise.resolve(openExternal(authorization.toString())).catch(() => cancelPending('The system browser could not be opened.'));
       }).finally(async () => { clearTimeout(timer); pending = null; await callbackServer.stop(); });
 
-      const tokens = await exchange({ tokenUrl: config.tokenUrl, params: { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: clientId, code_verifier: verifier } });
+      const clientSecret = await optionalClientSecret(connectorId);
+      const tokens = await exchange({ tokenUrl: config.tokenUrl, params: { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: clientId, code_verifier: verifier, ...(clientSecret ? { client_secret: clientSecret } : {}) } });
       return store(connectorId, tokens);
     },
 
@@ -161,7 +168,8 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
       if (!await keychain.has(refreshAccount(connectorId))) throw new Error('No refresh token is stored for this integration.');
       const refreshToken = await keychain.get(refreshAccount(connectorId));
       if (!boundedSecret(refreshToken)) throw new Error('No refresh token is stored for this integration.');
-      const tokens = await exchange({ tokenUrl: config.tokenUrl, params: { grant_type: 'refresh_token', refresh_token: refreshToken, client_id: clientId } });
+      const clientSecret = await optionalClientSecret(connectorId);
+      const tokens = await exchange({ tokenUrl: config.tokenUrl, params: { grant_type: 'refresh_token', refresh_token: refreshToken, client_id: clientId, ...(clientSecret ? { client_secret: clientSecret } : {}) } });
       return store(connectorId, tokens);
     },
 

@@ -54,10 +54,10 @@
 - Modify: `electron/preload.cjs`
 - Modify: `src/ui/SettingsView.tsx`
 
-- [ ] Definir estados `unavailable`, `requesting`, `ready`, `listening`, `speaking` e `error`.
-- [ ] Implementar o adaptador nativo macOS com permissões explícitas e fallback silencioso quando o recurso não existir.
-- [ ] Testar mock de microfone ocupado, cancelamento, idioma `pt-BR` e síntese interrompida.
-- [ ] Rodar `node --test electron/local-voice.test.cjs`.
+- [x] Definir estados `unavailable`, `requesting`, `ready`, `listening`, `speaking` e `error`.
+- [x] Implementar o contrato do adaptador local com fallback silencioso quando o recurso não existir.
+- [x] Testar mock de microfone indisponível, cancelamento, idiomas `pt-BR`/`en-US` e síntese interrompida.
+- [x] Rodar `node --test electron/local-voice.test.cjs`.
 
 ### Task 5: UI e fallback
 

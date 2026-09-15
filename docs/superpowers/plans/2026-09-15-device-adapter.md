@@ -16,9 +16,9 @@
 - Create: `electron/device-transport.mjs`
 - Test: `electron/device-transport.test.mjs`
 
-- [ ] Testar handshake, versão incompatível, timeout, desconexão e cancelamento com transporte mock.
-- [ ] Implementar `createDeviceTransport` com mensagens JSON limitadas, timeout de 2 segundos e encerramento idempotente.
-- [ ] Rodar `node --test electron/device-transport.test.mjs`.
+- [x] Testar handshake, versão incompatível, timeout, desconexão e cancelamento com transporte mock.
+- [x] Implementar `createDeviceTransport` com mensagens JSON limitadas, timeout de 2 segundos e encerramento idempotente.
+- [x] Rodar `node --test electron/device-transport.test.mjs`.
 
 ### Task 2: Adaptador e capacidades
 
@@ -27,9 +27,9 @@
 - Test: `electron/device-adapter.test.mjs`
 - Modify: `electron/device-settings.mjs`
 
-- [ ] Testar que o adaptador permanece `unavailable` sem transporte autorizado e aceita somente o schema `hibi.device-settings`.
-- [ ] Implementar handshake, leitura de capacidades, envio do pacote existente e reconexão sem duplicar comandos.
-- [ ] Rodar `node --test electron/device-adapter.test.mjs`.
+- [x] Testar que o adaptador permanece `unavailable` sem transporte autorizado e aceita somente o schema `hibi.device-settings`.
+- [x] Implementar handshake, leitura de capacidades, envio do pacote existente e reconexão sem duplicar comandos.
+- [x] Rodar `node --test electron/device-adapter.test.mjs`.
 
 ### Task 3: Integração na UI
 

@@ -69,6 +69,8 @@ export default function App() {
     try { const saved = window.localStorage.getItem('hibi-study-data'); return saved ? LocalRepository.fromJson(seed, saved) : new LocalRepository(seed); } catch { return new LocalRepository(seed); }
   });
   const [data, setData] = useState<StudyData>(() => repository.snapshot());
+  const workspaceHydrated = useRef(false);
+  const lastPersistedWorkspace = useRef<string | null>(null);
   const [route, setRoute] = useState<NavKey>('home');
   // Filtro de pasta pedido junto com a navegação. O `nonce` muda a cada navegação e vira `key` das
   // telas, então o filtro pedido é reaplicado mesmo quando se volta à mesma tela.
@@ -284,7 +286,54 @@ export default function App() {
     return shown ?? false;
   };
 
-  React.useEffect(() => { window.localStorage.setItem('hibi-study-data', repository.exportJson()); }, [repository, data]);
+  React.useEffect(() => {
+    const desktop = window.hibiDesktop;
+    if (!desktop?.loadWorkspace) {
+      workspaceHydrated.current = true;
+      return;
+    }
+    let active = true;
+    void desktop.loadWorkspace().then(async (stored) => {
+      if (!active) return;
+      if (stored) {
+        repository.replace(stored);
+      } else {
+        const legacy = window.localStorage.getItem('hibi-study-data');
+        if (legacy && desktop.migrateLegacyWorkspace) {
+          await desktop.migrateLegacyWorkspace(legacy);
+          repository.replace(JSON.parse(legacy));
+        } else if (desktop.saveWorkspace) {
+          await desktop.saveWorkspace(repository.snapshot());
+        }
+      }
+      const snapshot = repository.snapshot();
+      lastPersistedWorkspace.current = JSON.stringify(snapshot);
+      setData(snapshot);
+      workspaceHydrated.current = true;
+    }).catch(() => {
+      if (!active) return;
+      workspaceHydrated.current = true;
+      if (desktop.saveWorkspace) {
+        const snapshot = repository.snapshot();
+        lastPersistedWorkspace.current = JSON.stringify(snapshot);
+        void desktop.saveWorkspace(snapshot).catch(() => undefined);
+      }
+    });
+    return () => { active = false; };
+  }, [repository]);
+  React.useEffect(() => {
+    if (!workspaceHydrated.current) return;
+    const desktop = window.hibiDesktop;
+    const snapshot = repository.snapshot();
+    const serialized = JSON.stringify(snapshot);
+    if (serialized === lastPersistedWorkspace.current) return;
+    lastPersistedWorkspace.current = serialized;
+    if (desktop?.saveWorkspace) {
+      void desktop.saveWorkspace(snapshot).catch(() => undefined);
+    } else {
+      window.localStorage.setItem('hibi-study-data', repository.exportJson());
+    }
+  }, [repository, data]);
   React.useEffect(() => { window.localStorage.setItem('hibi-events', JSON.stringify(events)); }, [events]);
   React.useEffect(() => { try { window.localStorage.setItem('hibi-ai-history', JSON.stringify(loadAiAuditHistory(JSON.stringify(aiHistory)))); } catch { /* unavailable storage */ } }, [aiHistory]);
   React.useEffect(() => { try { window.localStorage.setItem(AI_USAGE_LEDGER_STORAGE_KEY, JSON.stringify(loadAiUsageLedger(JSON.stringify(aiUsage)))); } catch { /* unavailable storage */ } }, [aiUsage]);

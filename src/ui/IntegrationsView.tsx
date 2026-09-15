@@ -118,6 +118,7 @@ export function IntegrationsView({
   >({});
   const [busy, setBusy] = useState<string | null>(null);
   const [credential, setCredential] = useState("");
+  const [googleClientSecret, setGoogleClientSecret] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const refresh = async () => {
     try {
@@ -667,8 +668,7 @@ export function IntegrationsView({
                   <div>
                     <strong>Client identifier</strong>
                     <span>
-                      Public PKCE client id from the service. No client secret
-                      is stored.
+                      Public PKCE client id from your Google OAuth app. The secret, when required, is stored separately in Keychain.
                     </span>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
@@ -710,6 +710,45 @@ export function IntegrationsView({
                   </div>
                 </div>
               )}
+              {connector.id === "google-calendar" && oauthConnectors.includes(connector.id) && (
+                <div className="setting-row">
+                  <div>
+                    <strong>Client secret</strong>
+                    <span>
+                      Used only by Google token exchange and stored exclusively in the macOS Keychain.
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      aria-label="Google Calendar client secret"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Configured in Keychain"
+                      value={googleClientSecret}
+                      onChange={(event) => setGoogleClientSecret(event.target.value)}
+                    />
+                    <button
+                      className="outline"
+                      disabled={!googleClientSecret.trim()}
+                      onClick={() => {
+                        void window.hibiDesktop?.saveOauthClientSecret?.("google-calendar", googleClientSecret.trim())
+                          .then(() => { setGoogleClientSecret(""); setNotice("Google client secret saved securely in Keychain."); })
+                          .catch(() => setNotice("Could not save the Google client secret."));
+                      }}
+                    >
+                      Save securely
+                    </button>
+                    <button
+                      className="text-button"
+                      onClick={() => void window.hibiDesktop?.deleteOauthClientSecret?.("google-calendar")
+                        .then(() => setNotice("Google client secret removed from Keychain."))
+                        .catch(() => setNotice("Could not remove the Google client secret."))}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )}
               {!oauthConnectors.includes(connector.id) && (
                 <p className="muted">
                   This connector uses a direct credential. OAuth is not
@@ -737,17 +776,19 @@ export function IntegrationsView({
                     >
                       Load available sources
                     </button>
-                    <button
-                      className="outline"
-                      disabled={
-                        busy === connector.id ||
-                        connector.state !== "connected" ||
-                        settingsFor(connector.id).targets.length === 0
-                      }
-                      onClick={() => void importFromConnector(connector.id)}
-                    >
-                      Read for import
-                    </button>
+                    {connector.id !== "google-calendar" && (
+                      <button
+                        className="outline"
+                        disabled={
+                          busy === connector.id ||
+                          connector.state !== "connected" ||
+                          settingsFor(connector.id).targets.length === 0
+                        }
+                        onClick={() => void importFromConnector(connector.id)}
+                      >
+                        Read for import
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

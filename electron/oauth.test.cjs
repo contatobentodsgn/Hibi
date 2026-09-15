@@ -76,6 +76,40 @@ test('monta uma autorização PKCE com S256, state e callback de loopback', asyn
   assert.equal(keychain.store.get('integration:fixture:refresh'), 'refresh-1');
 });
 
+test('envia client_secret somente na troca do código e nunca o expõe ao renderer', async () => {
+  const keychain = memoryKeychain();
+  let opened;
+  let body;
+  const service = createOAuthService({
+    keychain,
+    getConnector: () => connector,
+    getClientSecret: async () => 'google-secret-protected',
+    openExternal: (url) => { opened = new URL(url); },
+    fetch: async (_url, init) => { body = new URLSearchParams(init.body); return jsonResponse({ access_token: 'access-1', refresh_token: 'refresh-1' }); },
+  });
+  const pending = service.authorize('fixture', { clientId: 'client-123' });
+  await new Promise((resolve) => setImmediate(resolve));
+  await fetch(`${new URL(opened.searchParams.get('redirect_uri')).origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&code=auth-code-1`);
+  const result = await pending;
+  assert.equal(body.get('client_secret'), 'google-secret-protected');
+  assert.equal(result.clientSecret, undefined);
+});
+
+test('usa client_secret opcional também na renovação do token', async () => {
+  const keychain = memoryKeychain();
+  keychain.store.set('integration:fixture:refresh', 'refresh-antigo');
+  let body;
+  const service = createOAuthService({
+    keychain,
+    getConnector: () => connector,
+    getClientSecret: async () => 'google-secret-protected',
+    openExternal: () => undefined,
+    fetch: async (_url, init) => { body = new URLSearchParams(init.body); return jsonResponse({ access_token: 'access-novo' }); },
+  });
+  await service.refresh('fixture', { clientId: 'client-123' });
+  assert.equal(body.get('client_secret'), 'google-secret-protected');
+});
+
 test('preserves validated provider authorization parameters without replacing PKCE fields', async () => {
   const keychain = memoryKeychain();
   let opened;
