@@ -83,7 +83,10 @@ export function createWorkspaceStore({ storage, database }: { storage: LocalStor
         // Sem leitura do banco, o espelho local ainda serve: o app abre com os dados, avisando.
         return { payload: local, origin: local ? 'local' : 'empty', migrated: false, degraded: message(error) }
       }
-      if (stored !== null) return { payload: stored, origin: 'database', migrated: false }
+      // O espelho acompanha o que o banco devolveu. Sem isto ele fica com o que o App tinha antes de
+      // ler — a semente, numa janela sem a chave local — e deixa de ser a saída de emergência que é:
+      // quem abrisse uma versão anterior do app encontraria o workspace errado no lugar antigo.
+      if (stored !== null) { writeLocal(stored); return { payload: stored, origin: 'database', migrated: false } }
       if (local === null || alreadyMigrated()) return { payload: null, origin: 'empty', migrated: false }
       try {
         // O que já existia entra no banco antes de qualquer gravação nova, com ponto de restauração.

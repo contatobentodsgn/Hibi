@@ -72,6 +72,22 @@ describe('workspace store', () => {
 
     expect(await store.load()).toEqual({ payload: workspace('do banco'), origin: 'database', migrated: false })
     expect(database.saves).toEqual([])
+    // O espelho passa a valer o que o banco tem: é o que a versão anterior do app vai encontrar.
+    expect(storage.values.get(WORKSPACE_STORAGE_KEY)).toBe(workspace('do banco'))
+  })
+
+  it('o espelho acompanha o banco mesmo quando não havia nada no armazenamento local', async () => {
+    const storage = storageWith()
+    const store = createWorkspaceStore({ storage, database: databaseWith(workspace('do banco')) })
+
+    expect(await store.load()).toEqual({ payload: workspace('do banco'), origin: 'database', migrated: false })
+    expect(storage.values.get(WORKSPACE_STORAGE_KEY)).toBe(workspace('do banco'))
+  })
+
+  it('espelho indisponível não impede o banco de valer', async () => {
+    const store = createWorkspaceStore({ storage: failingStorage(), database: databaseWith(workspace('do banco')) })
+
+    expect(await store.load()).toEqual({ payload: workspace('do banco'), origin: 'database', migrated: false })
   })
 
   it('grava no banco e espelha no armazenamento local, repassando o rótulo do ponto', async () => {
