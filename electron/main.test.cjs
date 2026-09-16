@@ -1111,3 +1111,66 @@ test("a renovação da credencial passa pelo serviço de OAuth, com o client id 
     [["refresh", "notion", { clientId: "client-123" }]],
   );
 });
+
+// Renovação que falha — refresh token revogado, por exemplo — precisa chegar à tela. Antes ela ficava
+// só no erro da chamada, e a lista de integrações continuava anunciando "conectado".
+const connectorSettingsOf = (harness) => JSON.parse(require("node:fs").readFileSync(require("node:path").join(harness.userData, "connector-settings.json"), "utf8"));
+
+test("uma renovação que falha marca a integração como precisando reconectar", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("hibi:integrations:save-settings", "notion", { clientId: "client-123" });
+  harness.oauthService.refresh = async () => { throw new Error("invalid_grant"); };
+
+  assert.equal(await harness.captured.integrations.refreshCredential("notion"), false);
+
+  assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, true);
+  const status = await harness.invoke("hibi:integrations:list-status");
+  const notion = status.find((entry) => entry.id === "notion");
+  // A credencial não existe neste harness, então o estado segue "disconnected"; o que se prova aqui
+  // é que o pedido de reconexão ficou gravado e sobrevive a reabrir o app.
+  assert.equal(notion.needsReconnect, false);
+  assert.equal(harness.captured.integrations.reconnectRequired("notion"), true);
+});
+
+test("uma renovação bem-sucedida apaga o pedido de reconexão", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("hibi:integrations:save-settings", "notion", { clientId: "client-123" });
+  harness.oauthService.refresh = async () => { throw new Error("invalid_grant"); };
+  await harness.captured.integrations.refreshCredential("notion");
+  assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, true);
+
+  harness.oauthService.refresh = async () => ({ ok: true });
+  assert.equal(await harness.captured.integrations.refreshCredential("notion"), true);
+
+  assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, false);
+});
+
+test("autorizar de novo, ou salvar uma credencial, encerra o pedido de reconexão", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("hibi:integrations:save-settings", "notion", { clientId: "client-123" });
+  harness.oauthService.refresh = async () => { throw new Error("invalid_grant"); };
+  await harness.captured.integrations.refreshCredential("notion");
+
+  await harness.invoke("hibi:oauth:authorize", "notion");
+
+  assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, false);
+
+  await harness.captured.integrations.refreshCredential("notion");
+  assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, true);
+  await harness.invoke("hibi:integrations:connect", "notion", "token-colado-a-mao");
+  assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, false);
+});
+
+test("a renovação pedida pela tela também marca a reconexão quando falha", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("hibi:integrations:save-settings", "notion", { clientId: "client-123" });
+  harness.oauthService.refresh = async () => { throw new Error("invalid_grant"); };
+
+  await assert.rejects(() => harness.invoke("hibi:oauth:refresh", "notion"), /invalid_grant/);
+
+  assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, true);
+});

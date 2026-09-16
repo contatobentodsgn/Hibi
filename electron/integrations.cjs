@@ -122,7 +122,7 @@ function createIntegrationAuditLog({ limit = MAX_AUDIT_ENTRIES } = {}) {
   };
 }
 
-function createIntegrationManager({ connectors = [], keychain, now = () => new Date().toISOString(), fetch, refreshCredential, auditLog = createIntegrationAuditLog() } = {}) {
+function createIntegrationManager({ connectors = [], keychain, now = () => new Date().toISOString(), fetch, refreshCredential, reconnectRequired, auditLog = createIntegrationAuditLog() } = {}) {
   if (!keychain || typeof keychain.set !== 'function' || typeof keychain.get !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function') throw new Error('A Keychain implementation is required.');
   const registered = new Map(connectors.map((connector) => { validateConnector(connector); return [connector.id, connector]; }));
   if (registered.size !== connectors.length) throw new Error('Integration connector IDs must be unique.');
@@ -151,7 +151,13 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
   };
   const getConnector = (id) => { const connector = registered.get(id); if (!connector) throw new Error('Unknown integration connector.'); return connector; };
   const safeFetchFor = (connector) => createSafeIntegrationFetch({ connector, ...(fetch ? { fetch } : {}) });
-  const statusFor = async (connector) => ({ id: connector.id, label: connector.label, state: await keychain.has(accountFor(connector.id)) ? 'connected' : 'disconnected', capabilities: [...connector.capabilities], hasCredential: await keychain.has(accountFor(connector.id)) });
+  // Credencial guardada não é o mesmo que autorização válida: quando a renovação automática falha —
+  // refresh token revogado, por exemplo —, a credencial continua no Keychain e não serve para nada.
+  const statusFor = async (connector) => {
+    const hasCredential = await keychain.has(accountFor(connector.id));
+    const needsReconnect = hasCredential && typeof reconnectRequired === 'function' ? Boolean(await reconnectRequired(connector.id)) : false;
+    return { id: connector.id, label: connector.label, state: !hasCredential ? 'disconnected' : needsReconnect ? 'expired' : 'connected', capabilities: [...connector.capabilities], hasCredential, needsReconnect };
+  };
   return {
     async listStatus() { return Promise.all([...registered.values()].map(statusFor)); },
     async connect(id, input) {
@@ -277,7 +283,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
     // Reconstrói o gerenciador com outros conectores preservando o histórico. As ações já
     // preparadas continuam sendo descartadas de propósito: uma ação preparada contra o
     // endpoint anterior não deve ser executada contra um endpoint novo.
-    withConnectors(nextConnectors) { return createIntegrationManager({ connectors: nextConnectors, keychain, now, auditLog, ...(fetch ? { fetch } : {}) }); },
+    withConnectors(nextConnectors) { return createIntegrationManager({ connectors: nextConnectors, keychain, now, auditLog, refreshCredential, reconnectRequired, ...(fetch ? { fetch } : {}) }); },
     getConnector,
     createSafeFetch(id, options = {}) { return createSafeIntegrationFetch({ connector: getConnector(id), ...(fetch ? { fetch } : {}), ...options }); },
   };

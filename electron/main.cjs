@@ -34,6 +34,7 @@ let integrationManager;
 let localApi;
 let webhookService;
 let connectorSettings;
+let markReconnect = () => {};
 let oauthService;
 let calendarSyncService;
 let calendarSyncSettings;
@@ -230,6 +231,9 @@ app.whenReady().then(async () => {
   // renderer segue no armazenamento local.
   try { workspaceDatabase = createWorkspaceDatabase({ filePath: path.join(app.getPath('userData'), 'workspace.db') }); }
   catch { workspaceDatabase = null; }
+  // Gravar o pedido de reconexão não pode derrubar a chamada que o descobriu: se o arquivo de
+  // ajustes não puder ser escrito, a integração ainda falha com a mensagem certa.
+  markReconnect = (connectorId, required) => { try { connectorSettings.save(connectorId, { reconnectRequired: required }); } catch { /* estado de tela, não dado do workspace */ } };
   integrationManager = createIntegrationManager({
     connectors: buildConnectors(connectorSettings), keychain: secureKeychain,
     // `oauthService` nasce logo abaixo; esta função só corre quando uma chamada falha por expiração.
@@ -237,8 +241,12 @@ app.whenReady().then(async () => {
       if (!oauthService?.supports?.(connectorId)) return false;
       const { clientId } = connectorSettings.get(connectorId);
       if (!clientId) return false;
-      try { await oauthService.refresh(connectorId, { clientId }); return true; } catch { return false; }
+      // A renovação falhada é o que a tela precisa saber: sem marcar, a integração seguiria anunciada
+      // como conectada, com uma credencial que já não abre nada, e ninguém saberia que é só reconectar.
+      try { await oauthService.refresh(connectorId, { clientId }); markReconnect(connectorId, false); return true; }
+      catch { markReconnect(connectorId, true); return false; }
     },
+    reconnectRequired: (connectorId) => connectorSettings.get(connectorId).reconnectRequired === true,
   });
   oauthService = createOAuthService({ keychain: secureKeychain, getConnector: (id) => integrationManager.getConnector(id), openExternal: (url) => shell.openExternal(url) });
   calendarSyncService = createCalendarSyncService({ eventKit: eventKitCalendar, integrations: integrationManager, settings: connectorSettings, calendarSettings: calendarSyncSettings, workspace: () => (localApiWorkspaceSynced ? localApiWorkspace : null) });
@@ -292,7 +300,8 @@ app.whenReady().then(async () => {
     return status;
   });
   ipcMain.handle('hibi:integrations:list-status', () => integrationManager.listStatus());
-  ipcMain.handle('hibi:integrations:connect', (_event, connectorId, credential) => integrationManager.connect(connectorId, { credential }));
+  // Uma credencial nova, seja colada à mão ou vinda do OAuth, encerra o pedido de reconexão.
+  ipcMain.handle('hibi:integrations:connect', async (_event, connectorId, credential) => { const status = await integrationManager.connect(connectorId, { credential }); markReconnect(connectorId, false); return { ...status, state: 'connected', needsReconnect: false }; });
   ipcMain.handle('hibi:integrations:audit', () => integrationManager.audit());
   ipcMain.handle('hibi:integrations:revoke', async (_event, connectorId) => {
     // Revogar pela tela precisa apagar também o refresh token do OAuth. Sem isso ele continua no
@@ -317,8 +326,11 @@ app.whenReady().then(async () => {
     return saved;
   });
   ipcMain.handle('hibi:oauth:supported', (_event, connectorId) => oauthService.supports(connectorId));
-  ipcMain.handle('hibi:oauth:authorize', (_event, connectorId) => oauthService.authorize(connectorId, { clientId: connectorSettings.get(connectorId).clientId }));
-  ipcMain.handle('hibi:oauth:refresh', (_event, connectorId) => oauthService.refresh(connectorId, { clientId: connectorSettings.get(connectorId).clientId }));
+  ipcMain.handle('hibi:oauth:authorize', async (_event, connectorId) => { const result = await oauthService.authorize(connectorId, { clientId: connectorSettings.get(connectorId).clientId }); markReconnect(connectorId, false); return result; });
+  ipcMain.handle('hibi:oauth:refresh', async (_event, connectorId) => {
+    try { const result = await oauthService.refresh(connectorId, { clientId: connectorSettings.get(connectorId).clientId }); markReconnect(connectorId, false); return result; }
+    catch (error) { markReconnect(connectorId, true); throw error; }
+  });
   ipcMain.handle('hibi:oauth:cancel', () => oauthService.cancel());
   ipcMain.handle('hibi:oauth:client-secret', (_event, connectorId) => oauthService.hasClientSecret(connectorId));
   ipcMain.handle('hibi:oauth:save-client-secret', (_event, connectorId, secret) => oauthService.saveClientSecret(connectorId, secret));
