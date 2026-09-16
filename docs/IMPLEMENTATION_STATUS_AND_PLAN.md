@@ -150,7 +150,7 @@ lá entre as rodadas.
 
 - [ ] Decidir e implementar conta, nuvem e backup remoto.
 - [x] Decidir sincronização bidirecional com Google Calendar/iCloud e resolução de conflitos. Implementada nos #66, #67 e #71, com autorização expressa do responsável pelo projeto. Apple validado no app real em 2026-09-15 e Google em 2026-09-16, contra a API real, em conta e agenda de teste; a validação corrigiu #81, #83, #85 e #88. iCloud não tem caminho no Hibi.
-- [ ] Adicionar atualizador, assinatura, notarização, crash recovery e acessibilidade manual. A recuperação de falha do renderer está em revisão no #69.
+- [ ] Adicionar atualizador, assinatura, notarização, crash recovery e acessibilidade manual. A **recuperação de falha do renderer** já existe: uma queda é recarregada automaticamente uma vez, e uma segunda queda antes de a janela terminar de carregar abre um aviso nativo com tentar de novo e encerrar, em `pt` ou `en` conforme o sistema. Falta o resto do item.
 - [x] Validar o notch na tela com câmera e em monitor externo, com a janela do Hibi em cada tela (app real, cliques automatizados; 2026-09-10).
 - [ ] Validar o notch em Mac sem câmera, em Spaces e tela cheia, na reconexão do monitor externo, após o sono e com clique e leitura humanos — roteiro em [`notch-manual-results.md`](notch-manual-results.md).
 
