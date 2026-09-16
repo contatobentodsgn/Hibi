@@ -61,6 +61,10 @@ const EXPECTED_CHANNELS = [
   "hibi:calendar-sync:execute-approved",
   "hibi:calendar-sync:prepare-update",
   "hibi:calendar-sync:resolve-conflict",
+  "hibi:workspace:read",
+  "hibi:workspace:save",
+  "hibi:workspace:restore-points",
+  "hibi:workspace:restore",
   "hibi:local-api:sync-workspace",
   "hibi:local-api:start",
   "hibi:local-api:stop",
@@ -114,7 +118,7 @@ function createSenderFake() {
   };
 }
 
-async function loadMain({ seedUserData } = {}) {
+async function loadMain({ seedUserData, breakWorkspaceDatabase } = {}) {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), "hibi-main-test-"));
   seedUserData?.(userData);
 
@@ -281,6 +285,10 @@ async function loadMain({ seedUserData } = {}) {
       },
     },
     "./ai-config.cjs": { ...realAiConfig, createMacKeychain: () => keychain },
+    // Só um teste precisa do banco quebrado; os demais usam o de verdade, no userData temporário.
+    ...(breakWorkspaceDatabase
+      ? { "./workspace-database.cjs": { createWorkspaceDatabase: () => { throw new Error("SQLite is unavailable in this runtime"); } } }
+      : {}),
     // O serviço é o de verdade; o dublê só guarda as opções para provar o que o main entrega a ele.
     "./calendar-sync-service.cjs": {
       ...realCalendarSync,
@@ -339,7 +347,9 @@ async function loadMain({ seedUserData } = {}) {
       const removed = new Set(removedEvents.filter(([event]) => event === name).map(([, listener]) => listener));
       for (const [event, listener] of powerEvents) if (event === name && !removed.has(listener)) listener();
     },
-    invoke: (channel, ...args) => {
+    // `async` de propósito: o `ipcMain.handle` do Electron transforma uma exceção síncrona do handler em
+    // promessa recusada, e é assim que o renderer a vê. O harness precisa espelhar isso.
+    invoke: async (channel, ...args) => {
       const handler = handlers.get(channel);
       assert.ok(handler, `canal não registrado: ${channel}`);
       return handler(event, ...args);
@@ -1023,4 +1033,52 @@ test("a credencial de cliente do OAuth passa pelo processo principal sem voltar 
     harness.oauthService.calls.filter(([name]) => name.endsWith("ClientSecret")).map(([name, id]) => [name, id]),
     [["saveClientSecret", "notion"], ["hasClientSecret", "notion"], ["clearClientSecret", "notion"]],
   );
+});
+
+test("os canais do workspace guardam, listam e restauram pelo banco de verdade", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const workspace = (title) => JSON.stringify({ tasks: [{ id: "1", title }] });
+
+  assert.equal(await harness.invoke("hibi:workspace:read"), null);
+  await harness.invoke("hibi:workspace:save", { payload: workspace("primeiro") });
+  await harness.invoke("hibi:workspace:save", { payload: workspace("segundo"), restorePoint: "lote" });
+
+  assert.equal((await harness.invoke("hibi:workspace:read")).payload, workspace("segundo"));
+  const points = await harness.invoke("hibi:workspace:restore-points");
+  assert.deepEqual(points.map((point) => point.label), ["lote"]);
+  // O ponto guarda o estado anterior ao lote: é isso que desfaz a operação.
+  const restored = await harness.invoke("hibi:workspace:restore", { id: points[0].id });
+  assert.equal(restored.payload, workspace("primeiro"));
+  assert.equal((await harness.invoke("hibi:workspace:read")).payload, workspace("primeiro"));
+  assert.equal(fs.existsSync(path.join(harness.userData, "workspace.db")), true);
+});
+
+test("entrada malformada nos canais do workspace vira erro de validação, nunca TypeError", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  for (const input of [undefined, null, "texto", 42, [], {}, { payload: 42 }, { payload: "não é json" }, { payload: "[]" }])
+    await assert.rejects(
+      () => harness.invoke("hibi:workspace:save", input),
+      (error) => { assert.ok(!(error instanceof TypeError)); assert.match(error.message, /payload is invalid/); return true; },
+    );
+  await assert.rejects(() => harness.invoke("hibi:workspace:save", { payload: JSON.stringify({ tasks: [] }), restorePoint: "x".repeat(200) }), /label is invalid/);
+  for (const input of [undefined, null, {}, { id: "1" }, { id: 0 }])
+    await assert.rejects(
+      () => harness.invoke("hibi:workspace:restore", input),
+      (error) => { assert.ok(!(error instanceof TypeError)); assert.match(error.message, /restore point is invalid/); return true; },
+    );
+  assert.equal(await harness.invoke("hibi:workspace:read"), null);
+});
+
+test("um banco que não abre não impede o app de abrir: os canais respondem com erro controlado", async (t) => {
+  const harness = await loadMain({ breakWorkspaceDatabase: true });
+  t.after(() => harness.cleanup());
+
+  // A janela subiu e todos os canais foram registrados, apesar do banco indisponível.
+  assert.equal(harness.windows.length > 0, true);
+  for (const channel of ["hibi:workspace:read", "hibi:workspace:restore-points"])
+    await assert.rejects(() => harness.invoke(channel), /workspace database is unavailable/);
+  await assert.rejects(() => harness.invoke("hibi:workspace:save", { payload: JSON.stringify({ tasks: [] }) }), /workspace database is unavailable/);
 });

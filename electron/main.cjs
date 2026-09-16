@@ -17,6 +17,7 @@ const { createConnectorSettings } = require('./connector-settings.cjs');
 const { buildConnectors } = require('./connectors/index.cjs');
 const { createCalendarSyncService } = require('./calendar-sync-service.cjs');
 const { createCalendarSyncSettings } = require('./calendar-sync-settings.cjs');
+const { createWorkspaceDatabase } = require('./workspace-database.cjs');
 const eventKitCalendar = require('../native/notch/calendar.cjs');
 const { createNotchWindowManager, validPresentation } = require("./notch-window.cjs");
 const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('./notch-settings.cjs');
@@ -36,6 +37,7 @@ let connectorSettings;
 let oauthService;
 let calendarSyncService;
 let calendarSyncSettings;
+let workspaceDatabase;
 let localApiWorkspace = { tasks: [], reminders: [], blocks: [] };
 // Até o renderer mandar o workspace, a sincronização de calendário não sabe quais blocos existem.
 let localApiWorkspaceSynced = false;
@@ -195,6 +197,10 @@ app.whenReady().then(async () => {
   const secureKeychain = createMacKeychain();
   connectorSettings = createConnectorSettings({ filePath: path.join(app.getPath('userData'), 'connector-settings.json') });
   calendarSyncSettings = createCalendarSyncSettings({ filePath: path.join(app.getPath('userData'), 'calendar-sync.json') });
+  // Um banco que não abre não pode impedir o app de abrir: os canais respondem com erro controlado e o
+  // renderer segue no armazenamento local.
+  try { workspaceDatabase = createWorkspaceDatabase({ filePath: path.join(app.getPath('userData'), 'workspace.db') }); }
+  catch { workspaceDatabase = null; }
   integrationManager = createIntegrationManager({ connectors: buildConnectors(connectorSettings), keychain: secureKeychain });
   oauthService = createOAuthService({ keychain: secureKeychain, getConnector: (id) => integrationManager.getConnector(id), openExternal: (url) => shell.openExternal(url) });
   calendarSyncService = createCalendarSyncService({ eventKit: eventKitCalendar, integrations: integrationManager, settings: connectorSettings, calendarSettings: calendarSyncSettings, workspace: () => (localApiWorkspaceSynced ? localApiWorkspace : null) });
@@ -288,6 +294,17 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:calendar-sync:execute-approved', (_event, input) => calendarSyncService.executeApproved(input));
   ipcMain.handle('hibi:calendar-sync:prepare-update', (_event, input) => calendarSyncService.prepareUpdate(input));
   ipcMain.handle('hibi:calendar-sync:resolve-conflict', (_event, input) => calendarSyncService.resolveConflict(input));
+  const workspaceStore = () => { if (!workspaceDatabase) throw new Error('The workspace database is unavailable.'); return workspaceDatabase; };
+  // A entrada vem do renderer: texto fora do formato vira erro de validação, e não exceção de tipo.
+  const workspaceInput = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
+  ipcMain.handle('hibi:workspace:read', () => workspaceStore().read());
+  ipcMain.handle('hibi:workspace:save', (_event, input) => {
+    const safe = workspaceInput(input);
+    const restorePoint = typeof safe.restorePoint === 'string' ? safe.restorePoint : undefined;
+    return workspaceStore().save(safe.payload, restorePoint === undefined ? {} : { restorePoint });
+  });
+  ipcMain.handle('hibi:workspace:restore-points', () => workspaceStore().listRestorePoints());
+  ipcMain.handle('hibi:workspace:restore', (_event, input) => workspaceStore().restore(workspaceInput(input).id));
   ipcMain.handle('hibi:local-api:sync-workspace', (_event, value) => {
     const safe = value && typeof value === 'object' ? value : {};
     localApiWorkspace = { tasks: Array.isArray(safe.tasks) ? safe.tasks.slice(0, 5_000) : [], reminders: Array.isArray(safe.reminders) ? safe.reminders.slice(0, 5_000) : [], blocks: Array.isArray(safe.blocks) ? safe.blocks.slice(0, 5_000) : [] };

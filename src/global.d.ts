@@ -27,6 +27,10 @@ declare global {
       prepareIntegrationAction?: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => Promise<PreparedIntegrationAction>;
       executeApprovedIntegrationAction?: (input: { actionId: string; confirmationId: string }) => Promise<IntegrationExecutionResult>;
       syncLocalApiWorkspace?: (workspace: { tasks: readonly unknown[]; reminders: readonly unknown[]; blocks: readonly unknown[] }) => Promise<void>;
+      readWorkspace?: () => Promise<{ payload: string; updatedAt: string } | null>;
+      saveWorkspace?: (input: { payload: string; restorePoint?: string }) => Promise<{ updatedAt: string }>;
+      listWorkspaceRestorePoints?: () => Promise<readonly { id: number; label: string; createdAt: string; bytes: number }[]>;
+      restoreWorkspace?: (input: { id: number }) => Promise<{ payload: string; updatedAt: string }>;
       startLocalApi?: () => Promise<{ origin: string }>;
       stopLocalApi?: () => Promise<{ running: false }>;
       getLocalApiStatus?: () => Promise<{ running: boolean }>;
