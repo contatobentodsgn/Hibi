@@ -14,6 +14,9 @@ const NOTCH_WINDOW_PATH = require.resolve("./notch-window.cjs");
 // tocaria disco de verdade, rede, Keychain ou addon nativo.
 const realNotifications = require("./notifications.mjs");
 const realNotchWindow = require("./notch-window.cjs");
+// O companion de inicialização é mostrado na abertura, então "nenhuma chamada ao gerenciador" quer
+// dizer "nenhuma além dele".
+const semInicializacao = (calls) => calls.filter(([acao, valor]) => !(acao === 'show' && valor?.requestId === 'startup-notch'));
 const realNotchTest = require("./notch-test.cjs");
 const realAiConfig = require("./ai-config.cjs");
 const realCalendarSync = require("./calendar-sync-service.cjs");
@@ -82,6 +85,8 @@ const EXPECTED_CHANNELS = [
   "hibi:notch:capabilities",
   "hibi:notch:displays",
   "hibi:notch:set-display",
+  "hibi:notch:size",
+  "hibi:notch:set-size",
   "hibi:notch:test",
 ];
 
@@ -218,6 +223,7 @@ async function loadMain({ seedUserData, breakWorkspaceDatabase } = {}) {
     hide(requestId) { this.calls.push(["hide", requestId]); return requestId === this.shown?.requestId; },
     resolveAction(requestId, actionId) { this.calls.push(["resolveAction", requestId, actionId]); return true; },
     setPreferredDisplay(displayId) { this.calls.push(["setPreferredDisplay", displayId]); this.preferredDisplay = displayId; },
+    setSize(size) { this.calls.push(["setSize", size]); this.size = size; return size; },
     reposition() { this.calls.push(["reposition"]); return true; },
     describeDisplays() { return { resolvedDisplayId: 1, reason: "primary", displays: DISPLAYS.map((display) => ({ ...display })) }; },
     destroy() { this.calls.push(["destroy"]); },
@@ -675,7 +681,7 @@ test("hibi:notch:show recusa apresentações inválidas e as do prefixo reservad
   await assert.rejects(async () => harness.invoke("hibi:notch:show", null), /Invalid companion presentation/);
   await assert.rejects(async () => harness.invoke("hibi:notch:show", { requestId: "c-1", kind: "confirmation", text: "Ok?", actions: [1, 2, 3, 4, 5] }), /Invalid companion presentation/);
   await assert.rejects(async () => harness.invoke("hibi:notch:show", { requestId: `${realNotchTest.NOTCH_TEST_PREFIX}confirm-1`, kind: "confirmation", text: "Ok?", actions: [] }), /Invalid companion presentation/);
-  assert.deepEqual(harness.notchManager.calls, []);
+  assert.deepEqual(semInicializacao(harness.notchManager.calls), []);
 
   const presentation = { requestId: "c-1", kind: "confirmation", text: "Ok?", actions: [{ id: "confirm", label: "Ok" }] };
   assert.deepEqual(await harness.invoke("hibi:notch:show", presentation), { degraded: true, requestId: "c-1", host: "electron" });
@@ -688,7 +694,7 @@ test("hibi:notch:action e hibi:notch:hide só aceitam identificadores limitados"
   assert.equal(await harness.invoke("hibi:notch:action", "c-1", "apagar"), false);
   assert.equal(await harness.invoke("hibi:notch:action", "", "confirm"), false);
   assert.equal(await harness.invoke("hibi:notch:action", "x".repeat(129), "confirm"), false);
-  assert.deepEqual(harness.notchManager.calls, []);
+  assert.deepEqual(semInicializacao(harness.notchManager.calls), []);
 
   assert.equal(await harness.invoke("hibi:notch:action", "c-1", "confirm"), true);
   assert.deepEqual(harness.notchManager.calls.at(-1), ["resolveAction", "c-1", "confirm"]);
@@ -728,9 +734,9 @@ test("hibi:notch:set-display recusa um monitor inexistente e persiste o escolhid
   assert.equal(harness.notchManager.preferredDisplay, undefined);
 
   const state = await harness.invoke("hibi:notch:set-display", 7);
-  assert.deepEqual(state.preference, { displayId: 7, displayLabel: "Studio Display" });
+  assert.deepEqual(state.preference, { displayId: 7, displayLabel: "Studio Display", size: "normal" });
   assert.equal(harness.notchManager.preferredDisplay, 7);
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(harness.userData, "notch-settings.json"), "utf8")), { displayId: 7, displayLabel: "Studio Display" });
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(harness.userData, "notch-settings.json"), "utf8")), { displayId: 7, displayLabel: "Studio Display", size: "normal" });
 });
 
 test("a preferência de monitor salva chega ao gerenciador na inicialização", async (t) => {
@@ -1173,4 +1179,47 @@ test("a renovação pedida pela tela também marca a reconexão quando falha", a
   await assert.rejects(() => harness.invoke("hibi:oauth:refresh", "notion"), /invalid_grant/);
 
   assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, true);
+});
+
+test("o companion de inicialização nasce com o app, passivo e com o loop a tocar", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  const inicial = harness.notchManager.calls.find(([acao, valor]) => acao === "show" && valor?.requestId === "startup-notch");
+
+  assert.ok(inicial, "o companion de inicialização precisa ser mostrado na abertura");
+  const [, presentation] = inicial;
+  // Passivo e sem ações: é prova visual do notch físico, não um cartão para responder.
+  assert.equal(presentation.interaction, "passthrough");
+  assert.deepEqual(presentation.actions, []);
+  assert.equal(presentation.kind, "idle");
+  assert.equal(presentation.host, "native");
+  // O painel nativo toca o loop a partir de um arquivo, então o caminho precisa chegar até ele.
+  assert.match(presentation.animationPath, /companion-assets\/animations\/notch\/idle_01_loop\.mp4$/);
+});
+
+test("hibi:notch:set-size normaliza, persiste e move a superfície", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  assert.deepEqual(await harness.invoke("hibi:notch:size"), { size: "normal" });
+
+  assert.deepEqual(await harness.invoke("hibi:notch:set-size", "compact"), { size: "compact" });
+  assert.deepEqual(harness.notchManager.calls.at(-1), ["setSize", "compact"]);
+  // Vale entre aberturas: fica no mesmo arquivo do monitor preferido.
+  assert.equal(JSON.parse(fs.readFileSync(path.join(harness.userData, "notch-settings.json"), "utf8")).size, "compact");
+  assert.deepEqual(await harness.invoke("hibi:notch:size"), { size: "compact" });
+
+  // Qualquer outra coisa vinda do renderer vira o tamanho normal, em vez de gravar lixo.
+  assert.deepEqual(await harness.invoke("hibi:notch:set-size", "gigante"), { size: "normal" });
+  assert.deepEqual(await harness.invoke("hibi:notch:set-size", { size: "compact" }), { size: "normal" });
+  assert.equal(JSON.parse(fs.readFileSync(path.join(harness.userData, "notch-settings.json"), "utf8")).size, "normal");
+});
+
+test("o tamanho salvo chega ao gerenciador na inicialização, junto do monitor preferido", async (t) => {
+  const harness = await loadMain({ seedUserData: (userData) => fs.writeFileSync(path.join(userData, "notch-settings.json"), JSON.stringify({ displayId: 7, displayLabel: "Studio Display", size: "compact" })) });
+  t.after(() => harness.cleanup());
+
+  assert.equal(harness.captured.notchWindow.size, "compact");
+  assert.equal(harness.captured.notchWindow.preferredDisplayId, 7);
 });
