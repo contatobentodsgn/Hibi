@@ -732,9 +732,9 @@ function createCalendarSyncService({
           const local = blocks.find((block) => block?.id === link.localId);
           const localChanged = Boolean(local) && blockFingerprint(local) !== link.localFingerprint;
           if (deleted) {
-            // Com o bloco alterado no Hibi, a pessoa decide. Com o bloco intacto ou apagado, o evento já
-            // não existe e o vínculo sai; o bloco continua no Hibi.
-            if (localChanged) {
+            // Mesmo sem alteração local, a exclusão remota precisa ser explícita: “Manter Hibi”
+            // recria o evento e “Manter calendário” remove o vínculo sem apagar o bloco local.
+            if (local) {
               nextLinks.push(link);
               nextConflicts.push({
                 id: key,
