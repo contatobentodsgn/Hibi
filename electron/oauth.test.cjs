@@ -263,3 +263,42 @@ test('recusa endpoints fora do allowlist do conector ou sem HTTPS', () => {
   assert.throws(() => oauthConfigFor({ allowedHosts: ['service.example.test'], oauth: { pkce: true, authorizationUrl: 'https://atacante.example.test/a', tokenUrl: 'https://service.example.test/t' } }), /not allowed for this connector/);
   assert.throws(() => oauthConfigFor({ allowedHosts: ['service.example.test'], oauth: { pkce: true, authorizationUrl: 'https://service.example.test/a', tokenUrl: 'https://atacante.example.test/t' } }), /not allowed for this connector/);
 });
+
+const refusedExchange = async (body, status = 400) => {
+  const keychain = memoryKeychain();
+  let opened;
+  const service = createOAuthService({
+    keychain, getConnector: () => connector,
+    openExternal: (url) => { opened = new URL(url); },
+    fetch: async () => ({ ok: false, status, json: async () => body() }),
+  });
+  // A recusa é capturada já na criação da promessa: esperar para tratar depois deixa a rejeição solta.
+  const started = service.authorize('fixture', { clientId: 'client-123' }).then(() => null, (reason) => reason);
+  await new Promise((resolve) => setImmediate(resolve));
+  const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
+  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&code=auth-code-1`);
+  const error = await started;
+  return { message: error?.message ?? '', keychain };
+};
+
+test('mostra o código de recusa do servidor de autorização, sem a descrição nem o corpo', async () => {
+  const { message, keychain } = await refusedExchange(() => ({
+    error: 'invalid_client',
+    error_description: 'Missing required parameter: client_secret abcdefghijklmnopqrstuvwxyz0123456789',
+  }));
+
+  assert.match(message, /invalid_client/);
+  assert.match(message, /HTTP 400/);
+  assert.doesNotMatch(message, /client_secret|abcdefghijklmnopqrstuvwxyz/);
+  assert.equal(keychain.store.size, 0);
+});
+
+test('uma recusa sem código utilizável mostra só o status', async () => {
+  const semCodigo = await refusedExchange(() => ({ error: 'Código Inválido!!', error_description: 'x' }), 401);
+  assert.match(semCodigo.message, /HTTP 401/);
+  assert.doesNotMatch(semCodigo.message, /Inválido/);
+
+  const semCorpo = await refusedExchange(() => { throw new Error('resposta não é JSON'); }, 502);
+  assert.match(semCorpo.message, /HTTP 502/);
+  assert.doesNotMatch(semCorpo.message, /não é JSON/);
+});

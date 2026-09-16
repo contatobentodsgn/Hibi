@@ -93,6 +93,21 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
     },
   });
 
+  // Um código de erro do OAuth diz o que fazer: `invalid_client` pede credencial de cliente, `invalid_grant`
+  // pede autorizar de novo, `redirect_uri_mismatch` pede ajustar o registro. A mesma frase para toda recusa
+  // não diz nada. Só o código curto e o status atravessam: descrição e corpo podem carregar parâmetros.
+  const REFUSAL_CODE = /^[a-z][a-z_]{0,39}$/;
+  const refusalFrom = async (response) => {
+    const status = Number.isInteger(response?.status) ? `HTTP ${response.status}` : 'sem status';
+    try {
+      const body = await response.json();
+      const code = typeof body?.error === 'string' && REFUSAL_CODE.test(body.error) ? body.error : null;
+      return code ? `${code}, ${status}` : status;
+    } catch {
+      return status;
+    }
+  };
+
   const exchange = async ({ tokenUrl, params }) => {
     const response = await fetch(tokenUrl.toString(), {
       method: 'POST',
@@ -100,7 +115,7 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
       headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
       body: new URLSearchParams(params).toString(),
     });
-    if (!response?.ok) throw new Error('The authorization server rejected the token request.');
+    if (!response?.ok) throw new Error(`The authorization server rejected the token request (${await refusalFrom(response)}).`);
     let body;
     try { body = await response.json(); } catch { throw new Error('The authorization server returned an invalid token response.'); }
     return readTokenResponse(body);
