@@ -9,10 +9,10 @@ const tempFile = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hibi-con
 
 test('guarda endpoint, client id e alvos escolhidos por conector', () => {
   const settings = createConnectorSettings({ filePath: tempFile() });
-  assert.deepEqual(settings.get('slack'), { endpoint: '', clientId: '', targets: [], authorizationUrl: '', tokenUrl: '' });
+  assert.deepEqual(settings.get('slack'), { endpoint: '', clientId: '', targets: [], authorizationUrl: '', tokenUrl: '', reconnectRequired: false });
 
   const saved = settings.save('slack', { endpoint: 'https://slack.com/api', clientId: 'client.123', targets: [{ id: 'C1', label: '#geral' }] });
-  assert.deepEqual(saved, { endpoint: 'https://slack.com/api/', clientId: 'client.123', targets: [{ id: 'C1', label: '#geral' }], authorizationUrl: '', tokenUrl: '' });
+  assert.deepEqual(saved, { endpoint: 'https://slack.com/api/', clientId: 'client.123', targets: [{ id: 'C1', label: '#geral' }], authorizationUrl: '', tokenUrl: '', reconnectRequired: false });
   assert.deepEqual(createConnectorSettings({ filePath: settings.filePath }).get('slack'), saved);
 });
 
@@ -20,7 +20,7 @@ test('preserva os campos não informados em uma atualização parcial', () => {
   const settings = createConnectorSettings({ filePath: tempFile() });
   settings.save('email', { endpoint: 'https://mail.example.test', clientId: 'client-1' });
   const next = settings.save('email', { targets: [{ id: 'INBOX' }] });
-  assert.deepEqual(next, { endpoint: 'https://mail.example.test/', clientId: 'client-1', targets: [{ id: 'INBOX', label: 'INBOX' }], authorizationUrl: '', tokenUrl: '' });
+  assert.deepEqual(next, { endpoint: 'https://mail.example.test/', clientId: 'client-1', targets: [{ id: 'INBOX', label: 'INBOX' }], authorizationUrl: '', tokenUrl: '', reconnectRequired: false });
 });
 
 test('guarda as URLs de OAuth do conector com a mesma barreira do endpoint', () => {

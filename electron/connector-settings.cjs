@@ -80,13 +80,17 @@ function normalizeNotion(value) {
   };
 }
 
-const emptyEntry = () => ({ endpoint: '', clientId: '', targets: [], authorizationUrl: '', tokenUrl: '' });
+// `reconnectRequired` é o único campo aqui que não é escolha da pessoa: é o que o app aprendeu ao
+// tentar renovar a autorização e falhar. Fica junto do resto porque precisa sobreviver a reiniciar —
+// em memória, a tela voltaria a dizer "conectado" na primeira abertura depois da falha.
+const emptyEntry = () => ({ endpoint: '', clientId: '', targets: [], authorizationUrl: '', tokenUrl: '', reconnectRequired: false });
 
 const normalizeEntry = (value) => {
   const notion = normalizeNotion(value?.notion);
   return {
     endpoint: normalizeEndpoint(value?.endpoint), clientId: normalizeClientId(value?.clientId), targets: normalizeTargets(value?.targets),
     authorizationUrl: normalizeOauthUrl(value?.authorizationUrl), tokenUrl: normalizeOauthUrl(value?.tokenUrl),
+    reconnectRequired: value?.reconnectRequired === true,
     ...(notion ? { notion } : {}),
   };
 };
@@ -127,6 +131,7 @@ function createConnectorSettings({ filePath } = {}) {
         authorizationUrl: patch?.authorizationUrl === undefined ? current.authorizationUrl : patch.authorizationUrl,
         tokenUrl: patch?.tokenUrl === undefined ? current.tokenUrl : patch.tokenUrl,
         notion: patch?.notion === undefined ? current.notion : patch.notion,
+        reconnectRequired: patch?.reconnectRequired === undefined ? current.reconnectRequired : patch.reconnectRequired,
       });
       entries[connectorId] = next;
       write(entries);
