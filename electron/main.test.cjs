@@ -244,6 +244,7 @@ async function loadMain({ seedUserData } = {}) {
     supports(id) { this.calls.push(["supports", id]); return id === "notion"; },
     async authorize(id, options) { this.calls.push(["authorize", id, options]); return { ok: true }; },
     async refresh(id, options) { this.calls.push(["refresh", id, options]); return { ok: true }; },
+    async revoke(id) { this.calls.push(["revoke", id]); return { connectorId: id, connected: false, hasRefreshToken: false }; },
     async cancel() { this.calls.push(["cancel"]); return true; },
   };
   const notchTest = {
@@ -981,4 +982,20 @@ test("a sincronização de calendário não vê workspace até o renderer mandar
   assert.equal(harness.captured.calendarSync.workspace(), null);
   await harness.invoke("hibi:local-api:sync-workspace", { tasks: [], reminders: [], blocks: [{ id: "block-1" }] });
   assert.deepEqual(harness.captured.calendarSync.workspace().blocks, [{ id: "block-1" }]);
+});
+
+test("revogar uma integração com OAuth apaga também o refresh token guardado", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("hibi:integrations:connect", "notion", "token-de-teste");
+  await harness.invoke("hibi:integrations:connect", "slack", "token-de-teste");
+
+  const notion = await harness.invoke("hibi:integrations:revoke", "notion");
+  const slack = await harness.invoke("hibi:integrations:revoke", "slack");
+
+  assert.equal(notion.state, "disconnected");
+  assert.equal(slack.state, "disconnected");
+  // Só o conector com OAuth passa pelo serviço de OAuth; o token manual do Slack sai pelo gerenciador.
+  assert.deepEqual(harness.oauthService.calls.filter(([name]) => name === "revoke"), [["revoke", "notion"]]);
+  assert.equal(harness.keychain.entries.has("integration:notion"), false);
 });
