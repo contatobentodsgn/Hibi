@@ -15,6 +15,8 @@ import { CommandPalette } from '../palette/CommandPalette';
 import type { AssistantTurnControls } from '../useAssistantTurn';
 import { FocusView } from '../FocusView';
 import { HelpView } from '../HelpView';
+import { AgendaAvailability } from '../AgendaAvailability';
+import { deriveDayRhythm } from '../day-rhythm';
 
 const data = createSeedData();
 const onEvent = () => undefined;
@@ -100,6 +102,30 @@ describe('study views', () => {
     expect(markup).toContain('THU');
   });
 
+  it('summarizes planned time, focus blocks, and an available window in the agenda', () => {
+    const markup = renderToStaticMarkup(
+      <AgendaAvailability blocks={agenda.blocks} days={[keyFromToday(0)]} wallClock="08:30" />,
+    );
+
+    expect(markup).toContain('aria-label="Agenda availability"');
+    expect(markup).toContain('Time planned');
+    expect(markup).toContain('Focus blocks');
+    expect(markup).toContain('Next free window');
+    expect(markup).toContain('Schedule conflicts');
+  });
+
+  it('reports local overlap pairs once instead of claiming a conflict-free plan', () => {
+    const conflicting = {
+      ...agenda,
+      blocks: [...agenda.blocks, { id: 'overlap', title: 'Overlapping block', start: `${keyFromToday(0)}T09:30:00`, end: `${keyFromToday(0)}T10:30:00`, category: 'work' as const }],
+    };
+    const markup = renderToStaticMarkup(
+      <AgendaAvailability blocks={conflicting.blocks} days={[keyFromToday(0)]} wallClock="08:30" />,
+    );
+
+    expect(markup).toContain('2 to review');
+  });
+
   // A data do bloco mais antigo do workspace não é "hoje": um workspace só com blocos velhos
   // continua abrindo no dia de hoje, vazio, em vez de voltar no tempo.
   it('keeps Day, Week and Home on today when the workspace only has old blocks', () => {
@@ -116,10 +142,21 @@ describe('study views', () => {
 
   it('shows the blocks of the real local day on Home', () => {
     const markup = renderToStaticMarkup(<HomeView data={agenda} onEvent={onEvent} onNavigate={onEvent} />);
+    const wallClock = new Date().toTimeString().slice(0, 5);
+    const contextualBlock = deriveDayRhythm(agenda.blocks, keyFromToday(0), wallClock).now;
 
     expect(markup).toContain(homeLabel(0));
-    expect(markup).toContain('Kabrito Post 01');
+    expect(markup).toContain(contextualBlock?.title ?? 'No block scheduled');
     expect(markup).toContain('8 work blocks planned today');
+  });
+
+  it('renders the contextual next action, progress text, free time and companion on Home', () => {
+    const markup = renderToStaticMarkup(<HomeView data={agenda} onEvent={onEvent} onNavigate={onEvent} />);
+
+    expect(markup).toContain('Start focus');
+    expect(markup).toContain('planned today');
+    expect(markup).toContain('Next free window');
+    expect(markup).toContain('Today companion');
   });
 
   it('gives day event controls descriptive delete labels', () => {
