@@ -262,11 +262,11 @@ test('edita deadline de uma task por formulário acessível e permite remover', 
   const deadline = dialog.getByRole('textbox', { name: 'Deadline' });
   await deadline.fill('2026-09-10 14:30');
   await dialog.getByRole('button', { name: 'Save deadline' }).click();
-  await expect(page.getByText(/deadline 2026-09-10 14:30/)).toBeVisible();
+  await expect(page.getByText(/Overdue · 2026-09-10 14:30/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Deadline for Kabrito Post 01' }).click();
   await page.getByRole('dialog', { name: 'Edit task deadline' }).getByRole('button', { name: 'Remove deadline' }).click();
-  await expect(page.getByText(/Kabrito Post 01/).locator('..').getByText('sem deadline')).toBeVisible();
+  await expect(page.getByText(/Kabrito Post 01/).locator('..').getByText('No deadline')).toBeVisible();
 });
 
 test('filtros do calendário usam as categorias reais dos blocos', async ({ page }) => {
