@@ -146,11 +146,18 @@ export type WorkspaceStore = ReturnType<typeof createWorkspaceStore>
  * janela sobrescreveria o banco com o espelho — que pode estar velho, por exemplo logo depois de
  * restaurar um ponto. Então, antes da primeira leitura, a gravação vai só para o espelho local, como
  * era antes do banco existir, e devolve `null`; o App regrava assim que a leitura termina.
+ *
+ * Ela também carrega o rótulo de um ponto de restauração pedido antes de uma ação destrutiva. Quem
+ * apaga tudo ou restaura um backup não grava o workspace na mesma hora: muda o que está em memória e
+ * deixa o efeito gravar. O rótulo espera essa gravação — e só ela — para virar um ponto.
  */
 export function createWorkspaceSession(store: WorkspaceStore) {
   let started = false
   let written: string | null = null
+  let pendingRestorePoint: string | null = null
   return {
+    /** Pede um ponto de restauração na próxima gravação. Vale uma vez. */
+    markRestorePoint(label: string) { pendingRestorePoint = label },
     async start(): Promise<WorkspaceLoad> {
       const result = await store.load()
       started = true
@@ -161,10 +168,14 @@ export function createWorkspaceSession(store: WorkspaceStore) {
       return result
     },
     async save(payload: string, options?: WorkspaceSaveOptions): Promise<WorkspaceSave | null> {
+      const restorePoint = options?.restorePoint ?? pendingRestorePoint ?? undefined
+      // Antes da leitura nada vai ao banco, então o rótulo continua esperando: perdê-lo aqui deixaria
+      // sem ponto justamente a ação destrutiva feita nos primeiros instantes da janela.
       if (!started) { store.mirror(payload); return null }
-      if (payload === written && !options?.restorePoint) return null
+      if (payload === written && !restorePoint) return null
       written = payload
-      return store.save(payload, options)
+      pendingRestorePoint = null
+      return store.save(payload, restorePoint ? { restorePoint } : undefined)
     },
   }
 }

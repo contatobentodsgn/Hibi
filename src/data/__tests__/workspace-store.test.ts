@@ -234,4 +234,47 @@ describe('workspace store', () => {
     expect(await completa?.restorePoints?.()).toEqual([{ id: 1, label: 'migração', createdAt: '2026-09-16T12:00:00.000Z', bytes: 10 }])
     expect(await completa?.restore?.(7)).toBe(workspace('ponto 7'))
   })
+
+  it('um ponto pedido antes da ação destrutiva rotula a gravação seguinte, e só ela', async () => {
+    const database = databaseWith(workspace('antes'))
+    const session = createWorkspaceSession(createWorkspaceStore({ storage: storageWith(), database }))
+    await session.start()
+
+    session.markRestorePoint('antes de apagar todos os dados')
+    expect(await session.save(workspace('depois'))).toEqual({ origin: 'database' })
+    expect(await session.save(workspace('mais uma mudança'))).toEqual({ origin: 'database' })
+
+    expect(database.saves).toEqual([
+      { payload: workspace('depois'), restorePoint: 'antes de apagar todos os dados' },
+      { payload: workspace('mais uma mudança') },
+    ])
+  })
+
+  it('o rótulo espera a primeira gravação no banco, mesmo que a leitura ainda não tenha terminado', async () => {
+    const database = databaseWith(null)
+    let liberarLeitura = () => {}
+    const store = createWorkspaceStore({ storage: storageWith(), database: { ...database, read: async () => { await new Promise<void>((resolve) => { liberarLeitura = resolve }); return database.payload } } })
+    const session = createWorkspaceSession(store)
+
+    const leitura = session.start()
+    session.markRestorePoint('antes de restaurar um backup')
+    // Esta gravação só chega ao espelho; perder o rótulo aqui deixaria a ação destrutiva sem ponto.
+    expect(await session.save(workspace('durante a leitura'))).toBe(null)
+    liberarLeitura()
+    await leitura
+
+    expect(await session.save(workspace('depois da leitura'))).toEqual({ origin: 'database' })
+    expect(database.saves).toEqual([{ payload: workspace('depois da leitura'), restorePoint: 'antes de restaurar um backup' }])
+  })
+
+  it('com o rótulo pedido, até um conteúdo idêntico ao lido vira gravação, para o ponto existir', async () => {
+    const database = databaseWith(workspace('igual'))
+    const session = createWorkspaceSession(createWorkspaceStore({ storage: storageWith(), database }))
+    const lido = await session.start()
+
+    session.markRestorePoint('antes de restaurar um backup')
+
+    expect(await session.save(lido.payload!)).toEqual({ origin: 'database' })
+    expect(database.saves).toEqual([{ payload: workspace('igual'), restorePoint: 'antes de restaurar um backup' }])
+  })
 })
