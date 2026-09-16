@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const crypto = require('node:crypto');
+const net = require('node:net');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -31,6 +32,25 @@ function memoryKeychain() {
 
 const jsonResponse = (body, ok = true) => ({ ok, status: ok ? 200 : 400, json: async () => body });
 
+// O corpo da resposta precisa ser consumido. `fetch` resolve nos cabeçalhos, e o serviço encerra o
+// servidor de loopback logo depois de autorizar: com o corpo pendurado, o socket morre no meio e o
+// erro sai como ECONNRESET solto, fora de qualquer asserção — foi assim que esta suíte falhou uma vez,
+// sem nenhuma regressão no código.
+const chamarCallback = async (url) => {
+  const response = await fetch(url);
+  const body = await response.text();
+  return { status: response.status, body };
+};
+
+// Prova determinística de que o servidor de loopback caiu: a porta volta a aceitar outro ouvinte.
+// Tentar uma conexão e esperar que ela falhe é corrida — dá ECONNREFUSED, ECONNRESET ou sucesso,
+// conforme o instante em que o sistema operacional recolhe o socket.
+const portaLivre = (port) => new Promise((resolve, reject) => {
+  const sonda = net.createServer();
+  sonda.once('error', reject);
+  sonda.listen(port, '127.0.0.1', () => sonda.close(() => resolve(true)));
+});
+
 test('monta uma autorização PKCE com S256, state e callback de loopback', async () => {
   const keychain = memoryKeychain();
   let opened;
@@ -57,7 +77,7 @@ test('monta uma autorização PKCE com S256, state e callback de loopback', asyn
   assert.match(challenge, /^[A-Za-z0-9_-]{43}$/);
 
   const state = opened.searchParams.get('state');
-  const callback = await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(state)}&code=auth-code-1`);
+  const callback = await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(state)}&code=auth-code-1`);
   assert.equal(callback.status, 200);
 
   const result = await started;
@@ -109,11 +129,12 @@ test('recusa reutilizar o state do callback e encerra o servidor de loopback', a
   const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
   const state = opened.searchParams.get('state');
 
-  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(state)}&code=auth-code-1`);
+  assert.equal((await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(state)}&code=auth-code-1`)).status, 200);
   await started;
   assert.equal(service.isAwaitingCallback(), false);
 
-  await assert.rejects(fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(state)}&code=auth-code-2`));
+  // O state foi usado e o servidor saiu do ar: a porta está livre para qualquer outro ouvinte.
+  assert.equal(await portaLivre(Number(redirectUri.port)), true);
 });
 
 test('rejeita um state divergente sem trocar o código por um token', async () => {
@@ -132,7 +153,7 @@ test('rejeita um state divergente sem trocar o código por um token', async () =
   await new Promise((resolve) => setImmediate(resolve));
   const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
 
-  const rejected = await fetch(`${redirectUri.origin}/oauth/callback?state=state-falsificado&code=auth-code-1`);
+  const rejected = await chamarCallback(`${redirectUri.origin}/oauth/callback?state=state-falsificado&code=auth-code-1`);
   assert.equal(rejected.status, 400);
 
   assert.match((await settled).message, /timed out/);
@@ -150,7 +171,7 @@ test('propaga a recusa do servidor de autorização sem armazenar credencial', a
   const settled = started.then(() => null, (error) => error);
   await new Promise((resolve) => setImmediate(resolve));
   const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
-  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&error=access_denied`);
+  await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&error=access_denied`);
 
   assert.match((await settled).message, /rejected this authorization/);
   assert.equal(keychain.store.size, 0);
@@ -244,7 +265,7 @@ test('autoriza um conector entregue usando as URLs de OAuth configuradas com o e
   assert.equal(`${opened.origin}${opened.pathname}`, 'https://login.interno.example/oauth/authorize');
   assert.equal(opened.searchParams.get('scope'), 'chat:write stars:read');
   const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
-  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&code=auth-code-1`);
+  await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&code=auth-code-1`);
 
   assert.deepEqual(await started, { connectorId: 'slack', connected: true, hasRefreshToken: false });
   assert.equal(calls[0].url, 'https://login.interno.example/oauth/token');
@@ -276,7 +297,7 @@ const refusedExchange = async (body, status = 400) => {
   const started = service.authorize('fixture', { clientId: 'client-123' }).then(() => null, (reason) => reason);
   await new Promise((resolve) => setImmediate(resolve));
   const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
-  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&code=auth-code-1`);
+  await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&code=auth-code-1`);
   const error = await started;
   return { message: error?.message ?? '', keychain };
 };
@@ -307,7 +328,7 @@ const authorizeWith = async (service, bodies, opened) => {
   const started = service.authorize('fixture', { clientId: 'client-123' }).then((value) => value, (reason) => reason);
   await new Promise((resolve) => setImmediate(resolve));
   const redirectUri = new URL(opened().searchParams.get('redirect_uri'));
-  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened().searchParams.get('state'))}&code=auth-code-1`);
+  await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened().searchParams.get('state'))}&code=auth-code-1`);
   const result = await started;
   return { result, body: new URLSearchParams(bodies.at(-1)) };
 };
