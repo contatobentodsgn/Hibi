@@ -250,7 +250,12 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:integrations:list-status', () => integrationManager.listStatus());
   ipcMain.handle('hibi:integrations:connect', (_event, connectorId, credential) => integrationManager.connect(connectorId, { credential }));
   ipcMain.handle('hibi:integrations:audit', () => integrationManager.audit());
-  ipcMain.handle('hibi:integrations:revoke', (_event, connectorId) => integrationManager.revoke(connectorId));
+  ipcMain.handle('hibi:integrations:revoke', async (_event, connectorId) => {
+    // Revogar pela tela precisa apagar também o refresh token do OAuth. Sem isso ele continua no
+    // Keychain depois de a pessoa achar que desconectou a integração.
+    if (oauthService.supports(connectorId)) await oauthService.revoke(connectorId);
+    return integrationManager.revoke(connectorId);
+  });
   ipcMain.handle('hibi:integrations:prepare-action', (_event, input) => integrationManager.prepareAction(input));
   ipcMain.handle('hibi:integrations:execute-approved', (_event, input) => integrationManager.executeApproved(input));
   ipcMain.handle('hibi:integrations:test-connection', (_event, connectorId) => integrationManager.testConnection(connectorId));
