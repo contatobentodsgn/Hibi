@@ -201,7 +201,16 @@ app.whenReady().then(async () => {
   // renderer segue no armazenamento local.
   try { workspaceDatabase = createWorkspaceDatabase({ filePath: path.join(app.getPath('userData'), 'workspace.db') }); }
   catch { workspaceDatabase = null; }
-  integrationManager = createIntegrationManager({ connectors: buildConnectors(connectorSettings), keychain: secureKeychain });
+  integrationManager = createIntegrationManager({
+    connectors: buildConnectors(connectorSettings), keychain: secureKeychain,
+    // `oauthService` nasce logo abaixo; esta função só corre quando uma chamada falha por expiração.
+    refreshCredential: async (connectorId) => {
+      if (!oauthService?.supports?.(connectorId)) return false;
+      const { clientId } = connectorSettings.get(connectorId);
+      if (!clientId) return false;
+      try { await oauthService.refresh(connectorId, { clientId }); return true; } catch { return false; }
+    },
+  });
   oauthService = createOAuthService({ keychain: secureKeychain, getConnector: (id) => integrationManager.getConnector(id), openExternal: (url) => shell.openExternal(url) });
   calendarSyncService = createCalendarSyncService({ eventKit: eventKitCalendar, integrations: integrationManager, settings: connectorSettings, calendarSettings: calendarSyncSettings, workspace: () => (localApiWorkspaceSynced ? localApiWorkspace : null) });
   localApi = createLocalApi({ tokenStore: createLocalApiTokenStore({ keychain: createMacKeychain() }), workspace: () => localApiWorkspace, prepareWrite: async (intent) => {
