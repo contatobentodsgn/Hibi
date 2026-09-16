@@ -17,6 +17,7 @@ async function installConnectorBridge(page: Page) {
         state('slack', 'Slack', ['import', 'write', 'sync']),
         state('email', 'Email', ['import', 'write']),
         state('remote-notifications', 'Remote notifications', ['notify', 'write']),
+        state('google-calendar', 'Google Calendar', ['import', 'write', 'sync']),
       ],
       listIntegrationAudit: async () => [],
       // Espelha o processo principal: o OAuth embutido pertence ao serviço padrão,
@@ -25,9 +26,12 @@ async function installConnectorBridge(page: Page) {
         const current = entry(id);
         if (current.authorizationUrl && current.tokenUrl) return true;
         if (current.endpoint) return false;
-        return ['notion', 'slack'].includes(id);
+        return ['notion', 'slack', 'google-calendar'].includes(id);
       },
       getConnectorSettings: async (id: string) => ({ ...entry(id) }),
+      hasOauthClientSecret: async () => false,
+      saveOauthClientSecret: async () => ({ connectorId: 'google-calendar', hasClientSecret: true }),
+      clearOauthClientSecret: async () => ({ connectorId: 'google-calendar', hasClientSecret: false }),
       saveConnectorSettings: async (id: string, patch: Record<string, unknown>) => {
         const current = entry(id);
         if (typeof patch.endpoint === 'string') {
@@ -63,6 +67,25 @@ async function installConnectorBridge(page: Page) {
     };
   });
 }
+
+test('permite guardar e apagar a credencial de cliente OAuth sem exibir o valor', async ({ page }) => {
+  await installConnectorBridge(page);
+  await openIntegrations(page);
+
+  const googleRow = page.locator('[data-connector="google-calendar"]');
+  await googleRow.getByRole('button', { name: 'Configure' }).click();
+  await expect(page.getByLabel('Google Calendar client secret')).toBeVisible();
+  await expect(page.getByText('Not saved')).toBeVisible();
+
+  await page.getByLabel('Google Calendar client secret').fill('client-secret-test');
+  await googleRow.getByRole('button', { name: 'Save client credential' }).click();
+  await expect(googleRow.getByText('Saved', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Google Calendar client secret')).toHaveValue('');
+  await expect(page.getByText('client-secret-test')).toHaveCount(0);
+
+  await googleRow.getByRole('button', { name: 'Clear client credential' }).click();
+  await expect(googleRow.getByText('Not saved', { exact: true })).toBeVisible();
+});
 
 async function openIntegrations(page: Page) {
   await page.goto('/');
