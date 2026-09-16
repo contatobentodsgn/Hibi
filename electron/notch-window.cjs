@@ -6,7 +6,7 @@ const validPresentation = (value) => value && typeof value === 'object'
   && (value.text === null || typeof value.text === 'string')
   && Array.isArray(value.actions) && value.actions.length <= 4;
 
-function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, onAction, platform = process.platform, preferredDisplayId: initialPreferredDisplayId = null }) {
+function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, onAction, platform = process.platform, preferredDisplayId: initialPreferredDisplayId = null, preferElectronForAnimated = false }) {
   let window = null;
   let activeRequestId = null;
   let activeActions = new Set();
@@ -39,6 +39,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     try {
       return platform === 'darwin'
         && activeActions.size === 0
+        && !preferElectronForAnimated
         && nativeBridge?.nativeHostAvailable?.() === true
         && nativeBridge?.createHost?.((action) => resolveAction(action?.requestId, action?.actionId)) === true;
     } catch { return false; }

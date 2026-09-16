@@ -35,6 +35,31 @@ test('uses the AppKit host before creating an Electron fallback window', () => {
   assert.deepEqual(calls.at(-1), ['destroy']);
 });
 
+test('mantém estados animados no overlay Electron para reproduzir o vídeo do gatinho', () => {
+  const calls = [];
+  const nativeBridge = {
+    nativeHostAvailable: () => true,
+    createHost: () => { calls.push('create'); return true; },
+    showHost: () => { calls.push('native-show'); return true; },
+  };
+  let notch;
+  const manager = createNotchWindowManager({
+    BrowserWindowClass: FakeWindow,
+    screen,
+    preloadPath: 'preload',
+    load: (target) => { notch = target; },
+    nativeBridge,
+    platform: 'darwin',
+    preferElectronForAnimated: true,
+  });
+
+  const response = manager.show({ ...presentation, requestId: 'cat-result' });
+
+  assert.deepEqual(response, { degraded: true, requestId: 'cat-result', host: 'electron' });
+  assert.deepEqual(calls, []);
+  assert.ok(notch.calls.some(([name, channel]) => name === 'send' && channel === 'hibi:companion:presentation'));
+});
+
 test('keeps action-bearing presentations out of the native visual host', () => {
   const calls = [];
   const nativeBridge = {
