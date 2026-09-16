@@ -1,0 +1,29 @@
+.notes-atelier-summary {
+  display: grid;
+  grid-template-columns: 2fr repeat(2, 1fr);
+  margin: 18px 0 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface, #fff);
+}
+
+.notes-atelier-summary > div {
+  display: grid;
+  gap: 5px;
+  padding: 15px 18px;
+  border-right: 1px solid var(--line);
+}
+
+.notes-atelier-summary > div:last-child { border-right: 0; }
+.notes-atelier-summary span { color: var(--muted); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.notes-atelier-summary strong { overflow: hidden; font-size: .96rem; text-overflow: ellipsis; white-space: nowrap; }
+.notes-atelier-card { align-items: flex-start; }
+.notes-atelier-card > div { display: grid; gap: 6px; min-width: 0; }
+.notes-atelier-card > div > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+
+@media (max-width: 640px) {
+  .notes-atelier-summary { grid-template-columns: 1fr 1fr; }
+  .notes-atelier-summary .note-latest { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
+  .notes-atelier-summary > div:nth-child(2) { border-right: 1px solid var(--line); }
+}
