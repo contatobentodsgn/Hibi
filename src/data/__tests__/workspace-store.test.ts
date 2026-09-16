@@ -4,6 +4,7 @@ import {
   WORKSPACE_MIGRATION_LABEL,
   WORKSPACE_STORAGE_KEY,
   createDesktopWorkspaceBackend,
+  createWorkspaceSession,
   createWorkspaceStore,
   type WorkspaceBackend,
 } from '../workspace-store'
@@ -71,6 +72,22 @@ describe('workspace store', () => {
 
     expect(await store.load()).toEqual({ payload: workspace('do banco'), origin: 'database', migrated: false })
     expect(database.saves).toEqual([])
+    // O espelho passa a valer o que o banco tem: é o que a versão anterior do app vai encontrar.
+    expect(storage.values.get(WORKSPACE_STORAGE_KEY)).toBe(workspace('do banco'))
+  })
+
+  it('o espelho acompanha o banco mesmo quando não havia nada no armazenamento local', async () => {
+    const storage = storageWith()
+    const store = createWorkspaceStore({ storage, database: databaseWith(workspace('do banco')) })
+
+    expect(await store.load()).toEqual({ payload: workspace('do banco'), origin: 'database', migrated: false })
+    expect(storage.values.get(WORKSPACE_STORAGE_KEY)).toBe(workspace('do banco'))
+  })
+
+  it('espelho indisponível não impede o banco de valer', async () => {
+    const store = createWorkspaceStore({ storage: failingStorage(), database: databaseWith(workspace('do banco')) })
+
+    expect(await store.load()).toEqual({ payload: workspace('do banco'), origin: 'database', migrated: false })
   })
 
   it('grava no banco e espelha no armazenamento local, repassando o rótulo do ponto', async () => {
@@ -135,5 +152,86 @@ describe('workspace store', () => {
   it('a ponte devolve nulo quando o banco está vazio, sem inventar payload', async () => {
     const backend = createDesktopWorkspaceBackend({ readWorkspace: async () => null, saveWorkspace: async () => ({ updatedAt: 'agora' }) })
     expect(await backend?.read()).toBeNull()
+  })
+
+  it('a sessão recusa gravar antes da primeira leitura, para o espelho local não subir por cima do banco', async () => {
+    const database = databaseWith(workspace('no banco'))
+    // O espelho está velho: é o caso de logo depois de restaurar um ponto, ou de outra janela ter gravado.
+    const storage = storageWith({ [WORKSPACE_STORAGE_KEY]: workspace('espelho velho') })
+    let liberarLeitura = () => {}
+    const store = createWorkspaceStore({ storage, database: { ...database, read: async () => { await new Promise<void>((resolve) => { liberarLeitura = resolve }); return database.payload } } })
+    const session = createWorkspaceSession(store)
+
+    const leitura = session.start()
+    expect(await session.save(workspace('em memória'))).toBe(null)
+    expect(database.saves).toEqual([])
+    // O espelho continua sendo escrito na hora, como antes do banco existir: quem abre o app numa
+    // versão anterior, ou sem a ponte, encontra o workspace no lugar antigo mesmo assim.
+    expect(storage.values.get(WORKSPACE_STORAGE_KEY)).toBe(workspace('em memória'))
+
+    liberarLeitura()
+    expect(await leitura).toEqual({ payload: workspace('no banco'), origin: 'database', migrated: false })
+    expect(database.payload).toBe(workspace('no banco'))
+  })
+
+  it('a sessão não regrava o que acabou de ler', async () => {
+    const database = databaseWith(workspace('no banco'))
+    const session = createWorkspaceSession(createWorkspaceStore({ storage: storageWith(), database }))
+
+    const lido = await session.start()
+
+    expect(await session.save(lido.payload!)).toBe(null)
+    expect(database.saves).toEqual([])
+    // Um ponto de restauração pedido de propósito continua valendo, mesmo com o conteúdo igual.
+    expect(await session.save(lido.payload!, { restorePoint: 'antes do lote' })).toEqual({ origin: 'database' })
+    expect(database.saves).toEqual([{ payload: workspace('no banco'), restorePoint: 'antes do lote' }])
+  })
+
+  it('depois da leitura, a sessão grava normalmente e repassa o rótulo do ponto', async () => {
+    const database = databaseWith(workspace('no banco'))
+    const session = createWorkspaceSession(createWorkspaceStore({ storage: storageWith(), database }))
+
+    await session.start()
+
+    expect(await session.save(workspace('novo'), { restorePoint: 'antes do lote' })).toEqual({ origin: 'database' })
+    expect(database.saves).toEqual([{ payload: workspace('novo'), restorePoint: 'antes do lote' }])
+    // O efeito do App corre a cada render; repetir o mesmo conteúdo não vira gravação nova.
+    expect(await session.save(workspace('novo'))).toBe(null)
+    expect(database.saves).toHaveLength(1)
+  })
+
+  it('sem a ponte, não há pontos de restauração para listar nem para restaurar', async () => {
+    const store = createWorkspaceStore({ storage: storageWith() })
+
+    expect(await store.restorePoints()).toEqual([])
+    await expect(store.restore(3)).rejects.toThrow(/desktop bridge/)
+  })
+
+  it('lista os pontos do banco e restaura um deles, atualizando o espelho local', async () => {
+    const pontos = [{ id: 2, label: 'antes da importação', createdAt: '2026-09-16T12:00:00.000Z', bytes: 120 }]
+    const database = databaseWith(workspace('agora'))
+    const storage = storageWith({ [WORKSPACE_STORAGE_KEY]: workspace('agora') })
+    const store = createWorkspaceStore({ storage, database: { ...database, restorePoints: async () => pontos, restore: async (id: number) => { expect(id).toBe(2); return workspace('restaurado') } } })
+
+    expect(await store.restorePoints()).toEqual(pontos)
+    expect(await store.restore(2)).toBe(workspace('restaurado'))
+    // Sem isto, a primeira gravação depois da restauração devolveria o espelho velho ao banco.
+    expect(storage.values.get(WORKSPACE_STORAGE_KEY)).toBe(workspace('restaurado'))
+  })
+
+  it('a ponte expõe os pontos de restauração só quando os canais existem', async () => {
+    const semPontos = createDesktopWorkspaceBackend({ readWorkspace: async () => null, saveWorkspace: async () => ({ updatedAt: '2026-09-16T12:00:00.000Z' }) })
+    expect(semPontos?.restorePoints).toBe(undefined)
+    expect(semPontos?.restore).toBe(undefined)
+
+    const completa = createDesktopWorkspaceBackend({
+      readWorkspace: async () => null,
+      saveWorkspace: async () => ({ updatedAt: '2026-09-16T12:00:00.000Z' }),
+      listWorkspaceRestorePoints: async () => [{ id: 1, label: 'migração', createdAt: '2026-09-16T12:00:00.000Z', bytes: 10 }],
+      restoreWorkspace: async ({ id }) => ({ payload: workspace(`ponto ${id}`), updatedAt: '2026-09-16T12:00:00.000Z' }),
+    })
+
+    expect(await completa?.restorePoints?.()).toEqual([{ id: 1, label: 'migração', createdAt: '2026-09-16T12:00:00.000Z', bytes: 10 }])
+    expect(await completa?.restore?.(7)).toBe(workspace('ponto 7'))
   })
 })

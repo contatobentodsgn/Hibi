@@ -22,9 +22,12 @@ export const WORKSPACE_MIGRATED_KEY = 'hibi-study-data-migrated'
 export const WORKSPACE_MIGRATION_LABEL = 'migração do armazenamento local'
 
 export type WorkspaceSaveOptions = Readonly<{ restorePoint?: string }>
+export type WorkspaceRestorePoint = Readonly<{ id: number; label: string; createdAt: string; bytes: number }>
 export type WorkspaceBackend = Readonly<{
   read: () => Promise<string | null>
   save: (payload: string, options?: WorkspaceSaveOptions) => Promise<void>
+  restorePoints?: () => Promise<readonly WorkspaceRestorePoint[]>
+  restore?: (id: number) => Promise<string>
 }>
 
 /** De onde veio o que foi lido, e onde a gravação caiu. O App usa isso para avisar uma vez. */
@@ -36,6 +39,8 @@ type LocalStorageLike = Pick<Storage, 'getItem' | 'setItem'>
 type DesktopBridge = Readonly<{
   readWorkspace?: () => Promise<{ payload: string; updatedAt: string } | null>
   saveWorkspace?: (input: { payload: string; restorePoint?: string }) => Promise<{ updatedAt: string }>
+  listWorkspaceRestorePoints?: () => Promise<readonly WorkspaceRestorePoint[]>
+  restoreWorkspace?: (input: { id: number }) => Promise<{ payload: string; updatedAt: string }>
 }>
 
 const message = (error: unknown) => (error instanceof Error ? error.message : 'unknown failure')
@@ -45,9 +50,14 @@ export function createDesktopWorkspaceBackend(bridge: DesktopBridge | undefined)
   const read = bridge?.readWorkspace
   const save = bridge?.saveWorkspace
   if (typeof read !== 'function' || typeof save !== 'function') return null
+  const list = bridge?.listWorkspaceRestorePoints
+  const restore = bridge?.restoreWorkspace
   return {
     read: async () => (await read())?.payload ?? null,
     save: async (payload, options) => { await save({ payload, ...(options?.restorePoint ? { restorePoint: options.restorePoint } : {}) }) },
+    // Os pontos de restauração são do banco: sem eles a lista fica vazia e restaurar recusa.
+    ...(typeof list === 'function' ? { restorePoints: () => list() } : {}),
+    ...(typeof restore === 'function' ? { restore: async (id: number) => (await restore({ id })).payload } : {}),
   }
 }
 
@@ -73,7 +83,10 @@ export function createWorkspaceStore({ storage, database }: { storage: LocalStor
         // Sem leitura do banco, o espelho local ainda serve: o app abre com os dados, avisando.
         return { payload: local, origin: local ? 'local' : 'empty', migrated: false, degraded: message(error) }
       }
-      if (stored !== null) return { payload: stored, origin: 'database', migrated: false }
+      // O espelho acompanha o que o banco devolveu. Sem isto ele fica com o que o App tinha antes de
+      // ler — a semente, numa janela sem a chave local — e deixa de ser a saída de emergência que é:
+      // quem abrisse uma versão anterior do app encontraria o workspace errado no lugar antigo.
+      if (stored !== null) { writeLocal(stored); return { payload: stored, origin: 'database', migrated: false } }
       if (local === null || alreadyMigrated()) return { payload: null, origin: 'empty', migrated: false }
       try {
         // O que já existia entra no banco antes de qualquer gravação nova, com ponto de restauração.
@@ -99,6 +112,59 @@ export function createWorkspaceStore({ storage, database }: { storage: LocalStor
       }
       const mirrored = writeLocal(payload)
       return mirrored ? { origin: 'database' } : { origin: 'database', degraded: 'local storage is unavailable' }
+    },
+
+    /** Só o espelho local, sem tocar no banco. É o que vale antes da primeira leitura. */
+    mirror(payload: string): boolean { return writeLocal(payload) },
+
+    /** Os pontos guardados pelo banco, do mais novo para o mais velho. Vazio sem a ponte. */
+    async restorePoints(): Promise<readonly WorkspaceRestorePoint[]> {
+      if (!database?.restorePoints) return []
+      return database.restorePoints()
+    },
+
+    /**
+     * Volta o banco a um ponto e devolve o que passou a valer. O espelho local acompanha na hora:
+     * se ficasse para trás, a primeira gravação depois da restauração o mandaria de volta por cima
+     * do que acabou de ser restaurado. Quem chama ainda precisa recarregar a janela, porque o estado
+     * em memória é anterior à restauração.
+     */
+    async restore(id: number): Promise<string> {
+      if (!database?.restore) throw new Error('Restore points need the desktop bridge.')
+      const payload = await database.restore(id)
+      writeLocal(payload)
+      return payload
+    },
+  }
+}
+
+export type WorkspaceStore = ReturnType<typeof createWorkspaceStore>
+
+/**
+ * A sessão do App em volta do armazenamento. Existe por causa de uma ordem: a leitura do banco é
+ * assíncrona, e o App já tem dados em memória (o espelho local) antes de ela terminar. Gravar nessa
+ * janela sobrescreveria o banco com o espelho — que pode estar velho, por exemplo logo depois de
+ * restaurar um ponto. Então, antes da primeira leitura, a gravação vai só para o espelho local, como
+ * era antes do banco existir, e devolve `null`; o App regrava assim que a leitura termina.
+ */
+export function createWorkspaceSession(store: WorkspaceStore) {
+  let started = false
+  let written: string | null = null
+  return {
+    async start(): Promise<WorkspaceLoad> {
+      const result = await store.load()
+      started = true
+      // O que acabou de ser lido já está gravado. Sem isto, a primeira gravação depois da leitura
+      // devolveria ao armazenamento o mesmo conteúdo — e, pior, o conteúdo que o App tinha em
+      // memória antes de ler, que pode ser mais velho do que o de lá.
+      written = result.payload
+      return result
+    },
+    async save(payload: string, options?: WorkspaceSaveOptions): Promise<WorkspaceSave | null> {
+      if (!started) { store.mirror(payload); return null }
+      if (payload === written && !options?.restorePoint) return null
+      written = payload
+      return store.save(payload, options)
     },
   }
 }
