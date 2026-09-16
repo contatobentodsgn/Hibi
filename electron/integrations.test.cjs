@@ -362,3 +362,99 @@ test('rejects a malformed single calendar event instead of passing it on', async
 
   await assert.rejects(() => manager.readCalendarEvent('calendar', { calendarId: 'primary', remoteId: 'event-1' }), /invalid calendar event/);
 });
+
+const expiredError = () => { const error = new Error('authorization expired'); error.code = 'expired-authorization'; return error; };
+const managerWithExpiry = ({ refreshCredential, calls = [], fails = 1 } = {}) => {
+  const store = keychain();
+  store.set('integration:calendar', 'token-velho');
+  const manager = createIntegrationManager({
+    keychain: store,
+    refreshCredential,
+    connectors: [{
+      id: 'calendar', label: 'Calendar', allowedHosts: ['calendar.example.test'], capabilities: ['import', 'write'],
+      async fetchCalendarEvents(input) {
+        calls.push(input.credential);
+        if (calls.length <= fails) throw expiredError();
+        return [{ remoteId: 'remote-1', title: 'Planning', startsAt: '2026-09-16T09:00:00-03:00', endsAt: '2026-09-16T10:00:00-03:00', allDay: false }];
+      },
+      prepareWrite: ({ kind, payload }) => ({ kind, payload }),
+      async executeApproved(input) {
+        calls.push(input.credential);
+        if (calls.length <= fails) throw expiredError();
+        return { ok: true, remoteId: 'remote-1' };
+      },
+    }],
+  });
+  return { manager, store, calls };
+};
+
+test('renova a credencial uma vez quando o serviço diz que a autorização expirou, e repete a leitura', async () => {
+  let refreshes = 0;
+  const { manager, store, calls } = managerWithExpiry({
+    refreshCredential: async (id) => { refreshes += 1; assert.equal(id, 'calendar'); await store.set('integration:calendar', 'token-novo'); return true; },
+  });
+
+  const events = await manager.readCalendarEvents('calendar', { calendarId: 'primary', timeMin: '2026-09-16T00:00:00.000Z', timeMax: '2026-09-17T00:00:00.000Z' });
+
+  assert.equal(events.length, 1);
+  assert.equal(refreshes, 1);
+  // A segunda tentativa usa a credencial nova, e não a que expirou.
+  assert.deepEqual(calls, ['token-velho', 'token-novo']);
+  assert.equal((await manager.audit()).some((entry) => entry.action === 'refresh'), true);
+});
+
+test('a escrita aprovada também é repetida depois da renovação', async () => {
+  const { manager, store, calls } = managerWithExpiry({
+    refreshCredential: async () => { await store.set('integration:calendar', 'token-novo'); return true; },
+  });
+  const prepared = await manager.prepareAction({ connectorId: 'calendar', kind: 'calendar.create', payload: { title: 'Planejar' } });
+
+  const result = await manager.executeApproved({ actionId: prepared.id, confirmationId: prepared.confirmationId });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(calls, ['token-velho', 'token-novo']);
+});
+
+test('outros erros não disparam renovação, e a chamada não é repetida', async () => {
+  let refreshes = 0;
+  const store = keychain();
+  await store.set('integration:calendar', 'token');
+  const calls = [];
+  const manager = createIntegrationManager({
+    keychain: store,
+    refreshCredential: async () => { refreshes += 1; return true; },
+    connectors: [{
+      id: 'calendar', label: 'Calendar', allowedHosts: ['calendar.example.test'], capabilities: ['import'],
+      async fetchCalendarEvents() { calls.push('chamada'); throw new Error('Google Calendar is temporarily rate limited. Try again later.'); },
+    }],
+  });
+
+  await assert.rejects(() => manager.readCalendarEvents('calendar', { calendarId: 'primary', timeMin: '2026-09-16T00:00:00.000Z', timeMax: '2026-09-17T00:00:00.000Z' }), /rate limited/);
+
+  assert.equal(refreshes, 0);
+  assert.deepEqual(calls, ['chamada']);
+});
+
+test('sem renovação possível, a expiração sobe como erro e a chamada não vira laço', async () => {
+  for (const refreshCredential of [undefined, async () => false, async () => { throw new Error('sem refresh token'); }]) {
+    const calls = [];
+    const { manager } = managerWithExpiry({ refreshCredential, calls, fails: 99 });
+    await assert.rejects(
+      () => manager.readCalendarEvents('calendar', { calendarId: 'primary', timeMin: '2026-09-16T00:00:00.000Z', timeMax: '2026-09-17T00:00:00.000Z' }),
+      /authorization expired/,
+    );
+    assert.equal(calls.length, 1);
+  }
+});
+
+test('uma expiração que persiste depois da renovação não é tentada de novo', async () => {
+  const calls = [];
+  const { manager } = managerWithExpiry({ refreshCredential: async () => true, calls, fails: 99 });
+
+  await assert.rejects(
+    () => manager.readCalendarEvents('calendar', { calendarId: 'primary', timeMin: '2026-09-16T00:00:00.000Z', timeMax: '2026-09-17T00:00:00.000Z' }),
+    /authorization expired/,
+  );
+
+  assert.equal(calls.length, 2);
+});

@@ -87,10 +87,13 @@ function allDayRange(startsAt, endsAt) {
 }
 
 function failureFor(response, fallback) {
-  if (response?.status === 401)
-    return new Error(
-      "Google Calendar authorization expired. Reconnect this calendar.",
-    );
+  if (response?.status === 401) {
+    // O código é o que diz ao gerenciador de integrações que vale renovar o token e tentar de novo. Um
+    // 401 é recusa antes de qualquer efeito: nada foi escrito do outro lado.
+    const expired = new Error("Google Calendar authorization expired. Reconnect this calendar.");
+    expired.code = "expired-authorization";
+    return expired;
+  }
   if (response?.status === 403)
     return new Error("Google Calendar denied access to this calendar.");
   if (response?.status === 429)

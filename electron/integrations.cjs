@@ -122,13 +122,33 @@ function createIntegrationAuditLog({ limit = MAX_AUDIT_ENTRIES } = {}) {
   };
 }
 
-function createIntegrationManager({ connectors = [], keychain, now = () => new Date().toISOString(), fetch, auditLog = createIntegrationAuditLog() } = {}) {
+function createIntegrationManager({ connectors = [], keychain, now = () => new Date().toISOString(), fetch, refreshCredential, auditLog = createIntegrationAuditLog() } = {}) {
   if (!keychain || typeof keychain.set !== 'function' || typeof keychain.get !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function') throw new Error('A Keychain implementation is required.');
   const registered = new Map(connectors.map((connector) => { validateConnector(connector); return [connector.id, connector]; }));
   if (registered.size !== connectors.length) throw new Error('Integration connector IDs must be unique.');
   const prepared = new Map();
   const accountFor = (id) => `integration:${id}`;
   const appendAudit = (value) => auditLog.append({ at: now(), ...value });
+  // Um token de acesso expira sozinho, e antes disso toda leitura e toda escrita passavam a falhar até
+  // alguém clicar em renovar na tela. Quando o conector diz que a autorização expirou, o gerenciador
+  // renova uma vez e repete a chamada. Repetir é seguro: um 401 é recusa antes de qualquer efeito, e a
+  // publicação de calendário ainda é idempotente pelo id que o Hibi escolhe.
+  const credentialFor = async (id) => {
+    const credential = await keychain.get(accountFor(id));
+    if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
+    return credential;
+  };
+  const withFreshCredential = async (id, run) => {
+    try {
+      return await run(await credentialFor(id));
+    } catch (error) {
+      if (error?.code !== 'expired-authorization' || typeof refreshCredential !== 'function') throw error;
+      const renewed = await refreshCredential(id).catch(() => false);
+      if (!renewed) throw error;
+      appendAudit({ action: 'refresh', connectorId: id, detail: 'Authorization refreshed after expiry.' });
+      return run(await credentialFor(id));
+    }
+  };
   const getConnector = (id) => { const connector = registered.get(id); if (!connector) throw new Error('Unknown integration connector.'); return connector; };
   const safeFetchFor = (connector) => createSafeIntegrationFetch({ connector, ...(fetch ? { fetch } : {}) });
   const statusFor = async (connector) => ({ id: connector.id, label: connector.label, state: await keychain.has(accountFor(connector.id)) ? 'connected' : 'disconnected', capabilities: [...connector.capabilities], hasCredential: await keychain.has(accountFor(connector.id)) });
@@ -167,9 +187,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       if (!action || input?.confirmationId !== action.confirmationId) throw new Error('A matching confirmation is required before executing this integration action.');
       prepared.delete(input.actionId);
       if (typeof action.connector.executeApproved !== 'function') throw new Error('This integration does not support approved execution.');
-      const credential = await keychain.get(accountFor(action.connector.id));
-      if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
-      const result = await safeExecutionResult(await action.connector.executeApproved({ kind: action.kind, payload: action.payload, credential, request: safeFetchFor(action.connector) }));
+      const result = await safeExecutionResult(await withFreshCredential(action.connector.id, (credential) => action.connector.executeApproved({ kind: action.kind, payload: action.payload, credential, request: safeFetchFor(action.connector) })));
       appendAudit({ action: 'execute', connectorId: action.connector.id, detail: result.ok ? `Executed approved ${action.kind}.` : `The service refused approved ${action.kind}: ${result.error ?? 'no reason given'}` });
       return result;
     },
@@ -192,9 +210,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
     async listImportTargets(id) {
       const connector = getConnector(id);
       if (typeof connector.listImportTargets !== 'function') throw new Error('This integration does not expose import targets.');
-      const credential = await keychain.get(accountFor(id));
-      if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
-      const targets = await connector.listImportTargets({ credential, request: safeFetchFor(connector) });
+      const targets = await withFreshCredential(id, (credential) => connector.listImportTargets({ credential, request: safeFetchFor(connector) }));
       const safe = (Array.isArray(targets) ? targets : []).slice(0, 200).flatMap((target) => boundedText(target?.id, 240) ? [{ id: target.id, label: boundedText(target?.label, 240) ? target.label : target.id }] : []);
       appendAudit({ action: 'list-import-targets', connectorId: id, detail: `Listed ${safe.length} import targets.` });
       return safe;
@@ -202,9 +218,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
     async readCalendarEvents(id, input = {}) {
       const connector = getConnector(id);
       if (typeof connector.fetchCalendarEvents !== 'function') throw new Error('This integration does not expose calendar events.');
-      const credential = await keychain.get(accountFor(id));
-      if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
-      const events = await connector.fetchCalendarEvents({ credential, calendarId: input.calendarId, timeMin: input.timeMin, timeMax: input.timeMax, request: safeFetchFor(connector) });
+      const events = await withFreshCredential(id, (credential) => connector.fetchCalendarEvents({ credential, calendarId: input.calendarId, timeMin: input.timeMin, timeMax: input.timeMax, request: safeFetchFor(connector) }));
       const safe = (Array.isArray(events) ? events : []).slice(0, MAX_IMPORT_CANDIDATES).flatMap((event) => {
         if (!boundedText(event?.remoteId, 240) || !boundedText(event?.title, 240) || !boundedText(event?.startsAt, 240) || !boundedText(event?.endsAt, 240)) return [];
         if (Number.isNaN(Date.parse(event.startsAt)) || Number.isNaN(Date.parse(event.endsAt))) return [];
@@ -216,9 +230,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
     async readCalendarEvent(id, input = {}) {
       const connector = getConnector(id);
       if (typeof connector.fetchCalendarEvent !== 'function') throw new Error('This integration does not expose single calendar events.');
-      const credential = await keychain.get(accountFor(id));
-      if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
-      const event = await connector.fetchCalendarEvent({ credential, calendarId: input?.calendarId, remoteId: input?.remoteId, request: createReadOnlyFetch(safeFetchFor(connector)) });
+      const event = await withFreshCredential(id, (credential) => connector.fetchCalendarEvent({ credential, calendarId: input?.calendarId, remoteId: input?.remoteId, request: createReadOnlyFetch(safeFetchFor(connector)) }));
       // `null` é resposta, não falha: o serviço confirmou que o evento não existe mais.
       if (event === null) {
         appendAudit({ action: 'calendar-read', connectorId: id, detail: 'Calendar event not found.' });

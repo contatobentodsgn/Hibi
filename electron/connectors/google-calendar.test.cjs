@@ -313,3 +313,15 @@ test("does not mistake an authorization or server failure for a deleted Google e
     await assert.rejects(() => connector.fetchCalendarEvent({ credential: "secret-token", calendarId: "primary", remoteId: "event-1" }), message);
   }
 });
+
+test("um 401 do Google carrega o código de autorização expirada", async () => {
+  const connector = createGoogleCalendarConnector({ request: async () => new Response("{}", { status: 401 }) });
+
+  const error = await connector.listImportTargets({ credential: "secret-token" }).then(() => null, (reason) => reason);
+
+  assert.match(error.message, /authorization expired/);
+  // O código é o que faz o gerenciador renovar e repetir, em vez de devolver a falha para a tela.
+  assert.equal(error.code, "expired-authorization");
+  const outro = await connector.listImportTargets({ credential: "secret-token", request: async () => new Response("{}", { status: 403 }) }).then(() => null, (reason) => reason);
+  assert.equal(outro.code, undefined);
+});

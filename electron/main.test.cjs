@@ -17,6 +17,7 @@ const realNotchWindow = require("./notch-window.cjs");
 const realNotchTest = require("./notch-test.cjs");
 const realAiConfig = require("./ai-config.cjs");
 const realCalendarSync = require("./calendar-sync-service.cjs");
+const realIntegrations = require("./integrations.cjs");
 const { PRESENCE_POLL_MS } = require("./focus-presence.mjs");
 
 // Os canais que o renderer pode chamar. A lista é mantida à mão de propósito:
@@ -285,6 +286,14 @@ async function loadMain({ seedUserData, breakWorkspaceDatabase } = {}) {
       },
     },
     "./ai-config.cjs": { ...realAiConfig, createMacKeychain: () => keychain },
+    // O gerenciador é o de verdade; o dublê guarda as opções para provar a fiação da renovação.
+    "./integrations.cjs": {
+      ...realIntegrations,
+      createIntegrationManager: (options) => {
+        captured.integrations = options;
+        return realIntegrations.createIntegrationManager(options);
+      },
+    },
     // Só um teste precisa do banco quebrado; os demais usam o de verdade, no userData temporário.
     ...(breakWorkspaceDatabase
       ? { "./workspace-database.cjs": { createWorkspaceDatabase: () => { throw new Error("SQLite is unavailable in this runtime"); } } }
@@ -1081,4 +1090,24 @@ test("um banco que não abre não impede o app de abrir: os canais respondem com
   for (const channel of ["hibi:workspace:read", "hibi:workspace:restore-points"])
     await assert.rejects(() => harness.invoke(channel), /workspace database is unavailable/);
   await assert.rejects(() => harness.invoke("hibi:workspace:save", { payload: JSON.stringify({ tasks: [] }) }), /workspace database is unavailable/);
+});
+
+test("a renovação da credencial passa pelo serviço de OAuth, com o client id configurado", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const refreshCredential = harness.captured.integrations.refreshCredential;
+
+  // Sem client id configurado não há o que renovar, e o gerenciador recebe `false` em vez de exceção.
+  assert.equal(await refreshCredential("notion"), false);
+  // Um conector com client id salvo mas sem fluxo de OAuth também não tenta renovar.
+  await harness.invoke("hibi:integrations:save-settings", "google-calendar", { clientId: "client-google" });
+  assert.equal(await refreshCredential("google-calendar"), false);
+
+  await harness.invoke("hibi:integrations:save-settings", "notion", { clientId: "client-123" });
+  assert.equal(await refreshCredential("notion"), true);
+
+  assert.deepEqual(
+    harness.oauthService.calls.filter(([name]) => name === "refresh"),
+    [["refresh", "notion", { clientId: "client-123" }]],
+  );
 });
