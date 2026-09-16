@@ -447,10 +447,11 @@ test("looks up at most fifty missing events per read and leaves the rest for the
   await service.readEvents({ ...DAY, calendars: [{ sourceId: "apple", id: "apple:personal" }] });
 
   assert.equal(lookups, 50);
-  assert.equal(calendarSettings.current().links.length, 10);
+  assert.equal(calendarSettings.current().links.length, 60);
+  assert.equal(calendarSettings.current().conflicts.length, 50);
 });
 
-test("raises remote-deleted only for a changed block whose event is missing inside the read window", async () => {
+test("raises remote-deleted for every linked local block whose event is missing inside the read window", async () => {
   const calendarSettings = memorySettings({
     calendars: bidirectional("apple:personal"),
     links: [link(inside), link({ localId: "block-2", remoteId: "event-2", localFingerprint: blockFingerprint(workspaceBlock({ id: "block-2" })), ...inside })],
@@ -466,9 +467,24 @@ test("raises remote-deleted only for a changed block whose event is missing insi
   await service.readEvents({ ...DAY, calendars: [{ sourceId: "apple", id: "apple:personal" }] });
 
   const stored = calendarSettings.current();
-  // O bloco intacto perde o vínculo e continua no Hibi; o alterado vira decisão da pessoa.
-  assert.deepEqual(stored.links.map((entry) => entry.localId), ["block-1"]);
-  assert.deepEqual(stored.conflicts, [{ id: "apple:personal:event-1", calendarId: "apple:personal", kind: "remote-deleted", summary: "Mudou no Hibi" }]);
+  assert.deepEqual(stored.links.map((entry) => entry.localId), ["block-1", "block-2"]);
+  assert.deepEqual(stored.conflicts.map((entry) => entry.kind), ["remote-deleted", "remote-deleted"]);
+});
+
+test("raises remote-deleted for an unchanged block so Hibi can recreate it", async () => {
+  const calendarSettings = memorySettings({ calendars: bidirectional("google:primary"), links: [link({ calendarId: "google:primary", ...inside })] });
+  const service = createCalendarSyncService({
+    eventKit: noApple,
+    integrations: { listStatus: async () => [], readCalendarEvents: async () => [{ remoteId: "event-1", title: "Planejar semana", startsAt: inside.remoteStartsAt, endsAt: inside.remoteEndsAt, cancelled: true }] },
+    settings: googleTargets,
+    calendarSettings,
+    workspace: () => ({ blocks: [workspaceBlock()] }),
+  });
+
+  await service.readEvents({ ...DAY, calendars: [{ sourceId: "google", id: "google:primary" }] });
+
+  assert.deepEqual(calendarSettings.current().conflicts.map((entry) => entry.kind), ["remote-deleted"]);
+  assert.equal(calendarSettings.current().links.length, 1);
 });
 
 test("reevaluates links only for calendars that were actually read", async () => {
