@@ -487,6 +487,26 @@ test("raises remote-deleted for an unchanged block so Hibi can recreate it", asy
   assert.equal(calendarSettings.current().links.length, 1);
 });
 
+test("drops the link without a conflict when the block is gone from Hibi too", async () => {
+  const calendarSettings = memorySettings({ calendars: bidirectional("google:primary"), links: [link({ calendarId: "google:primary", ...inside })] });
+  const service = createCalendarSyncService({
+    eventKit: noApple,
+    integrations: { listStatus: async () => [], readCalendarEvents: async () => [{ remoteId: "event-1", title: "Planejar semana", startsAt: inside.remoteStartsAt, endsAt: inside.remoteEndsAt, cancelled: true }] },
+    settings: googleTargets,
+    calendarSettings,
+    // Os dois lados apagaram: o bloco saiu do Hibi e o evento saiu do calendário.
+    workspace: () => ({ blocks: [] }),
+  });
+
+  await service.readEvents({ ...DAY, calendars: [{ sourceId: "google", id: "google:primary" }] });
+
+  const stored = calendarSettings.current();
+  // Não há nada a decidir. Um conflito aqui ficaria órfão: ele descreve um bloco que não existe mais,
+  // "Manter Hibi" não teria o que recriar, e o resumo cairia no travessão de `summaryFor(undefined)`.
+  assert.deepEqual(stored.conflicts, []);
+  assert.deepEqual(stored.links, []);
+});
+
 test("reevaluates links only for calendars that were actually read", async () => {
   const read = [];
   const calendarSettings = memorySettings({ calendars: bidirectional("google:primary"), links: [link({ calendarId: "google:primary", ...inside })] });
