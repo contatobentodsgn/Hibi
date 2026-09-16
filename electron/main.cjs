@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification, screen, shell, powerMonitor } = require("electron");
+const { app, BrowserWindow, ipcMain, Notification, dialog, screen, shell, powerMonitor } = require("electron");
 const path = require("node:path");
 const crypto = require('node:crypto');
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.mjs");
@@ -151,15 +151,44 @@ function attachNotchLifecycle({ displayService, powerService, manager, onDisplay
   };
 }
 
-function attachRendererRecovery(window) {
+// O aviso é nativo porque a janela que falhou é justamente a que não pode desenhar interface, e o
+// processo principal não alcança o dicionário do renderer. Duas traduções bastam: o app tem `pt` e
+// `en`, e receber um aviso em português no momento em que algo quebrou não ajuda quem usa em inglês.
+function rendererRecoveryPrompt(locale) {
+  return typeof locale === 'string' && locale.toLowerCase().startsWith('pt')
+    ? { title: 'Hibi', message: 'O Hibi encontrou um problema ao carregar a interface.', detail: 'Você pode tentar de novo ou encerrar o app. Seus dados continuam salvos.', buttons: ['Tentar de novo', 'Encerrar'] }
+    : { title: 'Hibi', message: 'Hibi ran into a problem loading its interface.', detail: 'You can try again or quit the app. Your data is still saved.', buttons: ['Try again', 'Quit'] };
+}
+
+// Uma falha do renderer é recuperada automaticamente uma vez. Se ela se repetir antes de a janela
+// terminar de carregar, recarregar de novo viraria laço: aí a pessoa decide entre tentar de novo e
+// encerrar. Sem esse aviso a janela ficava em branco, em silêncio, sem nada a fazer.
+function attachRendererRecovery(window, { showWarning, quit = () => app?.quit?.(), locale = () => app?.getLocale?.() } = {}) {
   let recovering = false;
+  let warned = false;
+  const ask = showWarning ?? ((details, retry, giveUp) => {
+    const prompt = rendererRecoveryPrompt(locale());
+    void dialog?.showMessageBox?.(window, { type: 'warning', ...prompt, defaultId: 0, cancelId: 1, noLink: true })
+      ?.then?.(({ response }) => { if (response === 0) retry(); else giveUp(); })
+      ?.catch?.(() => {});
+  });
   const recover = () => {
-    if (recovering || window?.isDestroyed?.()) return;
+    if (recovering || warned || window?.isDestroyed?.()) return;
     recovering = true;
     window.webContents?.reloadIgnoringCache?.();
   };
-  window?.webContents?.on?.('render-process-gone', recover);
-  window?.webContents?.on?.('did-finish-load', () => { recovering = false; });
+  const onRendererGone = (_event, details = {}) => {
+    if (window?.isDestroyed?.()) return;
+    if (!recovering) { recover(); return; }
+    // A recuperação automática já foi gasta nesta carga: a tentativa seguinte é decisão da pessoa.
+    recovering = false;
+    if (warned) return;
+    warned = true;
+    const reason = typeof details.reason === 'string' && details.reason.length <= 80 ? details.reason : 'unknown';
+    ask({ reason }, () => { warned = false; recover(); }, () => { quit(); });
+  };
+  window?.webContents?.on?.('render-process-gone', onRendererGone);
+  window?.webContents?.on?.('did-finish-load', () => { recovering = false; warned = false; });
   return recover;
 }
 
@@ -350,4 +379,4 @@ app.whenReady().then(async () => {
 app.on("before-quit", () => { detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
-module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, safeAiStreamEvent, routeNotchAction, isRendererPresentationAllowed };
+module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, rendererRecoveryPrompt, safeAiStreamEvent, routeNotchAction, isRendererPresentationAllowed };
