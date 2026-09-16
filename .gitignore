@@ -14,8 +14,12 @@ event-logs/
 .superpowers/
 .worktrees/
 native/notch/build/
+native/voice/build/
 native/notch/node_modules/
 ._*
 
 # Relatórios locais do Vitest
 .vitest/
+
+# Pesos locais do assistente: permanecem na pasta do projeto, mas não entram no Git.
+.hibi-local-models/**/*.bin

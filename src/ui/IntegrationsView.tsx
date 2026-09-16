@@ -28,21 +28,30 @@ export function IntegrationsView({ onEvent, localRecords = [], localTasks = [], 
   const [preview, setPreview] = useState<readonly ImportPreviewItem[]>([])
   // De onde veio a prévia atual: a decisão precisa gravar o mesmo conector para
   // que uma leitura seguinte reconheça o item como duplicata, e não como novo.
-  const [previewSource, setPreviewSource] = useState('file-import')
-  const [notice, setNotice] = useState('No credential is shown or stored in this view.')
-  const [api, setApi] = useState<{ origin: string } | null>(null)
-  const [webhook, setWebhook] = useState<{ origin?: string; hasSecret: boolean; running: boolean }>({ hasSecret: false, running: false })
-  const [webhookSecret, setWebhookSecret] = useState('')
-  const [connecting, setConnecting] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState<string | null>(null)
-  const [settings, setSettings] = useState<Readonly<Record<string, ConnectorSettings>>>({})
-  const [oauthConnectors, setOauthConnectors] = useState<readonly string[]>([])
-  const [targets, setTargets] = useState<Readonly<Record<string, readonly IntegrationImportTarget[]>>>({})
-  const [busy, setBusy] = useState<string | null>(null)
-  const [credential, setCredential] = useState('')
-  const [clientSecretDraft, setClientSecretDraft] = useState('')
-  const [clientSecretState, setClientSecretState] = useState<Readonly<Record<string, boolean>>>({})
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [previewSource, setPreviewSource] = useState("file-import");
+  const [notice, setNotice] = useState(
+    "No credential is shown or stored in this view.",
+  );
+  const [api, setApi] = useState<{ origin: string } | null>(null);
+  const [webhook, setWebhook] = useState<{
+    origin?: string;
+    hasSecret: boolean;
+    running: boolean;
+  }>({ hasSecret: false, running: false });
+  const [webhookSecret, setWebhookSecret] = useState("");
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [settings, setSettings] = useState<
+    Readonly<Record<string, ConnectorSettings>>
+  >({});
+  const [oauthConnectors, setOauthConnectors] = useState<readonly string[]>([]);
+  const [targets, setTargets] = useState<
+    Readonly<Record<string, readonly IntegrationImportTarget[]>>
+  >({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [credential, setCredential] = useState("");
+  const [googleClientSecret, setGoogleClientSecret] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
   const refresh = async () => {
     try {
       const [nextStatus, nextAudit] = await Promise.all([window.hibiDesktop?.listIntegrationStatus?.(), window.hibiDesktop?.listIntegrationAudit?.()])
@@ -184,8 +193,519 @@ export function IntegrationsView({ onEvent, localRecords = [], localTasks = [], 
     try { const value = await window.hibiDesktop?.configureWebhook?.(webhookSecret); setWebhookSecret(''); if (value) setWebhook(value); setNotice('Webhook secret saved in Keychain.'); onEvent('webhook-configure', 'Local webhook', 'pass') } catch { setNotice('Could not configure the local webhook.'); }
   }
   const toggleWebhook = async () => {
-    try { const value = webhook.running ? await window.hibiDesktop?.stopWebhook?.() : await window.hibiDesktop?.startWebhook?.(); if (value) { setWebhook(value); setNotice(value.running ? `Webhook listening at ${value.origin}.` : 'Local webhook stopped.'); } } catch { setNotice('Could not change webhook state.'); }
-  }
-  const notionStatus = status.find((connector) => connector.id === 'notion')
-  return <section className="settings-card" aria-label="Integrations"><div className="view-heading"><div><p className="eyebrow">CONNECTED SERVICES</p><h2>Integrations</h2><p className="muted">Connections stay optional. Remote writes always require a separate approval.</p></div><button className="outline" onClick={() => void refresh()}>Refresh status</button></div><MacCalendarConnection onEvent={onEvent} blocks={localBlocks} />{notionStatus && <NotionSyncPanel connected={notionStatus.state === 'connected'} settings={settingsFor('notion')} localTasks={localTasks} onSaveSettings={(patch) => saveSettings('notion', patch)} onApply={(mutations) => onApplyNotion?.(mutations) ?? []} onEvent={onEvent} />}{status.map((connector) => <div className="connector-block" data-connector={connector.id} aria-label={`${connector.label} connector`} key={connector.id}><div className="setting-row"><div><strong>{connector.label}</strong><span>{connector.capabilities.join(' · ')} · {connector.state}</span></div><div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{connector.state === 'connected' && <button className="outline" disabled={busy === connector.id} onClick={() => void testConnection(connector.id)}>Test connection</button>}<button className="outline" aria-expanded={expanded === connector.id} onClick={() => void openSettings(connector.id)}>Configure</button>{connector.state === 'connected' ? <button className="outline" onClick={() => void revoke(connector.id)}>Revoke</button> : connecting === connector.id ? <><input aria-label={`${connector.label} access token`} type="password" autoComplete="off" value={credential} placeholder="Access token" onChange={(event) => setCredential(event.target.value)} /><button className="primary" onClick={() => void connect(connector.id)}>Save access token</button></> : <>{oauthConnectors.includes(connector.id) && <button className="primary" disabled={busy === connector.id} onClick={() => void authorize(connector.id)}>{busy === connector.id ? 'Waiting for the browser…' : 'Authorize'}</button>}<button className="outline" onClick={() => { setCredential(''); setConnecting(connector.id) }}>Connect securely</button></>}</div></div>{expanded === connector.id && <div className="connector-settings" aria-label={`${connector.label} configuration`}><div className="setting-row"><div><strong>Endpoint</strong><span>HTTPS base URL used by this connector. Leave empty to keep the built-in service.</span></div><div style={{ display: 'flex', gap: 8 }}><input aria-label={`${connector.label} endpoint`} type="url" inputMode="url" autoComplete="off" placeholder="https://service.example.com/api" defaultValue={settingsFor(connector.id).endpoint} onBlur={(event) => { if (event.target.value.trim() !== settingsFor(connector.id).endpoint) saveConnection(connector.id, { endpoint: event.target.value.trim() }) }} /></div></div><div className="setting-row"><div><strong>Authorization server</strong><span>Authorization and token URLs of the service behind this endpoint. Both are needed for OAuth; leave empty to keep the built-in service or to use a direct credential.</span></div><div style={{ display: 'flex', gap: 8 }}><input aria-label={`${connector.label} authorization URL`} type="url" inputMode="url" autoComplete="off" placeholder="https://service.example.com/oauth/authorize" defaultValue={settingsFor(connector.id).authorizationUrl ?? ''} onBlur={(event) => { if (event.target.value.trim() !== (settingsFor(connector.id).authorizationUrl ?? '')) saveConnection(connector.id, { authorizationUrl: event.target.value.trim() }) }} /><input aria-label={`${connector.label} token URL`} type="url" inputMode="url" autoComplete="off" placeholder="https://service.example.com/oauth/token" defaultValue={settingsFor(connector.id).tokenUrl ?? ''} onBlur={(event) => { if (event.target.value.trim() !== (settingsFor(connector.id).tokenUrl ?? '')) saveConnection(connector.id, { tokenUrl: event.target.value.trim() }) }} /></div></div>{oauthConnectors.includes(connector.id) && <div className="setting-row"><div><strong>Client identifier</strong><span>Public PKCE client id from the service. No client secret is stored.</span></div><div style={{ display: 'flex', gap: 8 }}><input aria-label={`${connector.label} client identifier`} autoComplete="off" placeholder="client-id" defaultValue={settingsFor(connector.id).clientId} onBlur={(event) => { if (event.target.value.trim() !== settingsFor(connector.id).clientId) void saveSettings(connector.id, { clientId: event.target.value.trim() }) }} />{connector.state === 'connected' && <button className="outline" disabled={busy === connector.id} onClick={() => void window.hibiDesktop?.refreshIntegrationAuthorization?.(connector.id).then(() => setNotice('Authorization refreshed.')).catch((error: unknown) => setNotice(error instanceof Error ? error.message : 'Could not refresh this authorization.'))}>Refresh token</button>}</div></div>}{oauthConnectors.includes(connector.id) && <div className="setting-row"><div><strong>Client credential</strong><span>Stored securely in Keychain. The value is never read back or displayed.</span></div><OAuthClientSecretField label={connector.label} saved={clientSecretState[connector.id] === true} value={clientSecretDraft} onChange={setClientSecretDraft} onSave={() => void saveClientSecret(connector.id)} onClear={() => void clearClientSecret(connector.id)} /></div>}{!oauthConnectors.includes(connector.id) && <p className="muted">This connector uses a direct credential. OAuth is not available for this endpoint until its authorization and token URLs are configured above.</p>}{connector.capabilities.includes('import') && <div className="setting-row"><div><strong>Imported sources</strong><span>{settingsFor(connector.id).targets.length ? `${settingsFor(connector.id).targets.length} selected · only these are imported` : 'Nothing selected yet; imports stay empty until you choose a source.'}</span></div><div style={{ display: 'flex', gap: 8 }}><button className="outline" disabled={busy === connector.id || connector.state !== 'connected'} onClick={() => void loadTargets(connector.id)}>Load available sources</button><button className="outline" disabled={busy === connector.id || connector.state !== 'connected' || settingsFor(connector.id).targets.length === 0} onClick={() => void importFromConnector(connector.id)}>Read for import</button></div></div>}{(targets[connector.id] ?? []).length > 0 && <ul className="target-list" aria-label={`${connector.label} import sources`}>{(targets[connector.id] ?? []).map((target) => <li key={target.id}><label><input type="checkbox" checked={settingsFor(connector.id).targets.some((entry) => entry.id === target.id)} onChange={() => toggleTarget(connector.id, target)} />{target.label}</label></li>)}</ul>}</div>}</div>)}<div className="settings-divider" /><div className="setting-row"><div><strong>Import preview</strong><span>Preview CSV, JSON, or ICS before choosing a conflict decision.</span></div><button className="outline" onClick={() => inputRef.current?.click()}>Choose file</button><input ref={inputRef} type="file" accept=".csv,.json,.ics,text/calendar,application/json,text/csv" style={{ display: 'none' }} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void importFile(file) }} /></div>{preview.length > 0 && <div role="status">{preview.map((item) => <div className="setting-row" key={item.remoteId}><div><strong>{item.title}</strong><span>{item.state}{item.localId ? ' · linked local task' : ''}</span></div><div style={{ display: 'flex', gap: 8 }}><select aria-label={`Import decision for ${item.title}`} defaultValue={item.state === 'conflict' ? 'keep-local' : item.state === 'duplicate' ? 'skip' : 'duplicate'}><option value="keep-local">Keep local</option><option value="keep-remote">Use imported</option><option value="duplicate">Create copy</option><option value="skip">Skip</option></select><button className="outline" onClick={(event) => applyImport(item, (event.currentTarget.previousElementSibling as HTMLSelectElement).value as ImportDecision)}>Apply</button></div></div>)}</div>}<div className="setting-row"><div><strong>Local API</strong><span>Loopback-only API with a revocable Keychain bearer token. Writes return confirmation intents.</span></div><button className="outline" onClick={() => void toggleApi()}>{api ? 'Stop local API' : 'Start local API'}</button></div>{api && <p className="muted" role="status">{api.origin} · Running locally; the token is retained only in Keychain.</p>}<div className="setting-row"><div><strong>Local webhook</strong><span>Signed inbound events are verified on this Mac and accepted. Nothing in your workspace changes.</span></div>{webhook.hasSecret ? <button className="outline" onClick={() => void toggleWebhook()}>{webhook.running ? 'Stop webhook' : 'Start webhook'}</button> : <div style={{ display: 'flex', gap: 8 }}><input aria-label="Webhook signing secret" type="password" autoComplete="off" value={webhookSecret} onChange={(event) => setWebhookSecret(event.target.value)} placeholder="Signing secret" /><button className="primary" onClick={() => void configureWebhook()}>Save secret</button></div>}</div>{webhook.running && webhook.origin && <p className="muted" role="status">{webhook.origin}/webhook · Loopback only</p>}<div className="setting-row"><div><strong>Audit</strong><span>{audit.length ? `${audit.length} safe local audit entries` : 'No remote action has been recorded.'}</span></div><button className="outline" onClick={() => void refresh()}>Refresh audit</button></div>{audit.length > 0 && <ul className="audit-history" aria-label="Integration audit history">{audit.map((entry, index) => <li className="event-row" key={`${entry.at}-${entry.action}-${index}`}><span className="event-time">{auditTimestamp(entry.at)}</span><span className="event-route">{entry.connectorId}</span><span>{entry.action}</span><span className="event-detail">{entry.detail}</span></li>)}</ul>}<p className="muted" aria-live="polite">{notice}</p><p className="muted">Saved credentials are never shown again in this view.</p></section>
+    try {
+      const value = webhook.running
+        ? await window.hibiDesktop?.stopWebhook?.()
+        : await window.hibiDesktop?.startWebhook?.();
+      if (value) {
+        setWebhook(value);
+        setNotice(
+          value.running
+            ? `Webhook listening at ${value.origin}.`
+            : "Local webhook stopped.",
+        );
+      }
+    } catch {
+      setNotice("Could not change webhook state.");
+    }
+  };
+  const notionStatus = status.find((connector) => connector.id === "notion");
+  return (
+    <section className="settings-card" aria-label="Integrations">
+      <div className="view-heading">
+        <div>
+          <p className="eyebrow">CONNECTED SERVICES</p>
+          <h2>Integrations</h2>
+          <p className="muted">
+            Connections stay optional. Remote writes always require a separate
+            approval.
+          </p>
+        </div>
+        <button className="outline" onClick={() => void refresh()}>
+          Refresh status
+        </button>
+      </div>
+      <MacCalendarConnection onEvent={onEvent} blocks={localBlocks} />
+      {notionStatus && (
+        <NotionSyncPanel
+          connected={notionStatus.state === "connected"}
+          settings={settingsFor("notion")}
+          localTasks={localTasks}
+          onSaveSettings={(patch) => saveSettings("notion", patch)}
+          onApply={(mutations) => onApplyNotion?.(mutations) ?? []}
+          onEvent={onEvent}
+        />
+      )}
+      {status.map((connector) => (
+        <div
+          className="connector-block"
+          data-connector={connector.id}
+          aria-label={`${connector.label} connector`}
+          key={connector.id}
+        >
+          <div className="setting-row">
+            <div>
+              <strong>{connector.label}</strong>
+              <span>
+                {connector.capabilities.join(" · ")} · {connector.state}
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {connector.state === "connected" && (
+                <button
+                  className="outline"
+                  disabled={busy === connector.id}
+                  onClick={() => void testConnection(connector.id)}
+                >
+                  Test connection
+                </button>
+              )}
+              <button
+                className="outline"
+                aria-expanded={expanded === connector.id}
+                onClick={() => void openSettings(connector.id)}
+              >
+                Configure
+              </button>
+              {connector.state === "connected" ? (
+                <button
+                  className="outline"
+                  onClick={() => void revoke(connector.id)}
+                >
+                  Revoke
+                </button>
+              ) : connecting === connector.id ? (
+                <>
+                  <input
+                    aria-label={`${connector.label} access token`}
+                    type="password"
+                    autoComplete="off"
+                    value={credential}
+                    placeholder="Access token"
+                    onChange={(event) => setCredential(event.target.value)}
+                  />
+                  <button
+                    className="primary"
+                    onClick={() => void connect(connector.id)}
+                  >
+                    Save access token
+                  </button>
+                </>
+              ) : (
+                <>
+                  {oauthConnectors.includes(connector.id) && (
+                    <button
+                      className="primary"
+                      disabled={busy === connector.id}
+                      onClick={() => void authorize(connector.id)}
+                    >
+                      {busy === connector.id
+                        ? "Waiting for the browser…"
+                        : "Authorize"}
+                    </button>
+                  )}
+                  <button
+                    className="outline"
+                    onClick={() => {
+                      setCredential("");
+                      setConnecting(connector.id);
+                    }}
+                  >
+                    Connect securely
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          {expanded === connector.id && (
+            <div
+              className="connector-settings"
+              aria-label={`${connector.label} configuration`}
+            >
+              <div className="setting-row">
+                <div>
+                  <strong>Endpoint</strong>
+                  <span>
+                    HTTPS base URL used by this connector. Leave empty to keep
+                    the built-in service.
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    aria-label={`${connector.label} endpoint`}
+                    type="url"
+                    inputMode="url"
+                    autoComplete="off"
+                    placeholder="https://service.example.com/api"
+                    defaultValue={settingsFor(connector.id).endpoint}
+                    onBlur={(event) => {
+                      if (
+                        event.target.value.trim() !==
+                        settingsFor(connector.id).endpoint
+                      )
+                        saveConnection(connector.id, {
+                          endpoint: event.target.value.trim(),
+                        });
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="setting-row">
+                <div>
+                  <strong>Authorization server</strong>
+                  <span>
+                    Authorization and token URLs of the service behind this
+                    endpoint. Both are needed for OAuth; leave empty to keep the
+                    built-in service or to use a direct credential.
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    aria-label={`${connector.label} authorization URL`}
+                    type="url"
+                    inputMode="url"
+                    autoComplete="off"
+                    placeholder="https://service.example.com/oauth/authorize"
+                    defaultValue={
+                      settingsFor(connector.id).authorizationUrl ?? ""
+                    }
+                    onBlur={(event) => {
+                      if (
+                        event.target.value.trim() !==
+                        (settingsFor(connector.id).authorizationUrl ?? "")
+                      )
+                        saveConnection(connector.id, {
+                          authorizationUrl: event.target.value.trim(),
+                        });
+                    }}
+                  />
+                  <input
+                    aria-label={`${connector.label} token URL`}
+                    type="url"
+                    inputMode="url"
+                    autoComplete="off"
+                    placeholder="https://service.example.com/oauth/token"
+                    defaultValue={settingsFor(connector.id).tokenUrl ?? ""}
+                    onBlur={(event) => {
+                      if (
+                        event.target.value.trim() !==
+                        (settingsFor(connector.id).tokenUrl ?? "")
+                      )
+                        saveConnection(connector.id, {
+                          tokenUrl: event.target.value.trim(),
+                        });
+                    }}
+                  />
+                </div>
+              </div>
+              {oauthConnectors.includes(connector.id) && (
+                <div className="setting-row">
+                  <div>
+                    <strong>Client identifier</strong>
+                    <span>
+                      Public PKCE client id from your Google OAuth app. The secret, when required, is stored separately in Keychain.
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      aria-label={`${connector.label} client identifier`}
+                      autoComplete="off"
+                      placeholder="client-id"
+                      defaultValue={settingsFor(connector.id).clientId}
+                      onBlur={(event) => {
+                        if (
+                          event.target.value.trim() !==
+                          settingsFor(connector.id).clientId
+                        )
+                          void saveSettings(connector.id, {
+                            clientId: event.target.value.trim(),
+                          });
+                      }}
+                    />
+                    {connector.state === "connected" && (
+                      <button
+                        className="outline"
+                        disabled={busy === connector.id}
+                        onClick={() =>
+                          void window.hibiDesktop
+                            ?.refreshIntegrationAuthorization?.(connector.id)
+                            .then(() => setNotice("Authorization refreshed."))
+                            .catch((error: unknown) =>
+                              setNotice(
+                                error instanceof Error
+                                  ? error.message
+                                  : "Could not refresh this authorization.",
+                              ),
+                            )
+                        }
+                      >
+                        Refresh token
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {connector.id === "google-calendar" && oauthConnectors.includes(connector.id) && (
+                <div className="setting-row">
+                  <div>
+                    <strong>Client secret</strong>
+                    <span>
+                      Used only by Google token exchange and stored exclusively in the macOS Keychain.
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      aria-label="Google Calendar client secret"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Configured in Keychain"
+                      value={googleClientSecret}
+                      onChange={(event) => setGoogleClientSecret(event.target.value)}
+                    />
+                    <button
+                      className="outline"
+                      disabled={!googleClientSecret.trim()}
+                      onClick={() => {
+                        void window.hibiDesktop?.saveOauthClientSecret?.("google-calendar", googleClientSecret.trim())
+                          .then(() => { setGoogleClientSecret(""); setNotice("Google client secret saved securely in Keychain."); })
+                          .catch(() => setNotice("Could not save the Google client secret."));
+                      }}
+                    >
+                      Save securely
+                    </button>
+                    <button
+                      className="text-button"
+                      onClick={() => void window.hibiDesktop?.deleteOauthClientSecret?.("google-calendar")
+                        .then(() => setNotice("Google client secret removed from Keychain."))
+                        .catch(() => setNotice("Could not remove the Google client secret."))}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!oauthConnectors.includes(connector.id) && (
+                <p className="muted">
+                  This connector uses a direct credential. OAuth is not
+                  available for this endpoint until its authorization and token
+                  URLs are configured above.
+                </p>
+              )}
+              {connector.capabilities.includes("import") && (
+                <div className="setting-row">
+                  <div>
+                    <strong>Imported sources</strong>
+                    <span>
+                      {settingsFor(connector.id).targets.length
+                        ? `${settingsFor(connector.id).targets.length} selected · only these are imported`
+                        : "Nothing selected yet; imports stay empty until you choose a source."}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className="outline"
+                      disabled={
+                        busy === connector.id || connector.state !== "connected"
+                      }
+                      onClick={() => void loadTargets(connector.id)}
+                    >
+                      Load available sources
+                    </button>
+                    {connector.id !== "google-calendar" && (
+                      <button
+                        className="outline"
+                        disabled={
+                          busy === connector.id ||
+                          connector.state !== "connected" ||
+                          settingsFor(connector.id).targets.length === 0
+                        }
+                        onClick={() => void importFromConnector(connector.id)}
+                      >
+                        Read for import
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              {(targets[connector.id] ?? []).length > 0 && (
+                <ul
+                  className="target-list"
+                  aria-label={`${connector.label} import sources`}
+                >
+                  {(targets[connector.id] ?? []).map((target) => (
+                    <li key={target.id}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={settingsFor(connector.id).targets.some(
+                            (entry) => entry.id === target.id,
+                          )}
+                          onChange={() => toggleTarget(connector.id, target)}
+                        />
+                        {target.label}
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+      <div className="settings-divider" />
+      <div className="setting-row">
+        <div>
+          <strong>Import preview</strong>
+          <span>
+            Preview CSV, JSON, or ICS before choosing a conflict decision.
+          </span>
+        </div>
+        <button className="outline" onClick={() => inputRef.current?.click()}>
+          Choose file
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".csv,.json,.ics,text/calendar,application/json,text/csv"
+          style={{ display: "none" }}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) void importFile(file);
+          }}
+        />
+      </div>
+      {preview.length > 0 && (
+        <div role="status">
+          {preview.map((item) => (
+            <div className="setting-row" key={item.remoteId}>
+              <div>
+                <strong>{item.title}</strong>
+                <span>
+                  {item.state}
+                  {item.localId ? " · linked local task" : ""}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <select
+                  aria-label={`Import decision for ${item.title}`}
+                  defaultValue={
+                    item.state === "conflict"
+                      ? "keep-local"
+                      : item.state === "duplicate"
+                        ? "skip"
+                        : "duplicate"
+                  }
+                >
+                  <option value="keep-local">Keep local</option>
+                  <option value="keep-remote">Use imported</option>
+                  <option value="duplicate">Create copy</option>
+                  <option value="skip">Skip</option>
+                </select>
+                <button
+                  className="outline"
+                  onClick={(event) =>
+                    applyImport(
+                      item,
+                      (
+                        event.currentTarget
+                          .previousElementSibling as HTMLSelectElement
+                      ).value as ImportDecision,
+                    )
+                  }
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="setting-row">
+        <div>
+          <strong>Local API</strong>
+          <span>
+            Loopback-only API with a revocable Keychain bearer token. Writes
+            return confirmation intents.
+          </span>
+        </div>
+        <button className="outline" onClick={() => void toggleApi()}>
+          {api ? "Stop local API" : "Start local API"}
+        </button>
+      </div>
+      {api && (
+        <p className="muted" role="status">
+          {api.origin} · Running locally; the token is retained only in
+          Keychain.
+        </p>
+      )}
+      <div className="setting-row">
+        <div>
+          <strong>Local webhook</strong>
+          <span>
+            Signed inbound events are verified on this Mac and accepted. Nothing
+            in your workspace changes.
+          </span>
+        </div>
+        {webhook.hasSecret ? (
+          <button className="outline" onClick={() => void toggleWebhook()}>
+            {webhook.running ? "Stop webhook" : "Start webhook"}
+          </button>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              aria-label="Webhook signing secret"
+              type="password"
+              autoComplete="off"
+              value={webhookSecret}
+              onChange={(event) => setWebhookSecret(event.target.value)}
+              placeholder="Signing secret"
+            />
+            <button className="primary" onClick={() => void configureWebhook()}>
+              Save secret
+            </button>
+          </div>
+        )}
+      </div>
+      {webhook.running && webhook.origin && (
+        <p className="muted" role="status">
+          {webhook.origin}/webhook · Loopback only
+        </p>
+      )}
+      <div className="setting-row">
+        <div>
+          <strong>Audit</strong>
+          <span>
+            {audit.length
+              ? `${audit.length} safe local audit entries`
+              : "No remote action has been recorded."}
+          </span>
+        </div>
+        <button className="outline" onClick={() => void refresh()}>
+          Refresh audit
+        </button>
+      </div>
+      {audit.length > 0 && (
+        <ul className="audit-history" aria-label="Integration audit history">
+          {audit.map((entry, index) => (
+            <li
+              className="event-row"
+              key={`${entry.at}-${entry.action}-${index}`}
+            >
+              <span className="event-time">{auditTimestamp(entry.at)}</span>
+              <span className="event-route">{entry.connectorId}</span>
+              <span>{entry.action}</span>
+              <span className="event-detail">{entry.detail}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="muted" aria-live="polite">
+        {notice}
+      </p>
+      <p className="muted">
+        Saved credentials are never shown again in this view.
+      </p>
+    </section>
+  );
 }

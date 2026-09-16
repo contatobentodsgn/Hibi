@@ -21,7 +21,7 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
   const [folder, setFolder] = useState<string | null>(initialFolder);
   const [scope, setScope] = useState<'open' | 'all'>('open');
   const [deadlineSort, setDeadlineSort] = useState(false);
-  const [creating, setCreating] = useState(true);
+  const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');

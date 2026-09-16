@@ -8,7 +8,7 @@ body:has(.shell) { background: var(--bg-canvas); min-width: 960px; }
 .shell-brand { -webkit-app-region: no-drag; font: inherit; letter-spacing: .18em; background: none; border: 0; color: var(--text-primary); cursor: pointer; }
 .shell-brand:focus-visible, .dock-item:focus-visible, .dock-menu button:focus-visible { outline: 2px solid var(--stroke-focus); outline-offset: 2px; }
 
-.shell-content { padding: var(--space-6) clamp(24px, 6vw, 96px) 120px; }
+.shell-content { min-height: 0; padding: 0 0 120px; background: var(--bg-canvas); }
 
 /* Cores do dock: propositalmente invariantes ao tema (o chrome flutuante fica sempre escuro,
    claro ou escuro que seja o app) — NÃO gate-ar sob [data-theme]. Nomeadas aqui para que a
@@ -69,6 +69,11 @@ body:has(.shell) { background: var(--bg-canvas); min-width: 960px; }
    `.legacy-surface` recria o papel claro atrás de si, exatamente como o app já parece hoje:
    chrome escuro (faixa do topo, dock) por cima de conteúdo em papel. */
 .legacy-surface {
+  width: 100%;
+  max-width: none;
+  min-height: calc(100vh - 62px);
+  margin: 0;
+  border-radius: 0;
   color-scheme: light;
   color: var(--text-primary);
   background: var(--bg-canvas);

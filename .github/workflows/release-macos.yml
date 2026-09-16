@@ -1,0 +1,44 @@
+name: Release macOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the signed DMG to the configured update feed
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Build, sign and notarize Hibi
+    runs-on: macos-latest
+    timeout-minutes: 35
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      CSC_LINK: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_BASE64 }}
+      CSC_KEY_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      HIBI_UPDATE_FEED_URL: ${{ secrets.HIBI_UPDATE_FEED_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: npm
+      - run: npm ci
+      - run: npm run release:preflight
+      - run: npm run release:mac
+        env:
+          # electron-builder publica apenas quando o feed foi explicitamente fornecido.
+          ELECTRON_BUILDER_PUBLISH: ${{ inputs.publish && 'always' || 'never' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hibi-macos-${{ github.run_number }}
+          path: dist/*.dmg
+          if-no-files-found: error

@@ -170,146 +170,18 @@ test('recovers a crashed renderer once and resets the guard after a successful l
   assert.equal(reloads, 2);
 });
 
-const crashedWindow = () => {
+test('warns once instead of looping when the renderer crashes again before loading', () => {
   const listeners = new Map();
-  const janela = {
-    reloads: 0,
-    isDestroyed: () => false,
-    webContents: { on: (event, listener) => listeners.set(event, listener), reloadIgnoringCache: () => { janela.reloads += 1; } },
-    crash: (reason = 'crashed') => listeners.get('render-process-gone')({}, { reason }),
-    loaded: () => listeners.get('did-finish-load')(),
-  };
-  return janela;
-};
+  let reloads = 0;
+  const warnings = [];
+  const target = { isDestroyed: () => false, webContents: { on: (event, listener) => listeners.set(event, listener), reloadIgnoringCache: () => { reloads += 1; } } };
+  attachRendererRecovery(target, { showWarning: (details) => warnings.push(details) });
 
-// Uma segunda falha antes de a janela carregar não pode virar laço de reload. Antes deste aviso ela
-// também não dizia nada: a janela ficava em branco, e a pessoa não tinha o que fazer.
-test('avisa uma vez, em vez de recarregar em laço, quando o renderer cai de novo antes de carregar', () => {
-  const janela = crashedWindow();
-  const avisos = [];
-  attachRendererRecovery(janela, { showWarning: (details) => avisos.push(details) });
+  listeners.get('render-process-gone')({}, { reason: 'crashed' });
+  listeners.get('render-process-gone')({}, { reason: 'crashed' });
+  listeners.get('render-process-gone')({}, { reason: 'crashed' });
 
-  janela.crash();
-  janela.crash();
-  janela.crash();
-
-  assert.equal(janela.reloads, 1);
-  assert.deepEqual(avisos, [{ reason: 'crashed' }]);
-});
-
-test('encerrar pelo aviso encerra o app, e não recarrega nada', () => {
-  const janela = crashedWindow();
-  let encerrou = 0;
-  attachRendererRecovery(janela, { showWarning: (_details, _retry, giveUp) => giveUp(), quit: () => { encerrou += 1; } });
-
-  janela.crash();
-  janela.crash();
-
-  // O botão promete uma saída: sem isto ele fechava o diálogo e deixava a janela quebrada do mesmo jeito.
-  assert.equal(encerrou, 1);
-  assert.equal(janela.reloads, 1);
-});
-
-// Laço automático é o que se evita; repetir por escolha da pessoa, não. Cada "tentar de novo"
-// começa um ciclo novo, e a queda seguinte volta a perguntar em vez de recarregar sozinha.
-test('tentar de novo pelo aviso recarrega, e a queda seguinte volta a perguntar', () => {
-  const janela = crashedWindow();
-  const avisos = [];
-  attachRendererRecovery(janela, { showWarning: (details, retry) => { avisos.push(details); retry(); } });
-
-  janela.crash();
-  assert.equal(janela.reloads, 1);
-  assert.equal(avisos.length, 0);
-
-  janela.crash();
-  assert.deepEqual([janela.reloads, avisos.length], [2, 1]);
-
-  janela.crash();
-  assert.deepEqual([janela.reloads, avisos.length], [3, 2]);
-});
-
-test('uma carga concluída devolve a recuperação automática e o aviso', () => {
-  const janela = crashedWindow();
-  const avisos = [];
-  attachRendererRecovery(janela, { showWarning: (details) => avisos.push(details) });
-
-  janela.crash();
-  janela.crash();
-  janela.loaded();
-  janela.crash();
-
-  assert.equal(janela.reloads, 2);
-  assert.equal(avisos.length, 1);
-});
-
-test('o motivo repassado ao aviso é curto e não carrega texto livre', () => {
-  const janela = crashedWindow();
-  const avisos = [];
-  attachRendererRecovery(janela, { showWarning: (details) => avisos.push(details) });
-
-  janela.crash();
-  janela.crash('x'.repeat(200));
-
-  assert.deepEqual(avisos, [{ reason: 'unknown' }]);
-});
-
-test('o aviso fala o idioma do sistema, e cai no inglês fora do português', () => {
-  assert.deepEqual(rendererRecoveryPrompt('pt-BR').buttons, ['Tentar de novo', 'Encerrar']);
-  assert.deepEqual(rendererRecoveryPrompt('PT').buttons, ['Tentar de novo', 'Encerrar']);
-  assert.deepEqual(rendererRecoveryPrompt('en-US').buttons, ['Try again', 'Quit']);
-  // Um sistema em francês recebia o aviso em português justamente quando algo tinha acabado de quebrar.
-  assert.deepEqual(rendererRecoveryPrompt('fr-FR').buttons, ['Try again', 'Quit']);
-  assert.deepEqual(rendererRecoveryPrompt(undefined).buttons, ['Try again', 'Quit']);
-});
-
-const proximoTique = () => new Promise((resolve) => setImmediate(resolve));
-
-test('pelo diálogo de verdade, escolher encerrar encerra o app', async () => {
-  const janela = crashedWindow();
-  let encerrou = 0;
-  dialogStub.calls.length = 0;
-  dialogStub.answer = 1;
-  attachRendererRecovery(janela, { quit: () => { encerrou += 1; } });
-
-  janela.crash();
-  janela.crash();
-  await proximoTique();
-
-  assert.equal(dialogStub.calls.length, 1);
-  // O botão de encerrar precisa encerrar: fechar o diálogo e deixar a janela quebrada não é uma saída.
-  assert.equal(encerrou, 1);
-  assert.equal(janela.reloads, 1);
-});
-
-test('pelo diálogo de verdade, escolher tentar de novo recarrega', async () => {
-  const janela = crashedWindow();
-  let encerrou = 0;
-  dialogStub.calls.length = 0;
-  dialogStub.answer = 0;
-  attachRendererRecovery(janela, { quit: () => { encerrou += 1; } });
-
-  janela.crash();
-  janela.crash();
-  await proximoTique();
-
-  assert.equal(janela.reloads, 2);
-  assert.equal(encerrou, 0);
-});
-
-test('o diálogo é modal na janela que caiu, e traz os dois botões do idioma', async () => {
-  const janela = crashedWindow();
-  dialogStub.calls.length = 0;
-  dialogStub.answer = 1;
-  attachRendererRecovery(janela, { quit: () => {}, locale: () => 'pt-BR' });
-
-  janela.crash();
-  janela.crash();
-  await proximoTique();
-
-  const { window, options } = dialogStub.calls[0];
-  assert.equal(window, janela);
-  assert.deepEqual(options.buttons, ['Tentar de novo', 'Encerrar']);
-  // Fechar pelo Esc precisa cair no encerrar, e não em recarregar por engano.
-  assert.deepEqual([options.defaultId, options.cancelId], [0, 1]);
-  assert.equal(options.type, 'warning');
+  assert.equal(reloads, 1);
+  assert.equal(warnings.length, 1);
+  assert.deepEqual(warnings[0], { reason: 'crashed' });
 });

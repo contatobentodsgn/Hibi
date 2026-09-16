@@ -3,7 +3,7 @@ import { companionAssets } from '../assets/companion-assets';
 import './notch-overlay.css';
 
 export type OverlayPresentation = { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' };
-export const notchMediaFor = (kind: string) => ({ listening: companionAssets.animations.notch.listeningLoop, thinking: companionAssets.animations.notch.searchingLoop, acting: companionAssets.animations.notch.creatingTaskLoop, result: companionAssets.animations.notch.tabyResponseReadyLoop, confirmation: companionAssets.animations.notch.confirmation, error: companionAssets.animations.notch.disappointed, reminder: companionAssets.animations.notch.waiting01 } as const)[kind as 'listening'] ?? companionAssets.animations.notch.idle01Loop;
+export const notchMediaFor = (kind: string) => ({ idle: companionAssets.animations.notch.idle01Loop, listening: companionAssets.animations.notch.listeningLoop, thinking: companionAssets.animations.notch.searchingLoop, acting: companionAssets.animations.notch.creatingTaskLoop, result: companionAssets.animations.notch.tabyResponseReadyLoop, confirmation: companionAssets.animations.notch.confirmation, error: companionAssets.animations.notch.disappointed, reminder: companionAssets.animations.notch.waiting01 } as const)[kind as 'idle'] ?? companionAssets.animations.notch.idle01Loop;
 
 export function NotchOverlay({ initialPresentation = null }: { initialPresentation?: OverlayPresentation | null }) {
   const [presentation, setPresentation] = useState<OverlayPresentation | null>(initialPresentation);

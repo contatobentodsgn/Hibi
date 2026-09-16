@@ -25,16 +25,17 @@ try { electronBinary = require('electron'); } catch { electronBinary = null; }
 const NO_ELECTRON = 'binário do Electron não instalado (ELECTRON_SKIP_BINARY_DOWNLOAD): falta o runtime onde o app carrega o addon';
 
 // Os números do contrato passivo, afirmados aqui contra o frame real em vez de por regex no fonte.
-const HOST_WIDTH = 256;
-const PASSIVE_HEIGHT = 38;
-// O painel nasce centralizado e colado no topo, com a altura somando a faixa da câmera.
+const HOST_WIDTH = 264;
+const PASSIVE_HEIGHT = 167;
+const IDLE_ANIMATION = path.resolve(__dirname, '../../public/companion-assets/animations/notch/idle_01_loop.mp4');
+// O painel nasce centralizado e colado no topo físico, cobrindo a faixa da câmera.
 const expectedFrame = (screen) => ({
   x: screen.frame.x + screen.frame.width / 2 - HOST_WIDTH / 2,
-  y: screen.frame.y + screen.frame.height - (PASSIVE_HEIGHT + screen.safeAreaTop),
+  y: screen.frame.y + screen.frame.height - PASSIVE_HEIGHT,
   width: HOST_WIDTH,
-  height: PASSIVE_HEIGHT + screen.safeAreaTop,
+  height: PASSIVE_HEIGHT,
 });
-const passive = (requestId, text = 'verificação do host nativo') => ({ requestId, kind: 'result', text, interaction: 'passthrough', actions: [] });
+const passive = (requestId, text = 'verificação do host nativo', animationPath = null) => ({ requestId, kind: 'result', text, interaction: 'passthrough', actions: [], ...(animationPath ? { animationPath } : {}) });
 // Cada teste começa e termina sem painel: o host é estado global do processo.
 const reset = () => { if (addonBuilt) bridge.destroyHost(); };
 // Rede de segurança: nenhuma janela sobrevive ao arquivo, mesmo se uma asserção estourar no meio.
@@ -110,6 +111,19 @@ test('o ciclo de vida do host nativo cria, mostra, esconde e destrói um NSPanel
   assert.equal(bridge.repositionHost(displayId), false);
 });
 
+test('o host toca o loop ocioso original quando recebe um arquivo local de animação', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  const screens = bridge.screenGeometry();
+  if (screens.length === 0) return t.skip(NO_SCREENS);
+  assert.equal(fs.existsSync(IDLE_ANIMATION), true, 'o loop ocioso precisa existir no pacote-fonte');
+  reset();
+  assert.equal(bridge.showHost(passive('animacao-ociosa', 'Hibi', IDLE_ANIMATION), screens[0].displayId), true);
+  assert.equal(bridge.hostDiagnostics().animatingAsset, true);
+  assert.equal(bridge.showHost(passive('fallback-sem-arquivo', 'Hibi', '/arquivo/que/nao/existe.mp4'), screens[0].displayId), true);
+  assert.equal(bridge.hostDiagnostics().animatingAsset, false, 'um caminho inválido volta ao desenho seguro em vez de deixar o painel vazio');
+  reset();
+});
+
 test('o painel nasce abaixo da câmera: altura e posição saem da geometria real de cada tela', (t) => {
   if (!addonBuilt) return t.skip(NO_ADDON);
   const screens = bridge.screenGeometry();
@@ -120,9 +134,9 @@ test('o painel nasce abaixo da câmera: altura e posição saem da geometria rea
     assert.equal(bridge.repositionHost(screen.displayId), true);
     const { frame, displayId } = bridge.hostDiagnostics();
     assert.equal(displayId, screen.displayId);
-    // Altura = faixa passiva + faixa da câmera, senão o cartão nasceria escondido atrás dela.
+    // O companion cobre a câmera e começa no topo físico do display.
     assert.deepEqual(frame, expectedFrame(screen), `frame errado na tela ${screen.displayId}`);
-    assert.equal(frame.height, PASSIVE_HEIGHT + screen.safeAreaTop);
+    assert.equal(frame.height, PASSIVE_HEIGHT);
   }
   reset();
 });

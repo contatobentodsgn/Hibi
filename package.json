@@ -8,7 +8,7 @@
     "dev": "vite",
     "desktop": "npm run native:build && node scripts/start-desktop.mjs",
     "desktop:production": "npm run build && HIBI_PRODUCTION=1 electron electron/main.cjs",
-    "native:build": "npm --prefix native/notch run build",
+    "native:build": "npm --prefix native/notch run build && node scripts/build-voice.mjs",
     "build": "npm run native:build && tsc --noEmit && vite build",
     "check:companion-assets": "node scripts/check-companion-assets.mjs",
     "safety:renderer": "node scripts/renderer-safety-check.mjs",
@@ -32,9 +32,20 @@
       "native/notch/*.cjs",
       "native/notch/adapters/*.cjs",
       "native/notch/build/Release/*.node",
+      "native/voice/build/hibi-voice",
       "!{electron,native}/**/*.test.*",
       "!electron/**/*.d.{mts,cts}",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "public/companion-assets/animations/notch/idle_01_loop.mp4",
+        "to": "companion-assets/animations/notch/idle_01_loop.mp4"
+      },
+      {
+        "from": "native/voice/build/hibi-voice",
+        "to": "native/voice/build/hibi-voice"
+      }
     ],
     "mac": {
       "category": "public.app-category.productivity",
@@ -43,15 +54,24 @@
       ],
       "hardenedRuntime": true,
       "entitlements": "electron/entitlements.mac.plist",
-      "entitlementsInherit": "electron/entitlements.mac.plist"
-      ,"extendInfo": {
-        "NSCalendarsUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose.",
-        "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose."
+      "entitlementsInherit": "electron/entitlements.mac.plist",
+      "extendInfo": {
+        "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose.",
+        "NSMicrophoneUsageDescription": "Hibi uses the microphone only when you start voice input.",
+        "NSSpeechRecognitionUsageDescription": "Hibi uses speech recognition only when you start voice input."
       }
     },
-    "afterSign": "scripts/notarize.cjs"
+    "afterSign": "scripts/notarize.cjs",
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "${env.HIBI_UPDATE_FEED_URL}"
+      }
+    ]
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
+    "node-llama-cpp": "^3.21.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

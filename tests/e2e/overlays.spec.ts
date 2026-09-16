@@ -4,12 +4,9 @@ const dock = (page: Page) => page.getByRole('navigation', { name: 'Navegação p
 const go = (page: Page, name: string) => dock(page).getByRole('button', { name, exact: true }).click();
 const palette = (page: Page) => page.getByRole('dialog', { name: 'Paleta de comandos' });
 
-// TasksView nasce com o formulário inline aberto (o botão mostra "Cancel"); fechá-lo primeiro
-// devolve o botão a "+ New task", que o App intercepta para abrir o TaskCreateModal.
+// O botão de criação abre o modal completo, mantendo a tela de tarefas limpa na entrada.
 const openTaskCreateModal = async (page: Page) => {
   await go(page, 'Tarefas');
-  await expect(page.getByRole('form', { name: 'Create task' })).toBeVisible();
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.getByRole('button', { name: '+ New task' }).click();
 };
 
