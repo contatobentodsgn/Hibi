@@ -66,7 +66,7 @@ test('⇧↵ abre Notas filtrada pela pasta', async ({ page }) => {
   await openFolders(page);
   await field(page).fill('cli');
   await page.keyboard.press('Shift+Enter');
-  await expect(page.getByText('Briefing do cliente')).toBeVisible();
+  await expect(page.locator('.list-card').getByText('Briefing do cliente')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pasta · Clientes 1' })).toHaveAttribute('aria-pressed', 'true');
 });
 

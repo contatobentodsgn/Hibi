@@ -98,7 +98,7 @@ test('nota criada em pasta nova ganha filtro próprio, e trocar de filtro não a
   await page.getByRole('button', { name: 'Pasta · Clientes 1' }).click();
   await expect(form.getByLabel('Title')).toHaveValue('Rascunho');
   await expect(form.getByLabel('Folder')).toHaveValue('Clientes');
-  await expect(page.getByText('Briefing Clientes')).toBeVisible();
+  await expect(page.locator('.list-card').getByText('Briefing Clientes')).toBeVisible();
 
   // O chip clicado acima bate com a pasta já digitada, o que não provaria nada sobre folderTouched.
   // Digitar uma pasta diferente e trocar de filtro é o que de fato mostra que o rascunho sobrevive.
@@ -114,7 +114,7 @@ test('editar uma nota troca e limpa a pasta', async ({ page }) => {
   await form.getByLabel('Title').fill('Nota para editar');
   await form.getByLabel('Folder').fill('Clientes');
   await form.getByRole('button', { name: 'Add note' }).click();
-  await expect(page.getByText('Nota para editar')).toBeVisible();
+  await expect(page.locator('.list-card').getByText('Nota para editar')).toBeVisible();
 
   await page.getByRole('button', { name: 'Edit Nota para editar' }).click();
   const dialog = page.getByRole('dialog', { name: 'Edit note' });
@@ -161,7 +161,7 @@ test('restaura um backup completo pela interface sem incluir dados do Keychain',
   await go(page, 'Tarefas');
   await expect(page.getByText('Tarefa restaurada')).toBeVisible();
   await goMore(page, 'Notas');
-  await expect(page.getByText('Nota restaurada')).toBeVisible();
+  await expect(page.locator('.list-card').getByText('Nota restaurada')).toBeVisible();
   await goDay(page);
   await expect(page.getByText('Bloco restaurado')).toBeVisible();
 });
