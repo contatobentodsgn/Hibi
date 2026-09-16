@@ -40,6 +40,9 @@ declare global {
       authorizeIntegration?: (connectorId: string) => Promise<IntegrationAuthorization>;
       refreshIntegrationAuthorization?: (connectorId: string) => Promise<IntegrationAuthorization>;
       cancelIntegrationAuthorization?: () => Promise<void>;
+      hasOauthClientSecret?: (connectorId: string) => Promise<boolean>;
+      saveOauthClientSecret?: (connectorId: string, secret: string) => Promise<{ connectorId: string; hasClientSecret: true }>;
+      clearOauthClientSecret?: (connectorId: string) => Promise<{ connectorId: string; hasClientSecret: false }>;
       getCalendarSyncState?: () => Promise<import('./ui/calendar-sync').CalendarSyncSnapshot>;
       requestAppleCalendarAccess?: () => Promise<{ state: 'connected'; syncedAt: string }>;
       discoverGoogleCalendars?: () => Promise<readonly { id: string; label: string }[]>;

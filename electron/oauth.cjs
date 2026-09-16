@@ -12,6 +12,10 @@ const RESERVED_AUTHORIZATION_PARAMETERS = new Set(['response_type', 'client_id',
 
 const accessAccount = (connectorId) => `integration:${connectorId}`;
 const refreshAccount = (connectorId) => `integration:${connectorId}:refresh`;
+// Alguns serviços exigem uma credencial de cliente na troca de token mesmo com PKCE — o Google recusa
+// com `invalid_request: client_secret is missing`. Ela é configuração do app, e não do grant da pessoa,
+// mas continua sendo segredo: fica no Keychain, nunca no arquivo de configurações, e nunca volta ao renderer.
+const clientSecretAccount = (connectorId) => `integration:${connectorId}:client-secret`;
 
 function oauthConfigFor(connector) {
   const config = connector?.oauth;
@@ -121,6 +125,12 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
     return readTokenResponse(body);
   };
 
+  const clientCredential = async (connectorId) => {
+    if (!await keychain.has(clientSecretAccount(connectorId))) return {};
+    const secret = await keychain.get(clientSecretAccount(connectorId));
+    return boundedSecret(secret) ? { client_secret: secret } : {};
+  };
+
   const store = async (connectorId, tokens) => {
     await keychain.set(accessAccount(connectorId), tokens.accessToken);
     if (tokens.refreshToken) await keychain.set(refreshAccount(connectorId), tokens.refreshToken);
@@ -166,7 +176,7 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
         Promise.resolve(openExternal(authorization.toString())).catch(() => cancelPending('The system browser could not be opened.'));
       }).finally(async () => { clearTimeout(timer); pending = null; await callbackServer.stop(); });
 
-      const tokens = await exchange({ tokenUrl: config.tokenUrl, params: { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: clientId, code_verifier: verifier } });
+      const tokens = await exchange({ tokenUrl: config.tokenUrl, params: { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: clientId, code_verifier: verifier, ...await clientCredential(connectorId) } });
       return store(connectorId, tokens);
     },
 
@@ -176,10 +186,30 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
       if (!await keychain.has(refreshAccount(connectorId))) throw new Error('No refresh token is stored for this integration.');
       const refreshToken = await keychain.get(refreshAccount(connectorId));
       if (!boundedSecret(refreshToken)) throw new Error('No refresh token is stored for this integration.');
-      const tokens = await exchange({ tokenUrl: config.tokenUrl, params: { grant_type: 'refresh_token', refresh_token: refreshToken, client_id: clientId } });
+      const tokens = await exchange({ tokenUrl: config.tokenUrl, params: { grant_type: 'refresh_token', refresh_token: refreshToken, client_id: clientId, ...await clientCredential(connectorId) } });
       return store(connectorId, tokens);
     },
 
+    // A credencial de cliente é configuração do app: guardar, apagar e saber se existe, sem nunca devolvê-la.
+    async saveClientSecret(connectorId, secret) {
+      getConnector(connectorId);
+      if (!boundedSecret(secret)) throw new Error('A client credential from the service is required.');
+      await keychain.set(clientSecretAccount(connectorId), secret.trim());
+      return { connectorId, hasClientSecret: true };
+    },
+
+    async clearClientSecret(connectorId) {
+      getConnector(connectorId);
+      await keychain.remove(clientSecretAccount(connectorId));
+      return { connectorId, hasClientSecret: false };
+    },
+
+    async hasClientSecret(connectorId) {
+      getConnector(connectorId);
+      return keychain.has(clientSecretAccount(connectorId));
+    },
+
+    // Revogar derruba o acesso da pessoa, e não a configuração do app: a credencial de cliente fica.
     async revoke(connectorId) {
       getConnector(connectorId);
       await keychain.remove(accessAccount(connectorId));
