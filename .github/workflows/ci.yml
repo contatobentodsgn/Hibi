@@ -79,4 +79,4 @@ jobs:
       # Único lugar onde o binário compilado é exercitado de verdade: com o addon presente,
       # `native/notch/host.test.cjs` cria o NSPanel, mede o frame na tela real e o destrói,
       # em vez de se pular. É o que torna este job mais que uma recompilação.
-      - run: node --test native/notch/*.test.cjs electron/*.test.cjs
+      - run: node --test 'native/notch/*.test.cjs' 'native/notch/*.test.mjs' 'electron/**/*.test.cjs' 'electron/**/*.test.mjs'
