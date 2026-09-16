@@ -1,9 +1,16 @@
 name: CI
 
 on:
+  # Mudança só de documentação não muda o que os testes verificam, e cada rodada consome cota de
+  # minutos do repositório privado. Quando a conta ficou sem minutos, nenhum PR teve CI.
   pull_request:
+    paths-ignore: ['**/*.md', 'docs/**']
   push:
     branches: [main]
+    paths-ignore: ['**/*.md', 'docs/**']
+  schedule:
+    # Segunda de manhã: é quando o addon nativo é recompilado e exercitado de verdade.
+    - cron: '0 9 * * 1'
   workflow_dispatch:
 
 concurrency:
@@ -61,8 +68,11 @@ jobs:
 
   macos-native:
     name: Addon nativo (macOS)
-    # Runner macOS consome 10x a cota de minutos em repositório privado: roda no main e sob demanda.
-    if: github.event_name != 'pull_request'
+    # Runner macOS consome 10x a cota de minutos em repositório privado. Rodando a cada push no
+    # `main`, um dia de merges sozinho esgotou os minutos da conta e derrubou a CI de todos os PRs.
+    # Semanal e sob demanda basta: quem mergeia roda a bateria completa neste Mac antes, com
+    # `npm run build`, que compila o mesmo addon — o que a semana pega é a deriva que ninguém rodou.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     timeout-minutes: 25
     env:
