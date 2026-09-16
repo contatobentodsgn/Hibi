@@ -68,6 +68,8 @@ declare global {
       getNotchCapabilities?: () => Promise<{ adapter: 'public' | 'experimental'; experimental: boolean; reason: string | null; bridgeLoaded: boolean; nativePromotion: boolean; nativeHost: boolean; screens: readonly { index: number; displayId?: number; frame: { x: number; y: number; width: number; height: number }; safeAreaTop: number; hasCameraHousing: boolean }[]; host: { available: boolean; created?: boolean; visible?: boolean; interactive?: boolean; displayId?: number; host?: 'native' | 'electron' } }>;
       listNotchDisplays?: () => Promise<NotchDisplayState>;
       setNotchDisplay?: (displayId: number | null) => Promise<NotchDisplayState>;
+      getNotchSize?: () => Promise<{ size: 'normal' | 'compact' }>;
+      setNotchSize?: (size: 'normal' | 'compact') => Promise<{ size: 'normal' | 'compact' }>;
       testNotch?: (locale: 'pt' | 'en') => Promise<NotchTestResult>;
       onNotchDisplaysChanged?: (callback: () => void) => () => void;
       onCompanionPresentation?: (callback: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' }) => void) => () => void;

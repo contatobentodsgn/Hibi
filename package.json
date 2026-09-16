@@ -43,13 +43,19 @@
       ],
       "hardenedRuntime": true,
       "entitlements": "electron/entitlements.mac.plist",
-      "entitlementsInherit": "electron/entitlements.mac.plist"
-      ,"extendInfo": {
+      "entitlementsInherit": "electron/entitlements.mac.plist",
+      "extendInfo": {
         "NSCalendarsUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose.",
         "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose."
       }
     },
-    "afterSign": "scripts/notarize.cjs"
+    "afterSign": "scripts/notarize.cjs",
+    "extraResources": [
+      {
+        "from": "public/companion-assets/animations/notch/idle_01_loop.mp4",
+        "to": "companion-assets/animations/notch/idle_01_loop.mp4"
+      }
+    ]
   },
   "dependencies": {
     "react": "^19.2.0",

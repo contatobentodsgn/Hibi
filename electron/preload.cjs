@@ -59,6 +59,8 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,getNotchCapabilities: () => ipcRenderer.invoke('hibi:notch:capabilities')
   ,listNotchDisplays: () => ipcRenderer.invoke('hibi:notch:displays')
   ,setNotchDisplay: (displayId) => ipcRenderer.invoke('hibi:notch:set-display', displayId)
+  ,getNotchSize: () => ipcRenderer.invoke('hibi:notch:size')
+  ,setNotchSize: (size) => ipcRenderer.invoke('hibi:notch:set-size', size)
   ,testNotch: (locale) => ipcRenderer.invoke('hibi:notch:test', locale)
   ,onNotchDisplaysChanged: (callback) => { const listener = () => callback(); ipcRenderer.on('hibi:notch:displays-changed', listener); return () => ipcRenderer.removeListener('hibi:notch:displays-changed', listener); }
   ,onAiStreamEvent: (callback) => {

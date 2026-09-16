@@ -22,7 +22,14 @@ const eventKitCalendar = require('../native/notch/calendar.cjs');
 const { createNotchWindowManager, validPresentation } = require("./notch-window.cjs");
 const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('./notch-settings.cjs');
 const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
+const { showStartupNotch } = require('./notch-startup.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
+
+// O painel nativo toca o loop a partir de um arquivo, então ele precisa existir fora do asar: o
+// `extraResources` do empacotamento copia este vídeo para os recursos do app.
+const startupNotchAnimationPath = () => app.isPackaged
+  ? path.join(process.resourcesPath || __dirname, 'companion-assets', 'animations', 'notch', 'idle_01_loop.mp4')
+  : path.join(__dirname, '..', 'public', 'companion-assets', 'animations', 'notch', 'idle_01_loop.mp4');
 
 let mainWindow;
 let notificationScheduler;
@@ -259,7 +266,7 @@ app.whenReady().then(async () => {
   webhookService = createWebhookService({ keychain: secureKeychain });
   replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
   notchSettings = createNotchSettings({ filePath: path.join(app.getPath('userData'), 'notch-settings.json') });
-  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
+  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, size: notchSettings.get().size, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
   notchTest = createNotchTest({ manager: notchWindow });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('hibi:notch:displays-changed') });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
@@ -385,7 +392,19 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:notch:displays', () => notchDisplayState(notchSettings, notchWindow));
   ipcMain.handle('hibi:notch:set-display', (_event, displayId) => applyNotchDisplay(notchSettings, notchWindow, displayId));
   ipcMain.handle('hibi:notch:test', (_event, locale) => notchTest.run(locale === 'en' ? 'en' : 'pt'));
+  // O tamanho do companion é ajuste da pessoa e vale entre aberturas: fica no mesmo arquivo do monitor
+  // preferido, e a superfície — painel nativo ou janela — é reposicionada na hora.
+  ipcMain.handle('hibi:notch:size', () => ({ size: notchSettings.get().size }));
+  ipcMain.handle('hibi:notch:set-size', (_event, nextSize) => {
+    const size = nextSize === 'compact' ? 'compact' : 'normal';
+    notchSettings.save({ ...notchSettings.get(), size });
+    notchWindow.setSize(size);
+    return { size };
+  });
   createWindow();
+  // Depois da janela principal, para não correr com o carregamento da overlay: o companion de
+  // inicialização é a prova visual de que o notch físico está coberto, e nasce na tela com câmera.
+  showStartupNotch(notchWindow, startupNotchAnimationPath());
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 app.on("before-quit", () => { detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });

@@ -1,5 +1,6 @@
 const test = require('node:test'); const assert = require('node:assert/strict'); const { createNotchWindowManager } = require('./notch-window.cjs');
 class FakeWindow { constructor(options) { this.options = options; this.destroyed = false; this.calls = []; this.webContents = { send: (...args) => this.calls.push(['send', ...args]) }; } isDestroyed() { return this.destroyed; } setBounds(value) { this.calls.push(['bounds', value]); } setAlwaysOnTop(...args) { this.calls.push(['top', ...args]); } setVisibleOnAllWorkspaces(...args) { this.calls.push(['spaces', ...args]); } setIgnoreMouseEvents(...args) { this.calls.push(['mouse', ...args]); } setFocusable(value) { this.calls.push(['focusable', value]); } focus() { this.calls.push(['focus']); } showInactive() { this.calls.push(['show']); } hide() { this.calls.push(['hide']); } on() {} destroy() { this.destroyed = true; } }
+class LoadingWindow extends FakeWindow { constructor(options) { super(options); this.webContents.once = (event, listener) => { if (event === 'did-finish-load') this.finishLoad = listener; }; } }
 const display = { id: 1, bounds: { x: 0, y: 0, width: 1440, height: 900 } }; const screen = { getAllDisplays: () => [display], getPrimaryDisplay: () => display };
 const presentation = { requestId: 'a', kind: 'result', text: 'Done', actions: [], interaction: 'passthrough' };
 test('sets all-spaces fallback and click-through for passive presentations', () => { let loaded = false; const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => { loaded = true; }, platform: 'darwin' }); const response = manager.show(presentation); assert.equal(loaded, true); assert.equal(response.degraded, true); assert.equal(manager.activeRequestId, 'a'); });
@@ -33,6 +34,29 @@ test('uses the AppKit host before creating an Electron fallback window', () => {
   assert.deepEqual(calls.at(-1), ['hide']);
   manager.destroy();
   assert.deepEqual(calls.at(-1), ['destroy']);
+});
+test('atualiza o tamanho do host nativo sem reabrir a apresentação', () => {
+  const calls = [];
+  const nativeBridge = { nativeHostAvailable: () => true, createHost: () => true, showHost: (value) => { calls.push(value.size); return true; }, repositionHost: (...args) => { calls.push(args); return true; } };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+  manager.show(presentation);
+  assert.equal(manager.setSize('compact'), true);
+  assert.deepEqual(calls, ['normal', 'compact']);
+});
+test('keeps the startup companion on the native visual surface', () => {
+  const nativeBridge = { nativeHostAvailable: () => true, createHost: () => true, showHost: () => true };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+  const result = manager.show({ requestId: 'startup-notch', kind: 'result', text: null, actions: [], interaction: 'passthrough', host: 'native' });
+  assert.equal(result.host, 'native');
+});
+
+test('reenvia a apresentação quando a overlay termina de carregar', () => {
+  let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: LoadingWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, platform: 'darwin' });
+  manager.show({ requestId: 'load-race', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'electron' });
+  const sendsBeforeLoad = notch.calls.filter(([name]) => name === 'send').length;
+  notch.finishLoad();
+  assert.equal(notch.calls.filter(([name]) => name === 'send').length, sendsBeforeLoad + 1);
 });
 
 test('keeps action-bearing presentations out of the native visual host', () => {
@@ -68,6 +92,20 @@ test('prefers the physical Mac notch display when an external display is primary
   manager.show({ requestId: 'native-mac', kind: 'result', text: 'Check', actions: [], interaction: 'passthrough' });
 
   assert.deepEqual(calls, [1]);
+});
+
+test('abre o companion inicial no MacBook mesmo com preferência externa salva', () => {
+  let notch;
+  const external = { id: 2, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
+  const macbook = { id: 1, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
+  const multiScreen = { getAllDisplays: () => [external, macbook], getPrimaryDisplay: () => external };
+  const nativeBridge = { screenGeometry: () => [{ displayId: 2, hasCameraHousing: false }, { displayId: 1, hasCameraHousing: true }] };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge, platform: 'darwin', preferredDisplayId: 2 });
+
+  manager.show({ requestId: 'startup-notch', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'electron' });
+
+  assert.equal(notch.options.x, require('./notch-geometry.cjs').notchBounds(macbook).x);
+  assert.equal(notch.options.y, macbook.bounds.y);
 });
 
 test('falls back to Electron when AppKit host creation fails', () => {
