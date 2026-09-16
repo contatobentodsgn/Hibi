@@ -3,9 +3,11 @@ import {
   WORKSPACE_MIGRATED_KEY,
   WORKSPACE_MIGRATION_LABEL,
   WORKSPACE_STORAGE_KEY,
+  WORKSPACE_RESTORE_POINT_KEYS,
   createDesktopWorkspaceBackend,
   createWorkspaceSession,
   createWorkspaceStore,
+  restorePointLabelKey,
   type WorkspaceBackend,
 } from '../workspace-store'
 
@@ -276,5 +278,35 @@ describe('workspace store', () => {
 
     expect(await session.save(lido.payload!)).toEqual({ origin: 'database' })
     expect(database.saves).toEqual([{ payload: workspace('igual'), restorePoint: 'antes de restaurar um backup' }])
+  })
+
+  it('o rótulo de um ponto é a chave do dicionário, não a frase', async () => {
+    const database = databaseWith()
+    const storage = storageWith({ [WORKSPACE_STORAGE_KEY]: workspace('local') })
+    const store = createWorkspaceStore({ storage, database })
+    const session = createWorkspaceSession(store)
+
+    await session.start()
+    session.markRestorePoint(WORKSPACE_RESTORE_POINT_KEYS.beforeReset)
+    await session.save(workspace('depois de apagar'))
+
+    expect(database.saves.map((entry) => entry.restorePoint)).toEqual([
+      'data.restorePoint.migration',
+      'data.restorePoint.beforeReset',
+    ])
+  })
+
+  it('traduz o rótulo conhecido e devolve nulo para o que não conhece', () => {
+    expect(restorePointLabelKey('data.restorePoint.beforeRestore')).toBe('data.restorePoint.beforeRestore')
+
+    // Pontos gravados antes desta mudança guardam a frase, inclusive a que o próprio banco criava.
+    expect(restorePointLabelKey('antes de apagar todos os dados')).toBe('data.restorePoint.beforeReset')
+    expect(restorePointLabelKey('Antes de restaurar um backup')).toBe('data.restorePoint.beforeRestore')
+    expect(restorePointLabelKey('migração do armazenamento local')).toBe('data.restorePoint.migration')
+    expect(restorePointLabelKey('before-restore')).toBe('data.restorePoint.beforeRollback')
+
+    // Sem correspondência, quem mostra a lista exibe o texto como veio, em vez de sumir com a linha.
+    expect(restorePointLabelKey('ponto de uma versão futura')).toBe(null)
+    expect(restorePointLabelKey('')).toBe(null)
   })
 })
