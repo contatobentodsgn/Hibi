@@ -302,3 +302,67 @@ test('uma recusa sem código utilizável mostra só o status', async () => {
   assert.match(semCorpo.message, /HTTP 502/);
   assert.doesNotMatch(semCorpo.message, /não é JSON/);
 });
+
+const authorizeWith = async (service, bodies, opened) => {
+  const started = service.authorize('fixture', { clientId: 'client-123' }).then((value) => value, (reason) => reason);
+  await new Promise((resolve) => setImmediate(resolve));
+  const redirectUri = new URL(opened().searchParams.get('redirect_uri'));
+  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened().searchParams.get('state'))}&code=auth-code-1`);
+  const result = await started;
+  return { result, body: new URLSearchParams(bodies.at(-1)) };
+};
+
+const secretService = (bodies, capture) => {
+  const keychain = memoryKeychain();
+  const service = createOAuthService({
+    keychain,
+    getConnector: () => connector,
+    openExternal: (url) => capture(new URL(url)),
+    fetch: async (_url, init) => { bodies.push(init.body); return jsonResponse({ access_token: 'access-1', refresh_token: 'refresh-1', expires_in: 3600 }); },
+  });
+  return { keychain, service };
+};
+
+test('manda a credencial de cliente guardada na troca de token, ao autorizar e ao renovar', async () => {
+  const bodies = [];
+  let opened;
+  const { keychain, service } = secretService(bodies, (url) => { opened = url; });
+
+  const saved = await service.saveClientSecret('fixture', 'segredo-do-cliente');
+  assert.deepEqual(saved, { connectorId: 'fixture', hasClientSecret: true });
+  assert.equal(JSON.stringify(saved).includes('segredo-do-cliente'), false);
+
+  const authorized = await authorizeWith(service, bodies, () => opened);
+  assert.equal(authorized.body.get('client_secret'), 'segredo-do-cliente');
+  assert.equal(authorized.body.get('code_verifier')?.length > 0, true);
+
+  await service.refresh('fixture', { clientId: 'client-123' });
+  assert.equal(new URLSearchParams(bodies.at(-1)).get('client_secret'), 'segredo-do-cliente');
+  assert.equal(keychain.store.get('integration:fixture:client-secret'), 'segredo-do-cliente');
+});
+
+test('sem credencial guardada, a troca vai só com identificador e PKCE', async () => {
+  const bodies = [];
+  let opened;
+  const { service } = secretService(bodies, (url) => { opened = url; });
+
+  const authorized = await authorizeWith(service, bodies, () => opened);
+
+  assert.equal(authorized.body.has('client_secret'), false);
+  assert.equal(authorized.body.get('client_id'), 'client-123');
+});
+
+test('recusa uma credencial de cliente vazia e apaga a guardada quando pedido', async () => {
+  const { keychain, service } = secretService([], () => undefined);
+
+  assert.equal(await service.hasClientSecret('fixture'), false);
+  for (const invalid of [undefined, '', '   ', 42, 'x'.repeat(9_000)])
+    await assert.rejects(service.saveClientSecret('fixture', invalid), /client credential/);
+  assert.equal(keychain.store.size, 0);
+
+  await service.saveClientSecret('fixture', 'segredo-do-cliente');
+  assert.equal(await service.hasClientSecret('fixture'), true);
+
+  assert.deepEqual(await service.clearClientSecret('fixture'), { connectorId: 'fixture', hasClientSecret: false });
+  assert.equal(await service.hasClientSecret('fixture'), false);
+});

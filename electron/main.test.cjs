@@ -49,6 +49,9 @@ const EXPECTED_CHANNELS = [
   "hibi:oauth:authorize",
   "hibi:oauth:refresh",
   "hibi:oauth:cancel",
+  "hibi:oauth:client-secret",
+  "hibi:oauth:save-client-secret",
+  "hibi:oauth:clear-client-secret",
   "hibi:calendar-sync:state",
   "hibi:calendar-sync:request-apple-access",
   "hibi:calendar-sync:discover-google-calendars",
@@ -245,6 +248,9 @@ async function loadMain({ seedUserData } = {}) {
     async authorize(id, options) { this.calls.push(["authorize", id, options]); return { ok: true }; },
     async refresh(id, options) { this.calls.push(["refresh", id, options]); return { ok: true }; },
     async revoke(id) { this.calls.push(["revoke", id]); return { connectorId: id, connected: false, hasRefreshToken: false }; },
+    async hasClientSecret(id) { this.calls.push(["hasClientSecret", id]); return id === "notion"; },
+    async saveClientSecret(id, secret) { this.calls.push(["saveClientSecret", id, secret]); return { connectorId: id, hasClientSecret: true }; },
+    async clearClientSecret(id) { this.calls.push(["clearClientSecret", id]); return { connectorId: id, hasClientSecret: false }; },
     async cancel() { this.calls.push(["cancel"]); return true; },
   };
   const notchTest = {
@@ -998,4 +1004,23 @@ test("revogar uma integração com OAuth apaga também o refresh token guardado"
   // Só o conector com OAuth passa pelo serviço de OAuth; o token manual do Slack sai pelo gerenciador.
   assert.deepEqual(harness.oauthService.calls.filter(([name]) => name === "revoke"), [["revoke", "notion"]]);
   assert.equal(harness.keychain.entries.has("integration:notion"), false);
+});
+
+test("a credencial de cliente do OAuth passa pelo processo principal sem voltar ao renderer", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  const saved = await harness.invoke("hibi:oauth:save-client-secret", "notion", "segredo-do-cliente");
+  const has = await harness.invoke("hibi:oauth:client-secret", "notion");
+  const cleared = await harness.invoke("hibi:oauth:clear-client-secret", "notion");
+
+  assert.deepEqual(saved, { connectorId: "notion", hasClientSecret: true });
+  assert.equal(has, true);
+  assert.deepEqual(cleared, { connectorId: "notion", hasClientSecret: false });
+  // O segredo só existe na chamada de ida; nada do que volta ao renderer o carrega.
+  assert.equal(JSON.stringify([saved, has, cleared]).includes("segredo-do-cliente"), false);
+  assert.deepEqual(
+    harness.oauthService.calls.filter(([name]) => name.endsWith("ClientSecret")).map(([name, id]) => [name, id]),
+    [["saveClientSecret", "notion"], ["hasClientSecret", "notion"], ["clearClientSecret", "notion"]],
+  );
 });
