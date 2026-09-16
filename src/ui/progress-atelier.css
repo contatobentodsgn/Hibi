@@ -1,0 +1,15 @@
+.progress-atelier-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 18px 0 22px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface, #fff);
+}
+.progress-atelier-summary > div { display: grid; gap: 5px; padding: 15px 18px; border-right: 1px solid var(--line); }
+.progress-atelier-summary > div:last-child { border-right: 0; }
+.progress-atelier-summary span { color: var(--muted); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.progress-atelier-summary strong { overflow: hidden; font-size: .96rem; text-overflow: ellipsis; white-space: nowrap; }
+.progress-atelier-lead { background: color-mix(in srgb, var(--accent, #ea7c28) 7%, transparent); }
+@media (max-width: 640px) { .progress-atelier-summary { grid-template-columns: 1fr; } .progress-atelier-summary > div { border-right: 0; border-bottom: 1px solid var(--line); } .progress-atelier-summary > div:last-child { border-bottom: 0; } }
