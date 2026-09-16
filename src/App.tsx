@@ -250,12 +250,16 @@ export default function App() {
 
   const resetStudyData = () => {
     if (!window.confirm('Reset all local study data?')) return;
+    // O ponto guarda o estado de antes: sem ele, apagar tudo é uma ação sem volta.
+    workspace.markRestorePoint('antes de apagar todos os dados');
     repository.reset();
     refreshData();
     log('reset', 'Reset study data', 'pass');
   };
 
   const restoreStudyData = (restored: StudyData, preferences: WorkspacePreferences) => {
+    // Restaurar um backup sobrescreve o workspace inteiro; o ponto é o caminho de volta.
+    workspace.markRestorePoint('antes de restaurar um backup');
     repository.replace(restored);
     refreshData();
     log('import', `Restored ${restored.tasks.length} tasks, ${restored.blocks.length} calendar blocks`, `${preferences.language} · ${preferences.twentyFourHour ? '24h' : '12h'}`);
