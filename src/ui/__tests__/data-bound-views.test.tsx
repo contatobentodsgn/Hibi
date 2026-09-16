@@ -17,6 +17,7 @@ import { FocusView } from '../FocusView';
 import { HelpView } from '../HelpView';
 import { AgendaAvailability } from '../AgendaAvailability';
 import { deriveDayRhythm } from '../day-rhythm';
+import { TasksAtelierSummary } from '../TasksAtelierSummary';
 
 const data = createSeedData();
 const onEvent = () => undefined;
@@ -49,6 +50,13 @@ describe('study views', () => {
     expect(markup).toContain('8 open');
   });
 
+  it('mounts the task summary and exposes a textual deadline state per open task', () => {
+    const markup = renderToStaticMarkup(<TasksView data={data} onEvent={onEvent} onTaskStatusChange={onEvent} />);
+
+    expect(markup).toContain('Task execution summary');
+    expect(markup).toContain('data-deadline-state=');
+  });
+
   it('renders accessible task creation and editing controls without prompt actions', () => {
     const markup = renderToStaticMarkup(
       <TasksView
@@ -68,6 +76,16 @@ describe('study views', () => {
     expect(markup).toContain('aria-label="Set deadline for Kabrito Post 01"');
     expect(markup).toContain('aria-label="Delete Kabrito Post 01"');
     expect(markup).not.toContain('window.prompt');
+  });
+
+  it('renders a named task execution summary with deadline states in text', () => {
+    const markup = renderToStaticMarkup(<TasksAtelierSummary tasks={data.tasks} today={keyFromToday(0)} />);
+
+    expect(markup).toContain('aria-label="Task execution summary"');
+    expect(markup).toContain('Next action');
+    expect(markup).toContain('Overdue');
+    expect(markup).toContain('Due today');
+    expect(markup).toContain('Without deadline');
   });
 
   it('renders reminders from the study snapshot', () => {
