@@ -1,8 +1,8 @@
 # Hibi — status de implementação e plano consolidado
 
-Atualizado em 2026-09-11. Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
+Atualizado em 2026-09-16. Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
 
-Última bateria completa no `main` (`646537e`): 682 testes Vitest em 79 arquivos, 310 `node --test`, 122 e2e Playwright, `tsc` sem erros, build de produção com o addon nativo, e os verificadores `parity:check` (18 invariantes) e `safety:renderer`, que agora rodam na CI. A suíte dá **o mesmo resultado** em `America/Sao_Paulo` e em `Pacific/Kiritimati` (UTC+14), e a CI roda as duas: foi por não rodar assim que lembretes semanais chegaram a ser gravados no dia errado, e que um lembrete sem recorrência tocava horas fora do horário mostrado na tela.
+Última bateria completa no `main` (`8676380`): 706 testes Vitest em 87 arquivos, 400 `node --test`, 131 e2e Playwright, `tsc` sem erros, build de produção com o addon nativo, e os verificadores `parity:check` (18 invariantes) e `safety:renderer`, que agora rodam na CI. A suíte dá **o mesmo resultado** em `America/Sao_Paulo` e em `Pacific/Kiritimati` (UTC+14), e a CI roda as duas: foi por não rodar assim que lembretes semanais chegaram a ser gravados no dia errado, e que um lembrete sem recorrência tocava horas fora do horário mostrado na tela.
 
 ## Status atual
 
@@ -40,6 +40,11 @@ Atualizado em 2026-09-11. Este documento é a fonte operacional do status atual 
 | Compartilhamento | Implementado localmente | Convites somente leitura assinados e expirados. |
 | Teste com provedor real | **Validado ao vivo** | Groq (`api.groq.com`, `openai/gpt-oss-120b`) em 2026-09-11: streaming com deltas, proveniência, consumo (337 tokens) e cancelamento real de um turno em voo. 401, limite de uso e indisponibilidade com retry são exercitados com respostas injetadas e carimbados `simulated` no relatório — não há como forçá-los num provedor real sem sujar a conta. A validação revelou e corrigiu um defeito no próprio harness: os eventos eram passados como terceiro argumento de `run()`, que aceita dois, então o relatório saía sem evento nenhum e um provedor que não streamasse teria passado. O relatório nunca traz a chave nem o texto. |
 | Teste com conector real | Notion validado ao vivo; e-mail e notificações contra sandbox própria; Slack adiado | `npm run test:notion:live` roda o ciclo `criar → ler → atualizar → conflito` com a credencial que o próprio Hibi guarda no Keychain, sem expor o token. E-mail e notificações remotas rodaram leitura e escrita por HTTPS contra uma sandbox própria em 2026-09-11 — os conectores não falam nenhuma API de mercado, definem um contrato próprio, então não há serviço de terceiro contra o qual validar sem antes escrever um adaptador para ele. Slack segue adiado por decisão. |
+| **Sincronização de calendário** | **Apple validada no app real; Google conectado, escrita por validar** | Núcleo no #66, corrigido e substituído pelo #67, com o #71 por cima. Horário de bloco é hora de parede flutuante e vira instante com o fuso da máquina só na borda do processo principal; o EventKit recusava tanto hora sem fuso quanto o `.000Z` que a leitura mandava, então nem publicar nem ler funcionava antes. Publicar exige modo bidirecional e confirmação de uso único, que expira em 5 minutos, com no máximo 20 preparações abertas. A leitura só declara exclusão depois de buscar o evento pelo id (#71): antes, um evento **movido** para outra semana era tratado como apagado, e o vínculo sumia em silêncio. Conflito de edição guarda a revisão que a leitura viu, e é ela que "Manter Hibi" usa; num evento apagado, "Manter Hibi" recria. Publicação é idempotente: a intenção é gravada antes da escrita remota, o Apple procura o evento idêntico ao repetir e o Google reusa o id escolhido pelo Hibi, adotando o evento no 409. Validação real com o Calendário do Mac em 2026-09-15, no app empacotado com userData isolado e num calendário de teste dedicado: publicar, ler de volta no horário local certo, ler outra semana sem perder o vínculo, conflito de edição, "Manter Hibi", evento movido e exclusão real, 25 verificações no total. O Google conecta de verdade desde 2026-09-16; os itens de escrita seguem em validação. |
+| **Persistência em SQLite** | **Núcleo pronto, ainda não ligado (#78)** | `electron/workspace-database.cjs`: cada gravação é uma transação, e o ponto de restauração guarda o estado **anterior** à gravação, que é o que desfaz um lote ou uma migração. Restaurar guarda o estado atual antes, como `before-restore`. WAL ligado, 20 pontos, teto de 32 MB por payload e arquivo só do dono. `node:sqlite` vem no runtime, verificado no Node dos testes e no Electron real: nenhuma dependência nova. Nada usa o módulo ainda — faltam os canais IPC, o adaptador em `src/data` com a migração do `localStorage` e a entrada na tela de Dados. |
+| **Contrato do dispositivo Taby** | **Contrato próprio, hardware indisponível** | `electron/device-adapter.mjs` e `device-transport.mjs` (#70) fazem handshake versionado e mantêm o estado `unavailable` até existir aparelho. O #74 fechou três pontas: o timer do limite de tempo agora é limpo também quando a conexão falha, `sendSettings` valida esquema, versão e payload com teto de 8 KB, e entraram as provas de conexão recusada e handshake de outro protocolo. Nenhuma ponte IPC ainda. |
+| **Suíte de testes do processo principal** | **Todo arquivo de teste roda** (#72) | A suíte era declarada por padrões fixos, e um arquivo fora daquele desenho nunca era executado, nem aqui nem na CI — foi o que aconteceu com os testes do adaptador de dispositivo. Agora os padrões cobrem `.cjs` e `.mjs` em `electron/` (recursivo), `native/notch/` e `scripts/`, e `scripts/test-suite-globs.test.mjs` falha se algum arquivo de teste ficar de fora. |
+| **OAuth: credencial de cliente e recusa legível** | **Implementado** (#73, #75, #76, #77) | Revogar apagava só o token de acesso e deixava o refresh token no Keychain (#73). Toda recusa na troca de token virava a mesma frase; agora a mensagem traz o código do OAuth e o status, sem descrição nem corpo, que podem repetir parâmetros (#75). O Google recusava com `invalid_request: client_secret is missing`, porque o cliente exige credencial de cliente e o Hibi mandava só identificador e PKCE: a credencial passou a ser guardada no Keychain e enviada nas duas trocas, com três canais para guardar, apagar e saber se existe (#76), e o campo na tela nunca mostra o valor guardado (#77). |
 
 ## Paridade com o app original
 
@@ -67,16 +72,16 @@ Referência: Hey Taby 0.2.2 e 0.2.3, pelas auditorias em `/Volumes/SSD/app/node_
 
 | Do original | Situação no Hibi | Observação |
 | --- | --- | --- |
-| Review da 0.2.3 com sugestões (`duplicate_task`, `missing_schedule`) | Ausente — o Review é um resumo | Evitar os defeitos auditados: números como identificadores, agrupar duplicidades, recalcular após mudanças, dispensa em lote, evidência da confiança. |
-| Ajustes gerais: tint, tamanho do Taby, local de exibição, atalho global, atividade de apps | Ausentes | No original o atalho global aparecia desabilitado. |
+| Review da 0.2.3 com sugestões (`duplicate_task`, `missing_schedule`) | Implementado (#51) | Evitar os defeitos auditados: números como identificadores, agrupar duplicidades, recalcular após mudanças, dispensa em lote, evidência da confiança. |
+| Ajustes gerais: tamanho do Taby, local de exibição, atalho global, atividade de apps | Ausentes | O tint entrou no #52. No original o atalho global aparecia desabilitado. |
 | Zona invisível no topo que abre o Taby | Ausente | A auditoria aponta que ela é pouco descobrível; se entrar, precisa de indicação visível. |
-| Dados em SQLite com restore points automáticos | Ausente — `localStorage` com backup JSON manual | O original declarava restore points, mas não criava nenhum. |
+| Dados em SQLite com restore points automáticos | Parcial — núcleo pronto no #78, nada ligado | O workspace ainda vive no `localStorage`, com backup JSON manual. O original declarava restore points, mas não criava nenhum. |
 | Atualização automática, assinatura e notarização | Ausentes — `/updates` informa build offline | Também na Fase 4. |
 | Feedback remoto com captura de tela e pacote ZIP | Parcial | Ver "Já coberto". |
 | Brain local (~5,2 GB) e voz (Kokoro) | Ausentes | No original a voz falhava por dependência não empacotada. |
-| Dispositivo físico Taby (USB, firmware) | Ausente — adaptador marcado como indisponível | Depende de hardware e protocolo do dispositivo. |
+| Dispositivo físico Taby (USB, firmware) | Ausente — adaptador indisponível, contrato pronto (#70, #74) | Depende de hardware e protocolo do dispositivo. |
 | Animações em Rive | Parcial | Os estados do companion usam vídeos; `study-reference/rive/talk/taby-talk.riv` só é listado na galeria de assets e não anima o companion. |
-| Sincronização com Google Calendar ou iCloud | Ausente | No original também "em breve". Também na Fase 4. |
+| Sincronização com Google Calendar ou iCloud | Parcial — Apple validado no app real, Google conectado | Núcleo nos #66, #67 e #71. Falta validar as escritas no Google. No original era "em breve". |
 | Visual novo das telas | Parcial | Só o shell, o dock e a paleta usam a nova UI. |
 
 ### Fora do escopo por decisão
@@ -143,8 +148,8 @@ lá entre as rodadas.
 ### Fase 4 — release e sincronização futura
 
 - [ ] Decidir e implementar conta, nuvem e backup remoto.
-- [ ] Decidir sincronização bidirecional com Google Calendar/iCloud e resolução de conflitos.
-- [ ] Adicionar atualizador, assinatura, notarização, crash recovery e acessibilidade manual.
+- [x] Decidir sincronização bidirecional com Google Calendar/iCloud e resolução de conflitos. Implementada nos #66, #67 e #71, com autorização expressa do responsável pelo projeto. Apple validado no app real em 2026-09-15; a validação das escritas no Google segue em curso.
+- [ ] Adicionar atualizador, assinatura, notarização, crash recovery e acessibilidade manual. A recuperação de falha do renderer está em revisão no #69.
 - [x] Validar o notch na tela com câmera e em monitor externo, com a janela do Hibi em cada tela (app real, cliques automatizados; 2026-09-10).
 - [ ] Validar o notch em Mac sem câmera, em Spaces e tela cheia, na reconexão do monitor externo, após o sono e com clique e leitura humanos — roteiro em [`notch-manual-results.md`](notch-manual-results.md).
 
@@ -156,9 +161,9 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 2. [x] Salvar as conversas do Taby, com lista de chats, busca e novo chat. As conversas ficam **neste Mac**, fora do `StudyData`, e **não entram no backup do workspace** — restaurar noutra máquina traz tarefas, notas e atividade, não os chats. Abrir o app (ou recarregar) começa numa **thread vazia**, com as conversas anteriores listadas ao lado; a primeira pergunta é que cria a conversa. Ver "Conversas do Taby" no Status atual.
 3. [x] Ajustes de Foco: horário ativo, duração da sessão e intensidade dos nudges, com prévia de quantos alertas por dia calculada pela mesma função que decide o disparo. Ver "Ajustes de Foco" no Status atual.
    - [x] Inatividade e ausência: com a sessão rodando, perguntar, pausar sozinho ou seguir contando quando o Mac fica ocioso ou a tela é bloqueada, sem contar o tempo ausente como foco. Junto entraram o loop visual e o timeout de tela do Taby.
-4. [ ] Review com sugestões de duplicata e de agenda ausente, sem os falsos positivos auditados no original.
-5. [ ] Persistência em SQLite com restore points antes de lotes e migrações.
-6. [ ] Ajustes gerais restantes: atalho global, tamanho e local de exibição do Taby, tint e atividade de apps.
+4. [x] Review com sugestões de duplicata e de agenda ausente, sem os falsos positivos auditados no original (#51).
+5. [ ] Persistência em SQLite com restore points antes de lotes e migrações. **Núcleo pronto no #78**; faltam os canais IPC, o adaptador em `src/data` com a migração do `localStorage` e a entrada na tela de Dados.
+6. [ ] Ajustes gerais restantes: atalho global, tamanho e local de exibição do Taby e atividade de apps. O tint entrou no #52.
 7. [ ] Visual novo nas telas, na ordem do dock.
 8. [ ] Voz e modelo local, depois de decidir motor, tamanho de download e empacotamento.
 9. [ ] Dispositivo físico, quando houver protocolo e hardware para teste. O lado do app já existe para os ajustes que só o aparelho honra: `buildDeviceSettingsPackage` (`electron/device-settings.mjs`) monta, com `schema` e `version`, o pacote com o timeout de tela e o loop visual, pronto para o adaptador consumir.
@@ -166,7 +171,13 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 
 ### Pendências registradas
 
-Nenhuma pendência em aberto em 2026-09-12. As que estavam registradas aqui foram fechadas, e o que cada uma passou a garantir está na tabela de **Status atual**, com a evidência. Itens novos entram nesta lista em ordem de gravidade; "tarefa criada" significa que já existe trabalho aberto para o item.
+Itens entram nesta lista em ordem de gravidade; "tarefa criada" significa que já existe trabalho aberto para o item. Em aberto em 2026-09-16:
+
+1. **Escritas no Google Calendar sem validação real.** Conectar já funciona. Publicar, ler de volta, conflito, exclusão e idempotência ainda não foram exercitados contra a API real. Tarefa criada: a validação corre com a conta que é testadora no projeto Google Cloud, pelo roteiro da [issue #48](https://github.com/contatobentodsgn/Hibi/issues/48).
+2. **SQLite não ligado.** O #78 trouxe só o núcleo. Enquanto os canais IPC e o adaptador em `src/data` não entrarem, o workspace continua no `localStorage` e ninguém ganha ponto de restauração. Tarefa criada.
+3. **Restaurar ainda não tem entrada na tela.** Listar e restaurar pontos precisa de superfície na aba Dados.
+4. **Credencial vencida aparece como conectada.** A tela mostra o Google como conectado quando existe credencial no Keychain, mesmo vencida. Deveria oferecer reconectar.
+5. **Teste de OAuth instável.** `electron/oauth.test.cjs` falhou uma vez com `ECONNRESET` no servidor de loopback e passou nas execuções seguintes. É porta, não regressão, e merece ficar determinístico.
 
 ## Critério de conclusão
 
