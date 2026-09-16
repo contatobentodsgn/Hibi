@@ -76,13 +76,13 @@ Referência: Hey Taby 0.2.2 e 0.2.3, pelas auditorias em `/Volumes/SSD/app/node_
 | Review da 0.2.3 com sugestões (`duplicate_task`, `missing_schedule`) | Implementado (#51) | Evitar os defeitos auditados: números como identificadores, agrupar duplicidades, recalcular após mudanças, dispensa em lote, evidência da confiança. |
 | Ajustes gerais: tamanho do Taby, local de exibição, atalho global, atividade de apps | Ausentes | O tint entrou no #52. No original o atalho global aparecia desabilitado. |
 | Zona invisível no topo que abre o Taby | Ausente | A auditoria aponta que ela é pouco descobrível; se entrar, precisa de indicação visível. |
-| Dados em SQLite com restore points automáticos | Implementado e validado | O `StudyData` do Electron agora usa SQLite nativo, grava de forma transacional, migra o JSON legado uma única vez e cria restore point antes de substituir ou restaurar dados. O backup JSON continua disponível para portabilidade. |
-| Atualização automática, assinatura e notarização | Atualizador implementado com verificação automática em builds empacotados, feed explícito, download manual e instalação após reinício; assinatura/notarização preparadas | `electron/updates.cjs`, `electron/updates.test.cjs`, `scripts/notarize.cjs` e `.github/workflows/release-macos.yml`. O certificado Developer ID e as credenciais Apple ainda precisam ser fornecidos no ambiente seguro de release. |
+| Dados em SQLite com restore points automáticos | Implementado, menos a tela (#78, #80, #82, #84, #87) | O workspace vive no banco quando a ponte existe, com o `localStorage` como espelho, e apagar tudo ou restaurar um backup deixa um ponto. Falta listar e restaurar pontos na aba Dados. O original declarava restore points, mas não criava nenhum. |
+| Atualização automática, assinatura e notarização | Ausentes — `/updates` informa build offline | Também na Fase 4. |
 | Feedback remoto com captura de tela e pacote ZIP | Parcial | Ver "Já coberto". |
 | Brain local (~5,2 GB) e voz (Kokoro) | Ausentes | No original a voz falhava por dependência não empacotada. |
 | Dispositivo físico Taby (USB, firmware) | Ausente — adaptador indisponível, contrato pronto (#70, #74) | Depende de hardware e protocolo do dispositivo. |
 | Animações em Rive | Parcial | Os estados do companion usam vídeos; `study-reference/rive/talk/taby-talk.riv` só é listado na galeria de assets e não anima o companion. |
-| Sincronização com Google Calendar ou iCloud | Google OAuth implementado; validação real pendente | Google Calendar usa PKCE, callback local, access/refresh tokens no Keychain e `client_secret` opcional também protegido no Keychain; a interface oferece login e configuração segura. Ainda falta validar com credenciais reais e concluir o sincronismo automático de eventos no workspace. Apple EventKit permanece dependente da permissão do macOS. |
+| Sincronização com Google Calendar ou iCloud | Google e Apple validados no app real; iCloud não | Núcleo nos #66, #67 e #71; validação do Google em 2026-09-16, com as correções #81, #83, #85 e #88. iCloud continua ausente. No original era "em breve". |
 | Visual novo das telas | Parcial | Só o shell, o dock e a paleta usam a nova UI. |
 
 ### Fora do escopo por decisão
@@ -149,10 +149,8 @@ lá entre as rodadas.
 ### Fase 4 — release e sincronização futura
 
 - [ ] Decidir e implementar conta, nuvem e backup remoto.
-- [x] Decidir e implementar a arquitetura de sincronização bidirecional com Google Calendar/iCloud e resolução de conflitos; publicação continua sempre condicionada a preparação e confirmação.
-- [ ] Concluir o suporte ao `client_secret` do OAuth Google no Keychain e validar uma conta Google real.
-- [ ] Executar a validação manual de importação, criação, edição e conflito com Apple Calendar/iCloud e Google Calendar.
-- [x] Adicionar atualizador, assinatura e notarização preparados; crash recovery automatizado. A auditoria manual de VoiceOver continua dependente da rodada humana com VoiceOver ativo.
+- [x] Decidir sincronização bidirecional com Google Calendar/iCloud e resolução de conflitos. Implementada nos #66, #67 e #71, com autorização expressa do responsável pelo projeto. Apple validado no app real em 2026-09-15 e Google em 2026-09-16, contra a API real, em conta e agenda de teste; a validação corrigiu #81, #83, #85 e #88. iCloud não tem caminho no Hibi.
+- [ ] Adicionar atualizador, assinatura, notarização, crash recovery e acessibilidade manual. A **recuperação de falha do renderer** já existe: uma queda é recarregada automaticamente uma vez, e uma segunda queda antes de a janela terminar de carregar abre um aviso nativo com tentar de novo e encerrar, em `pt` ou `en` conforme o sistema. Falta o resto do item.
 - [x] Validar o notch na tela com câmera e em monitor externo, com a janela do Hibi em cada tela (app real, cliques automatizados; 2026-09-10).
 - [ ] Validar o notch em Mac sem câmera, em Spaces e tela cheia, na reconexão do monitor externo, após o sono e com clique e leitura humanos — roteiro em [`notch-manual-results.md`](notch-manual-results.md).
 
@@ -164,10 +162,9 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 2. [x] Salvar as conversas do Taby, com lista de chats, busca e novo chat. As conversas ficam **neste Mac**, fora do `StudyData`, e **não entram no backup do workspace** — restaurar noutra máquina traz tarefas, notas e atividade, não os chats. Abrir o app (ou recarregar) começa numa **thread vazia**, com as conversas anteriores listadas ao lado; a primeira pergunta é que cria a conversa. Ver "Conversas do Taby" no Status atual.
 3. [x] Ajustes de Foco: horário ativo, duração da sessão e intensidade dos nudges, com prévia de quantos alertas por dia calculada pela mesma função que decide o disparo. Ver "Ajustes de Foco" no Status atual.
    - [x] Inatividade e ausência: com a sessão rodando, perguntar, pausar sozinho ou seguir contando quando o Mac fica ocioso ou a tela é bloqueada, sem contar o tempo ausente como foco. Junto entraram o loop visual e o timeout de tela do Taby.
-4. [ ] Review com sugestões de duplicata e de agenda ausente, sem os falsos positivos auditados no original.
-5. [x] Persistência em SQLite com restore points antes de lotes e migrações.
-6. [ ] Concluir sincronismo automático de eventos Google no workspace e validar uma conta real.
-7. [ ] Ajustes gerais restantes: atalho global, tamanho e local de exibição do Taby, tint e atividade de apps.
+4. [x] Review com sugestões de duplicata e de agenda ausente, sem os falsos positivos auditados no original (#51).
+5. [ ] Persistência em SQLite com restore points antes de lotes e migrações. Núcleo (#78), canais IPC (#82), adaptador com migração (#80), troca no `App.tsx` (#84) e pontos rotulados nas ações destrutivas (#87) estão no `main` e validados no app real. **Falta só a entrada na aba Dados** para listar e restaurar, que é do Codex.
+6. [ ] Ajustes gerais restantes: atalho global, tamanho e local de exibição do Taby e atividade de apps. O tint entrou no #52.
 7. [ ] Visual novo nas telas, na ordem do dock.
 8. [ ] Voz e modelo local, depois de decidir motor, tamanho de download e empacotamento.
 9. [ ] Dispositivo físico, quando houver protocolo e hardware para teste. O lado do app já existe para os ajustes que só o aparelho honra: `buildDeviceSettingsPackage` (`electron/device-settings.mjs`) monta, com `schema` e `version`, o pacote com o timeout de tela e o loop visual, pronto para o adaptador consumir.

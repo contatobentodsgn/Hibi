@@ -70,8 +70,14 @@ export default function App() {
     try { const saved = window.localStorage.getItem('hibi-study-data'); return saved ? LocalRepository.fromJson(seed, saved) : new LocalRepository(seed); } catch { return new LocalRepository(seed); }
   });
   const [data, setData] = useState<StudyData>(() => repository.snapshot());
-  const workspaceHydrated = useRef(false);
-  const lastPersistedWorkspace = useRef<string | null>(null);
+  // O workspace passa a viver no banco do processo principal quando a ponte existe; sem ela (no
+  // navegador, nos testes e nas versões antigas do app) tudo segue no `localStorage`. A leitura do
+  // banco é assíncrona, então a primeira pintura ainda vem do espelho local acima e só depois o que
+  // está gravado assume. Até lá a sessão grava só no espelho local, porque mandar para o banco o que
+  // está em memória antes de ler sobrescreveria o que está lá — que pode ser mais novo.
+  const [workspace] = useState(() => createWorkspaceSession(createWorkspaceStore({ storage: window.localStorage, database: createDesktopWorkspaceBackend(window.hibiDesktop) })));
+  const [workspaceReady, setWorkspaceReady] = useState(false);
+  const workspaceWarned = useRef(false);
   const [route, setRoute] = useState<NavKey>('home');
   // Filtro de pasta pedido junto com a navegação. O `nonce` muda a cada navegação e vira `key` das
   // telas, então o filtro pedido é reaplicado mesmo quando se volta à mesma tela.
@@ -292,53 +298,30 @@ export default function App() {
   };
 
   React.useEffect(() => {
-    const desktop = window.hibiDesktop;
-    if (!desktop?.loadWorkspace) {
-      workspaceHydrated.current = true;
-      return;
-    }
-    let active = true;
-    void desktop.loadWorkspace().then(async (stored) => {
-      if (!active) return;
-      if (stored) {
-        repository.replace(stored);
-      } else {
-        const legacy = window.localStorage.getItem('hibi-study-data');
-        if (legacy && desktop.migrateLegacyWorkspace) {
-          await desktop.migrateLegacyWorkspace(legacy);
-          repository.replace(JSON.parse(legacy));
-        } else if (desktop.saveWorkspace) {
-          await desktop.saveWorkspace(repository.snapshot());
-        }
+    let cancelled = false;
+    void workspace.start().then((loaded) => {
+      if (cancelled) return;
+      // Só o que veio do banco substitui o que está em memória: `local` já é exatamente o que o
+      // `useState` acima leu, e um payload ilegível não pode derrubar a sessão em andamento.
+      if (loaded.origin === 'database' && loaded.payload !== null) {
+        try { repository.replace(JSON.parse(loaded.payload) as StudyData); refreshData(); } catch { log('storage', 'O workspace gravado no banco está ilegível; o app seguiu com o armazenamento local', 'fail'); }
       }
-      const snapshot = repository.snapshot();
-      lastPersistedWorkspace.current = JSON.stringify(snapshot);
-      setData(snapshot);
-      workspaceHydrated.current = true;
-    }).catch(() => {
-      if (!active) return;
-      workspaceHydrated.current = true;
-      if (desktop.saveWorkspace) {
-        const snapshot = repository.snapshot();
-        lastPersistedWorkspace.current = JSON.stringify(snapshot);
-        void desktop.saveWorkspace(snapshot).catch(() => undefined);
-      }
+      if (loaded.migrated) log('storage', 'Workspace migrado do armazenamento local para o banco, com ponto de restauração', 'pass');
+      if (loaded.degraded) { workspaceWarned.current = true; log('storage', `A leitura do banco falhou e o app abriu pelo armazenamento local: ${loaded.degraded}`, 'fail'); }
+      setWorkspaceReady(true);
     });
-    return () => { active = false; };
-  }, [repository]);
+    return () => { cancelled = true; };
+  }, []);
+  // `workspaceReady` está nas dependências para o primeiro envio ao banco sair assim que a leitura
+  // termina; antes disso a gravação vai só para o espelho local, como era antes do banco existir.
   React.useEffect(() => {
-    if (!workspaceHydrated.current) return;
-    const desktop = window.hibiDesktop;
-    const snapshot = repository.snapshot();
-    const serialized = JSON.stringify(snapshot);
-    if (serialized === lastPersistedWorkspace.current) return;
-    lastPersistedWorkspace.current = serialized;
-    if (desktop?.saveWorkspace) {
-      void desktop.saveWorkspace(snapshot).catch(() => undefined);
-    } else {
-      window.localStorage.setItem('hibi-study-data', repository.exportJson());
-    }
-  }, [repository, data]);
+    void workspace.save(repository.exportJson()).then((saved) => {
+      if (!saved?.degraded || workspaceWarned.current) return;
+      // Um aviso por sessão: o efeito corre a cada mudança, e repetir encheria a instrumentação.
+      workspaceWarned.current = true;
+      log('storage', `A gravação no banco falhou e ficou só no armazenamento local: ${saved.degraded}`, 'fail');
+    });
+  }, [workspaceReady, repository, data]);
   React.useEffect(() => { window.localStorage.setItem('hibi-events', JSON.stringify(events)); }, [events]);
   React.useEffect(() => { try { window.localStorage.setItem('hibi-ai-history', JSON.stringify(loadAiAuditHistory(JSON.stringify(aiHistory)))); } catch { /* unavailable storage */ } }, [aiHistory]);
   React.useEffect(() => { try { window.localStorage.setItem(AI_USAGE_LEDGER_STORAGE_KEY, JSON.stringify(loadAiUsageLedger(JSON.stringify(aiUsage)))); } catch { /* unavailable storage */ } }, [aiUsage]);

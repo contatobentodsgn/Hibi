@@ -20,13 +20,13 @@ const fakeManager = () => {
 
 test('começa no automático e guarda a escolha entre instâncias', () => {
   const settings = createNotchSettings({ filePath: tempFile() });
-  assert.deepEqual(settings.get(), { displayId: null, displayLabel: '', size: 'normal' });
+  assert.deepEqual(settings.get(), { displayId: null, displayLabel: '' });
 
-  assert.deepEqual(settings.save({ displayId: 2, displayLabel: '  LG ULTRAWIDE  ' }), { displayId: 2, displayLabel: 'LG ULTRAWIDE', size: 'normal' });
-  assert.deepEqual(createNotchSettings({ filePath: settings.filePath }).get(), { displayId: 2, displayLabel: 'LG ULTRAWIDE', size: 'normal' });
+  assert.deepEqual(settings.save({ displayId: 2, displayLabel: '  LG ULTRAWIDE  ' }), { displayId: 2, displayLabel: 'LG ULTRAWIDE' });
+  assert.deepEqual(createNotchSettings({ filePath: settings.filePath }).get(), { displayId: 2, displayLabel: 'LG ULTRAWIDE' });
   assert.equal(fs.statSync(settings.filePath).mode & 0o777, 0o600);
 
-  assert.deepEqual(settings.save({ displayId: null, displayLabel: 'ignorado' }), { displayId: null, displayLabel: '', size: 'normal' });
+  assert.deepEqual(settings.save({ displayId: null, displayLabel: 'ignorado' }), { displayId: null, displayLabel: '' });
 });
 
 test('limita o rótulo a 120 caracteres', () => {
@@ -45,9 +45,9 @@ test('recusa valores inválidos sem gravar', () => {
 test('arquivo corrompido ou com conteúdo inválido volta ao automático', () => {
   const filePath = tempFile();
   fs.writeFileSync(filePath, '{ nope');
-  assert.deepEqual(createNotchSettings({ filePath }).get(), { displayId: null, displayLabel: '', size: 'normal' });
+  assert.deepEqual(createNotchSettings({ filePath }).get(), { displayId: null, displayLabel: '' });
   fs.writeFileSync(filePath, JSON.stringify({ displayId: 'x' }));
-  assert.deepEqual(createNotchSettings({ filePath }).get(), { displayId: null, displayLabel: '', size: 'normal' });
+  assert.deepEqual(createNotchSettings({ filePath }).get(), { displayId: null, displayLabel: '' });
 });
 
 test('applyNotchDisplay salva o monitor conectado com o rótulo atual e aplica no gerenciador', () => {
@@ -55,10 +55,10 @@ test('applyNotchDisplay salva o monitor conectado com o rótulo atual e aplica n
   const manager = fakeManager();
 
   const chosen = applyNotchDisplay(settings, manager, 2);
-  assert.deepEqual(chosen, { preference: { displayId: 2, displayLabel: 'LG ULTRAWIDE', size: 'normal' }, resolvedDisplayId: 2, reason: 'preferred', displays: [lg, internal] });
+  assert.deepEqual(chosen, { preference: { displayId: 2, displayLabel: 'LG ULTRAWIDE' }, resolvedDisplayId: 2, reason: 'preferred', displays: [lg, internal] });
 
   const automatic = applyNotchDisplay(settings, manager, null);
-  assert.deepEqual(automatic.preference, { displayId: null, displayLabel: '', size: 'normal' });
+  assert.deepEqual(automatic.preference, { displayId: null, displayLabel: '' });
   assert.deepEqual(manager.calls, [2, null]);
   assert.deepEqual(notchDisplayState(settings, manager), automatic);
 });
@@ -67,6 +67,6 @@ test('applyNotchDisplay recusa monitor desconectado ou id inválido sem salvar n
   const settings = createNotchSettings({ filePath: tempFile() });
   const manager = fakeManager();
   for (const value of [9, '2', 2.5, undefined]) assert.throws(() => applyNotchDisplay(settings, manager, value), /Invalid notch display/);
-  assert.deepEqual(settings.get(), { displayId: null, displayLabel: '', size: 'normal' });
+  assert.deepEqual(settings.get(), { displayId: null, displayLabel: '' });
   assert.deepEqual(manager.calls, []);
 });

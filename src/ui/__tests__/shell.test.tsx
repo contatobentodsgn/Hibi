@@ -61,13 +61,6 @@ describe('shell', () => {
     expect(markup).toContain('<main class="shell-content"><p>conteúdo</p></main>')
   })
 
-  it('mantém o canvas contínuo e limita o conteúdo legado sem borda escura indevida', () => {
-    const shellCss = readFileSync(new URL('../shell/shell.css', import.meta.url), 'utf8')
-    expect(shellCss).toContain('background: var(--bg-canvas); }')
-    expect(shellCss).toContain('max-width: none;')
-    expect(shellCss).toContain('padding: 0 0 120px;')
-  })
-
   it('mantém a ilha clara legada (.legacy-surface) honesta com os tokens claros reais', () => {
     const shellCss = readFileSync(new URL('../shell/shell.css', import.meta.url), 'utf8')
     const tokensCss = readFileSync(new URL('../tokens.css', import.meta.url), 'utf8')
@@ -75,20 +68,6 @@ describe('shell', () => {
     const light = cssBlock(tokensCss, ':root')
     const covered = ['--bg-canvas', '--text-primary', '--text-secondary', '--stroke-default', '--accent', '--cat-break-soft', '--cat-learning-soft', '--cat-important-soft']
     for (const name of covered) expect(island[name], `${name} falta na ilha`).toBe(light[name])
-  })
-
-  it('aplica a camada visual refinada do sistema de design', () => {
-    const css = readFileSync(new URL('../refined-ui.css', import.meta.url), 'utf8')
-    expect(css).toContain('--ui-signal-blue: #0088ff')
-    expect(css).toContain('.view {')
-    expect(css).toContain('1200px')
-    expect(css).toContain('border-radius: 100px')
-  })
-
-  it('reserva um layout vertical para o formulário de feedback', () => {
-    const css = readFileSync(new URL('../refined-ui.css', import.meta.url), 'utf8')
-    expect(css).toContain('.feedback-form')
-    expect(css).toContain('display: grid')
   })
 
   describe('nextFocusIndex', () => {

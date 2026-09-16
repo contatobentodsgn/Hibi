@@ -24,7 +24,7 @@ test('o fonte recusa apresentações com ações e não guarda mais o host inter
   // A recusa em si (`showHost` com ações devolve false) é exercitada contra o binário em `host.test.cjs`.
   assert.match(source, /gPanel\.ignoresMouseEvents = YES/);
   assert.match(source, /gPanel\.styleMask \|= NSWindowStyleMaskNonactivatingPanel/);
-  assert.match(source, /gPanel\.becomesKeyOnlyIfNeeded = YES;/);
+  assert.match(source, /gPanel\.becomesKeyOnlyIfNeeded = YES; \[gPanel orderFrontRegardless\]/);
   assert.match(source, /- \(BOOL\)canBecomeKeyWindow \{ return NO; \}/);
   assert.match(source, /- \(BOOL\)canBecomeMainWindow \{ return NO; \}/);
   // Sem foco, teclado nem despacho de ação: um painel que recusa ações não teria como usá-los.
@@ -40,35 +40,40 @@ test('o fonte recusa apresentações com ações e não guarda mais o host inter
   assert.match(source, /- \(NSString \*\)accessibilityLabel \{ return self\.message; \}/);
 });
 
-test('converte a posição do Electron a partir do monitor sob o centro da janela', () => {
+test('converte a posição do Electron a partir da tela principal, não da tela com foco', () => {
   const source = readSource();
 
-  assert.match(source, /CGFloat centerX = x \+ width \/ 2\.0;/);
-  assert.match(source, /NSMaxY\(targetScreen\.frame\) - height \+ kMenuBarInset/);
+  assert.match(source, /NSScreen \*primary = NSScreen\.screens\.firstObject;/);
+  assert.match(source, /NSMaxY\(primary\.frame\) - electronY - height/);
   assert.doesNotMatch(source, /NSScreen\.mainScreen/);
 });
 
 test('desloca o painel para baixo da câmera e centraliza o texto passivo sem cortar', () => {
   const source = readSource();
 
+  assert.match(source, /@property\(nonatomic\) CGFloat topInset;/);
   assert.match(source, /CGFloat inset = screen\.safeAreaInsets\.top;/);
-  assert.match(source, /CGFloat height = kPassiveHeight \* gScale;/);
+  assert.match(source, /CGFloat height = kPassiveHeight \+ inset;/);
+  // `applyTopInset:` é o único lugar que grava o inset usado no desenho e nos cantos.
+  assert.match(source, /- \(void\)applyTopInset:\(CGFloat\)topInset \{\n  self\.topInset = topInset;/);
   assert.match(source, /\[view applyTopInset:inset\];/);
   assert.doesNotMatch(source, /view\.topInset = inset;/);
   assert.match(source, /\[view setNeedsDisplay:YES\];/);
+  assert.match(source, /NSLineBreakByTruncatingTail/);
   assert.doesNotMatch(source, /self\.bounds\.size\.height - bottom - 14\.0/);
 });
 
 test('achata quebras de linha (\\n, \\r, \\r\\n, U+2028) no texto passivo em vez de só trocar \\n', () => {
   const source = readSource();
 
+  assert.match(source, /componentsSeparatedByCharactersInSet:NSCharacterSet\.newlineCharacterSet\]/);
   assert.doesNotMatch(source, /stringByReplacingOccurrencesOfString:@"\\n" withString:@" "\]/);
 });
 
-test('mantém cantos inferiores e usa uma máscara geométrica com shoulders superiores', () => {
+test('arredonda só os cantos de baixo sob a câmera e mede a linha passiva num texto de referência', () => {
   const source = readSource();
 
-  assert.match(source, /CGPathAddCurveToPoint\(path/);
-  assert.match(source, /kBottomCornerRadius/);
-  assert.match(source, /self\.shapeMask\.path = path/);
+  assert.match(source, /layer\.maskedCorners = kCALayerMinXMinYCorner \| kCALayerMaxXMinYCorner/);
+  assert.match(source, /@"Hg" sizeWithAttributes:attributes\]\.height/);
+  assert.doesNotMatch(source, /CGFloat lineHeight = ceil\(\[self\.message sizeWithAttributes:attributes\]\.height\)/);
 });

@@ -84,10 +84,8 @@ describe('TabyView capability boundaries', () => {
 
   it('maps assistant stages, confirmations, results, and failures to companion events', () => {
     expect(companionEventFor('confirmation', 'c-1', 'Confirm?', 10)).toMatchObject({ type: 'confirmation.requested', requestId: 'c-1', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] });
-    expect(companionEventFor('result', 'r-1', 'Done', 10)).toMatchObject({ type: 'ai.result', requestId: 'r-1' });
-    expect(companionEventFor('result', 'r-1', 'Done', 10)).not.toHaveProperty('expiresInMs');
-    expect(companionEventFor('error', 'e-1', 'Failed', 10)).toMatchObject({ type: 'error.raised', requestId: 'e-1' });
-    expect(companionEventFor('error', 'e-1', 'Failed', 10)).not.toHaveProperty('expiresInMs');
+    expect(companionEventFor('result', 'r-1', 'Done', 10)).toMatchObject({ type: 'ai.result', requestId: 'r-1', expiresInMs: 4_000 });
+    expect(companionEventFor('error', 'e-1', 'Failed', 10)).toMatchObject({ type: 'error.raised', requestId: 'e-1', expiresInMs: 5_000 });
   });
 });
 

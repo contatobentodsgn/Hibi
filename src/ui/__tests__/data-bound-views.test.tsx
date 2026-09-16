@@ -60,10 +60,8 @@ describe('study views', () => {
       />,
     );
 
-    expect(markup).toContain('+ New task');
-    expect(markup).not.toContain('aria-label="New task title"');
-    expect(markup).not.toContain('>Cancel</button>');
-    expect(markup).not.toContain('Add task');
+    expect(markup).toContain('aria-label="New task title"');
+    expect(markup).toContain('Add task');
     expect(markup).toContain('aria-label="Rename Kabrito Post 01"');
     expect(markup).toContain('aria-label="Set deadline for Kabrito Post 01"');
     expect(markup).toContain('aria-label="Delete Kabrito Post 01"');

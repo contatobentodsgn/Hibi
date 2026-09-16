@@ -60,7 +60,7 @@ test('captura rápida da Home abre a paleta de comandos', async ({ page }) => {
 
 test('filtro de pasta funciona em Tarefas e Notas', async ({ page }) => {
   await page.goto('/');
-  await dock(page).getByRole('button', { name: 'Tarefas', exact: true }).click({ force: true });
+  await go(page, 'Tarefas');
   const chip = page.getByRole('button', { name: /^Pasta · Bento \d+$/ });
   await chip.click();
   await expect(chip).toHaveAttribute('aria-pressed', 'true');
@@ -76,14 +76,12 @@ test('+ New note leva o foco para o formulário de nota nova', async ({ page }) 
   await expect(page.getByRole('form', { name: 'Create note' }).getByLabel('Title')).toBeFocused();
 });
 
-test.skip('clicar no item do dock da tela atual não apaga o que está sendo digitado', async ({ page }) => {
+test('clicar no item do dock da tela atual não apaga o que está sendo digitado', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Tarefas');
-  await page.getByRole('button', { name: '+ New task', exact: true }).click();
-  const createTask = page.getByRole('dialog', { name: 'Create task' });
-  await createTask.getByRole('textbox', { name: 'Title' }).fill('Rascunho de tarefa');
-  await dock(page).getByRole('button', { name: 'Tarefas', exact: true }).click({ force: true });
-  await expect(createTask.getByRole('textbox', { name: 'Title' })).toHaveValue('Rascunho de tarefa');
+  await page.getByLabel('New task title').fill('Rascunho de tarefa');
+  await go(page, 'Tarefas');
+  await expect(page.getByLabel('New task title')).toHaveValue('Rascunho de tarefa');
 });
 
 test('nota criada em pasta nova ganha filtro próprio, e trocar de filtro não apaga o rascunho', async ({ page }) => {

@@ -10,7 +10,7 @@ describe('Updates view', () => {
     expect(markup).toContain('Offline mode');
     expect(markup).toContain('No update source configured');
     expect(markup).toContain('External update checks are disabled in offline mode.');
-    expect(markup).toContain('signed production build can enable checks');
+    expect(markup).toContain('Open Settings');
     expect(markup).toContain('/companion-assets/updates/0.1.7/home-tint-default.png');
     expect(markup).not.toContain('Adapter status');
   });

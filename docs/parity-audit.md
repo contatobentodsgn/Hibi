@@ -6,9 +6,6 @@
 > [`IMPLEMENTATION_STATUS_AND_PLAN.md`](IMPLEMENTATION_STATUS_AND_PLAN.md); a validação do notch está
 > em [`notch-manual-results.md`](notch-manual-results.md). Mantido como histórico.
 
-> A tabela abaixo é deliberadamente histórica e não deve ser usada para inferir o estado
-> atual das integrações. Consulte o documento de status acima antes de iniciar trabalho novo.
-
 Referência: inventário local do aplicativo original e auditorias disponíveis em `/Volumes/SSD/app/node_modules/@hey-taby/`.
 
 ## Situação atual
@@ -19,10 +16,10 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 |---|---|---|
 | Home | Funcional localmente | Painel, contagens, próximos itens e atalhos são derivados do snapshot local; a agenda seed continua fixa para o estudo. |
 | Tasks | Funcional | CRUD local, status, pasta Bento e deadline. |
-| Day/Week | Funcional local | Registro histórico de 07/09; hoje há também uma camada de sincronização externa com confirmação, ainda dependente de validação real por serviço. |
+| Day/Week | Funcional local | Blocos, quick add, horários, bloqueio de conflitos e importação/exportação ICS local; sem sincronização externa. |
 | Reminders | Funcional | CRUD local, pausa, recorrência semanal, horários e notificações macOS. |
 | Focus | Funcional | Timer local de 25 minutos com pausa e conclusão. |
-| Settings | Funcional localmente | Registro histórico de 07/09; as integrações externas passaram a ter adaptadores locais depois desta auditoria. |
+| Settings | Funcional localmente | Abas General/Focus/Notifications/Data/About, preferências locais, reset, login automático e teste de notificação. Integrações externas continuam fora do escopo local. |
 | Instrumentation | Funcional | Filtro, exportação JSON, limpeza e registro de ações. |
 | Notes | Funcional | Criar, editar, buscar, excluir e pasta padrão Bento. |
 | Habits | Funcional | Recorrência, histórico de conclusão, edição e exclusão. |
@@ -33,7 +30,7 @@ Referência: inventário local do aplicativo original e auditorias disponíveis 
 | Feedback/updates | Parcial | Feedback, bug e ideia são salvos localmente; `/updates` informa a build offline, sem serviço remoto de envio nem atualização do produto. |
 | Notificações nativas | Funcional | Scheduler macOS para lembretes/deadlines, recorrência e teste. |
 | Animações | Parcial | Transições CSS acessíveis; o inventário original referencia dezenas de vídeos/estados proprietários que não estão disponíveis no Hibi. |
-| Integrações externas | Parcial, conforme o registro histórico | Na data desta auditoria eram ausentes; posteriormente foram adicionados Notion, Apple EventKit, Google Calendar e outros adaptadores locais. Consulte o status atual antes de concluir que estão indisponíveis. |
+| Integrações externas | Ausente | O app permanece local e sem conectores externos. |
 
 ## Conclusão
 
