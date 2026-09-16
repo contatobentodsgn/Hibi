@@ -145,6 +145,7 @@ test("creates a Google Calendar event only through an approved calendar.create a
   });
 
   assert.deepEqual(result, {
+    ok: true,
     remoteId: "remote-event-1",
     revision: '"revision-1"',
   });
@@ -190,6 +191,7 @@ test("updates an existing Google Calendar event with its expected revision", asy
   });
 
   assert.deepEqual(result, {
+    ok: true,
     remoteId: "remote-event-1",
     revision: '"revision-2"',
   });
@@ -268,7 +270,7 @@ test("returns the event already created when a retried publish reuses its id", a
     credential: "secret-token",
   });
 
-  assert.deepEqual(result, { remoteId: "0123456789abcdef0123456789abcdef", revision: '"r1"' });
+  assert.deepEqual(result, { ok: true, remoteId: "0123456789abcdef0123456789abcdef", revision: '"r1"' });
   assert.deepEqual(calls, ["POST calendars/primary/events", "GET calendars/primary/events/0123456789abcdef0123456789abcdef"]);
 });
 

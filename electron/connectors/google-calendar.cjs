@@ -328,7 +328,10 @@ function createGoogleCalendarConnector({ request, oauth } = {}) {
         const found = await existing.json().catch(() => ({}));
         if (!boundedText(found?.id) || found.status === "cancelled")
           throw new Error("Google Calendar event identifier is already in use.");
+        // `ok` explícito: o gerenciador de integrações só considera escrita bem-sucedida o resultado que
+        // o declara, e sem ele um evento criado de verdade voltava como falha.
         return {
+          ok: true,
           remoteId: found.id,
           ...(boundedText(found.etag) ? { revision: found.etag } : {}),
         };
@@ -342,6 +345,7 @@ function createGoogleCalendarConnector({ request, oauth } = {}) {
       if (!boundedText(created?.id))
         throw new Error("Google Calendar returned an invalid event.");
       return {
+        ok: true,
         remoteId: created.id,
         ...(boundedText(created.etag) ? { revision: created.etag } : {}),
       };
