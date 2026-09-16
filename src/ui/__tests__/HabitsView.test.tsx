@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { createSeedData } from '../../data/seed-data';
 import { localDateKey, shiftDayKey, todayKey } from '../../domain/date-context';
 import type { Habit, StudyData } from '../../domain/models';
-import { HabitsView, progressFor, streakFor } from '../HabitsView';
+import { HabitsView } from '../HabitsView';
+import { progressFor, streakFor } from '../progress-rhythm';
 
 // Tudo aqui é montado com os componentes locais da data e com um "hoje" injetado, então a suíte vale
 // em qualquer fuso — inclusive nos extremos (UTC+14 e UTC-11), onde o dia UTC e o dia local divergem.

@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { localDateKey, localNoon, todayKey } from '../domain/date-context';
+import { todayKey } from '../domain/date-context';
 import type { Habit, StudyData } from '../domain/models';
+import { HabitsAtelierSummary } from './HabitsAtelierSummary';
+// `streakFor` e `progressFor` moraram aqui até o resumo precisar delas. Ficaram no módulo do ritmo
+// para existir uma regra só: duas cópias da sequência acabariam divergindo na primeira correção.
+import { progressFor, streakFor } from './progress-rhythm';
 
 type HabitChanges = Partial<Omit<Habit, 'id'>>;
 type Props = {
@@ -16,35 +20,6 @@ type Props = {
 // A semana de um hábito semanal vai da segunda ao domingo do dia informado, no calendário local.
 // Ancorar em `-03:00` e reler com `toISOString()` misturava dois calendários: fora de UTC-03 a grade
 // saía deslocada de um dia e as marcações caíam na semana errada.
-function weekDates(dateKeyValue: string): string[] {
-  const date = localNoon(dateKeyValue);
-  const mondayOffset = (date.getDay() + 6) % 7;
-  date.setDate(date.getDate() - mondayOffset);
-  return Array.from({ length: 7 }, (_, index) => {
-    const current = new Date(date);
-    current.setDate(date.getDate() + index);
-    return localDateKey(current);
-  });
-}
-
-/** Dias consecutivos concluídos terminando em `today`, contados para trás pelo calendário local. */
-export function streakFor(habit: Habit, today: string): number {
-  const completed = new Set(habit.completedDates);
-  let streak = 0;
-  const cursor = localNoon(today);
-  while (completed.has(localDateKey(cursor))) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
-}
-
-export function progressFor(habit: Habit, today: string): { completed: number; target: number } {
-  if (habit.frequency === 'daily') return { completed: habit.completedDates.includes(today) ? 1 : 0, target: 1 };
-  const week = new Set(weekDates(today));
-  return { completed: habit.completedDates.filter((date) => week.has(date)).length, target: habit.targetPerWeek };
-}
-
 export function HabitsView({ data, onCreate, onToggleCompletion, onUpdate, onDelete, now }: Props) {
   // Hoje é o dia do relógio de quem usa o app, resolvido a cada render — não uma data fixa no código.
   const today = todayKey(now);
@@ -90,6 +65,7 @@ export function HabitsView({ data, onCreate, onToggleCompletion, onUpdate, onDel
       {newFrequency === 'weekly' && <label htmlFor="new-habit-target">Times per week<input id="new-habit-target" type="number" min="1" step="1" value={newTarget} onChange={(event) => setNewTarget(event.target.value)} required /></label>}
       <button className="primary" type="submit">Add habit</button>
     </form>
+    <HabitsAtelierSummary habits={data.habits} today={today} />
     <section className="list-card">{data.habits.map((habit) => {
       const completedToday = habit.completedDates.includes(today);
       const progress = progressFor(habit, today);
