@@ -287,6 +287,12 @@ const pt = {
   'stats.empty': 'Nenhuma atividade registrada neste período.',
   'stats.emptyDetail': 'Conclua tarefas, sessões de foco, hábitos ou metas para ver as estatísticas aqui.',
 
+  // Dados e pontos de restauração são do Claude: acrescente somente neste bloco, sem reordenar chaves vizinhas.
+  'data.restorePoint.beforeReset': 'Antes de apagar todos os dados',
+  'data.restorePoint.beforeRestore': 'Antes de restaurar um backup',
+  'data.restorePoint.migration': 'Migração do armazenamento local',
+  'data.restorePoint.beforeRollback': 'Antes de reverter alterações',
+
   'taby.greeting': 'Olá! Sou o assistente local do Hibi. Posso consultar e organizar seu espaço de trabalho.',
   'taby.conversations': 'Conversas',
   'taby.newConversation': 'Nova conversa',
@@ -592,6 +598,12 @@ const en: Record<DictionaryKey, string> = {
   'stats.exportFailed': 'Could not export the file.',
   'stats.empty': 'No activity recorded in this period.',
   'stats.emptyDetail': 'Complete tasks, focus sessions, habits or goals to see statistics here.',
+
+  // Data and restore points are owned by Claude: add only within this block and do not reorder neighbouring keys.
+  'data.restorePoint.beforeReset': 'Before wiping all data',
+  'data.restorePoint.beforeRestore': 'Before restoring a backup',
+  'data.restorePoint.migration': 'Local storage migration',
+  'data.restorePoint.beforeRollback': 'Before rolling back changes',
 
   'taby.greeting': "Hi! I'm Hibi's local assistant. I can look things up and organise your workspace.",
   'taby.conversations': 'Conversations',

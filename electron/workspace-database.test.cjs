@@ -92,7 +92,7 @@ test("restaurar volta o payload guardado e guarda o estado atual antes", () => {
   assert.equal(database.read().payload, payloadWith("original"));
   // O estado de antes da restauração continua alcançável: restaurar não é caminho sem volta.
   const labels = database.listRestorePoints().map((entry) => entry.label);
-  assert.deepEqual(labels, ["before-restore", "migração"]);
+  assert.deepEqual(labels, ["data.restorePoint.beforeRollback", "migração"]);
   assert.equal(database.restore(database.listRestorePoints()[0].id).payload, payloadWith("migrado"));
   database.close();
 });

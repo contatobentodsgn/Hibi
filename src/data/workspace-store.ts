@@ -17,9 +17,43 @@
  *    lugar antigo.
  */
 
+import type { DictionaryKey } from '../i18n/dictionary'
+
 export const WORKSPACE_STORAGE_KEY = 'hibi-study-data'
 export const WORKSPACE_MIGRATED_KEY = 'hibi-study-data-migrated'
-export const WORKSPACE_MIGRATION_LABEL = 'migração do armazenamento local'
+
+/**
+ * O rótulo gravado num ponto de restauração é a **chave** do dicionário, não a frase: quem mostra a
+ * lista traduz na hora, e um workspace gravado em português não fica preso a ele. Pontos criados
+ * antes desta mudança guardam a frase, e `restorePointLabelKey` reconhece essas frases.
+ */
+export const WORKSPACE_RESTORE_POINT_KEYS = {
+  beforeReset: 'data.restorePoint.beforeReset',
+  beforeRestore: 'data.restorePoint.beforeRestore',
+  migration: 'data.restorePoint.migration',
+  beforeRollback: 'data.restorePoint.beforeRollback',
+} as const satisfies Record<string, DictionaryKey>
+
+export const WORKSPACE_MIGRATION_LABEL: DictionaryKey = WORKSPACE_RESTORE_POINT_KEYS.migration
+
+/** As frases que as versões anteriores gravaram, e a chave equivalente de cada uma. */
+const LEGACY_RESTORE_POINT_LABELS: Readonly<Record<string, DictionaryKey>> = {
+  'antes de apagar todos os dados': WORKSPACE_RESTORE_POINT_KEYS.beforeReset,
+  'antes de restaurar um backup': WORKSPACE_RESTORE_POINT_KEYS.beforeRestore,
+  'migração do armazenamento local': WORKSPACE_RESTORE_POINT_KEYS.migration,
+  'before-restore': WORKSPACE_RESTORE_POINT_KEYS.beforeRollback,
+}
+
+const KNOWN_RESTORE_POINT_KEYS = new Set<string>(Object.values(WORKSPACE_RESTORE_POINT_KEYS))
+
+/**
+ * A chave do dicionário para o rótulo de um ponto, ou `null` quando não é um rótulo conhecido —
+ * aí quem mostra a lista exibe o texto como veio, em vez de sumir com a linha.
+ */
+export function restorePointLabelKey(label: string): DictionaryKey | null {
+  if (KNOWN_RESTORE_POINT_KEYS.has(label)) return label as DictionaryKey
+  return LEGACY_RESTORE_POINT_LABELS[label.trim().toLowerCase()] ?? null
+}
 
 export type WorkspaceSaveOptions = Readonly<{ restorePoint?: string }>
 export type WorkspaceRestorePoint = Readonly<{ id: number; label: string; createdAt: string; bytes: number }>

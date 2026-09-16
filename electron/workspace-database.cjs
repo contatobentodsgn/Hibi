@@ -129,7 +129,7 @@ function createWorkspaceDatabase({
       try {
         const point = readPoint.get(id);
         if (!point) throw new Error("This restore point is unavailable.");
-        keepRestorePoint("before-restore");
+        keepRestorePoint("data.restorePoint.beforeRollback");
         writeWorkspace.run(point.payload, at);
         database.exec("COMMIT");
         return { payload: point.payload, updatedAt: at };

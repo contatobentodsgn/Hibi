@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LocalRepository } from './data/local-repository';
-import { createDesktopWorkspaceBackend, createWorkspaceSession, createWorkspaceStore } from './data/workspace-store';
+import { WORKSPACE_RESTORE_POINT_KEYS, createDesktopWorkspaceBackend, createWorkspaceSession, createWorkspaceStore } from './data/workspace-store';
 import type { WorkspacePreferences } from './data/workspace-backup';
 import { createSeedData } from './data/seed-data';
 import type { EntityStatus, Goal, Habit, ScheduleBlock, StudyData, Task } from './domain/models';
@@ -251,7 +251,7 @@ export default function App() {
   const resetStudyData = () => {
     if (!window.confirm('Reset all local study data?')) return;
     // O ponto guarda o estado de antes: sem ele, apagar tudo é uma ação sem volta.
-    workspace.markRestorePoint('antes de apagar todos os dados');
+    workspace.markRestorePoint(WORKSPACE_RESTORE_POINT_KEYS.beforeReset);
     repository.reset();
     refreshData();
     log('reset', 'Reset study data', 'pass');
@@ -259,7 +259,7 @@ export default function App() {
 
   const restoreStudyData = (restored: StudyData, preferences: WorkspacePreferences) => {
     // Restaurar um backup sobrescreve o workspace inteiro; o ponto é o caminho de volta.
-    workspace.markRestorePoint('antes de restaurar um backup');
+    workspace.markRestorePoint(WORKSPACE_RESTORE_POINT_KEYS.beforeRestore);
     repository.replace(restored);
     refreshData();
     log('import', `Restored ${restored.tasks.length} tasks, ${restored.blocks.length} calendar blocks`, `${preferences.language} · ${preferences.twentyFourHour ? '24h' : '12h'}`);
