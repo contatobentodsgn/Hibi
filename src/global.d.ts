@@ -68,6 +68,8 @@ declare global {
       getNotchCapabilities?: () => Promise<{ adapter: 'public' | 'experimental'; experimental: boolean; reason: string | null; bridgeLoaded: boolean; nativePromotion: boolean; nativeHost: boolean; screens: readonly { index: number; displayId?: number; frame: { x: number; y: number; width: number; height: number }; safeAreaTop: number; hasCameraHousing: boolean }[]; host: { available: boolean; created?: boolean; visible?: boolean; interactive?: boolean; displayId?: number; host?: 'native' | 'electron' } }>;
       listNotchDisplays?: () => Promise<NotchDisplayState>;
       setNotchDisplay?: (displayId: number | null) => Promise<NotchDisplayState>;
+      getLocalModelState?: () => Promise<{ status: 'unavailable' | 'missing' | 'unverified' | 'ready'; modelId: string | null; sizeBytes?: number; error: string | null }>;
+      verifyLocalModel?: () => Promise<{ verified: boolean; modelId: string | null; error: string | null }>;
       getLocalVoiceState?: () => Promise<{ status: string; locale: string; error: string | null }>;
       listenLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null }>;
       setLocalVoiceLocale?: (locale: string) => Promise<{ status: string; locale: string; error: string | null }>;

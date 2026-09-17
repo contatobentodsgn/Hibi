@@ -59,6 +59,8 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,getNotchCapabilities: () => ipcRenderer.invoke('hibi:notch:capabilities')
   ,listNotchDisplays: () => ipcRenderer.invoke('hibi:notch:displays')
   ,setNotchDisplay: (displayId) => ipcRenderer.invoke('hibi:notch:set-display', displayId)
+  ,getLocalModelState: () => ipcRenderer.invoke('hibi:local-model:state')
+  ,verifyLocalModel: () => ipcRenderer.invoke('hibi:local-model:verify')
   ,getLocalVoiceState: () => ipcRenderer.invoke('hibi:local-voice:state')
   ,listenLocalVoice: () => ipcRenderer.invoke('hibi:local-voice:listen')
   ,setLocalVoiceLocale: (locale) => ipcRenderer.invoke('hibi:local-voice:set-locale', locale)

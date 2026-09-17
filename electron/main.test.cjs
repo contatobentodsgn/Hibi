@@ -85,6 +85,8 @@ const EXPECTED_CHANNELS = [
   "hibi:notch:capabilities",
   "hibi:notch:displays",
   "hibi:notch:set-display",
+  "hibi:local-model:state",
+  "hibi:local-model:verify",
   "hibi:local-voice:state",
   "hibi:local-voice:listen",
   "hibi:local-voice:set-locale",
@@ -1277,4 +1279,34 @@ test("o microfone recusado vira estado, e a escuta nem começa", { skip: process
   assert.deepEqual(harness.captured.mediaAccess, ["microphone"]);
   // O serviço não chega a ser acionado: sem permissão, não se abre o microfone.
   assert.deepEqual(harness.voiceService.calls, []);
+});
+
+test("o estado do modelo local diz o que falta, sem nunca ler o arquivo inteiro", async (t) => {
+  const harness = await loadMain({ seedUserData: (userData) => {
+    const raiz = path.join(userData, ".hibi-local-models");
+    fs.mkdirSync(raiz, { recursive: true });
+    fs.writeFileSync(path.join(raiz, "manifest.json"), JSON.stringify({ schema: "hibi.local-model", version: 1, id: "tiny-q4", modelVersion: "1", sizeBytes: 12, sha256: "a".repeat(64) }));
+  } });
+  t.after(() => harness.cleanup());
+
+  // Sem o arquivo, o app diz que falta baixar — e não que o cérebro está pronto.
+  assert.deepEqual(await harness.invoke("hibi:local-model:state"), { status: "missing", modelId: "tiny-q4", sizeBytes: 12, error: null });
+});
+
+test("um modelo que não bate com o manifesto nunca é dado como pronto", async (t) => {
+  const conteudo = Buffer.from("doze bytes!!");
+  const harness = await loadMain({ seedUserData: (userData) => {
+    const raiz = path.join(userData, ".hibi-local-models");
+    fs.mkdirSync(raiz, { recursive: true });
+    fs.writeFileSync(path.join(raiz, "manifest.json"), JSON.stringify({ schema: "hibi.local-model", version: 1, id: "tiny-q4", modelVersion: "1", sizeBytes: conteudo.length, sha256: "b".repeat(64) }));
+    fs.writeFileSync(path.join(raiz, "tiny-q4.bin"), conteudo);
+  } });
+  t.after(() => harness.cleanup());
+
+  const estado = await harness.invoke("hibi:local-model:state");
+  assert.equal(estado.status, "unverified");
+
+  const conferido = await harness.invoke("hibi:local-model:verify");
+  assert.equal(conferido.verified, false);
+  assert.match(conferido.error, /checksum the manifest declares/);
 });
