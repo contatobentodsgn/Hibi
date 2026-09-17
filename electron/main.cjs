@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification, dialog, screen, shell, powerMonitor, systemPreferences } = require("electron");
+const { app, BrowserWindow, ipcMain, Notification, dialog, screen, shell, powerMonitor, systemPreferences, globalShortcut } = require("electron");
 const path = require("node:path");
 const crypto = require('node:crypto');
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.mjs");
@@ -27,6 +27,8 @@ const { createLocalVoiceService } = require('./local-voice.cjs');
 const { createLocalModelStore } = require('./local-model-store.cjs');
 const { createLocalModelDownload } = require('./local-model-download.cjs');
 const { createLocalModelService } = require('./local-model-service.cjs');
+const { createShortcutSettings } = require('./shortcut-settings.cjs');
+const { createTabyShortcut } = require('./taby-shortcut.cjs');
 const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
 const { resolveUserDataPath } = require('./user-data-path.cjs');
@@ -72,6 +74,7 @@ let notchWindow;
 let notchSettings;
 let notchTest;
 let detachNotchLifecycle = () => {};
+let tabyShortcut;
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
 const MAX_AI_STREAM_DELTA = 8000;
 const MAX_AI_STREAM_DELAY = 60_000;
@@ -223,6 +226,17 @@ function sendToMainWindow(channel, ...args) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, ...args);
 }
 
+// O atalho é global: ele chega com o app atrás de tudo, minimizado ou escondido. Sem restaurar e
+// focar antes de avisar o renderer, a pessoa aperta a tecla e nada aparece.
+function summonTaby() {
+  if (!mainWindow || mainWindow.isDestroyed()) createWindow();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  app.focus?.({ steal: true });
+  sendToMainWindow('hibi:shortcut:taby');
+}
+
 function replaceAiRuntime(runtime) {
   aiRequestCoordinator = replaceAiRequestCoordinator(aiRequestCoordinator, runtime);
   aiRuntime = runtime;
@@ -252,6 +266,7 @@ app.whenReady().then(async () => {
   const secureKeychain = createMacKeychain();
   connectorSettings = createConnectorSettings({ filePath: path.join(app.getPath('userData'), 'connector-settings.json') });
   calendarSyncSettings = createCalendarSyncSettings({ filePath: path.join(app.getPath('userData'), 'calendar-sync.json') });
+  tabyShortcut = createTabyShortcut({ globalShortcut, settings: createShortcutSettings({ filePath: path.join(app.getPath('userData'), 'shortcut-settings.json') }), onTrigger: summonTaby });
   // Um banco que não abre não pode impedir o app de abrir: os canais respondem com erro controlado e o
   // renderer segue no armazenamento local.
   try { workspaceDatabase = createWorkspaceDatabase({ filePath: path.join(app.getPath('userData'), 'workspace.db') }); }
@@ -427,6 +442,13 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:notch:test', (_event, locale) => notchTest.run(locale === 'en' ? 'en' : 'pt'));
   // O tamanho do companion é ajuste da pessoa e vale entre aberturas: fica no mesmo arquivo do monitor
   // preferido, e a superfície — painel nativo ou janela — é reposicionada na hora.
+  // O estado diz se a tecla está valendo: `taken` é outro app com ela, e a tela precisa mostrar qual
+  // atalho está escolhido mesmo assim.
+  ipcMain.handle('hibi:shortcut:get', () => tabyShortcut.describe());
+  ipcMain.handle('hibi:shortcut:set', (_event, accelerator) => {
+    try { return tabyShortcut.set(accelerator === null ? null : String(accelerator)); }
+    catch { return { ...tabyShortcut.describe(), error: 'invalid' }; }
+  });
   ipcMain.handle('hibi:local-model:state', () => localModelStore.describe());
   // A conferência completa lê o arquivo inteiro e leva segundos: é pedida, nunca automática.
   ipcMain.handle('hibi:local-model:verify', () => localModelStore.verify());
@@ -463,10 +485,11 @@ app.whenReady().then(async () => {
   createWindow();
   // Depois da janela principal, para não correr com o carregamento da overlay: o companion de
   // inicialização é a prova visual de que o notch físico está coberto, e nasce na tela com câmera.
+  tabyShortcut.apply();
   showStartupNotch(notchWindow, startupNotchAnimationPath());
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
-app.on("before-quit", () => { detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
+app.on("before-quit", () => { tabyShortcut?.dispose(); detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
 module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, rendererRecoveryPrompt, safeAiStreamEvent, routeNotchAction, isRendererPresentationAllowed };

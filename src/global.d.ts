@@ -85,6 +85,9 @@ declare global {
       setNotchSize?: (size: 'normal' | 'compact') => Promise<{ size: 'normal' | 'compact' }>;
       testNotch?: (locale: 'pt' | 'en') => Promise<NotchTestResult>;
       onNotchDisplaysChanged?: (callback: () => void) => () => void;
+      getTabyShortcut?: () => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled' }>;
+      setTabyShortcut?: (accelerator: string | null) => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled'; error?: 'invalid' }>;
+      onTabyShortcut?: (callback: () => void) => () => void;
       onCompanionPresentation?: (callback: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' }) => void) => () => void;
       onCompanionAction?: (callback: (action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void) => () => void;
       onNotificationTriggered?: (callback: (entry: NotificationEntry) => void) => () => void;
