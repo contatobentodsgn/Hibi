@@ -89,6 +89,9 @@ const EXPECTED_CHANNELS = [
   "hibi:local-model:verify",
   "hibi:local-model:download",
   "hibi:local-model:cancel-download",
+  "hibi:local-model:run",
+  "hibi:local-model:cancel",
+  "hibi:local-model:shutdown",
   "hibi:local-voice:state",
   "hibi:local-voice:listen",
   "hibi:local-voice:set-locale",
@@ -1311,4 +1314,23 @@ test("um modelo que não bate com o manifesto nunca é dado como pronto", async 
   const conferido = await harness.invoke("hibi:local-model:verify");
   assert.equal(conferido.verified, false);
   assert.match(conferido.error, /checksum the manifest declares/);
+});
+
+test("sem modelo verificado, perguntar ao cérebro offline responde indisponível em vez de carregar", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  const resposta = await harness.invoke("hibi:local-model:run", { requestId: "r-1", prompt: "Resuma meu dia" });
+
+  // Nada de motor, nada de llama.cpp: sem arquivo que bata com o manifesto, não há o que carregar.
+  assert.deepEqual(resposta, { requestId: "r-1", status: "unavailable", text: "" });
+});
+
+test("um requestId inválido não vira pergunta ao modelo", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  const resposta = await harness.invoke("hibi:local-model:run", { requestId: 42, prompt: "x" });
+
+  assert.deepEqual(resposta, { requestId: null, status: "unavailable", text: "" });
 });
