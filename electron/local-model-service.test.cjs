@@ -17,3 +17,22 @@ test('loads an injected local engine and exposes bounded run/cancel lifecycle', 
   await service.shutdown();
   assert.equal(service.state().status, 'unavailable');
 });
+
+test('uma fábrica assíncrona é esperada: é assim que o motor de verdade é carregado', async () => {
+  const perguntas = [];
+  const service = createLocalModelService({
+    dataRoot: '/dados',
+    // No app, a fábrica faz `import()` do motor: ela devolve promessa, não o motor pronto.
+    engineFactory: async () => ({
+      load: async () => {},
+      complete: async function* (prompt) { perguntas.push(prompt); yield 'resposta'; },
+    }),
+  });
+
+  const estado = await service.load({ manifest: { id: 'tiny-q4' }, modelPath: '/dados/tiny-q4.bin' });
+  assert.equal(estado.status, 'ready');
+
+  const resposta = await service.run({ requestId: 'r-1', prompt: 'oi' });
+  assert.deepEqual(resposta, { requestId: 'r-1', status: 'complete', text: 'resposta' });
+  assert.deepEqual(perguntas, ['oi']);
+});
