@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useT } from '../i18n/LocaleProvider';
 import { downloadPercent, formatModelSize, type LocalModelDownload, type LocalModelStatus } from './local-model-format';
-import { modelStatusKey } from './local-model-format';
+import { modelPurposeKey, modelStatusKey } from './local-model-format';
 
 type ModelState = { status: LocalModelStatus; modelId: string | null; sizeBytes?: number; error: string | null };
 
 /**
- * O cérebro offline em Configurações › Dados.
+ * O cérebro offline em Configurações › IA, ao lado do provedor que atende o Taby.
  *
  * O download é sempre pedido: são quase dois gigabytes, e isso é decisão de quem usa o app, não do
  * app. Enquanto ele corre, a tela mostra o quanto já veio e permite cancelar; ao fim, o modelo só é
@@ -63,6 +63,7 @@ export function LocalModelSettings({ onEvent }: { onEvent: (action: string, deta
       <div>
         <strong>{t('data.model.title')}</strong>
         <span>{state ? t(modelStatusKey(state.status)) : t('data.model.status.unavailable')} · {formatModelSize(state?.sizeBytes)}</span>
+        {state && <span>{t(modelPurposeKey(state.status))}</span>}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         {baixando
