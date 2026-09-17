@@ -54,3 +54,36 @@ test('o caminho do helper segue os recursos do app empacotado', () => {
   assert.equal(chamadas[0][0], '/Applications/Hibi.app/Contents/Resources/native/voice/build/hibi-voice');
   assert.deepEqual(chamadas[0][1], ['listen', 'en-US']);
 });
+
+// Em desenvolvimento o `process.resourcesPath` aponta para dentro do Electron baixado, onde o
+// helper nunca esteve: adivinhar por ele fazia a voz morrer com ENOENT, sem nada na tela.
+test('escolhe o helper que existe, não o que a variável do Electron sugere', () => {
+  const { resolveHelperPath } = require('./local-voice-macos.cjs');
+  const noRepositorio = require('node:path').join(__dirname, '..', 'native/voice/build/hibi-voice');
+  const original = process.resourcesPath;
+  // Em desenvolvimento esta variável existe e aponta para dentro do Electron baixado, onde o helper
+  // nunca esteve: é exatamente o caso em que adivinhar por ela quebra a voz.
+  Object.defineProperty(process, 'resourcesPath', { value: '/repo/node_modules/electron/dist/Electron.app/Contents/Resources', configurable: true });
+  try {
+    assert.equal(resolveHelperPath({ exists: (candidate) => candidate === noRepositorio }), noRepositorio);
+  } finally {
+    Object.defineProperty(process, 'resourcesPath', { value: original, configurable: true });
+  }
+});
+
+test('no app empacotado, o helper dos recursos ganha do caminho do repositório', () => {
+  const { resolveHelperPath } = require('./local-voice-macos.cjs');
+  const original = process.resourcesPath;
+  Object.defineProperty(process, 'resourcesPath', { value: '/Applications/Hibi.app/Contents/Resources', configurable: true });
+  try {
+    assert.equal(resolveHelperPath({ exists: () => true }), '/Applications/Hibi.app/Contents/Resources/native/voice/build/hibi-voice');
+  } finally {
+    Object.defineProperty(process, 'resourcesPath', { value: original, configurable: true });
+  }
+});
+
+test('sem helper em lugar nenhum, o caminho do repositório é o que aparece no erro', () => {
+  const { resolveHelperPath } = require('./local-voice-macos.cjs');
+
+  assert.equal(resolveHelperPath({ exists: () => false }), require('node:path').join(__dirname, '..', 'native/voice/build/hibi-voice'));
+});
