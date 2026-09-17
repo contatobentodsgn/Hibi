@@ -1214,6 +1214,11 @@ test("o companion de inicialização nasce com o app, passivo e com o loop a toc
   assert.equal(presentation.host, "native");
   // O painel nativo toca o loop a partir de um arquivo, então o caminho precisa chegar até ele.
   assert.match(presentation.animationPath, /companion-assets\/animations\/notch\/idle_01_loop\.mp4$/);
+
+  // E o mesmo companion é o ocioso: quando um cartão sai do ar, o mascote volta em vez de deixar o
+  // notch vazio. O gerenciador recebe como o encontrar.
+  const ocioso = harness.captured.notchWindow.idlePresentation();
+  assert.deepEqual(ocioso, presentation);
 });
 
 test("hibi:notch:set-size normaliza, persiste e move a superfície", async (t) => {

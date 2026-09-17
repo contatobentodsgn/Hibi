@@ -7,11 +7,15 @@ const STARTUP_PRESENTATION = Object.freeze({
   host: 'native',
 });
 
-function showStartupNotch(manager, animationPath = null) {
-  const presentation = typeof animationPath === 'string' && animationPath.length > 0
+/** A apresentação ociosa é a mesma da abertura: o mascote volta a ela quando nada mais está no ar. */
+function idleCompanionPresentation(animationPath = null) {
+  return typeof animationPath === 'string' && animationPath.length > 0
     ? { ...STARTUP_PRESENTATION, animationPath }
     : STARTUP_PRESENTATION;
-  return manager?.show?.(presentation);
 }
 
-module.exports = { showStartupNotch, STARTUP_PRESENTATION };
+function showStartupNotch(manager, animationPath = null) {
+  return manager?.show?.(idleCompanionPresentation(animationPath));
+}
+
+module.exports = { showStartupNotch, idleCompanionPresentation, STARTUP_PRESENTATION };
