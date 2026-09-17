@@ -8,7 +8,7 @@
     "dev": "vite",
     "desktop": "npm run native:build && node scripts/start-desktop.mjs",
     "desktop:production": "npm run build && HIBI_PRODUCTION=1 electron electron/main.cjs",
-    "native:build": "npm --prefix native/notch run build",
+    "native:build": "npm --prefix native/notch run build && node scripts/build-voice.mjs",
     "build": "npm run native:build && tsc --noEmit && vite build",
     "check:companion-assets": "node scripts/check-companion-assets.mjs",
     "safety:renderer": "node scripts/renderer-safety-check.mjs",
@@ -34,7 +34,8 @@
       "native/notch/build/Release/*.node",
       "!{electron,native}/**/*.test.*",
       "!electron/**/*.d.{mts,cts}",
-      "package.json"
+      "package.json",
+      "native/voice/build/hibi-voice"
     ],
     "mac": {
       "category": "public.app-category.productivity",
@@ -54,6 +55,10 @@
       {
         "from": "public/companion-assets/animations/notch/idle_01_loop.mp4",
         "to": "companion-assets/animations/notch/idle_01_loop.mp4"
+      },
+      {
+        "from": "native/voice/build/hibi-voice",
+        "to": "native/voice/build/hibi-voice"
       }
     ]
   },

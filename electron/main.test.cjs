@@ -85,6 +85,10 @@ const EXPECTED_CHANNELS = [
   "hibi:notch:capabilities",
   "hibi:notch:displays",
   "hibi:notch:set-display",
+  "hibi:local-voice:state",
+  "hibi:local-voice:listen",
+  "hibi:local-voice:set-locale",
+  "hibi:local-voice:stop",
   "hibi:notch:size",
   "hibi:notch:set-size",
   "hibi:notch:test",
@@ -175,6 +179,15 @@ async function loadMain({ seedUserData, breakWorkspaceDatabase } = {}) {
     static getAllWindows() { return windows.filter((window) => !window.destroyed); }
   }
 
+  let microphoneAllowed = true;
+  const voiceService = {
+    calls: [],
+    current: { status: 'ready', locale: 'pt-BR', error: null },
+    state() { return { ...this.current }; },
+    setLocale(locale) { this.calls.push(['setLocale', locale]); this.current = { ...this.current, locale: locale === 'en-US' ? 'en-US' : 'pt-BR' }; return this.state(); },
+    listen(request) { this.calls.push(['listen']); request?.onText?.('agendar reunião'); this.current = { ...this.current, status: 'listening' }; return this.state(); },
+    stop() { this.calls.push(['stop']); this.current = { ...this.current, status: 'ready' }; return this.state(); },
+  };
   const electronFake = {
     app: {
       isPackaged: true,
@@ -205,6 +218,8 @@ async function loadMain({ seedUserData, breakWorkspaceDatabase } = {}) {
       removeListener: (event, listener) => { removedEvents.push([event, listener]); },
     },
     shell: { openExternal: () => Promise.resolve() },
+    // A permissão de microfone é pedida ao sistema antes de abrir a escuta; o teste controla a resposta.
+    systemPreferences: { askForMediaAccess: async (tipo) => { captured.mediaAccess = [...(captured.mediaAccess ?? []), tipo]; return microphoneAllowed; } },
     powerMonitor: {
       on: (event, listener) => { powerEvents.push([event, listener]); },
       removeListener: (event, listener) => { removedEvents.push([event, listener]); },
@@ -277,6 +292,7 @@ async function loadMain({ seedUserData, breakWorkspaceDatabase } = {}) {
       createLocalApi: (options) => { captured.localApi = options; return localApi; },
     },
     "./webhooks.cjs": { createWebhookService: () => webhookService },
+    "./local-voice.cjs": { createLocalVoiceService: (options) => { captured.localVoice = options; return voiceService; } },
     "./oauth.cjs": { createOAuthService: (options) => { captured.oauth = options; return oauthService; } },
     "./notifications.mjs": {
       ...realNotifications,
@@ -348,6 +364,8 @@ async function loadMain({ seedUserData, breakWorkspaceDatabase } = {}) {
     keychain,
     captured,
     notchManager,
+    voiceService,
+    setMicrophoneAllowed: (value) => { microphoneAllowed = value; },
     notchTest,
     localApi,
     webhookService,
@@ -1222,4 +1240,36 @@ test("o tamanho salvo chega ao gerenciador na inicialização, junto do monitor 
 
   assert.equal(harness.captured.notchWindow.size, "compact");
   assert.equal(harness.captured.notchWindow.preferredDisplayId, 7);
+});
+
+test("a escuta repassa ao renderer o texto reconhecido, e o idioma é normalizado", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  assert.deepEqual(await harness.invoke("hibi:local-voice:state"), { status: "ready", locale: "pt-BR", error: null });
+
+  const escutando = await harness.invoke("hibi:local-voice:listen");
+  assert.equal(escutando.status, "listening");
+  // O texto reconhecido chega pelo evento, não pela resposta da chamada: ele vem em pedaços.
+  assert.deepEqual(harness.mainWindow().sent.at(-1), ["hibi:local-voice:text", "agendar reunião"]);
+
+  assert.equal((await harness.invoke("hibi:local-voice:set-locale", "en-US")).locale, "en-US");
+  // Qualquer outra coisa vinda do renderer volta ao padrão, em vez de virar argumento do helper.
+  assert.equal((await harness.invoke("hibi:local-voice:set-locale", "klingon")).locale, "pt-BR");
+  assert.equal((await harness.invoke("hibi:local-voice:stop")).status, "ready");
+  assert.deepEqual(harness.voiceService.calls, [["listen"], ["setLocale", "en-US"], ["setLocale", "klingon"], ["stop"]]);
+});
+
+test("o microfone recusado vira estado, e a escuta nem começa", { skip: process.platform !== "darwin" ? "só no macOS" : false }, async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  harness.setMicrophoneAllowed(false);
+
+  const recusado = await harness.invoke("hibi:local-voice:listen");
+
+  assert.equal(recusado.status, "error");
+  assert.match(recusado.error, /Microphone access was denied/);
+  assert.deepEqual(harness.captured.mediaAccess, ["microphone"]);
+  // O serviço não chega a ser acionado: sem permissão, não se abre o microfone.
+  assert.deepEqual(harness.voiceService.calls, []);
 });
