@@ -180,13 +180,11 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 Itens entram nesta lista em ordem de gravidade; "tarefa criada" significa que já existe trabalho aberto para o item. Em aberto em 2026-09-16, depois da validação do Google e da ligação do SQLite:
 
 1. **Restaurar ainda não tem entrada na tela.** Listar e restaurar pontos precisa de superfície na aba Dados. O banco, os canais, o adaptador e os rótulos estão prontos e validados; a tela é do Codex, e o contrato que ela consome é `store.restorePoints()`, `store.restore(id)` e `restorePointLabelKey(label)`, com recarregamento da janela depois de restaurar.
-2. **Credencial vencida aparece como conectada.** A tela mostra o Google como conectado quando existe credencial no Keychain, mesmo vencida. Com o #83 a renovação é automática e o caso ficou raro, mas quando a renovação falha — refresh token revogado, por exemplo — a tela continua dizendo conectado em vez de oferecer reconectar.
-3. **Teste de OAuth instável.** `electron/oauth.test.cjs` falhou uma vez com `ECONNRESET` no servidor de loopback e passou nas execuções seguintes. É porta, não regressão, e merece ficar determinístico.
-4. **iCloud continua ausente.** A validação de 2026-09-16 cobriu Google e Apple local (EventKit); iCloud não tem caminho no Hibi.
-5. **O Taby ainda não usa o cérebro offline.** O modelo está baixado, verificado e responde, mas nada no renderer chama `runLocalModel`: o assistente fala só com o provedor configurado ou com a heurística local.
-6. **Voz em desenvolvimento.** O helper é abortado pelo macOS no app de desenvolvimento, porque o Electron baixado não declara os textos de uso. No app empacotado funciona.
+2. **iCloud continua ausente.** A validação de 2026-09-16 cobriu Google e Apple local (EventKit); iCloud não tem caminho no Hibi.
+3. **O Taby ainda não usa o cérebro offline.** O modelo está baixado, verificado e responde, mas nada no renderer chama `runLocalModel`: o assistente fala só com o provedor configurado ou com a heurística local.
+4. **Voz em desenvolvimento.** O helper é abortado pelo macOS no app de desenvolvimento, porque o Electron baixado não declara os textos de uso. No app empacotado funciona.
 
-Saiu desta lista em 2026-09-17: a **CI sem minutos** — o repositório ficou público, o que torna os runners do GitHub gratuitos, e a CI voltou verde nos dois jobs, inclusive o do addon nativo.
+Saíram desta lista em 2026-09-17: a **CI sem minutos** — o repositório ficou público, o que torna os runners do GitHub gratuitos, e a CI voltou verde nos dois jobs, inclusive o do addon nativo —, a **credencial vencida aparecendo como conectada** — uma renovação que falha grava o pedido de reconexão, o status responde `expired` e a tela oferece autorizar de novo (#100) — e o **teste de OAuth instável** — os corpos das respostas passaram a ser lidos e a queda do servidor de loopback é provada ocupando a porta, com quarenta execuções seguidas sem falha (#101).
 
 Saíram desta lista em 2026-09-16: o **rótulo do ponto de restauração como texto no dado** — o Codex pediu chaves, e o #90 passou a gravar a chave do dicionário, com as frases antigas reconhecidas —, as **escritas no Google Calendar sem validação real** — publicar, ler de volta, conflito, "Manter Hibi", evento movido e o ciclo de exclusão remota foram exercitados contra a API real, em conta e agenda de teste, corrigindo #81, #83 e #85 — e o **SQLite não ligado**, agora ligado pelos #80, #82, #84 e #87 e validado no app real.
 
