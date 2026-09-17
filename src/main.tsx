@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './theme.css';
+import './ui/refined-ui.css';
 import './ui/tokens.css';
 import { NotchOverlay } from './ui/NotchOverlay';
 import { ThemeProvider } from './ui/theme-context';

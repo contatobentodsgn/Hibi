@@ -59,6 +59,11 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,getNotchCapabilities: () => ipcRenderer.invoke('hibi:notch:capabilities')
   ,listNotchDisplays: () => ipcRenderer.invoke('hibi:notch:displays')
   ,setNotchDisplay: (displayId) => ipcRenderer.invoke('hibi:notch:set-display', displayId)
+  ,getLocalVoiceState: () => ipcRenderer.invoke('hibi:local-voice:state')
+  ,listenLocalVoice: () => ipcRenderer.invoke('hibi:local-voice:listen')
+  ,setLocalVoiceLocale: (locale) => ipcRenderer.invoke('hibi:local-voice:set-locale', locale)
+  ,stopLocalVoice: () => ipcRenderer.invoke('hibi:local-voice:stop')
+  ,onLocalVoiceText: (callback) => { if (typeof callback !== 'function') throw new TypeError('Voice listener must be a function.'); const listener = (_event, text) => { if (typeof text === 'string') callback(text); }; ipcRenderer.on('hibi:local-voice:text', listener); return () => ipcRenderer.removeListener('hibi:local-voice:text', listener); }
   ,getNotchSize: () => ipcRenderer.invoke('hibi:notch:size')
   ,setNotchSize: (size) => ipcRenderer.invoke('hibi:notch:set-size', size)
   ,testNotch: (locale) => ipcRenderer.invoke('hibi:notch:test', locale)

@@ -309,6 +309,9 @@ const pt = {
   'taby.deleteAllConfirm': 'Apagar todas as conversas salvas? Isto não pode ser desfeito.',
   'taby.saveFailed': 'Não foi possível salvar a conversa.',
   'taby.localOnly': 'As conversas ficam neste Mac e não entram no backup do workspace.',
+  'taby.voice.start': 'Falar',
+  'taby.voice.stop': 'Parar voz',
+  'taby.voice.unavailable': 'A voz existe no app de desktop, com reconhecimento neste Mac.',
   // Tint é do Codex: acrescente somente neste bloco, sem reordenar chaves vizinhas.
   'tint.title': 'Cor de destaque',
   'tint.detail': 'Muda a assinatura visual e os estados de foco, sem alterar as cores da agenda.',
@@ -625,6 +628,9 @@ const en: Record<DictionaryKey, string> = {
   'taby.deleteAllConfirm': 'Delete every saved conversation? This cannot be undone.',
   'taby.saveFailed': 'The conversation could not be saved.',
   'taby.localOnly': 'Conversations stay on this Mac and are not included in the workspace backup.',
+  'taby.voice.start': 'Speak',
+  'taby.voice.stop': 'Stop voice',
+  'taby.voice.unavailable': 'Voice is available in the desktop app, recognised on this Mac.',
   // Tint is owned by Codex: add only within this block and do not reorder neighbouring keys.
   'tint.title': 'App tint',
   'tint.detail': 'Changes the visual signature and focus states without changing calendar category colours.',

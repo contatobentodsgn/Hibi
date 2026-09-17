@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification, dialog, screen, shell, powerMonitor } = require("electron");
+const { app, BrowserWindow, ipcMain, Notification, dialog, screen, shell, powerMonitor, systemPreferences } = require("electron");
 const path = require("node:path");
 const crypto = require('node:crypto');
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.mjs");
@@ -23,6 +23,8 @@ const { createNotchWindowManager, validPresentation } = require("./notch-window.
 const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('./notch-settings.cjs');
 const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
 const { showStartupNotch } = require('./notch-startup.cjs');
+const { createLocalVoiceService } = require('./local-voice.cjs');
+const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
 // O painel nativo toca o loop a partir de um arquivo, então ele precisa existir fora do asar: o
@@ -42,6 +44,7 @@ let localApi;
 let webhookService;
 let connectorSettings;
 let markReconnect = () => {};
+let localVoiceService;
 let oauthService;
 let calendarSyncService;
 let calendarSyncSettings;
@@ -266,6 +269,8 @@ app.whenReady().then(async () => {
   webhookService = createWebhookService({ keychain: secureKeychain });
   replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
   notchSettings = createNotchSettings({ filePath: path.join(app.getPath('userData'), 'notch-settings.json') });
+  // A voz é do sistema, e só existe no macOS: fora dele o serviço nasce indisponível e a tela diz isso.
+  localVoiceService = createLocalVoiceService({ adapter: process.platform === 'darwin' ? createMacVoiceAdapter() : undefined });
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, size: notchSettings.get().size, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
   notchTest = createNotchTest({ manager: notchWindow });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('hibi:notch:displays-changed') });
@@ -394,6 +399,17 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:notch:test', (_event, locale) => notchTest.run(locale === 'en' ? 'en' : 'pt'));
   // O tamanho do companion é ajuste da pessoa e vale entre aberturas: fica no mesmo arquivo do monitor
   // preferido, e a superfície — painel nativo ou janela — é reposicionada na hora.
+  ipcMain.handle('hibi:local-voice:state', () => localVoiceService.state());
+  ipcMain.handle('hibi:local-voice:listen', async () => {
+    // A permissão é pedida antes de abrir o microfone, e uma recusa vira estado, não exceção.
+    if (process.platform === 'darwin' && systemPreferences?.askForMediaAccess) {
+      const allowed = await systemPreferences.askForMediaAccess('microphone').catch(() => false);
+      if (!allowed) return { ...localVoiceService.state(), status: 'error', error: 'Microphone access was denied in macOS settings.' };
+    }
+    return localVoiceService.listen({ onText: (text) => sendToMainWindow('hibi:local-voice:text', text) });
+  });
+  ipcMain.handle('hibi:local-voice:set-locale', (_event, locale) => localVoiceService.setLocale(locale));
+  ipcMain.handle('hibi:local-voice:stop', () => localVoiceService.stop());
   ipcMain.handle('hibi:notch:size', () => ({ size: notchSettings.get().size }));
   ipcMain.handle('hibi:notch:set-size', (_event, nextSize) => {
     const size = nextSize === 'compact' ? 'compact' : 'normal';

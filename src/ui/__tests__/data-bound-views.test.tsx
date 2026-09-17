@@ -186,7 +186,11 @@ describe('study views', () => {
   });
 
   it('renders the contextual next action, progress text, free time and companion on Home', () => {
-    const markup = renderToStaticMarkup(<HomeView data={agenda} onEvent={onEvent} onNavigate={onEvent} />);
+    // Com o relógio real, este teste dependia da hora em que a suíte rodava: depois do último bloco
+    // do dia a tela diz, com razão, que o dia acabou — e não havia "Start focus" para encontrar.
+    const manha = new Date();
+    manha.setHours(9, 30, 0, 0);
+    const markup = renderToStaticMarkup(<HomeView data={agenda} onEvent={onEvent} onNavigate={onEvent} now={manha} />);
 
     expect(markup).toContain('Start focus');
     expect(markup).toContain('planned today');
