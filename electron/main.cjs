@@ -29,6 +29,15 @@ const { createLocalModelDownload } = require('./local-model-download.cjs');
 const { createLocalModelService } = require('./local-model-service.cjs');
 const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
+const { resolveUserDataPath } = require('./user-data-path.cjs');
+
+// O Electron nomeia a pasta de dados pelo `name` do pacote (`hibi-study-replica`), e o app se chama
+// Hibi. Quem já usou uma versão anterior tem os dados na pasta antiga: ela é movida uma vez, e nada
+// é apagado — se houver duas, a que ficou para trás é renomeada ao lado.
+app.setPath('userData', resolveUserDataPath({
+  appData: app.getPath('appData'),
+  onNotice: (notice) => console.log(`[hibi] pasta de dados (${notice.kind}): ${notice.path}${notice.error ? ` — ${notice.error}` : ''}`),
+}));
 
 // O painel nativo toca o loop a partir de um arquivo, então ele precisa existir fora do asar: o
 // `extraResources` do empacotamento copia este vídeo para os recursos do app.

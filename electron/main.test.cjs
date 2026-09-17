@@ -135,9 +135,14 @@ function createSenderFake() {
   };
 }
 
-async function loadMain({ seedUserData, breakWorkspaceDatabase } = {}) {
+async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase } = {}) {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), "hibi-main-test-"));
   seedUserData?.(userData);
+  // A pasta de dados é escolhida na carga do módulo: o dublê guarda o que foi pedido em vez de
+  // trocar o diretório do teste, que já vem sempre semeado.
+  const appData = fs.mkdtempSync(path.join(os.tmpdir(), "hibi-main-appdata-"));
+  seedAppData?.(appData);
+  const paths = new Map();
 
   const handlers = new Map();
   const duplicateChannels = [];
@@ -199,7 +204,8 @@ async function loadMain({ seedUserData, breakWorkspaceDatabase } = {}) {
     app: {
       isPackaged: true,
       getVersion: () => "1.2.3-test",
-      getPath: () => userData,
+      getPath: (name) => (name === "appData" ? appData : userData),
+      setPath: (name, value) => { paths.set(name, value); },
       getLoginItemSettings: () => ({ ...loginItem }),
       setLoginItemSettings: (value) => { loginItem = { ...loginItem, ...value }; },
       on: (event, listener) => { appEvents.set(event, listener); },
@@ -361,6 +367,8 @@ async function loadMain({ seedUserData, breakWorkspaceDatabase } = {}) {
   return {
     main,
     userData,
+    appData,
+    paths,
     handlers,
     duplicateChannels,
     appEvents,
@@ -400,9 +408,30 @@ async function loadMain({ seedUserData, breakWorkspaceDatabase } = {}) {
       // uma notificação agendada seguraria o processo do teste.
       try { appEvents.get("before-quit")?.(); } catch { /* o teardown tem teste próprio */ }
       fs.rmSync(userData, { recursive: true, force: true });
+      fs.rmSync(appData, { recursive: true, force: true });
     },
   };
 }
+
+test("aponta a pasta de dados para o nome do app, movendo a antiga uma vez só", async (t) => {
+  const harness = await loadMain({ seedAppData: (appData) => {
+    fs.mkdirSync(path.join(appData, "hibi-study-replica"), { recursive: true });
+    fs.writeFileSync(path.join(appData, "hibi-study-replica", "notch-settings.json"), '{"size":"normal"}');
+  } });
+  t.after(() => harness.cleanup());
+
+  const chosen = path.join(harness.appData, "Hibi");
+  assert.equal(harness.paths.get("userData"), chosen, "o app precisa abrir a pasta com o nome dele");
+  assert.equal(fs.readFileSync(path.join(chosen, "notch-settings.json"), "utf8"), '{"size":"normal"}', "os ajustes de quem já usava precisam vir junto");
+  assert.equal(fs.existsSync(path.join(harness.appData, "hibi-study-replica")), false);
+});
+
+test("uma instalação nova abre a pasta do app sem nada para mover", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  assert.equal(harness.paths.get("userData"), path.join(harness.appData, "Hibi"));
+});
 
 test("registra exatamente os canais IPC esperados, uma única vez cada", async (t) => {
   const harness = await loadMain();
