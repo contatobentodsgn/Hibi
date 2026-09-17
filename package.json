@@ -48,7 +48,10 @@
       "extendInfo": {
         "NSCalendarsUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose.",
         "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose."
-      }
+      },
+      "binaries": [
+        "Contents/Resources/native/voice/build/hibi-voice"
+      ]
     },
     "afterSign": "scripts/notarize.cjs",
     "extraResources": [
