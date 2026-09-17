@@ -13,7 +13,9 @@ function createLocalModelService({ dataRoot, engineFactory } = {}) {
     state: () => ({ ...state }),
     async load({ manifest, modelPath }) {
       if (typeof engineFactory !== 'function') return publish({ status: 'unavailable', error: 'No local model engine is installed.' });
-      worker = createLocalModelWorker({ engine: engineFactory({ dataRoot, manifest, modelPath }) });
+      // A fábrica pode ser assíncrona — carregar o llama.cpp é um `import()` — e sem esperar por ela o
+      // worker recebia uma promessa no lugar do motor e recusava tudo com "engine is unavailable".
+      worker = createLocalModelWorker({ engine: await engineFactory({ dataRoot, manifest, modelPath }) });
       await worker.load(modelPath);
       return publish({ status: 'ready', modelId: manifest.id, error: null });
     },
