@@ -1,5 +1,10 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+// A carga do main escolhe a pasta de dados; aqui ela é descartável.
+const appData = fs.mkdtempSync(path.join(os.tmpdir(), "hibi-nav-appdata-"));
 const Module = require("node:module");
 
 // O diálogo de verdade precisa ser exercitado: o caminho padrão é onde mora a decisão entre tentar
@@ -14,7 +19,7 @@ const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
   if (request === "electron") {
     return {
-      app: { isPackaged: true, whenReady: () => ({ then() {} }), on() {}, getVersion() { return "test"; } },
+      app: { isPackaged: true, whenReady: () => ({ then() {} }), on() {}, getVersion() { return "test"; }, getPath() { return appData; }, setPath() {} },
       BrowserWindow: { getAllWindows() { return []; } },
       ipcMain: { handle() {} },
       Notification: {},
