@@ -1,12 +1,11 @@
-import { getLlama, LlamaChatSession } from "node-llama-cpp";
-
-export function createLlamaEngine({ modelPath }) {
+export function createLlamaEngine({ modelPath, loadRuntime = () => import("node-llama-cpp") }) {
   let llama;
   let model;
   let context;
   let session;
   return {
     async load() {
+      const { getLlama, LlamaChatSession } = await loadRuntime();
       llama ??= await getLlama();
       model = await llama.loadModel({ modelPath });
       context = await model.createContext({ contextSize: 2048 });
@@ -15,6 +14,9 @@ export function createLlamaEngine({ modelPath }) {
     async *complete(prompt, { signal } = {}) {
       if (!session) throw new Error("Local model is not loaded.");
       if (signal?.aborted) return;
+      // Each prompt already carries the recent conversation; keeping the session's own
+      // history would repeat it and overflow the 2048-token context after a few turns.
+      session.resetChatHistory();
       const chunks = [];
       let resolveDone;
       let rejectDone;
