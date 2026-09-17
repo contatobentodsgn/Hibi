@@ -25,6 +25,7 @@ const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
 const { showStartupNotch, idleCompanionPresentation } = require('./notch-startup.cjs');
 const { createLocalVoiceService } = require('./local-voice.cjs');
 const { createLocalModelStore } = require('./local-model-store.cjs');
+const { createLocalModelDownload } = require('./local-model-download.cjs');
 const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
@@ -47,6 +48,7 @@ let connectorSettings;
 let markReconnect = () => {};
 let localVoiceService;
 let localModelStore;
+let localModelDownload;
 let oauthService;
 let calendarSyncService;
 let calendarSyncSettings;
@@ -275,6 +277,8 @@ app.whenReady().then(async () => {
   localVoiceService = createLocalVoiceService({ adapter: process.platform === 'darwin' ? createMacVoiceAdapter() : undefined });
   // Em desenvolvimento o modelo mora no repositório; no app empacotado, na pasta de dados da pessoa.
   localModelStore = createLocalModelStore({ dataRoot: app.isPackaged ? app.getPath('userData') : path.join(__dirname, '..') });
+  // O download é sempre pedido: quase dois gigabytes não descem sozinhos.
+  localModelDownload = createLocalModelDownload({ store: localModelStore, onProgress: (state) => sendToMainWindow('hibi:local-model:download-progress', state) });
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, size: notchSettings.get().size, idlePresentation: () => idleCompanionPresentation(startupNotchAnimationPath()), load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
   notchTest = createNotchTest({ manager: notchWindow });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('hibi:notch:displays-changed') });
@@ -406,6 +410,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:local-model:state', () => localModelStore.describe());
   // A conferência completa lê o arquivo inteiro e leva segundos: é pedida, nunca automática.
   ipcMain.handle('hibi:local-model:verify', () => localModelStore.verify());
+  ipcMain.handle('hibi:local-model:download', () => localModelDownload.start());
+  ipcMain.handle('hibi:local-model:cancel-download', () => localModelDownload.cancel());
   ipcMain.handle('hibi:local-voice:state', () => localVoiceService.state());
   ipcMain.handle('hibi:local-voice:listen', async () => {
     // A permissão é pedida antes de abrir o microfone, e uma recusa vira estado, não exceção.

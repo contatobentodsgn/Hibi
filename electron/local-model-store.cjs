@@ -33,7 +33,12 @@ function createLocalModelStore({ dataRoot, now = () => new Date().toISOString(),
 
   return {
     root,
+    dataRoot,
     manifestPath,
+    /** O manifesto como está no disco, sem validar: quem baixa valida e explica o que está errado. */
+    manifest() {
+      try { return JSON.parse(fsImpl.readFileSync(manifestPath, 'utf8')); } catch { return null; }
+    },
     /** O estado que a tela mostra, sem nunca ler o modelo inteiro. */
     describe() {
       const { manifest, safe, error } = readManifest();

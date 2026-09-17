@@ -87,6 +87,8 @@ const EXPECTED_CHANNELS = [
   "hibi:notch:set-display",
   "hibi:local-model:state",
   "hibi:local-model:verify",
+  "hibi:local-model:download",
+  "hibi:local-model:cancel-download",
   "hibi:local-voice:state",
   "hibi:local-voice:listen",
   "hibi:local-voice:set-locale",

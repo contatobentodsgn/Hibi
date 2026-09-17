@@ -40,3 +40,14 @@ test('um arquivo do tamanho errado é recusado sem abrir o arquivo', async () =>
   assert.equal(resultado, false);
   assert.equal(aberturas, 0);
 });
+
+test('o endereço de download precisa ser HTTPS, de um host conhecido e sem credencial embutida', () => {
+  const { isAllowedDownloadUrl } = require('./local-model-contract.cjs');
+
+  assert.equal(isAllowedDownloadUrl('https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/main/x.gguf'), true);
+  // Sem HTTPS, qualquer um no caminho troca o arquivo — e o app chamaria isso de cérebro.
+  assert.equal(isAllowedDownloadUrl('http://huggingface.co/Qwen/x.gguf'), false);
+  assert.equal(isAllowedDownloadUrl('https://exemplo.invalido/x.gguf'), false);
+  assert.equal(isAllowedDownloadUrl('https://user:senha@huggingface.co/x.gguf'), false);
+  assert.equal(isAllowedDownloadUrl(undefined), false);
+});
