@@ -90,7 +90,7 @@ Referência: Hey Taby 0.2.2 e 0.2.3, pelas auditorias em `/Volumes/SSD/app/node_
 | Brain local (~5,2 GB) e voz (Kokoro) | Implementados de outro jeito (#103 a #110, #112, #113) | Em vez do brain de 5,2 GB, o Qwen3-1.7B de 1,83 GB, que responde pelo Taby desde o #112; em vez do Kokoro, o reconhecimento de fala do próprio macOS, no dispositivo. No original a voz falhava por dependência não empacotada. |
 | Dispositivo físico Taby (USB, firmware) | Ausente — adaptador indisponível, contrato pronto (#70, #74) | Depende de hardware e protocolo do dispositivo. |
 | Animações em Rive | Parcial | Os estados do companion usam vídeos; `study-reference/rive/talk/taby-talk.riv` só é listado na galeria de assets e não anima o companion. |
-| Sincronização com Google Calendar ou iCloud | Google e Apple validados no app real; iCloud não | Núcleo nos #66, #67 e #71; validação do Google em 2026-09-16, com as correções #81, #83, #85 e #88. iCloud continua ausente. No original era "em breve". |
+| Sincronização com Google Calendar ou iCloud | Google, Apple e **iCloud** validados no app real | Núcleo nos #66, #67 e #71; validação do Google em 2026-09-16, com as correções #81, #83, #85 e #88. Os calendários do iCloud entram pelo mesmo caminho da Apple: o EventKit enumera todas as contas do Mac, sem filtrar por tipo, e a origem aparece ao lado do nome (`Trabalho · iCloud`). Conferido no app empacotado em 2026-09-17, depois de o usuário ligar o iCloud Calendar nas Configurações do Sistema: seis calendários iCloud listados, e a leitura do calendário de teste devolveu os eventos que o próprio Hibi tinha publicado, com `writable: true`. O que **não** existe é um conector iCloud próprio, por CalDAV, independente da conta configurada no Mac. No original era "em breve". |
 | Visual novo das telas | Parcial | O shell, o dock e a paleta usam a nova UI, e as telas de conteúdo ganharam contexto próprio nos #93 a #96 (resumo nomeado acima de cada lista). O visual completo de cada tela, na ordem do dock, continua pendente. |
 
 ### Fora do escopo por decisão
@@ -180,12 +180,14 @@ Ordem recomendada, do que está mais adiantado e mais usado para o que depende d
 
 ### Pendências registradas
 
-Itens entram nesta lista em ordem de gravidade; "tarefa criada" significa que já existe trabalho aberto para o item. Em aberto em 2026-09-17, depois de o Taby passar a responder com o cérebro offline e de a tela de pontos de restauração entrar:
+Itens entram nesta lista em ordem de gravidade; "tarefa criada" significa que já existe trabalho aberto para o item. Em aberto em 2026-09-17, depois de o Taby passar a responder com o cérebro offline, de a tela de pontos de restauração entrar e de o iCloud ser conferido no app:
 
-1. **iCloud continua ausente.** A validação de 2026-09-16 cobriu Google e Apple local (EventKit); iCloud não tem caminho no Hibi.
+1. **Conector iCloud próprio.** Os calendários do iCloud já funcionam pelo EventKit, com a conta do Mac (conferido em 2026-09-17). Falta decidir se vale um conector CalDAV direto, que dispensaria a conta configurada no Mac e exigiria Apple ID com senha específica de app no Keychain. Enquanto não houver essa decisão, iCloud está coberto pelo caminho da Apple.
 2. **Voz em desenvolvimento.** O helper é abortado pelo macOS no app de desenvolvimento, porque o Electron baixado não declara os textos de uso. No app empacotado funciona.
 3. **Local de exibição do Taby.** O atalho global entrou no #116; escolher em que tela e posição o Taby aparece é o que resta do item 5.6.
 4. **O atualizador não foi portado.** Ele existe na branch local do Codex e nunca passou por revisão nem entrou no `main`: hoje, cada versão nova exige reinstalar na mão.
+
+Saiu desta lista em 2026-09-17, depois de conferido no app: o **iCloud ausente**. A frase estava errada — o EventKit nunca filtrou por tipo de conta, então bastou o usuário ligar o iCloud Calendar no Mac para os seis calendários dele aparecerem no Hibi, com a origem ao lado do nome, e a leitura devolver os eventos que o próprio Hibi publicou. Ficou no lugar a decisão sobre um conector CalDAV próprio, que é outra coisa.
 
 Saíram desta lista em 2026-09-17, na segunda leva: o **Taby sem o cérebro offline** — o `OfflineBrainProvider` responde as perguntas de conversa e deixa as ações com as ferramentas locais (#112) — e o **restaurar sem entrada na tela** — a lista e o botão entraram na aba Dados pelo #117, que trouxe e completou o #99 do Codex. Junto saiu um defeito que só o app empacotado revelou: o app procurava o modelo numa pasta de dados e o arquivo estava em outra, porque a pasta levava o nome do pacote e não o do app (#114).
 
