@@ -19,3 +19,7 @@ native/notch/node_modules/
 
 # Relatórios locais do Vitest
 .vitest/
+
+# O modelo local tem quase dois gigabytes: o manifesto e a licença entram, o peso nunca.
+.hibi-local-models/*.bin
+.hibi-local-models/*.verified.json

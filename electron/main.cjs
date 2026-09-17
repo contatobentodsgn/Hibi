@@ -24,6 +24,7 @@ const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('.
 const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
 const { showStartupNotch, idleCompanionPresentation } = require('./notch-startup.cjs');
 const { createLocalVoiceService } = require('./local-voice.cjs');
+const { createLocalModelStore } = require('./local-model-store.cjs');
 const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
 
@@ -45,6 +46,7 @@ let webhookService;
 let connectorSettings;
 let markReconnect = () => {};
 let localVoiceService;
+let localModelStore;
 let oauthService;
 let calendarSyncService;
 let calendarSyncSettings;
@@ -271,6 +273,8 @@ app.whenReady().then(async () => {
   notchSettings = createNotchSettings({ filePath: path.join(app.getPath('userData'), 'notch-settings.json') });
   // A voz é do sistema, e só existe no macOS: fora dele o serviço nasce indisponível e a tela diz isso.
   localVoiceService = createLocalVoiceService({ adapter: process.platform === 'darwin' ? createMacVoiceAdapter() : undefined });
+  // Em desenvolvimento o modelo mora no repositório; no app empacotado, na pasta de dados da pessoa.
+  localModelStore = createLocalModelStore({ dataRoot: app.isPackaged ? app.getPath('userData') : path.join(__dirname, '..') });
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, size: notchSettings.get().size, idlePresentation: () => idleCompanionPresentation(startupNotchAnimationPath()), load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
   notchTest = createNotchTest({ manager: notchWindow });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('hibi:notch:displays-changed') });
@@ -399,6 +403,9 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:notch:test', (_event, locale) => notchTest.run(locale === 'en' ? 'en' : 'pt'));
   // O tamanho do companion é ajuste da pessoa e vale entre aberturas: fica no mesmo arquivo do monitor
   // preferido, e a superfície — painel nativo ou janela — é reposicionada na hora.
+  ipcMain.handle('hibi:local-model:state', () => localModelStore.describe());
+  // A conferência completa lê o arquivo inteiro e leva segundos: é pedida, nunca automática.
+  ipcMain.handle('hibi:local-model:verify', () => localModelStore.verify());
   ipcMain.handle('hibi:local-voice:state', () => localVoiceService.state());
   ipcMain.handle('hibi:local-voice:listen', async () => {
     // A permissão é pedida antes de abrir o microfone, e uma recusa vira estado, não exceção.
