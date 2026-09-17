@@ -70,6 +70,9 @@ declare global {
       setNotchDisplay?: (displayId: number | null) => Promise<NotchDisplayState>;
       getLocalModelState?: () => Promise<{ status: 'unavailable' | 'missing' | 'unverified' | 'ready'; modelId: string | null; sizeBytes?: number; error: string | null }>;
       verifyLocalModel?: () => Promise<{ verified: boolean; modelId: string | null; error: string | null }>;
+      downloadLocalModel?: () => Promise<{ status: 'downloading' | 'ready' | 'cancelled' | 'error'; receivedBytes: number; totalBytes: number; error: string | null }>;
+      cancelLocalModelDownload?: () => Promise<boolean>;
+      onLocalModelDownloadProgress?: (callback: (state: { status: string; receivedBytes: number; totalBytes: number; error: string | null }) => void) => () => void;
       getLocalVoiceState?: () => Promise<{ status: string; locale: string; error: string | null }>;
       listenLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null }>;
       setLocalVoiceLocale?: (locale: string) => Promise<{ status: string; locale: string; error: string | null }>;
