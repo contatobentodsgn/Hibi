@@ -64,6 +64,9 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,downloadLocalModel: () => ipcRenderer.invoke('hibi:local-model:download')
   ,cancelLocalModelDownload: () => ipcRenderer.invoke('hibi:local-model:cancel-download')
   ,onLocalModelDownloadProgress: (callback) => { if (typeof callback !== 'function') throw new TypeError('Download listener must be a function.'); const listener = (_event, state) => callback(state); ipcRenderer.on('hibi:local-model:download-progress', listener); return () => ipcRenderer.removeListener('hibi:local-model:download-progress', listener); }
+  ,runLocalModel: (input) => ipcRenderer.invoke('hibi:local-model:run', input)
+  ,cancelLocalModel: (requestId) => ipcRenderer.invoke('hibi:local-model:cancel', requestId)
+  ,shutdownLocalModel: () => ipcRenderer.invoke('hibi:local-model:shutdown')
   ,getLocalVoiceState: () => ipcRenderer.invoke('hibi:local-voice:state')
   ,listenLocalVoice: () => ipcRenderer.invoke('hibi:local-voice:listen')
   ,setLocalVoiceLocale: (locale) => ipcRenderer.invoke('hibi:local-voice:set-locale', locale)

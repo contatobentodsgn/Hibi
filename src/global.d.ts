@@ -73,6 +73,9 @@ declare global {
       downloadLocalModel?: () => Promise<{ status: 'downloading' | 'ready' | 'cancelled' | 'error'; receivedBytes: number; totalBytes: number; error: string | null }>;
       cancelLocalModelDownload?: () => Promise<boolean>;
       onLocalModelDownloadProgress?: (callback: (state: { status: string; receivedBytes: number; totalBytes: number; error: string | null }) => void) => () => void;
+      runLocalModel?: (input: { requestId: string; prompt: string }) => Promise<{ requestId: string | null; status: 'complete' | 'cancelled' | 'unavailable'; text: string }>;
+      cancelLocalModel?: (requestId: string) => Promise<boolean>;
+      shutdownLocalModel?: () => Promise<{ status: string; modelId: string | null; error: string | null }>;
       getLocalVoiceState?: () => Promise<{ status: string; locale: string; error: string | null }>;
       listenLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null }>;
       setLocalVoiceLocale?: (locale: string) => Promise<{ status: string; locale: string; error: string | null }>;
