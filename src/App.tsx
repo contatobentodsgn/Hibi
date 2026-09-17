@@ -37,6 +37,7 @@ import { DeadlineEditModal } from './ui/DeadlineEditModal';
 import { createLocalHibiRuntime, LocalToolProvider } from './ai/local-runtime';
 import { ElectronConfiguredProvider } from './ai/electron-provider';
 import { OfflineBrainProvider } from './ai/offline-brain-provider';
+import { useTabyShortcut } from './ui/useTabyShortcut';
 import { HeuristicAiProvider } from './ai/heuristic-provider';
 import { CompanionController } from './companion/controller';
 import type { CompanionEvent } from './companion/contracts';
@@ -365,6 +366,7 @@ export default function App() {
     setRoute(next);
     log(source, options.folder === undefined ? `Opened ${next}` : `Opened ${next} · folder`);
   };
+  useTabyShortcut(() => navigate('taby', 'shortcut'));
 
   const content = useMemo(() => {
     const props = { onEvent: log, onNavigate: navigate };
