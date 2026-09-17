@@ -26,10 +26,11 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     } catch { return []; }
   };
   const resolution = ({ displays = screen.getAllDisplays(), primary = screen.getPrimaryDisplay(), housing = cameraHousingIds() } = {}) => resolveNotchDisplay(displays, primary, {
-    // O companheiro de inicialização é usado como prova visual do notch físico:
-    // ele sempre nasce na tela interna com câmera, mesmo que uma preferência
-    // anterior aponte para um monitor externo.
-    preferredDisplayId: activeRequestId === 'startup-notch' ? null : preferredDisplayId,
+    // Sem escolha feita, o companheiro nasce na tela interna com câmera: ele é a prova visual de
+    // que o notch físico está coberto. Com escolha feita, ela vale para tudo — inclusive para o
+    // mascote, que é o que fica na tela o tempo todo. Ignorá-la ali fazia a troca de monitor
+    // parecer quebrada: o ajuste era salvo e nada se movia.
+    preferredDisplayId,
     cameraHousingIds: housing,
   });
   const selectedDisplay = () => resolution().display;

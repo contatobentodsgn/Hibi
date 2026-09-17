@@ -94,18 +94,28 @@ test('prefers the physical Mac notch display when an external display is primary
   assert.deepEqual(calls, [1]);
 });
 
-test('abre o companion inicial no MacBook mesmo com preferência externa salva', () => {
-  let notch;
+// Antes o companion inicial ficava preso à tela com câmera mesmo com monitor escolhido. Como ele é
+// o mascote que fica na tela o tempo todo, a escolha de monitor não movia nada e parecia quebrada.
+test('o companion inicial abre no monitor escolhido, e na tela com câmera quando não há escolha', () => {
   const external = { id: 2, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
   const macbook = { id: 1, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
   const multiScreen = { getAllDisplays: () => [external, macbook], getPrimaryDisplay: () => external };
   const nativeBridge = { screenGeometry: () => [{ displayId: 2, hasCameraHousing: false }, { displayId: 1, hasCameraHousing: true }] };
-  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge, platform: 'darwin', preferredDisplayId: 2 });
+  const abrir = (preferredDisplayId) => {
+    let notch;
+    const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge, platform: 'darwin', preferredDisplayId });
+    manager.show({ requestId: 'startup-notch', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'electron' });
+    return notch;
+  };
+  const { notchBounds } = require('./notch-geometry.cjs');
 
-  manager.show({ requestId: 'startup-notch', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'electron' });
+  const escolhido = abrir(2);
+  assert.equal(escolhido.options.x, notchBounds(external).x);
+  assert.equal(escolhido.options.y, external.bounds.y);
 
-  assert.equal(notch.options.x, require('./notch-geometry.cjs').notchBounds(macbook).x);
-  assert.equal(notch.options.y, macbook.bounds.y);
+  const semEscolha = abrir(null);
+  assert.equal(semEscolha.options.x, notchBounds(macbook).x);
+  assert.equal(semEscolha.options.y, macbook.bounds.y);
 });
 
 test('falls back to Electron when AppKit host creation fails', () => {
@@ -472,4 +482,44 @@ test('sem companion ocioso configurado, esconder continua escondendo', () => {
   assert.equal(manager.hide('c-3'), true);
 
   assert.deepEqual(host, ['c-3', 'escondido']);
+});
+
+// A troca de monitor parecia não funcionar: o mascote ocupa a tela o tempo todo e ignorava a
+// escolha, então o ajuste era salvo e nada se movia.
+test('o mascote vai para o monitor escolhido, e não fica preso à tela com câmera', () => {
+  const external = { id: 2, label: 'LG ULTRAWIDE', internal: false, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
+  const macbook = { id: 1, label: 'Built-in', internal: true, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
+  const multiScreen = { getAllDisplays: () => [external, macbook], getPrimaryDisplay: () => external };
+  const posicionamentos = [];
+  const nativeBridge = {
+    nativeHostAvailable: () => true, createHost: () => true,
+    screenGeometry: () => [{ displayId: 1, hasCameraHousing: true }],
+    showHost: (_presentation, displayId) => { posicionamentos.push(displayId); return true; },
+    repositionHost: (displayId) => { posicionamentos.push(displayId); return true; },
+  };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+  manager.show({ requestId: 'startup-notch', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'native' });
+
+  manager.setPreferredDisplay(2);
+
+  assert.deepEqual(posicionamentos, [1, 2], 'nasce na tela com câmera e vai para a escolhida');
+  assert.equal(manager.describeDisplays().resolvedDisplayId, 2);
+  assert.equal(manager.describeDisplays().reason, 'preferred');
+});
+
+test('sem escolha feita, o mascote nasce na tela interna com câmera', () => {
+  const external = { id: 2, label: 'LG ULTRAWIDE', internal: false, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
+  const macbook = { id: 1, label: 'Built-in', internal: true, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
+  const multiScreen = { getAllDisplays: () => [external, macbook], getPrimaryDisplay: () => external };
+  const posicionamentos = [];
+  const nativeBridge = {
+    nativeHostAvailable: () => true, createHost: () => true,
+    screenGeometry: () => [{ displayId: 1, hasCameraHousing: true }],
+    showHost: (_presentation, displayId) => { posicionamentos.push(displayId); return true; },
+  };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+
+  manager.show({ requestId: 'startup-notch', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'native' });
+
+  assert.deepEqual(posicionamentos, [1]);
 });
