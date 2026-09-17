@@ -1,12 +1,25 @@
 const { spawn } = require('node:child_process');
+const { existsSync } = require('node:fs');
 const path = require('node:path');
 
 const VOICES = { 'pt-BR': 'Luciana', 'en-US': 'Samantha' };
+const HELPER = 'native/voice/build/hibi-voice';
 
-function createMacVoiceAdapter({ spawnProcess = spawn, helperPath } = {}) {
-  const resolvedHelperPath = helperPath || (process.resourcesPath && process.resourcesPath !== process.cwd()
-    ? path.join(process.resourcesPath, 'native/voice/build/hibi-voice')
-    : path.join(__dirname, '../native/voice/build/hibi-voice'));
+/**
+ * No app empacotado o helper mora nos recursos; em desenvolvimento, no repositório. Adivinhar pelo
+ * `process.resourcesPath` escolhia, em desenvolvimento, uma pasta dentro do Electron baixado, onde
+ * o helper nunca esteve: a voz morria com `ENOENT`. Então a escolha é pelo que existe, e o último
+ * candidato é o que sobra para a mensagem de erro dizer onde se procurou.
+ */
+function resolveHelperPath({ exists = existsSync } = {}) {
+  const candidates = [];
+  if (process.resourcesPath) candidates.push(path.join(process.resourcesPath, HELPER));
+  candidates.push(path.join(__dirname, '..', HELPER));
+  return candidates.find((candidate) => exists(candidate)) ?? candidates[candidates.length - 1];
+}
+
+function createMacVoiceAdapter({ spawnProcess = spawn, helperPath, exists = existsSync } = {}) {
+  const resolvedHelperPath = helperPath || resolveHelperPath({ exists });
   let child = null;
   return {
     listen({ locale = 'pt-BR', onText } = {}) {
@@ -28,4 +41,4 @@ function createMacVoiceAdapter({ spawnProcess = spawn, helperPath } = {}) {
   };
 }
 
-module.exports = { createMacVoiceAdapter };
+module.exports = { resolveHelperPath, createMacVoiceAdapter };

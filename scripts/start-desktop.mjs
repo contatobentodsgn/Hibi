@@ -1,6 +1,12 @@
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 import http from 'node:http';
+import { writeFileSync } from 'node:fs';
+import { describeSpeechUsageString, ensureSpeechUsageString } from './dev-voice-permissions.mjs';
+import { devLaunchPlan, launchDevElectron, stopDevElectron, streamLog } from './dev-electron-launch.mjs';
+import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 // The Electron process must never attach to a different, stale Vite server.
 // Strictly owning this port makes an occupied port fail fast instead of silently
@@ -10,11 +16,18 @@ let electron;
 let stopping = false;
 const devServer = 'http://127.0.0.1:5173';
 
+const projectRoot = fileURLToPath(new URL('..', import.meta.url));
+const plan = devLaunchPlan();
+const logPath = path.join(tmpdir(), 'hibi-desktop.log');
+let stopLog = () => {};
+
 const stop = (code = 0) => {
   if (stopping) return;
   stopping = true;
+  stopLog();
   vite.kill('SIGTERM');
   electron?.kill('SIGTERM');
+  stopDevElectron({ plan });
   process.exit(code);
 };
 
@@ -41,12 +54,17 @@ vite.on('error', () => stop(1));
 process.on('SIGINT', () => stop(0));
 process.on('SIGTERM', () => stop(0));
 
+// O Electron baixado não declara o texto de reconhecimento de fala, e sem ele o macOS mata o
+// helper de voz assim que ele pede permissão. Um aviso basta: o resto do app roda sem voz.
+if (process.platform === 'darwin') {
+  const aviso = describeSpeechUsageString(ensureSpeechUsageString());
+  if (aviso) console.log(aviso);
+}
+
 try {
   await waitForServer(devServer);
-  electron = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['electron', 'electron/main.cjs'], {
-    stdio: 'inherit',
-    env: { ...process.env, HIBI_DEV_SERVER: devServer }
-  });
+  if (plan.kind === 'open') { writeFileSync(logPath, ''); stopLog = streamLog({ logPath }); }
+  electron = launchDevElectron({ plan, projectRoot, logPath, devServer });
   electron.on('error', () => stop(1));
   electron.on('exit', (code) => stop(code ?? 0));
 } catch (error) {
