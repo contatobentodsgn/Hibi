@@ -318,6 +318,8 @@ const pt = {
   'data.restorePoint.beforeRestore': 'Antes de restaurar um backup',
   'data.restorePoint.migration': 'Migração do armazenamento local',
   'data.restorePoint.beforeRollback': 'Antes de reverter alterações',
+  'data.restorePoints.empty': 'Nenhum ponto de restauração ainda. Eles aparecem depois de apagar todos os dados ou restaurar um backup.',
+  'data.restorePoints.desktopOnly': 'Os pontos de restauração ficam no app de desktop do Hibi.',
 
   'taby.greeting': 'Olá! Sou o assistente local do Hibi. Posso consultar e organizar seu espaço de trabalho.',
   'taby.conversations': 'Conversas',
@@ -659,6 +661,8 @@ const en: Record<DictionaryKey, string> = {
   'data.restorePoint.beforeRestore': 'Before restoring a backup',
   'data.restorePoint.migration': 'Local storage migration',
   'data.restorePoint.beforeRollback': 'Before rolling back changes',
+  'data.restorePoints.empty': 'No restore points yet. They appear after wiping all data or restoring a backup.',
+  'data.restorePoints.desktopOnly': 'Restore points live in the Hibi desktop app.',
 
   'taby.greeting': "Hi! I'm Hibi's local assistant. I can look things up and organise your workspace.",
   'taby.conversations': 'Conversations',
