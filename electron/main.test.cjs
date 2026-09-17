@@ -85,6 +85,8 @@ const EXPECTED_CHANNELS = [
   "hibi:notch:capabilities",
   "hibi:notch:displays",
   "hibi:notch:set-display",
+  "hibi:shortcut:get",
+  "hibi:shortcut:set",
   "hibi:local-model:state",
   "hibi:local-model:verify",
   "hibi:local-model:download",
@@ -143,6 +145,8 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase } = 
   const appData = fs.mkdtempSync(path.join(os.tmpdir(), "hibi-main-appdata-"));
   seedAppData?.(appData);
   const paths = new Map();
+  const shortcuts = new Map();
+  const refusedShortcuts = new Set();
 
   const handlers = new Map();
   const duplicateChannels = [];
@@ -185,6 +189,11 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase } = 
       windows.push(this);
     }
     isDestroyed() { return this.destroyed; }
+    isMinimized() { return this.minimized === true; }
+    minimize() { this.minimized = true; }
+    restore() { this.minimized = false; this.restores = (this.restores ?? 0) + 1; }
+    show() { this.shows = (this.shows ?? 0) + 1; }
+    focus() { this.focuses = (this.focuses ?? 0) + 1; }
     loadURL(url) { this.loaded.push(url); }
     loadFile(file, options) { this.loaded.push([file, options]); }
     destroy() { this.destroyed = true; }
@@ -210,9 +219,15 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase } = 
       setLoginItemSettings: (value) => { loginItem = { ...loginItem, ...value }; },
       on: (event, listener) => { appEvents.set(event, listener); },
       quit: () => { captured.quitCalls = (captured.quitCalls ?? 0) + 1; },
+      focus: () => { captured.appFocuses = (captured.appFocuses ?? 0) + 1; },
       whenReady: () => ({ then: (callback) => { readyPromise = Promise.resolve().then(callback); return readyPromise; } }),
     },
     BrowserWindow: BrowserWindowFake,
+    globalShortcut: {
+      register(accelerator, handler) { shortcuts.set(accelerator, handler); return !refusedShortcuts.has(accelerator); },
+      unregister(accelerator) { shortcuts.delete(accelerator); },
+      isRegistered(accelerator) { return shortcuts.has(accelerator) && !refusedShortcuts.has(accelerator); },
+    },
     ipcMain: {
       handle(channel, handler) {
         if (handlers.has(channel)) duplicateChannels.push(channel);
@@ -369,6 +384,8 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase } = 
     userData,
     appData,
     paths,
+    shortcuts,
+    refusedShortcuts,
     handlers,
     duplicateChannels,
     appEvents,
@@ -431,6 +448,51 @@ test("uma instalação nova abre a pasta do app sem nada para mover", async (t) 
   t.after(() => harness.cleanup());
 
   assert.equal(harness.paths.get("userData"), path.join(harness.appData, "Hibi"));
+});
+
+test("o atalho global traz a janela para a frente e abre o Taby", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const janela = harness.mainWindow();
+  janela.minimize();
+
+  assert.deepEqual(await harness.handlers.get("hibi:shortcut:get")(harness.event), { accelerator: "Command+Shift+Space", status: "active" });
+  harness.shortcuts.get("Command+Shift+Space")();
+
+  assert.equal(janela.isMinimized(), false, "a janela minimizada precisa voltar antes de receber o pedido");
+  assert.equal(janela.shows, 1);
+  assert.equal(janela.focuses, 1);
+  assert.deepEqual(janela.sent.filter(([channel]) => channel === "hibi:shortcut:taby"), [["hibi:shortcut:taby"]]);
+});
+
+test("trocar o atalho solta a tecla anterior e guarda a escolha", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  assert.deepEqual(await harness.handlers.get("hibi:shortcut:set")(harness.event, "Option+Space"), { accelerator: "Option+Space", status: "active" });
+
+  assert.deepEqual([...harness.shortcuts.keys()], ["Option+Space"]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(harness.userData, "shortcut-settings.json"), "utf8")), { accelerator: "Option+Space" });
+});
+
+test("um atalho inválido vira erro de validação e o que funcionava continua valendo", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  assert.deepEqual(await harness.handlers.get("hibi:shortcut:set")(harness.event, "Space"), { accelerator: "Command+Shift+Space", status: "active", error: "invalid" });
+  assert.deepEqual([...harness.shortcuts.keys()], ["Command+Shift+Space"]);
+});
+
+test("desligar o atalho devolve a tecla ao sistema, e sair também", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  assert.deepEqual(await harness.handlers.get("hibi:shortcut:set")(harness.event, null), { accelerator: null, status: "disabled" });
+  assert.deepEqual([...harness.shortcuts.keys()], []);
+
+  await harness.handlers.get("hibi:shortcut:set")(harness.event, "Option+Space");
+  harness.quit();
+  assert.deepEqual([...harness.shortcuts.keys()], [], "o app não pode ficar com a tecla depois de fechado");
 });
 
 test("registra exatamente os canais IPC esperados, uma única vez cada", async (t) => {
