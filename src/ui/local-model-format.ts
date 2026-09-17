@@ -21,6 +21,17 @@ export function modelStatusKey(status: LocalModelStatus): DictionaryKey {
 }
 
 /**
+ * O que cada estado significa para quem usa o Taby. Sem o modelo o assistente continua fazendo as
+ * ações locais, e a tela precisa dizer isso: o botão de baixar quase dois gigabytes só se justifica
+ * quando a pessoa sabe o que ganha com ele.
+ */
+export function modelPurposeKey(status: LocalModelStatus): DictionaryKey {
+  if (status === 'ready') return 'data.model.purpose.ready';
+  if (status === 'unverified') return 'data.model.purpose.unverified';
+  return 'data.model.purpose.missing';
+}
+
+/**
  * O progresso só existe enquanto o total é conhecido e maior que zero: dividir por um total
  * desconhecido daria uma barra que salta ou fica em `NaN%`.
  */

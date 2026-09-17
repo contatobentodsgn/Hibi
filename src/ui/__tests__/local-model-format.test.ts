@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { downloadPercent, formatModelSize, modelStatusKey } from '../local-model-format';
+import { downloadPercent, formatModelSize, modelPurposeKey, modelStatusKey } from '../local-model-format';
 
 describe('formatModelSize', () => {
   it('mostra gigabytes com uma casa, e não bytes crus', () => {
@@ -21,6 +21,15 @@ describe('modelStatusKey', () => {
     expect(modelStatusKey('missing')).toBe('data.model.status.missing');
     expect(modelStatusKey('unverified')).toBe('data.model.status.unverified');
     expect(modelStatusKey('unavailable')).toBe('data.model.status.unavailable');
+  });
+});
+
+describe('modelPurposeKey', () => {
+  it('diz o que muda para o Taby em cada estado, e nunca promete respostas sem modelo conferido', () => {
+    expect(modelPurposeKey('ready')).toBe('data.model.purpose.ready');
+    expect(modelPurposeKey('unverified')).toBe('data.model.purpose.unverified');
+    expect(modelPurposeKey('missing')).toBe('data.model.purpose.missing');
+    expect(modelPurposeKey('unavailable')).toBe('data.model.purpose.missing');
   });
 });
 
