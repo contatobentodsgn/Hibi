@@ -76,6 +76,11 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,setNotchSize: (size) => ipcRenderer.invoke('hibi:notch:set-size', size)
   ,testNotch: (locale) => ipcRenderer.invoke('hibi:notch:test', locale)
   ,onNotchDisplaysChanged: (callback) => { const listener = () => callback(); ipcRenderer.on('hibi:notch:displays-changed', listener); return () => ipcRenderer.removeListener('hibi:notch:displays-changed', listener); }
+  ,getUpdateState: () => ipcRenderer.invoke('hibi:updates:state')
+  ,checkForUpdate: () => ipcRenderer.invoke('hibi:updates:check')
+  ,downloadUpdate: () => ipcRenderer.invoke('hibi:updates:download')
+  ,installUpdate: () => ipcRenderer.invoke('hibi:updates:install')
+  ,onUpdateState: (callback) => { const listener = (_event, state) => callback(state); ipcRenderer.on('hibi:updates:state', listener); return () => ipcRenderer.removeListener('hibi:updates:state', listener); }
   ,getTabyShortcut: () => ipcRenderer.invoke('hibi:shortcut:get')
   ,setTabyShortcut: (accelerator) => ipcRenderer.invoke('hibi:shortcut:set', accelerator)
   ,onTabyShortcut: (callback) => { const listener = () => callback(); ipcRenderer.on('hibi:shortcut:taby', listener); return () => ipcRenderer.removeListener('hibi:shortcut:taby', listener); }

@@ -85,6 +85,10 @@ const EXPECTED_CHANNELS = [
   "hibi:notch:capabilities",
   "hibi:notch:displays",
   "hibi:notch:set-display",
+  "hibi:updates:state",
+  "hibi:updates:check",
+  "hibi:updates:download",
+  "hibi:updates:install",
   "hibi:shortcut:get",
   "hibi:shortcut:set",
   "hibi:local-model:state",
@@ -493,6 +497,17 @@ test("desligar o atalho devolve a tecla ao sistema, e sair também", async (t) =
   await harness.handlers.get("hibi:shortcut:set")(harness.event, "Option+Space");
   harness.quit();
   assert.deepEqual([...harness.shortcuts.keys()], [], "o app não pode ficar com a tecla depois de fechado");
+});
+
+test("um atualizador que não monta deixa o app abrir, com as atualizações desligadas", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  // O `electron-updater` exige app empacotado de verdade; aqui ele falha ao montar, e isso não pode
+  // impedir a abertura nem derrubar os canais.
+  assert.deepEqual(await harness.handlers.get("hibi:updates:state")(harness.event), { status: "disabled", version: null, error: null });
+  assert.deepEqual(await harness.handlers.get("hibi:updates:check")(harness.event), { status: "disabled", version: null, error: null });
+  assert.deepEqual(await harness.handlers.get("hibi:updates:download")(harness.event), { status: "disabled", version: null, error: null });
 });
 
 test("registra exatamente os canais IPC esperados, uma única vez cada", async (t) => {

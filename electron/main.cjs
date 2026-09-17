@@ -27,6 +27,7 @@ const { createLocalVoiceService } = require('./local-voice.cjs');
 const { createLocalModelStore } = require('./local-model-store.cjs');
 const { createLocalModelDownload } = require('./local-model-download.cjs');
 const { createLocalModelService } = require('./local-model-service.cjs');
+const { createElectronUpdateService } = require('./updates.cjs');
 const { createShortcutSettings } = require('./shortcut-settings.cjs');
 const { createTabyShortcut } = require('./taby-shortcut.cjs');
 const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
@@ -75,6 +76,7 @@ let notchSettings;
 let notchTest;
 let detachNotchLifecycle = () => {};
 let tabyShortcut;
+let updateService;
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
 const MAX_AI_STREAM_DELTA = 8000;
 const MAX_AI_STREAM_DELAY = 60_000;
@@ -222,6 +224,14 @@ function attachRendererRecovery(window, { showWarning, quit = () => app?.quit?.(
 }
 
 // No macOS a janela principal pode ter sido fechada enquanto o app continua vivo.
+// O `electron-updater` monta o atualizador na primeira leitura da propriedade, e isso exige uma
+// versão semver e o `app` real: carregá-lo no topo derrubava o processo principal fora de um app
+// empacotado. Ele é lido tarde e, se não montar, o serviço nasce desligado em vez de impedir a
+// abertura do app.
+function loadAutoUpdater() {
+  try { return require('electron-updater').autoUpdater; } catch { return null; }
+}
+
 function sendToMainWindow(channel, ...args) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, ...args);
 }
@@ -266,6 +276,8 @@ app.whenReady().then(async () => {
   const secureKeychain = createMacKeychain();
   connectorSettings = createConnectorSettings({ filePath: path.join(app.getPath('userData'), 'connector-settings.json') });
   calendarSyncSettings = createCalendarSyncSettings({ filePath: path.join(app.getPath('userData'), 'calendar-sync.json') });
+  // O feed vem do empacotamento; num app de desenvolvimento o serviço nasce desligado.
+  updateService = createElectronUpdateService({ app, autoUpdater: loadAutoUpdater(), onEvent: (state) => sendToMainWindow('hibi:updates:state', state) });
   tabyShortcut = createTabyShortcut({ globalShortcut, settings: createShortcutSettings({ filePath: path.join(app.getPath('userData'), 'shortcut-settings.json') }), onTrigger: summonTaby });
   // Um banco que não abre não pode impedir o app de abrir: os canais respondem com erro controlado e o
   // renderer segue no armazenamento local.
@@ -444,6 +456,11 @@ app.whenReady().then(async () => {
   // preferido, e a superfície — painel nativo ou janela — é reposicionada na hora.
   // O estado diz se a tecla está valendo: `taken` é outro app com ela, e a tela precisa mostrar qual
   // atalho está escolhido mesmo assim.
+  // Nada é baixado nem instalado sem pedido da tela.
+  ipcMain.handle('hibi:updates:state', () => updateService.state());
+  ipcMain.handle('hibi:updates:check', () => updateService.check());
+  ipcMain.handle('hibi:updates:download', () => updateService.download());
+  ipcMain.handle('hibi:updates:install', () => updateService.install());
   ipcMain.handle('hibi:shortcut:get', () => tabyShortcut.describe());
   ipcMain.handle('hibi:shortcut:set', (_event, accelerator) => {
     try { return tabyShortcut.set(accelerator === null ? null : String(accelerator)); }

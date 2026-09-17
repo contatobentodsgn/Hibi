@@ -85,6 +85,11 @@ declare global {
       setNotchSize?: (size: 'normal' | 'compact') => Promise<{ size: 'normal' | 'compact' }>;
       testNotch?: (locale: 'pt' | 'en') => Promise<NotchTestResult>;
       onNotchDisplaysChanged?: (callback: () => void) => () => void;
+      getUpdateState?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
+      checkForUpdate?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
+      downloadUpdate?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
+      installUpdate?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
+      onUpdateState?: (callback: (state: { status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }) => void) => () => void;
       getTabyShortcut?: () => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled' }>;
       setTabyShortcut?: (accelerator: string | null) => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled'; error?: 'invalid' }>;
       onTabyShortcut?: (callback: () => void) => () => void;

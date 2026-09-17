@@ -38,6 +38,13 @@
       "package.json",
       "native/voice/build/hibi-voice"
     ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "contatobentodsgn",
+        "repo": "Hibi"
+      }
+    ],
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
@@ -73,6 +80,7 @@
     ]
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "node-llama-cpp": "^3.21.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
