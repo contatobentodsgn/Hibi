@@ -22,7 +22,7 @@ const eventKitCalendar = require('../native/notch/calendar.cjs');
 const { createNotchWindowManager, validPresentation } = require("./notch-window.cjs");
 const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('./notch-settings.cjs');
 const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
-const { showStartupNotch } = require('./notch-startup.cjs');
+const { showStartupNotch, idleCompanionPresentation } = require('./notch-startup.cjs');
 const { createLocalVoiceService } = require('./local-voice.cjs');
 const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
@@ -271,7 +271,7 @@ app.whenReady().then(async () => {
   notchSettings = createNotchSettings({ filePath: path.join(app.getPath('userData'), 'notch-settings.json') });
   // A voz é do sistema, e só existe no macOS: fora dele o serviço nasce indisponível e a tela diz isso.
   localVoiceService = createLocalVoiceService({ adapter: process.platform === 'darwin' ? createMacVoiceAdapter() : undefined });
-  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, size: notchSettings.get().size, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
+  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, size: notchSettings.get().size, idlePresentation: () => idleCompanionPresentation(startupNotchAnimationPath()), load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
   notchTest = createNotchTest({ manager: notchWindow });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('hibi:notch:displays-changed') });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));

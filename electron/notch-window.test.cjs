@@ -402,3 +402,74 @@ test('activeInteractive só é verdadeiro enquanto há uma confirmação ativa',
   manager.resolveAction('confirm-me', 'confirm');
   assert.equal(manager.activeInteractive, false);
 });
+
+// O companion ocioso é o mascote: quando nenhum cartão está no ar, a superfície volta a ele em vez de
+// ficar vazia. Antes, o notch sumia depois do primeiro cartão e só voltava reabrindo o app.
+const idle = { requestId: 'startup-notch', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'native', animationPath: '/loop.mp4' };
+const baseOptions = () => ({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, platform: 'darwin' });
+const pontePreenchida = (registro) => ({
+  nativeHostAvailable: () => true,
+  createHost: () => true,
+  showHost: (presentation) => { registro.push(presentation.requestId); return true; },
+  hideHost: () => { registro.push('escondido'); return true; },
+  repositionHost: () => true,
+  destroyHost: () => true,
+  hostDiagnostics: () => ({ available: true, visible: true }),
+});
+
+test('esconder um cartão devolve o companion ocioso ao notch', () => {
+  const host = [];
+  const manager = createNotchWindowManager({
+    ...baseOptions(),
+    nativeBridge: pontePreenchida(host),
+    idlePresentation: () => idle,
+  });
+
+  manager.show(idle);
+  manager.show({ requestId: 'c-1', kind: 'confirmation', text: 'Ok?', actions: [{ id: 'confirm', label: 'Ok' }], interaction: 'capture' });
+  assert.equal(manager.hide('c-1'), true);
+
+  // Depois de esconder o cartão, o último a subir é o ocioso outra vez.
+  assert.equal(host.at(-1), 'startup-notch');
+});
+
+test('responder uma confirmação também devolve o companion ocioso', () => {
+  const host = [];
+  const manager = createNotchWindowManager({
+    ...baseOptions(),
+    nativeBridge: pontePreenchida(host),
+    idlePresentation: () => idle,
+  });
+
+  manager.show({ requestId: 'c-2', kind: 'confirmation', text: 'Ok?', actions: [{ id: 'confirm', label: 'Ok' }], interaction: 'capture' });
+  assert.equal(manager.resolveAction('c-2', 'confirm'), true);
+
+  assert.equal(host.at(-1), 'startup-notch');
+});
+
+test('esconder o próprio ocioso não o traz de volta, senão nada o apagaria', () => {
+  const host = [];
+  const manager = createNotchWindowManager({
+    ...baseOptions(),
+    nativeBridge: pontePreenchida(host),
+    idlePresentation: () => idle,
+  });
+
+  manager.show(idle);
+  assert.equal(manager.hide('startup-notch'), true);
+
+  assert.deepEqual(host, ['startup-notch', 'escondido']);
+});
+
+test('sem companion ocioso configurado, esconder continua escondendo', () => {
+  const host = [];
+  const manager = createNotchWindowManager({
+    ...baseOptions(),
+    nativeBridge: pontePreenchida(host),
+  });
+
+  manager.show({ requestId: 'c-3', kind: 'result', text: 'Pronto', actions: [], interaction: 'passthrough' });
+  assert.equal(manager.hide('c-3'), true);
+
+  assert.deepEqual(host, ['c-3', 'escondido']);
+});

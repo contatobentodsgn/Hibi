@@ -6,7 +6,7 @@ const validPresentation = (value) => value && typeof value === 'object'
   && (value.text === null || typeof value.text === 'string')
   && Array.isArray(value.actions) && value.actions.length <= 4;
 
-function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, onAction, platform = process.platform, preferredDisplayId: initialPreferredDisplayId = null, size: initialSize = 'normal' }) {
+function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, onAction, platform = process.platform, preferredDisplayId: initialPreferredDisplayId = null, idlePresentation = null, size: initialSize = 'normal' }) {
   let window = null;
   let activeRequestId = null;
   let activeActions = new Set();
@@ -84,9 +84,18 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
     else { const target = getWindow(); if (!target) return false; makePassive(target); target.hide(); }
     activeRequestId = null; activeActions = new Set(); activeHost = null; activePresentation = null; nativePresentation = null;
     onAction?.({ requestId, actionId });
+    restoreIdle(requestId);
     return true;
   };
-  return {
+  // Quando nenhum cartão está no ar, a superfície volta ao companion ocioso em vez de ficar vazia:
+  // ele é o mascote, não um aviso. Esconder o próprio ocioso não o traz de volta, senão nada
+  // conseguiria apagá-lo.
+  const restoreIdle = (previousRequestId) => {
+    const idle = typeof idlePresentation === 'function' ? idlePresentation() : idlePresentation;
+    if (!idle || !validPresentation(idle) || idle.requestId === previousRequestId) return;
+    try { manager.show(idle); } catch { /* sem superfície agora; o ocioso volta na próxima abertura */ }
+  };
+  const manager = {
     show(presentation) {
       if (!validPresentation(presentation)) throw new Error('Invalid companion presentation.');
       const previousHost = activeHost;
@@ -132,7 +141,9 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
       if (requestId !== activeRequestId) return false;
       if (activeHost === 'native') nativeBridge?.hideHost?.();
       else { const target = getWindow(); if (!target) return false; makePassive(target); target.hide(); }
-        activeRequestId = null; activeActions = new Set(); activeHost = null; activePresentation = null; nativePresentation = null; return true;
+      activeRequestId = null; activeActions = new Set(); activeHost = null; activePresentation = null; nativePresentation = null;
+      restoreIdle(requestId);
+      return true;
     },
     resolveAction,
     setPreferredDisplay(displayId) { preferredDisplayId = Number.isInteger(displayId) ? displayId : null; if (activeHost === 'native') nativeBridge?.repositionHost?.(selectedDisplayId()); else position(); },
@@ -176,6 +187,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
       return { available: false, host: 'electron' };
     },
   };
+  return manager;
 }
 
 module.exports = { createNotchWindowManager, validPresentation };
