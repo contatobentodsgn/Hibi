@@ -17,6 +17,13 @@ const refreshAccount = (connectorId) => `integration:${connectorId}:refresh`;
 // mas continua sendo segredo: fica no Keychain, nunca no arquivo de configurações, e nunca volta ao renderer.
 const clientSecretAccount = (connectorId) => `integration:${connectorId}:client-secret`;
 
+// A revogação é opcional: um endpoint fora dos hosts do conector (o padrão do Slack com um endpoint próprio
+// configurado, por exemplo) só fica de fora, sem derrubar o OAuth inteiro, e o token nunca vai para ele.
+const revocationFor = (config, endpoint) => {
+  if (!config.revocationUrl) return {};
+  try { return { revocationUrl: endpoint(config.revocationUrl, 'revocation') }; } catch { return {}; }
+};
+
 function oauthConfigFor(connector) {
   const config = connector?.oauth;
   if (!config || config.pkce !== true) throw new Error('This integration does not support the PKCE authorization flow.');
@@ -33,7 +40,7 @@ function oauthConfigFor(connector) {
     if (!/^[a-z][a-z0-9_]{0,79}$/i.test(key) || RESERVED_AUTHORIZATION_PARAMETERS.has(key) || typeof value !== 'string' || !value || value.length > 240) throw new Error('Integration authorization parameters are invalid.');
     authorizationParams[key] = value;
   }
-  return { authorizationUrl: endpoint(config.authorizationUrl, 'authorization'), tokenUrl: endpoint(config.tokenUrl, 'token'), scopes: Array.isArray(config.scopes) ? config.scopes.filter((scope) => typeof scope === 'string' && scope) : [], authorizationParams };
+  return { authorizationUrl: endpoint(config.authorizationUrl, 'authorization'), tokenUrl: endpoint(config.tokenUrl, 'token'), ...revocationFor(config, endpoint), scopes: Array.isArray(config.scopes) ? config.scopes.filter((scope) => typeof scope === 'string' && scope) : [], authorizationParams };
 }
 
 // O corpo da resposta de token nunca é registrado nem devolvido ao renderer:
@@ -86,6 +93,8 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
   // Um único state pendente por vez: o servidor de callback só existe enquanto
   // há uma autorização em andamento e o state é consumido na primeira chamada.
   let pending = null;
+  // A autorização mais recente. Só ela pode parar o servidor de callback ao terminar.
+  let currentAttempt = null;
   const callbackServer = createLoopbackCallbackServer({
     onCallback: ({ state, code, error }) => {
       if (!pending || typeof state !== 'string' || state.length !== pending.state.length || !crypto.timingSafeEqual(Buffer.from(state), Buffer.from(pending.state))) throw new Error('Authorization state is invalid or already used.');
@@ -153,6 +162,8 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
       const config = oauthConfigFor(connector);
       if (!isClientId(clientId)) throw new Error('A client identifier from the service is required.');
       cancelPending('A newer authorization replaced this one.');
+      const attempt = {};
+      currentAttempt = attempt;
 
       const verifier = base64url(crypto.randomBytes(32));
       const challenge = base64url(crypto.createHash('sha256').update(verifier).digest());
@@ -174,7 +185,15 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
         timer = setTimeout(() => cancelPending('The authorization timed out.'), timeoutMs);
         pending = { state, resolve, reject, timer };
         Promise.resolve(openExternal(authorization.toString())).catch(() => cancelPending('The system browser could not be opened.'));
-      }).finally(async () => { clearTimeout(timer); pending = null; await callbackServer.stop(); });
+      }).finally(async () => {
+        clearTimeout(timer);
+        // Um segundo clique em Conectar substitui esta autorização, e este `finally` roda enquanto a nova já
+        // começou. Limpar o estado e parar o servidor aqui fazia a segunda falhar também.
+        if (currentAttempt !== attempt) return;
+        currentAttempt = null;
+        pending = null;
+        await callbackServer.stop();
+      });
 
       const tokens = await exchange({ tokenUrl: config.tokenUrl, params: { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: clientId, code_verifier: verifier, ...await clientCredential(connectorId) } });
       return store(connectorId, tokens);
@@ -210,14 +229,31 @@ function createOAuthService({ keychain, getConnector, openExternal, fetch = glob
     },
 
     // Revogar derruba o acesso da pessoa, e não a configuração do app: a credencial de cliente fica.
+    // Antes só o Keychain era apagado, e o token continuava válido no provedor. Com endpoint de revogação
+    // (RFC 7009), o token é invalidado lá também; o de renovação primeiro, que derruba o par inteiro. Uma
+    // falha remota não impede apagar daqui: o resultado diz se o provedor confirmou.
     async revoke(connectorId) {
-      getConnector(connectorId);
+      const connector = getConnector(connectorId);
+      let remoteRevoked = false;
+      let revocationUrl;
+      try { revocationUrl = oauthConfigFor(connector).revocationUrl; } catch { revocationUrl = undefined; }
+      if (revocationUrl) {
+        for (const account of [refreshAccount(connectorId), accessAccount(connectorId)]) {
+          if (remoteRevoked || !await keychain.has(account)) continue;
+          try {
+            const token = await keychain.get(account);
+            if (!boundedSecret(token)) continue;
+            const response = await fetch(revocationUrl.toString(), { method: 'POST', redirect: 'error', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ token }).toString() });
+            remoteRevoked = response?.ok === true;
+          } catch { /* sem rede: o token local sai mesmo assim */ }
+        }
+      }
       await keychain.remove(accessAccount(connectorId));
       await keychain.remove(refreshAccount(connectorId));
-      return { connectorId, connected: false, hasRefreshToken: false };
+      return { connectorId, connected: false, hasRefreshToken: false, remoteRevoked };
     },
 
-    cancel() { cancelPending('The authorization was cancelled.'); return callbackServer.stop(); },
+    cancel() { cancelPending('The authorization was cancelled.'); currentAttempt = null; return callbackServer.stop(); },
     isAwaitingCallback: () => Boolean(pending) && callbackServer.isRunning(),
   };
 }

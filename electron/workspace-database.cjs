@@ -5,6 +5,7 @@ const path = require("node:path");
 // uma gravação de gigabytes; o maior workspace real cabe em poucos megabytes.
 const MAX_PAYLOAD_BYTES = 32 * 1024 * 1024;
 const MAX_RESTORE_POINTS = 20;
+const MIGRATION_LABEL = "data.restorePoint.migration";
 const MAX_LABEL = 120;
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS workspace (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL, updated_at TEXT NOT NULL);
@@ -76,12 +77,15 @@ function createWorkspaceDatabase({
       return false;
     }
   };
-  const keepRestorePoint = (label) => {
+  const keepRestorePoint = (label, incoming) => {
     const current = readWorkspace.get();
-    // Sem workspace gravado ainda não há estado anterior para guardar.
-    if (!current) return null;
+    // Sem workspace gravado ainda não há estado anterior para guardar. A migração é a exceção: o banco
+    // está vazio por definição, e o ponto guarda o que veio do armazenamento local. Antes nenhum ponto
+    // era criado, e o registro do app dizia que a migração tinha um.
+    const payload = current?.payload ?? (label === MIGRATION_LABEL ? incoming : null);
+    if (!payload) return null;
     const created = now();
-    insertRestorePoint.run(label, current.payload, created);
+    insertRestorePoint.run(label, payload, created);
     prunePoints.run(maxRestorePoints);
     return created;
   };
@@ -104,7 +108,7 @@ function createWorkspaceDatabase({
       const at = now();
       database.exec("BEGIN IMMEDIATE");
       try {
-        if (restorePoint !== undefined) keepRestorePoint(restorePoint);
+        if (restorePoint !== undefined) keepRestorePoint(restorePoint, payload);
         writeWorkspace.run(payload, at);
         database.exec("COMMIT");
       } catch (error) {

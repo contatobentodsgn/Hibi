@@ -205,7 +205,7 @@ test('revoga o acesso e o refresh token do Keychain', async () => {
   keychain.store.set('integration:fixture', 'access');
   keychain.store.set('integration:fixture:refresh', 'refresh');
   const service = createOAuthService({ keychain, getConnector: () => connector, openExternal: () => undefined, fetch: async () => jsonResponse({}) });
-  assert.deepEqual(await service.revoke('fixture'), { connectorId: 'fixture', connected: false, hasRefreshToken: false });
+  assert.deepEqual(await service.revoke('fixture'), { connectorId: 'fixture', connected: false, hasRefreshToken: false, remoteRevoked: false });
   assert.equal(keychain.store.size, 0);
 });
 
@@ -386,4 +386,73 @@ test('recusa uma credencial de cliente vazia e apaga a guardada quando pedido', 
 
   assert.deepEqual(await service.clearClientSecret('fixture'), { connectorId: 'fixture', hasClientSecret: false });
   assert.equal(await service.hasClientSecret('fixture'), false);
+});
+
+// Clicar duas vezes em Conectar: a segunda autorização substitui a primeira e precisa chegar ao fim.
+test('a segunda autorização, pedida com a primeira em andamento, conclui', async () => {
+  const keychain = memoryKeychain();
+  const opened = [];
+  const service = createOAuthService({
+    keychain, getConnector: () => connector,
+    openExternal: (url) => { opened.push(new URL(url)); },
+    fetch: async () => jsonResponse({ access_token: 'access-2', refresh_token: 'refresh-2' }),
+  });
+
+  const first = service.authorize('fixture', { clientId: 'client-123' });
+  const firstOutcome = first.then(() => 'ok', (error) => error.message);
+  await new Promise((resolve) => setImmediate(resolve));
+  const second = service.authorize('fixture', { clientId: 'client-123' });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(await firstOutcome, 'A newer authorization replaced this one.');
+  // O `finally` da primeira já rodou: a segunda continua esperando o callback.
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(service.isAwaitingCallback(), true);
+
+  const latest = opened.at(-1);
+  const redirectUri = new URL(latest.searchParams.get('redirect_uri'));
+  const callback = await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(latest.searchParams.get('state'))}&code=auth-code-2`);
+  assert.equal(callback.status, 200);
+  assert.equal((await second).connected, true);
+  assert.equal(keychain.store.get('integration:fixture'), 'access-2');
+});
+
+// "Revogar" apagava só o Keychain: o token continuava válido no provedor.
+test('revogar invalida o token no provedor, o de renovação primeiro, e apaga daqui', async () => {
+  const keychain = memoryKeychain();
+  await keychain.set('integration:fixture', 'access-9');
+  await keychain.set('integration:fixture:refresh', 'refresh-9');
+  const calls = [];
+  const revocable = { ...connector, oauth: { ...connector.oauth, revocationUrl: 'https://service.example.test/oauth/revoke' } };
+  const service = createOAuthService({ keychain, getConnector: () => revocable, openExternal: () => {}, fetch: async (url, init) => { calls.push({ url, body: init.body, redirect: init.redirect }); return { ok: true, status: 200 }; } });
+
+  const result = await service.revoke('fixture');
+
+  assert.deepEqual(calls, [{ url: 'https://service.example.test/oauth/revoke', body: 'token=refresh-9', redirect: 'error' }]);
+  assert.equal(result.remoteRevoked, true);
+  assert.equal(keychain.store.size, 0);
+});
+
+test('sem rede, revogar apaga daqui mesmo assim e diz que o provedor não confirmou', async () => {
+  const keychain = memoryKeychain();
+  await keychain.set('integration:fixture', 'access-9');
+  const revocable = { ...connector, oauth: { ...connector.oauth, revocationUrl: 'https://service.example.test/oauth/revoke' } };
+  const service = createOAuthService({ keychain, getConnector: () => revocable, openExternal: () => {}, fetch: async () => { throw new Error('offline'); } });
+
+  const result = await service.revoke('fixture');
+
+  assert.equal(result.remoteRevoked, false);
+  assert.equal(keychain.store.size, 0);
+});
+
+test('um endpoint de revogação fora dos hosts do conector é recusado, sem enviar o token', async () => {
+  const keychain = memoryKeychain();
+  await keychain.set('integration:fixture', 'access-9');
+  const calls = [];
+  const hostile = { ...connector, oauth: { ...connector.oauth, revocationUrl: 'https://evil.example.test/revoke' } };
+  const service = createOAuthService({ keychain, getConnector: () => hostile, openExternal: () => {}, fetch: async (url) => { calls.push(url); return { ok: true }; } });
+
+  await service.revoke('fixture');
+
+  assert.deepEqual(calls, []);
+  assert.equal(keychain.store.size, 0);
 });

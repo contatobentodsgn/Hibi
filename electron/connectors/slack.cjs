@@ -1,6 +1,6 @@
 // URLs do serviço padrão. Um endpoint próprio não as herda: o servidor de
 // autorização do Slack não acompanha a base da API que a pessoa configurou.
-const DEFAULT_OAUTH = { pkce: true, authorizationUrl: 'https://slack.com/oauth/v2/authorize', tokenUrl: 'https://slack.com/api/oauth.v2.access', scopes: ['chat:write', 'stars:read'] };
+const DEFAULT_OAUTH = { pkce: true, authorizationUrl: 'https://slack.com/oauth/v2/authorize', tokenUrl: 'https://slack.com/api/oauth.v2.access', revocationUrl: 'https://slack.com/api/auth.revoke', scopes: ['chat:write', 'stars:read'] };
 
 function createSlackConnector({ baseUrl = 'https://slack.com/api/', request, oauth } = {}) {
   const url = new URL(baseUrl);

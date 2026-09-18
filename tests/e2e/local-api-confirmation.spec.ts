@@ -42,6 +42,8 @@ async function installLocalApiBridge(page: Page) {
       onCompanionAction: (callback: (action: CompanionAction) => void) => subscribe(companionActionListeners, callback),
       resolveLocalApiWrite: async (input: { confirmationId: string; approved: boolean }) => {
         calls.push(`resolve:${input.confirmationId}:${input.approved}`);
+        // O processo principal recusa o pedido que passou do prazo (hibi:local-api:resolve-write).
+        if ((window as unknown as { hibiE2EExpired?: boolean }).hibiE2EExpired) return { resolved: false, expired: true };
         return { resolved: true, approved: input.approved };
       },
     };
@@ -139,5 +141,31 @@ test('cancelar pelo notch recusa a escrita sem criar a tarefa', async ({ page })
   await expect(card(page)).toHaveCount(0);
   await expect.poll(() => callsForIntent(page)).toEqual([SHOWN, DISMISSED, `resolve:${CONFIRMATION_ID}:false`]);
   await expect(taskRow(page)).toHaveCount(0);
+  expect(await workspaceMentionsTask(page)).toBe(false);
+});
+
+// Antes a tarefa era criada aqui e só depois o processo principal era avisado: um pedido já expirado lá
+// virava tarefa do mesmo jeito.
+test('aprovar um pedido que o processo principal já deu como expirado não cria nada', async ({ page }) => {
+  await openTasks(page);
+  await requestWrite(page);
+  await page.evaluate(() => { (window as unknown as { hibiE2EExpired?: boolean }).hibiE2EExpired = true; });
+
+  await card(page).getByRole('button', { name: 'Confirmar' }).click();
+
+  await expect(page.getByRole('alert').filter({ hasText: 'A confirmação da API local expirou.' })).toBeVisible();
+  await expect(taskRow(page)).toHaveCount(0);
+  expect(await workspaceMentionsTask(page)).toBe(false);
+});
+
+test('o cartão da API local some quando o prazo do pedido acaba', async ({ page }) => {
+  await page.clock.install();
+  await openTasks(page);
+  await requestWrite(page);
+  await expect(card(page)).toBeVisible();
+
+  await page.clock.runFor(61_000);
+
+  await expect(card(page)).toHaveCount(0);
   expect(await workspaceMentionsTask(page)).toBe(false);
 });

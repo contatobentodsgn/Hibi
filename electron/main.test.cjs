@@ -923,6 +923,23 @@ test("uma escrita da API local só pode ser resolvida uma vez", async (t) => {
   assert.deepEqual(await harness.invoke("hibi:local-api:resolve-write", { confirmationId: prepared.confirmationId, approved: true }), { resolved: false });
 });
 
+// O cartão some em 60 s, e antes o pedido continuava aprovável para sempre.
+test("uma escrita da API local expira junto com o cartão de confirmação", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const realNow = Date.now;
+  t.after(() => { Date.now = realNow; });
+  let clock = realNow();
+  Date.now = () => clock;
+
+  const expiring = await harness.captured.localApi.prepareWrite({ kind: "task.create", payload: { title: "Tarde demais" } });
+  const inTime = await harness.captured.localApi.prepareWrite({ kind: "task.create", payload: { title: "A tempo" } });
+  clock += 59_000;
+  assert.deepEqual(await harness.invoke("hibi:local-api:resolve-write", { confirmationId: inTime.confirmationId, approved: true }), { resolved: true, approved: true });
+  clock += 2_000;
+  assert.deepEqual(await harness.invoke("hibi:local-api:resolve-write", { confirmationId: expiring.confirmationId, approved: true }), { resolved: false, expired: true });
+});
+
 test("hibi:local-api:resolve-write ignora confirmações desconhecidas ou malformadas", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());

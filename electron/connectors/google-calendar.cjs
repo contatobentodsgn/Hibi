@@ -138,6 +138,7 @@ function createGoogleCalendarConnector({ request, oauth } = {}) {
     pkce: true,
     authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
     tokenUrl: "https://oauth2.googleapis.com/token",
+    revocationUrl: "https://oauth2.googleapis.com/revoke",
     // Ler e escrever eventos e listar calendários. O escopo `calendar` inteiro também daria
     // compartilhamento e permissões (ACL), que o Hibi não usa.
     scopes: [
