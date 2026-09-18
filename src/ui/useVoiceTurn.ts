@@ -65,21 +65,25 @@ export function useVoiceTurn({ ask, turnState, onCompanionEvent }: Options): Voi
     setNotice('');
     setListening(true);
     notchRequest.current = notch ? `voice-${crypto.randomUUID()}` : null;
-    showInNotch(latest.current.t('voice.listening'));
+    // Sem texto ainda: a barra mostra "Ouvindo…" como dica, e o que chega do ditado toma o lugar dela.
+    showInNotch('');
     const result = await listen({ autoStop: true }).catch(() => null);
     listeningRef.current = false;
     setListening(false);
     const requestId = notchRequest.current;
     notchRequest.current = null;
-    if (requestId) latest.current.onCompanionEvent({ type: 'presentation.dismissed', requestId });
     const heard = transcriptRef.current.trim();
     if (result?.ended === 'silence' && heard) {
       awaitingReply.current = true;
       transcriptRef.current = '';
       setTranscript('');
+      // Primeiro o pedido, depois a escuta sai: o "pensando" toma o lugar do "ouvindo" no notch e na
+      // barra. Na ordem inversa o mascote voltava ao repouso por um instante — o piscar entre os dois.
       latest.current.ask(heard);
+      if (requestId) latest.current.onCompanionEvent({ type: 'presentation.dismissed', requestId });
       return;
     }
+    if (requestId) latest.current.onCompanionEvent({ type: 'presentation.dismissed', requestId });
     const message = result?.ended === 'no-speech' ? latest.current.t('voice.noSpeech') : voiceNotice(result, latest.current.t);
     setNotice(message);
     // Sem a janela à vista, o aviso vai para o notch; senão a pessoa não saberia por que nada aconteceu.

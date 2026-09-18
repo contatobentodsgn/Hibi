@@ -23,6 +23,8 @@ const { createNotchWindowManager, validPresentation } = require("./notch-window.
 const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('./notch-settings.cjs');
 const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
 const { showStartupNotch, idleCompanionPresentation } = require('./notch-startup.cjs');
+const { createIdleEscalation, createMascot } = require('./mascot.cjs');
+const { cleanInput, createTabyBar } = require('./taby-bar.cjs');
 const { createLocalVoiceService } = require('./local-voice.cjs');
 const { createLocalModelStore } = require('./local-model-store.cjs');
 const { createLocalModelDownload } = require('./local-model-download.cjs');
@@ -60,9 +62,9 @@ const bundledModelManifest = () => app.isPackaged
   ? path.join(process.resourcesPath || __dirname, 'local-models', 'manifest.json')
   : path.join(__dirname, '..', '.hibi-local-models', 'manifest.json');
 
-const startupNotchAnimationPath = () => app.isPackaged
-  ? path.join(process.resourcesPath || __dirname, 'companion-assets', 'animations', 'notch', 'idle_01_loop.mp4')
-  : path.join(__dirname, '..', 'public', 'companion-assets', 'animations', 'notch', 'idle_01_loop.mp4');
+// O mascote oficial (o gato) mora em `public/mascot` e vai para os recursos do pacote.
+const mascot = createMascot({ root: app.isPackaged ? path.join(process.resourcesPath || __dirname, 'mascot') : path.join(__dirname, '..', 'public', 'mascot') });
+const startupNotchAnimationPath = () => mascot.animationPath('idle');
 
 let mainWindow;
 let notificationScheduler;
@@ -96,6 +98,10 @@ const prunePendingLocalApiWrites = (nowMs = Date.now()) => {
   while (pendingLocalApiWrites.size > MAX_PENDING_LOCAL_API_WRITES) pendingLocalApiWrites.delete(pendingLocalApiWrites.keys().next().value);
 };
 let notchWindow;
+let tabyBar;
+let idleEscalation;
+// O pedido que está no notch agora; `null` quando o mascote está em repouso.
+let notchBusyRequestId = null;
 let notchSettings;
 let notchTest;
 let detachNotchLifecycle = () => {};
@@ -282,11 +288,25 @@ function openTaby() {
   sendToMainWindow('hibi:shortcut:taby');
 }
 
+// O atalho abre a barra do Taby embaixo do notch, para digitar ou falar sem sair do app em que se está.
+// `notch` já começa a ouvir; `window` é o caminho antigo, pela janela do Hibi.
 function summonTaby() {
   const mode = voiceSettings?.get().shortcutVoice ?? 'off';
-  if (mode === 'off') { openTaby(); return; }
-  if (mode === 'window') summonWindow();
-  sendToMainWindow('hibi:shortcut:taby', { listen: true, background: mode === 'notch' });
+  if (mode === 'window') { summonWindow(); sendToMainWindow('hibi:shortcut:taby', { listen: true, background: false }); return; }
+  tabyBar?.openInput();
+  if (mode === 'notch') sendToMainWindow('hibi:shortcut:taby', { listen: true, background: true });
+}
+
+// O notch recebe só o mascote: o estado vira um vídeo, sem texto nem botão.
+function mascotPresentation(presentation) {
+  const state = mascot.stateFor(presentation.kind);
+  return { requestId: presentation.requestId, kind: presentation.kind, text: null, actions: [], interaction: 'passthrough', host: 'native', animationPath: mascot.animationPath(state) };
+}
+
+// O repouso escala com o tempo parado (curioso, dando uma volta, dormindo), só com o notch livre.
+function showIdleMascot(state) {
+  if (notchBusyRequestId !== null) return;
+  try { notchWindow?.show({ ...idleCompanionPresentation(mascot.animationPath(state)) }); } catch { /* sem notch agora */ }
 }
 
 function replaceAiRuntime(runtime) {
@@ -377,6 +397,8 @@ app.whenReady().then(async () => {
     },
   });
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, size: notchSettings.get().size, idlePresentation: () => idleCompanionPresentation(startupNotchAnimationPath()), load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
+  tabyBar = createTabyBar({ BrowserWindowClass: BrowserWindow, preloadPath: path.join(__dirname, 'bar-preload.cjs'), displayFor: () => notchWindow.currentDisplay(), sizeFor: () => notchWindow.currentSize(), load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=bar`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'bar' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
+  idleEscalation = createIdleEscalation({ onState: showIdleMascot });
   notchTest = createNotchTest({ manager: notchWindow });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('hibi:notch:displays-changed') });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
@@ -502,15 +524,46 @@ app.whenReady().then(async () => {
     // Uma confirmação no ar espera um clique. Nenhum outro cartão pedido pelo renderer a cobre —
     // inclusive de quem fala com o notch por fora do controlador do companion, como a sincronização
     // do Notion. Senão a confirmação sumia e o pedido ficava pendente sem cartão.
-    // Confirmações sempre vão para a overlay Electron (o painel nativo recusa botões), que é o que
-    // `activePresentation` descreve.
-    const active = notchWindow.activePresentation;
+    const active = tabyBar.current();
     if (active && active.actions.length > 0 && active.requestId !== presentation.requestId) return { deferred: true, requestId: active.requestId };
-    return notchWindow.show(presentation);
+    // Regra do produto: no notch só o mascote. Texto e botões vão para a barra embaixo dele.
+    notchBusyRequestId = presentation.requestId;
+    idleEscalation.stop();
+    const shown = notchWindow.show(mascotPresentation(presentation));
+    tabyBar.show(presentation);
+    return shown;
   });
-  ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
-  ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));
-  ipcMain.handle('hibi:notch:current', () => notchWindow.activePresentation ?? null);
+  ipcMain.handle('hibi:notch:hide', (_event, requestId) => {
+    const id = typeof requestId === 'string' ? requestId : '';
+    tabyBar.hide(id);
+    const hidden = notchWindow.hide(id);
+    if (hidden && notchBusyRequestId === id) { notchBusyRequestId = null; idleEscalation.reset(); }
+    return hidden;
+  });
+  ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && tabyBar.resolveAction(requestId, actionId));
+  ipcMain.handle('hibi:notch:current', () => tabyBar.current());
+  // A barra do Taby fala só por estes canais, e só a janela dela é ouvida.
+  const fromBar = (event) => tabyBar.isSender(event?.sender);
+  ipcMain.handle('hibi:bar:current', (event) => (fromBar(event) ? tabyBar.current() : null));
+  ipcMain.handle('hibi:bar:action', (event, requestId, actionId) => fromBar(event) && isValidNotchAction(requestId, actionId) && tabyBar.resolveAction(requestId, actionId));
+  ipcMain.handle('hibi:bar:submit', (event, text) => {
+    const message = fromBar(event) ? cleanInput(text) : null;
+    if (!message) return false;
+    sendToMainWindow('hibi:bar:submit', message);
+    return true;
+  });
+  ipcMain.handle('hibi:bar:voice', (event, command) => {
+    if (!fromBar(event) || (command !== 'start' && command !== 'stop')) return false;
+    sendToMainWindow('hibi:bar:voice', command);
+    return true;
+  });
+  ipcMain.handle('hibi:bar:close', (event) => {
+    if (!fromBar(event)) return false;
+    const closing = tabyBar.current();
+    tabyBar.hide();
+    if (closing) sendToMainWindow('hibi:bar:closed', closing.requestId);
+    return true;
+  });
   ipcMain.handle('hibi:notch:capabilities', () => notchCapabilities(notchAdapter, notchWindow));
   ipcMain.handle('hibi:notch:displays', () => notchDisplayState(notchSettings, notchWindow));
   ipcMain.handle('hibi:notch:set-display', (_event, displayId) => applyNotchDisplay(notchSettings, notchWindow, displayId));
@@ -575,6 +628,7 @@ app.whenReady().then(async () => {
   appTray = createAppTray({ Tray, Menu, nativeImage, onOpen: summonWindow, onTaby: openTaby, onHide: () => mainWindow?.hide(), onQuit: () => { quitting = true; app.quit(); } });
   tabyShortcut.apply();
   showStartupNotch(notchWindow, startupNotchAnimationPath());
+  idleEscalation.reset();
   app.on("activate", () => summonWindow());
 });
 app.on("before-quit", () => { quitting = true; localVoiceService?.stop(); appTray?.destroy(); tabyShortcut?.dispose(); detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });

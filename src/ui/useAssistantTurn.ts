@@ -101,7 +101,8 @@ export function useAssistantTurn({ runtime, onEvent, onCompanionEvent, onCompani
     lastMessage.current = trimmed;
     dispatch({ type: 'turn.started', requestId });
     onEvent('assistant-query', trimmed, useLocalFallback ? 'local-fallback' : 'requested');
-    onCompanionEvent?.(companionEventFor('listening', requestId, 'Ouvindo…', Date.now()));
+    // O pedido chegou: o mascote pensa, e a barra mostra o que foi pedido enquanto isso.
+    onCompanionEvent?.(companionEventFor('thinking', requestId, trimmed, Date.now()));
     try {
       // O instante real: o assistente raciocina sobre o agora de quem pergunta, e é dele que sai o
       // dia usado para criar blocos e lembretes a partir de um horário solto ("às 10h").

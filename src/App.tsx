@@ -135,6 +135,8 @@ export default function App() {
   const conversations = useConversations({ turn: assistantTurn, onEvent: log });
   // A voz vive aqui, e não na tela Taby: o atalho pode ouvir com a janela escondida, e o notch mostra.
   const voice = useVoiceTurn({ ask: (text) => { conversations.record({ role: 'user', text, at: new Date().toISOString() }); void assistantTurn.ask(text); }, turnState: assistantTurn.state, onCompanionEvent: dispatchCompanion });
+  const voiceRef = useRef(voice);
+  voiceRef.current = voice;
 
   const refreshData = () => setData(repository.snapshot());
   // Chamado só depois da mutação aplicada. Se registrar falhar, a ação continua valendo: só avisa.
@@ -397,6 +399,17 @@ export default function App() {
     setRoute(next);
     log(source, options.folder === undefined ? `Opened ${next}` : `Opened ${next} · folder`);
   };
+  // A barra embaixo do notch: o texto enviado vira pedido, falar e parar vão para a voz, e fechar
+  // dispensa o que ela mostrava (parando a escuta, se era ela).
+  React.useEffect(() => {
+    const bridge = window.hibiDesktop;
+    const offs = [
+      bridge?.onBarSubmit?.((text) => { conversations.record({ role: 'user', text, at: new Date().toISOString() }); void assistantTurn.ask(text); }),
+      bridge?.onBarVoice?.((command) => { if (command === 'start') void voiceRef.current.start({ notch: true }); else void voiceRef.current.stop(); }),
+      bridge?.onBarClosed?.((requestId) => { if (voiceRef.current.listening) void voiceRef.current.stop(); dispatchCompanion({ type: 'presentation.dismissed', requestId }); }),
+    ];
+    return () => { for (const off of offs) off?.(); };
+  }, [conversations, assistantTurn.ask]);
   useTabyShortcut((request) => {
     // No modo notch a janela nem aparece: trocar de tela ali só mudaria o que a pessoa vê depois.
     if (!request?.background) navigate('taby', 'shortcut');

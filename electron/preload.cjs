@@ -88,6 +88,9 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,onUpdateState: (callback) => { const listener = (_event, state) => callback(state); ipcRenderer.on('hibi:updates:state', listener); return () => ipcRenderer.removeListener('hibi:updates:state', listener); }
   ,getTabyShortcut: () => ipcRenderer.invoke('hibi:shortcut:get')
   ,setTabyShortcut: (accelerator) => ipcRenderer.invoke('hibi:shortcut:set', accelerator)
+  ,onBarSubmit: (callback) => { const listener = (_event, text) => { if (typeof text === 'string') callback(text); }; ipcRenderer.on('hibi:bar:submit', listener); return () => ipcRenderer.removeListener('hibi:bar:submit', listener); }
+  ,onBarVoice: (callback) => { const listener = (_event, command) => { if (command === 'start' || command === 'stop') callback(command); }; ipcRenderer.on('hibi:bar:voice', listener); return () => ipcRenderer.removeListener('hibi:bar:voice', listener); }
+  ,onBarClosed: (callback) => { const listener = (_event, requestId) => { if (typeof requestId === 'string') callback(requestId); }; ipcRenderer.on('hibi:bar:closed', listener); return () => ipcRenderer.removeListener('hibi:bar:closed', listener); }
   ,onTabyShortcut: (callback) => { const listener = (_event, request) => callback({ listen: request?.listen === true, background: request?.background === true }); ipcRenderer.on('hibi:shortcut:taby', listener); return () => ipcRenderer.removeListener('hibi:shortcut:taby', listener); }
   ,onAiStreamEvent: (callback) => {
     if (typeof callback !== 'function') throw new TypeError('AI stream listener must be a function.');
