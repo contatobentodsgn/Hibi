@@ -18,6 +18,8 @@ type Options = Readonly<{
   ask: (text: string) => void;
   turnState: AssistantTurnState;
   onCompanionEvent: (event: CompanionEvent) => void;
+  /** Os nomes que o reconhecedor deve favorecer, lidos na hora de começar a ouvir. */
+  vocabulary?: () => readonly string[];
 }>;
 
 const LISTENING_EXPIRES_MS = 20_000;
@@ -32,7 +34,7 @@ const LISTENING_EXPIRES_MS = 20_000;
  * - A resposta de um pedido feito por voz é lida em voz alta, se o ajuste estiver ligado. Quem decide é o
  *   processo principal, que recusa quando o ajuste está desligado.
  */
-export function useVoiceTurn({ ask, turnState, onCompanionEvent }: Options): VoiceTurnControls {
+export function useVoiceTurn({ ask, turnState, onCompanionEvent, vocabulary }: Options): VoiceTurnControls {
   const t = useT();
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -41,8 +43,8 @@ export function useVoiceTurn({ ask, turnState, onCompanionEvent }: Options): Voi
   const listeningRef = useRef(false);
   const notchRequest = useRef<string | null>(null);
   const awaitingReply = useRef(false);
-  const latest = useRef({ ask, onCompanionEvent, t });
-  latest.current = { ask, onCompanionEvent, t };
+  const latest = useRef({ ask, onCompanionEvent, t, vocabulary });
+  latest.current = { ask, onCompanionEvent, t, vocabulary };
 
   const showInNotch = (text: string) => {
     const requestId = notchRequest.current;
@@ -67,7 +69,7 @@ export function useVoiceTurn({ ask, turnState, onCompanionEvent }: Options): Voi
     notchRequest.current = notch ? `voice-${crypto.randomUUID()}` : null;
     // Sem texto ainda: a barra mostra "Ouvindo…" como dica, e o que chega do ditado toma o lugar dela.
     showInNotch('');
-    const result = await listen({ autoStop: true }).catch(() => null);
+    const result = await listen({ autoStop: true, vocabulary: latest.current.vocabulary?.() ?? [] }).catch(() => null);
     listeningRef.current = false;
     setListening(false);
     const requestId = notchRequest.current;

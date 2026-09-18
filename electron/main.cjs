@@ -599,7 +599,7 @@ app.whenReady().then(async () => {
       const allowed = await systemPreferences.askForMediaAccess('microphone').catch(() => false);
       if (!allowed) return { ...localVoiceService.state(), status: 'error', error: 'Microphone access was denied in macOS settings.' };
     }
-    return localVoiceService.listen({ autoStop: options?.autoStop === true, onText: (text) => sendToMainWindow('hibi:local-voice:text', text) });
+    return localVoiceService.listen({ autoStop: options?.autoStop === true, vocabulary: options?.vocabulary, onText: (text) => sendToMainWindow('hibi:local-voice:text', text) });
   });
   ipcMain.handle('hibi:local-voice:set-locale', (_event, locale) => localVoiceService.setLocale(locale));
   ipcMain.handle('hibi:local-voice:stop', () => localVoiceService.stop());

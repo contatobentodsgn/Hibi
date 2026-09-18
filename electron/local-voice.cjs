@@ -4,6 +4,29 @@ const SILENCE_MS = 1_300;
 const NO_SPEECH_MS = 8_000;
 // Depois da primeira palavra, a escuta dura no máximo isto, mesmo com ruído de fundo.
 const MAX_SPEECH_MS = 20_000;
+// O reconhecedor da Apple aceita até 100 termos a favorecer; cada um é um nome ou um título curto.
+const VOCABULARY_LIMIT = 100;
+const VOCABULARY_TERM_LENGTH = 40;
+
+/**
+ * Os termos que a tela pede para o reconhecedor favorecer ("Kabrito", "Cristiane"), limpos aqui: a tela não
+ * decide o tamanho do que chega ao helper. O que não for texto curto e legível fica de fora.
+ */
+function normalizeVocabulary(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  const terms = [];
+  for (const item of value) {
+    if (typeof item !== 'string') continue;
+    const term = item.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
+    const key = term.toLowerCase();
+    if (term.length < 2 || term.length > VOCABULARY_TERM_LENGTH || seen.has(key)) continue;
+    seen.add(key);
+    terms.push(term);
+    if (terms.length === VOCABULARY_LIMIT) break;
+  }
+  return terms;
+}
 
 function createLocalVoiceService({ adapter } = {}) {
   let state = { status: adapter ? 'ready' : 'unavailable', locale: 'pt-BR', error: adapter ? null : 'Local voice adapter is unavailable.' };
@@ -18,7 +41,7 @@ function createLocalVoiceService({ adapter } = {}) {
       if (active) return publish({ status: 'listening', error: null });
       // `autoStop` encerra a escuta quando a fala para (e quando ninguém fala), e a tela envia sozinha.
       const timing = request.autoStop ? { silenceMs: SILENCE_MS, noSpeechMs: NO_SPEECH_MS, maxSpeechMs: MAX_SPEECH_MS } : {};
-      active = adapter.listen({ locale: locale(request.locale || state.locale), onText: request.onText, ...timing });
+      active = adapter.listen({ locale: locale(request.locale || state.locale), onText: request.onText, vocabulary: normalizeVocabulary(request.vocabulary), ...timing });
       publish({ status: 'listening', error: null, reason: null, ended: null });
       try { const result = await active; return publish({ status: 'ready', reason: null, ended: result?.ended ?? 'done' }); } catch (error) { return publish({ status: 'error', error: error?.message || 'Local voice failed.', reason: error?.reason ?? 'failed' }); } finally { active = null; }
     },
@@ -32,4 +55,4 @@ function createLocalVoiceService({ adapter } = {}) {
   };
 }
 
-module.exports = { SUPPORTED_LOCALES, createLocalVoiceService };
+module.exports = { SUPPORTED_LOCALES, VOCABULARY_LIMIT, normalizeVocabulary, createLocalVoiceService };

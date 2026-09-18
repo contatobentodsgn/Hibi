@@ -70,7 +70,7 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,cancelLocalModel: (requestId) => ipcRenderer.invoke('hibi:local-model:cancel', requestId)
   ,shutdownLocalModel: () => ipcRenderer.invoke('hibi:local-model:shutdown')
   ,getLocalVoiceState: () => ipcRenderer.invoke('hibi:local-voice:state')
-  ,listenLocalVoice: (options) => ipcRenderer.invoke('hibi:local-voice:listen', { autoStop: options?.autoStop === true })
+  ,listenLocalVoice: (options) => ipcRenderer.invoke('hibi:local-voice:listen', { autoStop: options?.autoStop === true, vocabulary: Array.isArray(options?.vocabulary) ? options.vocabulary.filter((term) => typeof term === 'string') : [] })
   ,speakLocalVoice: (text) => ipcRenderer.invoke('hibi:local-voice:speak', text)
   ,getVoiceSettings: () => ipcRenderer.invoke('hibi:voice-settings:get')
   ,setVoiceSettings: (patch) => ipcRenderer.invoke('hibi:voice-settings:set', patch)
