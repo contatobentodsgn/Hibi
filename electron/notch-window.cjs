@@ -36,7 +36,10 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
   const selectedDisplay = () => resolution().display;
   const position = () => {
     const target = getWindow(); if (!target) return;
-    const baseBounds = activeActions.size > 0 ? actionBounds(selectedDisplay(), size) : notchBounds(selectedDisplay(), size);
+    // Um cartão com texto não cabe no recorte do notch: ele usa a mesma área de leitura da
+    // confirmação. Sem texto, o painel volta ao tamanho do notch, que é onde o mascote mora.
+    const precisaLer = activeActions.size > 0 || Boolean(activePresentation?.text);
+    const baseBounds = precisaLer ? actionBounds(selectedDisplay(), size) : notchBounds(selectedDisplay(), size);
     const bounds = baseBounds;
     target.setBounds(bounds);
     // O addon recebe o handle e os quatro números separados, não o objeto. A colocação nativa

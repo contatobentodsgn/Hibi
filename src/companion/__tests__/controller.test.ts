@@ -37,3 +37,27 @@ describe('CompanionController', () => {
     expect(show).not.toHaveBeenCalled();
   });
 });
+
+// O painel nativo desenha o mascote, não texto: uma resposta enviada para ele apareceria como
+// carinha e nada mais.
+describe('superfície do cartão', () => {
+  it('manda o cartão com texto para a overlay, que sabe desenhá-lo', () => {
+    const mostrados: { host?: string; text: string | null }[] = [];
+    const controller = new CompanionController({ show: (presentation) => mostrados.push(presentation), hide: () => undefined });
+
+    controller.dispatch({ type: 'ai.result', requestId: 'r1', text: 'Use a técnica de 25 minutos.', nowMs: 1_000, expiresInMs: 10_000 });
+
+    expect(mostrados[0]?.host).toBe('electron');
+    expect(mostrados[0]?.text).toBe('Use a técnica de 25 minutos.');
+  });
+
+  it('sem texto, o cartão fica no painel nativo, onde o mascote mora', () => {
+    const mostrados: { host?: string }[] = [];
+    const controller = new CompanionController({ show: (presentation) => mostrados.push(presentation), hide: () => undefined });
+
+    controller.dispatch({ type: 'ai.stage', requestId: 'r2', stage: 'thinking', nowMs: 1_000 });
+
+    expect(mostrados[0]).toBeDefined();
+    expect(mostrados[0]?.host).toBeUndefined();
+  });
+});
