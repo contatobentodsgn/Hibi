@@ -11,11 +11,12 @@
  */
 const MAX_TEXT = 4_000;
 const MAX_INPUT = 2_000;
-const BAR_WIDTH = 560;
+// Uns 30% mais estreita que a primeira versão, a pedido: a barra acompanha o notch, não a tela.
+const BAR_WIDTH = 390;
 const GAP = 10;
 // Altura do painel do mascote (painel nativo) em cada tamanho do notch; a barra começa logo abaixo.
 const MASCOT_HEIGHT = { normal: 167, compact: 142 };
-const HEIGHT_FOR_MODE = { input: 64, listening: 64, thinking: 64, notice: 104, reply: 168, confirmation: 132 };
+const HEIGHT_FOR_MODE = { input: 64, listening: 64, thinking: 64, notice: 104, reply: 168, confirmation: 140 };
 
 /** O modo da barra para uma apresentação do companion; `null` quando ela não tem nada para a barra. */
 function barModeFor(presentation) {

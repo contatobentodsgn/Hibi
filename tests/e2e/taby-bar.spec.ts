@@ -48,6 +48,11 @@ test('falar pela barra: o ditado aparece nela, e parar vai para a voz', async ({
   await expect(bar(page)).toContainText('Ouvindo…');
   await push(page, { requestId: 'voice-1', mode: 'listening', kind: 'listening', text: 'crie uma tarefa', actions: [] });
   await expect(bar(page)).toContainText('crie uma tarefa');
+  // Um ditado longo mostra as últimas palavras, que é o que acabou de ser dito.
+  await push(page, { requestId: 'voice-1', mode: 'listening', kind: 'listening', text: 'marque uma reunião com a Ana e o Pedro amanhã às quatro da tarde', actions: [] });
+  await expect(bar(page)).toContainText('quatro da tarde');
+  await expect(bar(page)).toContainText('…');
+  await expect(bar(page)).not.toContainText('marque uma');
   await bar(page).getByRole('button', { name: 'Parar de ouvir' }).click();
   expect(await calls(page)).toContain('voice:stop');
 });

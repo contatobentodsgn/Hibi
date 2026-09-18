@@ -28,6 +28,7 @@ test('a barra nasce embaixo do mascote, centrada no monitor do notch', () => {
   const bounds = barBounds(macbook, 'input', 'compact');
   assert.equal(bounds.y, -956 + 142 + 10);
   assert.equal(bounds.x + bounds.width / 2, 570 + 1470 / 2);
+  assert.equal(bounds.width, 390);
   assert.ok(barBounds(macbook, 'reply', 'compact').height > bounds.height);
 });
 

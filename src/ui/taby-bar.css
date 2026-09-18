@@ -20,3 +20,6 @@ html:has(.taby-bar) #root { margin: 0; padding: 0; width: 100vw; height: 100vh; 
 @keyframes taby-bar-dot { 50% { opacity: .25; transform: translateY(-2px); } }
 @media (prefers-reduced-motion: reduce) { .taby-bar-pulse, .taby-bar-dots i { animation: none; } }
 @media (prefers-color-scheme: dark) { .taby-bar { background: #201d1a; color: #f4ece0; } .taby-bar-icon { background: #f4ece0; color: #201d1a; } .taby-bar-pill { background: #f4ece01f; color: #f4ece0; } .taby-bar-pill.is-primary { background: #f4ece0; color: #201d1a; } .taby-bar-dots i { background: #f4ece0; } }
+/* Mais estreita, a confirmação não cabe numa linha: o texto em cima, os botões embaixo, à direita. */
+.taby-bar[data-mode=confirmation] { flex-direction: column; align-items: stretch; gap: 8px; }
+.taby-bar[data-mode=confirmation] .taby-bar-actions { justify-content: flex-end; }

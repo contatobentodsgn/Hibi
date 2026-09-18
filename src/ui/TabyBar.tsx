@@ -5,6 +5,11 @@ import './taby-bar.css';
 
 type Bridge = NonNullable<Window['hibiBar']>;
 
+// No ditado, o que importa é o que acabou de ser dito: numa barra estreita, um texto longo mostra as
+// últimas palavras, e não o começo cortado.
+const DICTATION_CHARS = 42;
+export const latestWords = (text: string): string => (text.length <= DICTATION_CHARS ? text : `…${text.slice(-(DICTATION_CHARS - 1)).replace(/^\S*\s/u, '')}`);
+
 const Icon = ({ name }: { name: 'mic' | 'send' | 'stop' | 'close' }) => {
   const paths = {
     mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></>,
@@ -65,7 +70,7 @@ export function TabyBar({ bridge = typeof window === 'undefined' ? undefined : w
       <div className="taby-bar-actions">{draft.trim() ? button(t('bar.send'), 'send', submit) : button(t('bar.speak'), 'mic', () => { void bridge?.voice('start'); })}</div>
     </>}
     {content.mode === 'listening' && <>
-      <p className="taby-bar-text" aria-live="polite">{content.text || <span className="taby-bar-hint">{t('bar.listening')}</span>}</p>
+      <p className="taby-bar-text" aria-live="polite">{content.text ? latestWords(content.text) : <span className="taby-bar-hint">{t('bar.listening')}</span>}</p>
       <div className="taby-bar-actions"><span className="taby-bar-pulse" aria-hidden="true" />{button(t('bar.stop'), 'stop', () => { void bridge?.voice('stop'); })}</div>
     </>}
     {content.mode === 'thinking' && <>
