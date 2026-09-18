@@ -318,6 +318,7 @@ const pt = {
   'data.restorePoint.beforeRestore': 'Antes de restaurar um backup',
   'data.restorePoint.migration': 'Migração do armazenamento local',
   'data.restorePoint.beforeRollback': 'Antes de reverter alterações',
+  'data.restorePoint.beforeRecovery': 'Antes de recuperar mudanças que o banco tinha recusado',
   'data.restorePoints.empty': 'Nenhum ponto de restauração ainda. Eles aparecem depois de apagar todos os dados ou restaurar um backup.',
   'data.restorePoints.desktopOnly': 'Os pontos de restauração ficam no app de desktop do Hibi.',
 
@@ -661,6 +662,7 @@ const en: Record<DictionaryKey, string> = {
   'data.restorePoint.beforeRestore': 'Before restoring a backup',
   'data.restorePoint.migration': 'Local storage migration',
   'data.restorePoint.beforeRollback': 'Before rolling back changes',
+  'data.restorePoint.beforeRecovery': 'Before recovering changes the database had refused',
   'data.restorePoints.empty': 'No restore points yet. They appear after wiping all data or restoring a backup.',
   'data.restorePoints.desktopOnly': 'Restore points live in the Hibi desktop app.',
 

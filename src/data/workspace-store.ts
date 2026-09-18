@@ -21,6 +21,12 @@ import type { DictionaryKey } from '../i18n/dictionary'
 
 export const WORKSPACE_STORAGE_KEY = 'hibi-study-data'
 export const WORKSPACE_MIGRATED_KEY = 'hibi-study-data-migrated'
+/**
+ * Marca que o espelho local tem mudanças que o banco recusou. Sem ela, a próxima abertura lia o
+ * banco — ainda com o estado anterior — e ele sobrescrevia o espelho: tudo o que foi feito enquanto
+ * o banco falhava se perdia, sem ponto de restauração.
+ */
+export const WORKSPACE_PENDING_KEY = 'hibi-study-data-pending-database'
 
 /**
  * O rótulo gravado num ponto de restauração é a **chave** do dicionário, não a frase: quem mostra a
@@ -32,6 +38,7 @@ export const WORKSPACE_RESTORE_POINT_KEYS = {
   beforeRestore: 'data.restorePoint.beforeRestore',
   migration: 'data.restorePoint.migration',
   beforeRollback: 'data.restorePoint.beforeRollback',
+  beforeRecovery: 'data.restorePoint.beforeRecovery',
 } as const satisfies Record<string, DictionaryKey>
 
 export const WORKSPACE_MIGRATION_LABEL: DictionaryKey = WORKSPACE_RESTORE_POINT_KEYS.migration
@@ -105,6 +112,12 @@ export function createWorkspaceStore({ storage, database }: { storage: LocalStor
   const alreadyMigrated = () => {
     try { return storage.getItem(WORKSPACE_MIGRATED_KEY) === 'true' } catch { return false }
   }
+  const pendingDatabase = () => {
+    try { return storage.getItem(WORKSPACE_PENDING_KEY) === 'true' } catch { return false }
+  }
+  const markPending = (pending: boolean) => {
+    try { storage.setItem(WORKSPACE_PENDING_KEY, pending ? 'true' : 'false') } catch { /* a marca é a melhor tentativa */ }
+  }
 
   return {
     async load(): Promise<WorkspaceLoad> {
@@ -120,6 +133,18 @@ export function createWorkspaceStore({ storage, database }: { storage: LocalStor
       // O espelho acompanha o que o banco devolveu. Sem isto ele fica com o que o App tinha antes de
       // ler — a semente, numa janela sem a chave local — e deixa de ser a saída de emergência que é:
       // quem abrisse uma versão anterior do app encontraria o workspace errado no lugar antigo.
+      // O espelho tem o que o banco recusou na sessão anterior: ele é o mais novo. Vai para o banco com
+      // um ponto de restauração do que estava lá, e só então a marca sai — se o banco recusar de novo,
+      // o espelho continua valendo e a marca fica para a próxima abertura.
+      if (local !== null && pendingDatabase()) {
+        try {
+          await database.save(local, { restorePoint: WORKSPACE_RESTORE_POINT_KEYS.beforeRecovery })
+          markPending(false)
+          return { payload: local, origin: 'database', migrated: false }
+        } catch (error) {
+          return { payload: local, origin: 'local', migrated: false, degraded: message(error) }
+        }
+      }
       if (stored !== null) { writeLocal(stored); return { payload: stored, origin: 'database', migrated: false } }
       if (local === null || alreadyMigrated()) return { payload: null, origin: 'empty', migrated: false }
       try {
@@ -140,10 +165,13 @@ export function createWorkspaceStore({ storage, database }: { storage: LocalStor
       try {
         await database.save(payload, options)
       } catch (error) {
-        // O banco falhou: o espelho local vira o único registro, e quem chama precisa saber.
+        // O banco falhou: o espelho local vira o único registro, e quem chama precisa saber. A marca
+        // faz a próxima abertura preferir o espelho ao banco, que ficou para trás.
         writeLocal(payload)
+        markPending(true)
         return { origin: 'local', degraded: message(error) }
       }
+      markPending(false)
       const mirrored = writeLocal(payload)
       return mirrored ? { origin: 'database' } : { origin: 'database', degraded: 'local storage is unavailable' }
     },
