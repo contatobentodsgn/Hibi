@@ -151,7 +151,7 @@ const helperQueFala = (linhas) => {
 };
 const relogio = () => {
   const timers = new Map(); let proximo = 0;
-  return { set: (fn, ms) => { proximo += 1; timers.set(proximo, { fn, ms }); return proximo; }, clear: (id) => timers.delete(id), disparar: (ms) => { for (const [id, timer] of [...timers]) if (timer.ms === ms) { timers.delete(id); timer.fn(); } }, pendentes: () => [...timers.values()].map((timer) => timer.ms) };
+  return { set: (fn, ms) => { proximo += 1; timers.set(proximo, { fn, ms }); return proximo; }, clear: (id) => timers.delete(id), disparar: (ms) => { for (const [id, timer] of [...timers]) if (timer.ms === ms) { timers.delete(id); timer.fn(); } }, pendentes: () => [...timers.values()].map((timer) => timer.ms), agendados: () => proximo };
 };
 
 test('depois de falar, a pausa encerra a escuta e o motivo é "silence"', async () => {
@@ -192,4 +192,37 @@ test('parar pela tela continua sendo "stopped", e sem os prazos nada encerra soz
   adapter.stop();
 
   assert.deepEqual(await escuta, { ended: 'stopped' });
+});
+
+// Visto no app instalado: a escuta demorava a parar. O reconhecedor reenvia o mesmo parcial enquanto o
+// microfone está aberto, e cada reenvio reiniciava a contagem da pausa.
+test('o mesmo texto reenviado não adia o fim; só uma mudança do texto adia', async () => {
+  const child = helperQueFala(['{"type":"text","final":false,"text":"crie uma tarefa"}']);
+  const tempo = relogio();
+  const adapter = createMacVoiceAdapter({ spawnProcess: () => child, helperPath: '/tmp/h', setTimer: tempo.set, clearTimer: tempo.clear });
+  const escuta = adapter.listen({ onText: () => {}, silenceMs: 1300, noSpeechMs: 8000 });
+
+  child.falar();
+  const agendados = tempo.agendados();
+  child.falar();
+  child.falar();
+  assert.equal(tempo.agendados(), agendados, 'repetir o mesmo parcial não pode reagendar a pausa');
+  tempo.disparar(1300);
+
+  assert.deepEqual(await escuta, { ended: 'silence' });
+});
+
+test('com ruído mudando o parcial sem parar, o teto encerra a escuta', async () => {
+  let fala;
+  const ouvintes = new Map();
+  const child = { stdout: { setEncoding() {}, on(event, fn) { if (event === 'data') fala = fn; } }, once(event, fn) { ouvintes.set(event, fn); return this; }, kill(signal) { ouvintes.get('close')?.(null, signal); } };
+  const tempo = relogio();
+  const adapter = createMacVoiceAdapter({ spawnProcess: () => child, helperPath: '/tmp/h', setTimer: tempo.set, clearTimer: tempo.clear });
+  const escuta = adapter.listen({ onText: () => {}, silenceMs: 1300, noSpeechMs: 8000, maxSpeechMs: 20000 });
+
+  for (const palavra of ['a', 'a b', 'a b c']) fala(`{"type":"text","final":false,"text":"${palavra}"}\n`);
+  assert.ok(tempo.pendentes().includes(20000));
+  tempo.disparar(20000);
+
+  assert.deepEqual(await escuta, { ended: 'silence' });
 });
