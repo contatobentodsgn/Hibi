@@ -76,10 +76,10 @@ declare global {
       runLocalModel?: (input: { requestId: string; prompt: string }) => Promise<{ requestId: string | null; status: 'complete' | 'cancelled' | 'unavailable'; text: string }>;
       cancelLocalModel?: (requestId: string) => Promise<boolean>;
       shutdownLocalModel?: () => Promise<{ status: string; modelId: string | null; error: string | null }>;
-      getLocalVoiceState?: () => Promise<{ status: string; locale: string; error: string | null }>;
-      listenLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null }>;
+      getLocalVoiceState?: () => Promise<{ status: string; locale: string; error: string | null; reason?: string | null }>;
+      listenLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null; reason?: string | null }>;
       setLocalVoiceLocale?: (locale: string) => Promise<{ status: string; locale: string; error: string | null }>;
-      stopLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null }>;
+      stopLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null; reason?: string | null }>;
       onLocalVoiceText?: (callback: (text: string) => void) => () => void;
       getNotchSize?: () => Promise<{ size: 'normal' | 'compact' }>;
       setNotchSize?: (size: 'normal' | 'compact') => Promise<{ size: 'normal' | 'compact' }>;

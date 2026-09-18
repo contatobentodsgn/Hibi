@@ -42,7 +42,8 @@ test('uma recusa do helper vira erro, com o motivo que ele deu', async () => {
     helperPath: '/tmp/hibi-voice-falso',
   });
 
-  await assert.rejects(() => adapter.listen({ locale: 'pt-BR', onText: () => {} }), /exited with code 1/);
+  // O motivo dele chega inteiro; antes chegava só "exited with code 1", e a tela não tinha o que dizer.
+  await assert.rejects(() => adapter.listen({ locale: 'pt-BR', onText: () => {} }), (error) => /On-device speech recognition is unavailable/.test(error.message) && error.reason === 'no-on-device');
 });
 
 test('o caminho do helper segue os recursos do app empacotado', () => {
@@ -86,4 +87,51 @@ test('sem helper em lugar nenhum, o caminho do repositório é o que aparece no 
   const { resolveHelperPath } = require('./local-voice-macos.cjs');
 
   assert.equal(resolveHelperPath({ exists: () => false }), require('node:path').join(__dirname, '..', 'native/voice/build/hibi-voice'));
+});
+
+// Um helper falso que encerra do jeito pedido: por código, por sinal ou emitindo um erro antes.
+function helperQueEncerra({ linhas = [], code = 0, signal = null, pedacos = null } = {}) {
+  const ouvintes = new Map();
+  const child = {
+    killed: false,
+    stdout: { setEncoding() {}, on(event, fn) { if (event === 'data') queueMicrotask(() => (pedacos ?? linhas.map((linha) => `${linha}\n`)).forEach((pedaco) => fn(pedaco))); } },
+    once(event, fn) { ouvintes.set(event, fn); if (event === 'close') setTimeout(() => fn(code, signal), 5); return this; },
+    kill() { this.killed = true; },
+  };
+  return child;
+}
+
+test('parar a escuta é pedido de quem usa, e não vira erro "exited with code null"', async () => {
+  const adapter = createMacVoiceAdapter({ spawnProcess: () => helperQueEncerra({ code: null, signal: 'SIGTERM' }), helperPath: '/tmp/hibi-voice-falso' });
+
+  await adapter.listen({ locale: 'pt-BR' });
+});
+
+test('o motivo que o helper dá chega a quem chamou, com um código estável', async () => {
+  const casos = [
+    ['Speech recognition permission denied', 'permission'],
+    ['On-device speech recognition is unavailable for this language', 'no-on-device'],
+    ['Nenhuma entrada de microfone está disponível', 'no-microphone'],
+  ];
+  for (const [mensagem, motivo] of casos) {
+    const adapter = createMacVoiceAdapter({ spawnProcess: () => helperQueEncerra({ linhas: [JSON.stringify({ type: 'error', message: mensagem })], code: 0 }), helperPath: '/tmp/hibi-voice-falso' });
+
+    await assert.rejects(() => adapter.listen({ locale: 'pt-BR' }), (error) => error.message === mensagem && error.reason === motivo);
+  }
+});
+
+test('uma linha partida em dois pedaços não perde o texto falado', async () => {
+  const recebidos = [];
+  const linha = JSON.stringify({ type: 'text', final: true, text: 'agendar reunião amanhã' });
+  const adapter = createMacVoiceAdapter({ spawnProcess: () => helperQueEncerra({ pedacos: [linha.slice(0, 20), `${linha.slice(20)}\n`] }), helperPath: '/tmp/hibi-voice-falso' });
+
+  await adapter.listen({ locale: 'pt-BR', onText: (text) => recebidos.push(text) });
+
+  assert.deepEqual(recebidos, ['agendar reunião amanhã']);
+});
+
+test('um encerramento que ninguém pediu continua sendo erro', async () => {
+  const adapter = createMacVoiceAdapter({ spawnProcess: () => helperQueEncerra({ code: 134, signal: null }), helperPath: '/tmp/hibi-voice-falso' });
+
+  await assert.rejects(() => adapter.listen({ locale: 'pt-BR' }), /exited with code 134/);
 });
