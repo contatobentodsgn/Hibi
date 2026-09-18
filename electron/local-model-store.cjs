@@ -13,9 +13,13 @@ const RECEIPT_SUFFIX = '.verified.json';
  * e qualquer divergência manda refazer a conta. Assim o app abre rápido sem passar a carregar um
  * arquivo que alguém trocou por baixo.
  */
-function createLocalModelStore({ dataRoot, now = () => new Date().toISOString(), fsImpl = fs } = {}) {
+function createLocalModelStore({ dataRoot, manifestFile, now = () => new Date().toISOString(), fsImpl = fs } = {}) {
   const root = modelRoot(dataRoot);
-  const manifestPath = path.join(root, 'manifest.json');
+  // O manifesto diz qual modelo **esta versão do app** espera: é dado do app, não da pessoa. Ele
+  // vem dentro do pacote; só o arquivo do modelo mora na pasta de dados. Ler o manifesto da pasta
+  // de dados fazia uma instalação nova nascer sem ele — o painel dizia "indisponível" e o download
+  // era recusado — e impediria uma versão nova do app de trocar de modelo.
+  const manifestPath = manifestFile || path.join(root, 'manifest.json');
   const receiptPathFor = (safeId) => path.join(root, `${safeId}${RECEIPT_SUFFIX}`);
 
   const readManifest = () => {

@@ -53,6 +53,12 @@ app.on('second-instance', () => summonWindow());
 
 // O painel nativo toca o loop a partir de um arquivo, então ele precisa existir fora do asar: o
 // `extraResources` do empacotamento copia este vídeo para os recursos do app.
+// O manifesto do modelo viaja com o app, como o vídeo do mascote: `extraResources` o copia para
+// os recursos do pacote. Em desenvolvimento ele é lido do repositório.
+const bundledModelManifest = () => app.isPackaged
+  ? path.join(process.resourcesPath || __dirname, 'local-models', 'manifest.json')
+  : path.join(__dirname, '..', '.hibi-local-models', 'manifest.json');
+
 const startupNotchAnimationPath = () => app.isPackaged
   ? path.join(process.resourcesPath || __dirname, 'companion-assets', 'animations', 'notch', 'idle_01_loop.mp4')
   : path.join(__dirname, '..', 'public', 'companion-assets', 'animations', 'notch', 'idle_01_loop.mp4');
@@ -337,7 +343,7 @@ app.whenReady().then(async () => {
   // A voz é do sistema, e só existe no macOS: fora dele o serviço nasce indisponível e a tela diz isso.
   localVoiceService = createLocalVoiceService({ adapter: process.platform === 'darwin' ? createMacVoiceAdapter() : undefined });
   // Em desenvolvimento o modelo mora no repositório; no app empacotado, na pasta de dados da pessoa.
-  localModelStore = createLocalModelStore({ dataRoot: app.isPackaged ? app.getPath('userData') : path.join(__dirname, '..') });
+  localModelStore = createLocalModelStore({ dataRoot: app.isPackaged ? app.getPath('userData') : path.join(__dirname, '..'), manifestFile: bundledModelManifest() });
   // O download é sempre pedido: quase dois gigabytes não descem sozinhos.
   localModelDownload = createLocalModelDownload({ store: localModelStore, onProgress: (state) => sendToMainWindow('hibi:local-model:download-progress', state) });
   // O motor é carregado na primeira pergunta, e só se houver modelo verificado: importar o llama.cpp

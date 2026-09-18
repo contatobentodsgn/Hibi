@@ -73,6 +73,10 @@
       {
         "from": "native/voice/build/hibi-voice",
         "to": "native/voice/build/hibi-voice"
+      },
+      {
+        "from": ".hibi-local-models/manifest.json",
+        "to": "local-models/manifest.json"
       }
     ],
     "asarUnpack": [

@@ -97,3 +97,25 @@ test('trocar o manifesto invalida o recibo do arquivo antigo', async () => {
   const outro = createLocalModelStore({ dataRoot });
   assert.equal(outro.describe().status, 'unverified');
 });
+
+// Uma instalação nova não tem nada na pasta de dados: o manifesto precisa vir do pacote, senão o
+// painel diz "indisponível" e o download é recusado antes de começar.
+test('numa instalação nova o manifesto vem do app, e o modelo aparece como ainda não baixado', async () => {
+  const { dataRoot } = montar({ comArquivo: false, comManifesto: false });
+  const doPacote = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hibi-pacote-')), 'manifest.json');
+  fs.writeFileSync(doPacote, JSON.stringify(manifesto));
+
+  const store = createLocalModelStore({ dataRoot, manifestFile: doPacote });
+
+  assert.deepEqual(store.manifest(), manifesto);
+  assert.equal(store.describe().status, 'missing', 'sem manifesto seria "indisponível", e o botão de baixar nem apareceria');
+});
+
+test('o manifesto do app vale mais que um antigo esquecido na pasta de dados', () => {
+  const { dataRoot, raiz } = montar({ comArquivo: false });
+  fs.writeFileSync(path.join(raiz, 'manifest.json'), JSON.stringify({ ...manifesto, id: 'modelo-antigo' }));
+  const doPacote = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hibi-pacote-')), 'manifest.json');
+  fs.writeFileSync(doPacote, JSON.stringify(manifesto));
+
+  assert.equal(createLocalModelStore({ dataRoot, manifestFile: doPacote }).manifest().id, 'tiny-q4');
+});
