@@ -3,6 +3,13 @@ export function createLlamaEngine({ modelPath, loadRuntime = () => import("node-
   let model;
   let context;
   let session;
+  const grammars = new Map();
+  // A gramática de um schema é compilada uma vez e reaproveitada: compilar a cada pergunta custa tempo.
+  const grammarFor = async (schema) => {
+    const key = JSON.stringify(schema);
+    if (!grammars.has(key)) grammars.set(key, await llama.createGrammarForJsonSchema(schema));
+    return grammars.get(key);
+  };
   return {
     async load() {
       const { getLlama, LlamaChatSession } = await loadRuntime();
@@ -11,7 +18,7 @@ export function createLlamaEngine({ modelPath, loadRuntime = () => import("node-
       context = await model.createContext({ contextSize: 2048 });
       session = new LlamaChatSession({ contextSequence: context.getSequence() });
     },
-    async *complete(prompt, { signal } = {}) {
+    async *complete(prompt, { signal, jsonSchema } = {}) {
       if (!session) throw new Error("Local model is not loaded.");
       if (signal?.aborted) return;
       // Each prompt already carries the recent conversation; keeping the session's own
@@ -21,8 +28,10 @@ export function createLlamaEngine({ modelPath, loadRuntime = () => import("node-
       let resolveDone;
       let rejectDone;
       const done = new Promise((resolve, reject) => { resolveDone = resolve; rejectDone = reject; });
+      const grammar = jsonSchema ? await grammarFor(jsonSchema) : undefined;
       const task = session.prompt(prompt, {
         maxTokens: 512,
+        ...(grammar ? { grammar } : {}),
         stopOnAbortSignal: true,
         signal,
         onTextChunk(chunk) { chunks.push(chunk); },
@@ -44,6 +53,7 @@ export function createLlamaEngine({ modelPath, loadRuntime = () => import("node-
       model = undefined;
       context = undefined;
       llama = undefined;
+      grammars.clear();
     },
   };
 }

@@ -103,3 +103,16 @@ test('uma pergunta cancelada ainda na fila nem chega ao motor', async () => {
   await primeira;
   assert.equal(registro.includes('começou b'), false);
 });
+
+// O modo intenção prende a saída ao JSON do schema fixo; conversar continua livre. O renderer só escolhe o
+// modo: qualquer outro valor é conversa, e nenhuma gramática vem de fora.
+test('o modo intenção pede ao motor o schema fixo; conversa e modos desconhecidos não', async () => {
+  const { INTENT_SCHEMA } = require('./local-model-intent.cjs');
+  const seen = [];
+  const worker = createLocalModelWorker({ engine: { load: async () => {}, async *complete(_prompt, options) { seen.push(options.jsonSchema ?? null); yield '{}'; } } });
+  await worker.load('/m.gguf');
+  await worker.prompt({ requestId: 'a', prompt: 'marque', mode: 'intent' });
+  await worker.prompt({ requestId: 'b', prompt: 'oi' });
+  await worker.prompt({ requestId: 'c', prompt: 'oi', mode: { type: 'object' } });
+  assert.deepEqual(seen, [INTENT_SCHEMA, null, null]);
+});

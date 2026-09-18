@@ -135,3 +135,54 @@ describe('o cérebro offline não diz que fez o que não fez', () => {
     expect(buildOfflineBrainPrompt(request())).toMatch(/never say that you did or that you will/);
   });
 });
+
+// Pedido do usuário: "ele precisa servir como assistente e executar o que eu peço por áudio". O que as
+// frases fixas não reconhecem passa pelo modo intenção do modelo, e o código determinístico faz o resto.
+describe('o cérebro offline entende pedidos que as frases fixas não entendem', () => {
+  const repository = () => new LocalRepository({ ...createSeedData(), blocks: [] });
+  const brain = (intentJson: string, chat = 'Conversa.') => {
+    const calls: { mode?: string }[] = [];
+    const runLocalModel = vi.fn(async ({ requestId, mode }: { requestId: string; mode?: string }) => { calls.push({ mode }); return { requestId, status: 'complete' as const, text: mode === 'intent' ? intentJson : chat }; });
+    return { calls, runLocalModel };
+  };
+  const ask = async (message: string, intentJson: string) => {
+    const { calls, runLocalModel } = brain(intentJson);
+    const proposal = await new OfflineBrainProvider({ runLocalModel }, new LocalToolProvider(repository())).generate(request({ message, locale: 'pt-BR', currentTime: new Date(2026, 8, 18, 10, 0).toISOString() }), new AbortController().signal);
+    return { calls, proposal };
+  };
+
+  it('"preciso falar com o contador sexta às 14h" vira a reunião, com o título do assunto', async () => {
+    const { calls, proposal } = await ask('preciso falar com o contador sexta às 14h', '{"action":"meeting","title":"falar com o contador","day":"sexta","time":"14h","endTime":""}');
+    expect(calls[0]).toEqual({ mode: 'intent' });
+    expect(proposal.toolCalls).toEqual([{ name: 'meeting.create', arguments: { title: 'Falar com o contador', start: '2026-09-25T14:00:00', end: '2026-09-25T15:00:00' } }]);
+    expect(proposal.reply).toMatch(/^Marcar "Falar com o contador" em 25\/09/);
+  });
+
+  it('um afazer vira tarefa, e um aviso com horário vira lembrete no dia dito', async () => {
+    expect((await ask('bota aí pra eu comprar pão amanhã', '{"action":"task","title":"comprar pão","day":"amanhã","time":"","endTime":""}')).proposal.toolCalls).toEqual([{ name: 'task.create', arguments: { title: 'Comprar pão', durationMinutes: 60 } }]);
+    expect((await ask('me avisa amanhã de tomar remédio às 8 da noite', '{"action":"reminder","title":"tomar remédio","day":"amanhã","time":"8 da noite","endTime":""}')).proposal.toolCalls).toEqual([{ name: 'reminder.create', arguments: { title: 'Tomar remédio', at: '2026-09-19T20:00:00' } }]);
+  });
+
+  it('o título fica só com o assunto, mesmo quando o modelo repete o dia nele', async () => {
+    const { proposal } = await ask('tenho dentista na quinta às 10h', '{"action":"meeting","title":"tenho dentista na quinta","day":"quinta","time":"10h","endTime":""}');
+    expect(proposal.toolCalls[0]).toMatchObject({ name: 'meeting.create', arguments: { title: 'Dentista', start: '2026-09-24T10:00:00' } });
+  });
+
+  it('uma reunião sem horário vira pergunta, e o modelo não conversa por cima dela', async () => {
+    const { calls, proposal } = await ask('preciso marcar com a Ana amanhã', '{"action":"meeting","title":"com a Ana","day":"amanhã","time":"","endTime":""}');
+    expect(proposal.toolCalls).toEqual([]);
+    expect(proposal.reply).toMatch(/^Para que horário\?/);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('conversa nem consulta o modo intenção; "none" e JSON quebrado caem na conversa', async () => {
+    const conversa = await ask('me conta uma curiosidade', '{"action":"meeting","title":"x","day":"","time":"9h","endTime":""}');
+    expect(conversa.calls).toEqual([{ mode: undefined }]);
+    expect(conversa.proposal.reply).toBe('Conversa.');
+    for (const json of ['{"action":"none","title":"","day":"","time":"","endTime":""}', 'isto não é json', '{"action":"apagar-tudo","title":"x","day":"","time":"","endTime":""}']) {
+      const { proposal } = await ask('quero ouvir uma piada amanhã', json);
+      expect(proposal.toolCalls, json).toEqual([]);
+      expect(proposal.reply, json).toBe('Conversa.');
+    }
+  });
+});

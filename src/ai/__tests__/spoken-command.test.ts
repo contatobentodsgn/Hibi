@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { normalizeSpokenCommand, parseSpokenTime } from '../spoken-command';
+import { describe, expect, it, vi } from 'vitest';
+import { normalizeSpokenCommand, parseSpokenTime, takeSpokenDay } from '../spoken-command';
 import { createLocalHibiRuntime, LocalToolProvider } from '../local-runtime';
 import { OfflineBrainProvider } from '../offline-brain-provider';
 import { LocalRepository } from '../../data/local-repository';
@@ -24,6 +24,19 @@ describe('parseSpokenTime', () => {
     expect(parseSpokenTime('meia-noite')).toBe('00:00');
   });
 
+  // Visto no app: "às 9h00 da manhã" virava "Não entendi o horário".
+  it('o período do dia vale para qualquer forma da hora', () => {
+    expect(parseSpokenTime('9h00 da manhã')).toBe('09:00');
+    expect(parseSpokenTime('às 9h00 da manhã')).toBe('09:00');
+    expect(parseSpokenTime('9:30 da noite')).toBe('21:30');
+    expect(parseSpokenTime('9 horas da manhã')).toBe('09:00');
+    expect(parseSpokenTime('3h15 da tarde')).toBe('15:15');
+    expect(parseSpokenTime('nove e meia da manhã')).toBe('09:30');
+    expect(parseSpokenTime('12 da noite')).toBe('00:00');
+    expect(parseSpokenTime('12 da tarde')).toBe('12:00');
+    expect(parseSpokenTime('9')).toBe('09:00');
+  });
+
   // Criar um lembrete para a hora errada é pior do que perguntar.
   it('na dúvida devolve nada, em vez de adivinhar', () => {
     expect(parseSpokenTime('depois do almoço')).toBeNull();
@@ -44,6 +57,23 @@ describe('normalizeSpokenCommand', () => {
   it('não mexe numa frase que não é comando', () => {
     expect(normalizeSpokenCommand('Hibi Study é um app')).toBe('Hibi Study é um app');
     expect(normalizeSpokenCommand('Taby, qual a minha agenda hoje?')).toBe('Taby, qual a minha agenda hoje');
+  });
+});
+
+describe('takeSpokenDay', () => {
+  // 18/09/2026 é uma sexta-feira.
+  const hoje = '2026-09-18';
+  it('dias da semana apontam para o próximo, nunca para hoje', () => {
+    expect(takeSpokenDay('na segunda às 9h', hoje)).toEqual({ days: 3, rest: 'às 9h' });
+    expect(takeSpokenDay('sexta-feira', hoje).days).toBe(7);
+    expect(takeSpokenDay('próxima quarta', hoje).days).toBe(5);
+  });
+  it('datas: "dia 25" deste mês ou do próximo, "25/09" e "dia 2 de outubro"', () => {
+    expect(takeSpokenDay('dia 25', hoje).days).toBe(7);
+    expect(takeSpokenDay('dia 5', hoje).days).toBe(17);
+    expect(takeSpokenDay('25/09', hoje).days).toBe(7);
+    expect(takeSpokenDay('dia 2 de outubro', hoje).days).toBe(14);
+    expect(takeSpokenDay('dia 31 de fevereiro', hoje).days).toBeNull();
   });
 });
 
@@ -106,10 +136,15 @@ describe('comandos ditados no Taby', () => {
   });
 
   // Visto no app: estes pedidos iam para o cérebro offline, que dizia "marquei" sem marcar nada.
-  it('marcar uma reunião vira um bloco na agenda, no dia dito, com uma hora de duração', async () => {
-    expect(await chamada('Marque uma reunião para mim amanhã às 15h00')).toMatchObject({ name: 'block.create', arguments: { title: 'Reunião', start: '2026-09-19T15:00:00', end: '2026-09-19T16:00:00' } });
+  it('marcar uma reunião vira uma reunião (agenda, tarefas e calendário), no dia dito, com uma hora de duração', async () => {
+    expect(await chamada('Marque uma reunião para mim amanhã às 15h00')).toMatchObject({ name: 'meeting.create', arguments: { title: 'Reunião', start: '2026-09-19T15:00:00', end: '2026-09-19T16:00:00' } });
     expect(await chamada('Taby, agende uma reunião com a Ana hoje às 3 da tarde.')).toMatchObject({ arguments: { title: 'Reunião com a Ana', start: '2026-09-18T15:00:00', end: '2026-09-18T16:00:00' } });
     expect(await chamada('marque um compromisso depois de amanhã das 14h às 16h30')).toMatchObject({ arguments: { title: 'Compromisso', start: '2026-09-20T14:00:00', end: '2026-09-20T16:30:00' } });
+  });
+
+  it('a frase do app: "amanhã às 9h00 da manhã" vira a reunião das 9 às 10', async () => {
+    expect(await chamada('marque uma reunião amanhã às 9h00 da manhã')).toMatchObject({ arguments: { start: '2026-09-19T09:00:00', end: '2026-09-19T10:00:00' } });
+    expect(await chamada('agende uma reunião com o João na segunda às 10h')).toMatchObject({ arguments: { title: 'Reunião com o João', start: '2026-09-21T10:00:00' } });
   });
 
   it('marcar sem horário, ou com um horário que não dá para entender, vira pergunta', async () => {
@@ -152,4 +187,47 @@ it('o cérebro offline não responde por cima da pergunta sobre o horário', asy
 
   expect(resultado.reply).toMatch(/Não entendi o horário/);
   expect(chamadas).toBe(0);
+});
+
+// Pedido do usuário: "o correto era isso ir para minhas tarefas do dia de amanhã e ir para os calendários".
+describe('uma reunião confirmada vai para a agenda, as tarefas e o calendário', () => {
+  const marcar = async (calendar?: { publish: (block: { id: string; title: string }) => Promise<string | null> }, blocks: unknown[] = []) => {
+    const repository = new LocalRepository({ ...createSeedData(), blocks: blocks as never });
+    const runtime = createLocalHibiRuntime(repository, calendar ? { calendar } : {});
+    const turno = await runtime.runTurn({ message: 'Marque uma reunião com a Ana amanhã às 9h00 da manhã', surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
+    return { repository, turno, confirmar: () => runtime.confirm(turno.confirmation!) };
+  };
+
+  it('a pergunta descreve a reunião, e nada é criado antes de confirmar', async () => {
+    const publish = vi.fn(async () => 'Pessoal');
+    const { repository, turno } = await marcar({ publish });
+    expect(turno.reply).toBe('Marcar "Reunião com a Ana" em 19/09, das 09:00 às 10:00, na agenda, nas tarefas e no calendário conectado?');
+    expect(repository.listBlocks().some((block) => block.title === 'Reunião com a Ana')).toBe(false);
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('confirmada, cria o bloco, a tarefa com prazo no horário e o evento no calendário', async () => {
+    const publish = vi.fn(async () => 'Pessoal');
+    const { repository, confirmar } = await marcar({ publish });
+    const feito = await confirmar();
+    const bloco = repository.listBlocks().find((block) => block.title === 'Reunião com a Ana');
+    expect(bloco).toMatchObject({ start: '2026-09-19T09:00:00', end: '2026-09-19T10:00:00' });
+    expect(repository.listTasks().find((task) => task.title === 'Reunião com a Ana')).toMatchObject({ deadline: '2026-09-19T09:00:00', durationMinutes: 60, status: 'open' });
+    expect(publish).toHaveBeenCalledWith(expect.objectContaining({ id: bloco!.id }));
+    expect(feito.toolResults.map((item) => (item as { summary?: string }).summary).join(" ")).toMatch(/no calendário "Pessoal"/);
+  });
+
+  it('sem calendário bidirecional, cria na agenda e nas tarefas e diz como ligar o calendário', async () => {
+    const { repository, confirmar } = await marcar({ publish: async () => null });
+    const feito = await confirmar();
+    expect(repository.listTasks().some((task) => task.title === 'Reunião com a Ana')).toBe(true);
+    expect(feito.toolResults.map((item) => (item as { summary?: string }).summary).join(" ")).toMatch(/escolha um calendário bidirecional em Ajustes › Integrations/);
+  });
+
+  it('se o calendário recusar, a reunião continua na agenda e nas tarefas, e o aviso diz isso', async () => {
+    const { repository, confirmar } = await marcar({ publish: async () => { throw new Error('offline'); } });
+    const feito = await confirmar();
+    expect(repository.listBlocks().some((block) => block.title === 'Reunião com a Ana')).toBe(true);
+    expect(feito.toolResults.map((item) => (item as { summary?: string }).summary).join(" ")).toMatch(/o calendário recusou o evento/);
+  });
 });
