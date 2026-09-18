@@ -141,7 +141,7 @@ function createSenderFake() {
   };
 }
 
-async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase, singleInstance = true } = {}) {
+async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspaceDatabase, singleInstance = true } = {}) {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), "hibi-main-test-"));
   seedUserData?.(userData);
   // A pasta de dados é escolhida na carga do módulo: o dublê guarda o que foi pedido em vez de
@@ -149,6 +149,12 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase, sin
   const appData = fs.mkdtempSync(path.join(os.tmpdir(), "hibi-main-appdata-"));
   seedAppData?.(appData);
   const paths = new Map();
+  // O app empacotado lê do pacote o que é dele (o manifesto do modelo) e da pasta de dados o que é da
+  // pessoa. Os recursos ficam num diretório à parte, como em `Hibi.app/Contents/Resources`.
+  const resources = fs.mkdtempSync(path.join(os.tmpdir(), "hibi-main-resources-"));
+  seedResources?.(resources);
+  const previousResourcesPath = process.resourcesPath;
+  Object.defineProperty(process, "resourcesPath", { value: resources, configurable: true, writable: true });
   const shortcuts = new Map();
   const trayCalls = { criado: 0, itens: [], destruido: false };
   const refusedShortcuts = new Set();
@@ -442,6 +448,8 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase, sin
       try { appEvents.get("before-quit")?.(); } catch { /* o teardown tem teste próprio */ }
       fs.rmSync(userData, { recursive: true, force: true });
       fs.rmSync(appData, { recursive: true, force: true });
+      fs.rmSync(resources, { recursive: true, force: true });
+      Object.defineProperty(process, "resourcesPath", { value: previousResourcesPath, configurable: true, writable: true });
     },
   };
 }
@@ -1472,10 +1480,10 @@ test("o microfone recusado vira estado, e a escuta nem começa", { skip: process
 });
 
 test("o estado do modelo local diz o que falta, sem nunca ler o arquivo inteiro", async (t) => {
-  const harness = await loadMain({ seedUserData: (userData) => {
-    const raiz = path.join(userData, ".hibi-local-models");
-    fs.mkdirSync(raiz, { recursive: true });
-    fs.writeFileSync(path.join(raiz, "manifest.json"), JSON.stringify({ schema: "hibi.local-model", version: 1, id: "tiny-q4", modelVersion: "1", sizeBytes: 12, sha256: "a".repeat(64) }));
+  // Instalação nova: nada na pasta de dados, e o manifesto só no pacote.
+  const harness = await loadMain({ seedResources: (resources) => {
+    fs.mkdirSync(path.join(resources, "local-models"), { recursive: true });
+    fs.writeFileSync(path.join(resources, "local-models", "manifest.json"), JSON.stringify({ schema: "hibi.local-model", version: 1, id: "tiny-q4", modelVersion: "1", sizeBytes: 12, sha256: "a".repeat(64) }));
   } });
   t.after(() => harness.cleanup());
 
@@ -1485,12 +1493,17 @@ test("o estado do modelo local diz o que falta, sem nunca ler o arquivo inteiro"
 
 test("um modelo que não bate com o manifesto nunca é dado como pronto", async (t) => {
   const conteudo = Buffer.from("doze bytes!!");
-  const harness = await loadMain({ seedUserData: (userData) => {
-    const raiz = path.join(userData, ".hibi-local-models");
-    fs.mkdirSync(raiz, { recursive: true });
-    fs.writeFileSync(path.join(raiz, "manifest.json"), JSON.stringify({ schema: "hibi.local-model", version: 1, id: "tiny-q4", modelVersion: "1", sizeBytes: conteudo.length, sha256: "b".repeat(64) }));
-    fs.writeFileSync(path.join(raiz, "tiny-q4.bin"), conteudo);
-  } });
+  const harness = await loadMain({
+    seedResources: (resources) => {
+      fs.mkdirSync(path.join(resources, "local-models"), { recursive: true });
+      fs.writeFileSync(path.join(resources, "local-models", "manifest.json"), JSON.stringify({ schema: "hibi.local-model", version: 1, id: "tiny-q4", modelVersion: "1", sizeBytes: conteudo.length, sha256: "b".repeat(64) }));
+    },
+    seedUserData: (userData) => {
+      const raiz = path.join(userData, ".hibi-local-models");
+      fs.mkdirSync(raiz, { recursive: true });
+      fs.writeFileSync(path.join(raiz, "tiny-q4.bin"), conteudo);
+    },
+  });
   t.after(() => harness.cleanup());
 
   const estado = await harness.invoke("hibi:local-model:state");
