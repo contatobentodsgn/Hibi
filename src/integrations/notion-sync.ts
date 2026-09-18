@@ -155,3 +155,28 @@ export const notionRecordFromCandidate = (candidate: import('./imports').ImportC
       ...(candidate.description ? { description: candidate.description } : {}),
     }
     : null
+
+/**
+ * Os itens que mudaram desde a prévia e cuja decisão escreveria algo. Uma prévia confirmada tarde
+ * mandava a versão antiga da tarefa e marcava o par como sincronizado: a edição local (ou a remota)
+ * feita no meio do caminho nunca mais era enviada. Mudou do lado local quando a tarefa sumiu ou tem
+ * outro conteúdo; do lado remoto, quando a página sumiu, ganhou outra revisão ou apareceu uma nova
+ * ligada a uma tarefa que a prévia via só daqui.
+ */
+export function staleNotionPlanKeys(plan: NotionSyncPlan, decisions: Readonly<Record<string, string>>, localTasks: readonly Task[], remoteNow: readonly NotionTaskRecord[]): string[] {
+  const localById = new Map(localTasks.map((task) => [task.id, task]))
+  const remoteById = new Map(remoteNow.map((record) => [record.remoteId, record]))
+  const linkedHibiIds = new Set(remoteNow.flatMap((record) => record.hibiId ? [record.hibiId] : []))
+  return plan.items.filter((item) => {
+    if ((decisions[item.key] ?? 'skip') === 'skip') return false
+    if (item.local) {
+      const current = localById.get(item.local.id)
+      if (!current || notionTaskHash(current) !== notionTaskHash(item.local)) return true
+    }
+    if (item.remote) {
+      const current = remoteById.get(item.remote.remoteId)
+      return !current || current.revision !== item.remote.revision
+    }
+    return item.local !== undefined && linkedHibiIds.has(item.local.id)
+  }).map((item) => item.key)
+}

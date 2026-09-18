@@ -4,6 +4,8 @@ type CompanionAction = Readonly<{ requestId: string; actionId: 'confirm' | 'canc
 type HibiE2E = {
   calls: string[];
   companionAction: (input: CompanionAction) => void;
+  editRemotePage: () => void;
+  breakReads: () => void;
 };
 
 // O painel do Notion tem o próprio caminho de confirmação, separado do cartão da API local: ele
@@ -23,6 +25,8 @@ async function installNotionConfirmationBridge(page: Page) {
     // passaria afirmando algo falso.
     const companionListeners: ((action: CompanionAction) => void)[] = [];
     let preparedCount = 0;
+    let remoteRevision = 'v1';
+    let readsBroken = false;
     const operationsByAction = new Map<string, { key: string }[]>();
 
     let settings: Record<string, unknown> = {
@@ -36,6 +40,9 @@ async function installNotionConfirmationBridge(page: Page) {
     const e2e: HibiE2E = {
       calls,
       companionAction: (input) => companionListeners.forEach((listener) => listener(input)),
+      // Alguém edita a página no Notion entre a prévia e a confirmação.
+      editRemotePage: () => { remoteRevision = 'v2'; },
+      breakReads: () => { readsBroken = true; },
     };
     (window as unknown as { hibiE2E: HibiE2E }).hibiE2E = e2e;
 
@@ -50,7 +57,7 @@ async function installNotionConfirmationBridge(page: Page) {
       listIntegrationImportTargets: async () => [{ id: 'source-1', label: 'Hibi Tasks' }],
       // Uma tarefa que só existe no Notion: é ela que a aprovação precisa criar aqui, e é a ausência
       // dela no workspace que prova que a confirmação segurou a mudança.
-      listIntegrationImportCandidates: async () => [{ remoteId: 'page-remote-1', title: 'Tarefa só do Notion', kind: 'task', revision: 'v1' }],
+      listIntegrationImportCandidates: async () => { if (readsBroken) throw new Error('Notion is unreachable.'); return [{ remoteId: 'page-remote-1', title: 'Tarefa só do Notion', kind: 'task', revision: remoteRevision }]; },
       prepareIntegrationAction: async (input: { kind: string; payload: Record<string, unknown> }) => {
         preparedCount += 1;
         const id = `action-${preparedCount}`;
@@ -209,4 +216,34 @@ test('uma mudança só local também espera a confirmação, e aprová-la não c
   const requestId = pendingCalls[0].slice('show:'.length);
   expect(await calls(page)).toEqual([pendingCalls[0], `hide:${requestId}`]);
   expect(await workspace(page)).toContain(REMOTE_TASK);
+});
+
+// Uma prévia confirmada tarde mandava a versão antiga e marcava o par como sincronizado: a edição feita
+// no Notion no meio do caminho era sobrescrita ou nunca chegava aqui.
+test('uma página editada no Notion depois da prévia bloqueia a confirmação, sem aplicar nada', async ({ page }) => {
+  await openReview(page);
+  await askConfirmation(page);
+  await page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.editRemotePage());
+
+  await card(page).getByRole('button', { name: 'Confirm', exact: true }).click();
+
+  await expect(page.getByText(/changed since the preview\. Nothing was applied/)).toBeVisible();
+  expect(await calls(page)).toEqual([PREPARED, SHOWN, DISMISSED]);
+  const refused = await workspace(page);
+  expect(refused).not.toContain(REMOTE_TASK);
+  expect(refused).not.toContain('remoteRef');
+  // A prévia velha sai da tela: revisar de novo é o único caminho.
+  await expect(page.getByRole('heading', { name: 'Review changes' })).toHaveCount(0);
+});
+
+test('sem conseguir reler o Notion na confirmação, nada é aplicado', async ({ page }) => {
+  await openReview(page);
+  await askConfirmation(page);
+  await page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.breakReads());
+
+  await card(page).getByRole('button', { name: 'Confirm', exact: true }).click();
+
+  await expect(page.getByText('Notion is unreachable.')).toBeVisible();
+  expect(await calls(page)).toEqual([PREPARED, SHOWN, DISMISSED]);
+  expect(await workspace(page)).not.toContain(REMOTE_TASK);
 });
