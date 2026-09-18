@@ -232,12 +232,18 @@ Napi::Value Place(const Napi::CallbackInfo& info) {
   id __unsafe_unretained nativeObject = *reinterpret_cast<id __unsafe_unretained *>(handle.Data()); if (!nativeObject) return Napi::Boolean::New(info.Env(), false);
   NSWindow *window = nil; if ([nativeObject isKindOfClass:NSView.class]) window = [(NSView *)nativeObject window]; else if ([nativeObject isKindOfClass:NSWindow.class]) window = (NSWindow *)nativeObject; if (!window) return Napi::Boolean::New(info.Env(), false);
   CGFloat x = info[1].As<Napi::Number>().DoubleValue(); CGFloat width = info[3].As<Napi::Number>().DoubleValue(); CGFloat height = info[4].As<Napi::Number>().DoubleValue(); if (width <= 0 || height <= 0) return Napi::Boolean::New(info.Env(), false);
-  // Electron usa coordenadas globais com origem no topo; Cocoa usa origem embaixo.
-  // Resolva o monitor pelo centro horizontal para não converter uma janela do MacBook
-  // usando o frame de um monitor externo que esteja listado primeiro.
-  NSScreen *targetScreen = nil; CGFloat centerX = x + width / 2.0;
-  for (NSScreen *candidate in NSScreen.screens) if (centerX >= NSMinX(candidate.frame) && centerX <= NSMaxX(candidate.frame)) { targetScreen = candidate; break; }
-  if (!targetScreen) targetScreen = NSScreen.screens.firstObject; if (!targetScreen) return Napi::Boolean::New(info.Env(), false);
+  // Electron usa coordenadas globais com origem no topo do monitor principal; Cocoa, origem embaixo.
+  // O monitor é o que contém o centro do painel, nos dois eixos. Só pelo eixo horizontal, um MacBook
+  // posto acima de um monitor externo mais largo cai dentro da faixa do externo, que vem primeiro na
+  // lista: o cartão de texto ia para o topo do monitor errado.
+  CGFloat y = info[2].As<Napi::Number>().DoubleValue();
+  NSScreen *primary = NSScreen.screens.firstObject; if (!primary) return Napi::Boolean::New(info.Env(), false);
+  NSPoint center = NSMakePoint(x + width / 2.0, NSMaxY(primary.frame) - (y + height / 2.0));
+  NSScreen *targetScreen = nil;
+  for (NSScreen *candidate in NSScreen.screens) if (NSPointInRect(center, candidate.frame)) { targetScreen = candidate; break; }
+  // Sem monitor que contenha o centro (um y fora de qualquer tela), vale o critério antigo, pelo eixo horizontal.
+  if (!targetScreen) for (NSScreen *candidate in NSScreen.screens) if (center.x >= NSMinX(candidate.frame) && center.x <= NSMaxX(candidate.frame)) { targetScreen = candidate; break; }
+  if (!targetScreen) targetScreen = primary;
   // O notch é ancorado no topo físico do monitor. O y global do Electron usa
   // outra origem; convertê-lo diretamente desloca o painel para fora da tela.
   // O x já selecionou o monitor correto, então basta usar o topo do NSScreen.
