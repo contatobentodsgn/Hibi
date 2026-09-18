@@ -89,7 +89,15 @@ export class OfflineBrainProvider implements AiProvider {
     const cancel = () => { void this.bridge.cancelLocalModel?.(requestId) }
     signal.addEventListener('abort', cancel, { once: true })
     try {
-      const result = await this.bridge.runLocalModel({ requestId, prompt: buildOfflineBrainPrompt(request) })
+      let result: Awaited<ReturnType<NonNullable<OfflineBrainBridge['runLocalModel']>>>
+      try {
+        result = await this.bridge.runLocalModel({ requestId, prompt: buildOfflineBrainPrompt(request) })
+      } catch (error) {
+        // O modelo falhou (memória, motor nativo): a pergunta segue com as ferramentas locais em vez
+        // de terminar em "Provider unavailable". Cancelamento continua sendo cancelamento.
+        if (signal.aborted) throw abortError()
+        return toolsProposal
+      }
       if (signal.aborted || result.status === 'cancelled') throw abortError()
       const reply = result.status === 'complete' ? cleanOfflineBrainReply(result.text) : ''
       if (!reply) return toolsProposal

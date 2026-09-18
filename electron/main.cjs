@@ -26,7 +26,7 @@ const { showStartupNotch, idleCompanionPresentation } = require('./notch-startup
 const { createLocalVoiceService } = require('./local-voice.cjs');
 const { createLocalModelStore } = require('./local-model-store.cjs');
 const { createLocalModelDownload } = require('./local-model-download.cjs');
-const { createLocalModelService } = require('./local-model-service.cjs');
+const { createLocalModelService, runWithVerifiedModel } = require('./local-model-service.cjs');
 const { createElectronUpdateService } = require('./updates.cjs');
 const { createAppTray } = require('./tray.cjs');
 const { buildAppMenuTemplate, hideFromDock } = require('./app-menu.cjs');
@@ -500,14 +500,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:local-model:verify', () => localModelStore.verify());
   ipcMain.handle('hibi:local-model:download', () => localModelDownload.start());
   ipcMain.handle('hibi:local-model:cancel-download', () => localModelDownload.cancel());
-  ipcMain.handle('hibi:local-model:run', async (_event, input) => {
-    if (localModelService.state().status !== 'ready') {
-      const file = await localModelStore.resolveVerifiedPath();
-      if (!file) return { requestId: typeof input?.requestId === 'string' ? input.requestId : null, status: 'unavailable', text: '' };
-      await localModelService.load({ manifest: localModelStore.manifest(), modelPath: file });
-    }
-    return localModelService.run(input);
-  });
+  ipcMain.handle('hibi:local-model:run', (_event, input) => runWithVerifiedModel({ service: localModelService, store: localModelStore, input }));
   ipcMain.handle('hibi:local-model:cancel', (_event, requestId) => { localModelService.cancel(requestId); return true; });
   ipcMain.handle('hibi:local-model:shutdown', () => localModelService.shutdown());
   ipcMain.handle('hibi:local-voice:state', () => localVoiceService.state());
