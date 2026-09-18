@@ -1,3 +1,4 @@
+import { normalizeSpokenCommand, parseSpokenTime } from './spoken-command';
 import { LocalRepository } from '../data/local-repository';
 import { validateScheduleBlock } from '../domain/conflicts';
 import { localDateKey } from '../domain/date-context';
@@ -71,8 +72,10 @@ const resolveEntity = (entities: readonly NamedEntity[], reference: string) => {
   return matches.length === 1 ? matches[0] : undefined;
 };
 
+const unclearTime = (said: string) => `Não entendi o horário "${said.trim()}". Diga, por exemplo, "às 15h" ou "às 3 da tarde".`;
+
 function localProposal(request: AiProviderRequest, repository: LocalRepository): AiProviderProposal {
-  const message = request.message.trim(); const lower = message.toLocaleLowerCase('pt-BR'); let toolCalls: AiToolCall[] = [];
+  const message = normalizeSpokenCommand(request.message); const lower = message.toLocaleLowerCase('pt-BR'); let toolCalls: AiToolCall[] = []; let clarification: string | null = null;
   // `currentTime` chega como instante em UTC (`toISOString`), mas "das 22:00 às 23:00" é o relógio
   // de quem pediu. Fatiar o texto UTC dava o dia e a hora de Greenwich: a leste e a oeste o bloco
   // nascia no dia errado. Dia de calendário sai sempre de `date-context`, nunca de uma fatia de ISO.
@@ -82,8 +85,9 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
   const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const task = match(message, /^(?:crie|criar|adicione|adicionar)\s+(?:uma?\s+)?tarefa\s*:?[\s-]*(.+)$/i);
   const note = match(message, /^(?:crie|criar|adicione|adicionar)\s+(?:uma?\s+)?nota\s*:?[\s-]*(.+)$/i);
-  const block = message.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?bloco\s*:?[\s-]*(.+?)\s+(?:das?\s+)?(\d{1,2}:\d{2})\s+(?:às?|a)\s+(\d{1,2}:\d{2})$/i);
-  const reminder = message.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?lembrete\s*:?[\s-]*(.+?)(?:\s+às?\s+(\d{1,2}:\d{2}))?$/i);
+  // Os horários chegam como a ditação escreve ("15h", "3 da tarde") e são lidos por `parseSpokenTime`.
+  const block = message.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?bloco\s*:?[\s-]*(.+?)\s+(?:das?|de(?=\s+\d))\s+(.+?)\s+(?:às?|as|até|a)\s+(.+)$/iu);
+  const reminder = message.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?lembrete\s*:?[\s-]*(.+?)(?:\s+(?:para\s+)?(?:às?|as)\s+(.+))?$/iu);
   const mutation = message.match(/^(?:edite|editar|renomeie|renomear)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+?)\s+(?:para|como)\s+(.+)$/i);
   const removal = message.match(/^(?:exclua|excluir|apague|apagar|remova|remover)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+)$/i);
   const slackPost = message.match(/^(?:envie|enviar|poste|postar|publique|publicar)\s+(?:uma\s+)?(?:mensagem\s+)?(?:no|para\s+o)\s+slack\s+#?([\w-]{1,80})\s*:\s*(.+)$/i);
@@ -96,15 +100,25 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
     if (entity) toolCalls = removal ? [{ name: `${descriptor.name}.delete`, arguments: { id: entity.id } }] : [{ name: `${descriptor.name}.update`, arguments: { id: entity.id, title: mutation![3].trim() } }];
   } else if (task) toolCalls = [{ name: 'task.create', arguments: { title: task, durationMinutes: 60 } }];
   else if (note) toolCalls = [{ name: 'note.create', arguments: { title: note, content: note } }];
-  else if (block) toolCalls = [{ name: 'block.create', arguments: { title: block[1].trim(), start: `${today}T${block[2].padStart(5, '0')}:00`, end: `${today}T${block[3].padStart(5, '0')}:00`, category: 'work' } }];
-  else if (reminder) { const time = reminder[2] ?? nowTime; toolCalls = [{ name: 'reminder.create', arguments: { title: reminder[1].trim(), at: `${today}T${time}:00` } }]; }
+  else if (block) {
+    const start = parseSpokenTime(block[2]!); const end = parseSpokenTime(block[3]!);
+    if (start && end) toolCalls = [{ name: 'block.create', arguments: { title: block[1]!.trim(), start: `${today}T${start}:00`, end: `${today}T${end}:00`, category: 'work' } }];
+    else clarification = unclearTime(!start ? block[2]! : block[3]!);
+  }
+  else if (reminder) {
+    // Um horário dito e não entendido nunca vira "agora": o lembrete tocaria na hora errada.
+    const time = reminder[2] ? parseSpokenTime(reminder[2]) : nowTime;
+    if (time) toolCalls = [{ name: 'reminder.create', arguments: { title: reminder[1]!.trim(), at: `${today}T${time}:00` } }];
+    else clarification = unclearTime(reminder[2]!);
+  }
   else if (slackPost) toolCalls = [{ name: 'integration.send', arguments: { connectorId: 'slack', kind: 'slack.post', payload: { channel: `#${slackPost[1].trim()}`, text: slackPost[2].trim() } } }];
   else if (/^(iniciar|começar|comecar|start).*(foco|focus)/i.test(message)) toolCalls = [{ name: 'focus.start', arguments: {} }];
   else if (/(agenda|calend|hor.rio|schedule|today|hoje)/u.test(lower)) toolCalls = [{ name: 'search.schedule', arguments: {} }];
   else if (/(lembrete|remind)/u.test(lower)) toolCalls = [{ name: 'search.reminders', arguments: {} }];
   else if (/(taref|task|pend.ncia|todo)/u.test(lower)) toolCalls = [{ name: 'search.tasks', arguments: {} }];
-  const reply = toolCalls.length ? 'Preparei uma ação local para sua revisão.' : 'Posso ajudar com tarefas, agenda, lembretes, notas e foco locais.';
-  return { reply, toolCalls, notchPresentation: null, providerMetadata: { model: 'local-tool-provider' } };
+  const reply = clarification ?? (toolCalls.length ? 'Preparei uma ação local para sua revisão.' : 'Posso ajudar com tarefas, agenda, lembretes, notas e foco locais.');
+  // A pergunta de volta é a resposta certa: marcada, para o cérebro offline não responder por cima dela.
+  return { reply, toolCalls, notchPresentation: null, providerMetadata: { model: 'local-tool-provider', ...(clarification ? { finishReason: 'needs-clarification' } : {}) } };
 }
 
 export class LocalToolProvider implements AiProvider { readonly id = 'local-tools'; readonly label = 'Hibi local tools'; constructor(private readonly repository: LocalRepository) {} async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> { if (signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError'); return localProposal(request, this.repository); } }
