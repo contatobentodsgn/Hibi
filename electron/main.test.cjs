@@ -505,7 +505,7 @@ test("o atalho global abre a barra do Taby, com o teclado, sem trazer a janela",
   assert.deepEqual(await harness.handlers.get("hibi:shortcut:get")(harness.event), { accelerator: "Command+Shift+Space", status: "active" });
   harness.shortcuts.get("Command+Shift+Space")();
 
-  const barra = harness.windows.find((window) => window.options?.type === "panel" || String(window.loaded?.at?.(-1) ?? "").includes("bar"));
+  const barra = harness.windows.find((window) => window.options?.webPreferences?.preload?.endsWith("bar-preload.cjs"));
   assert.ok(barra, "a barra precisa existir depois do atalho");
   assert.equal(barra.focuses, 1, "a barra recebe o teclado para digitar");
   assert.equal(janela.isMinimized(), true, "a janela do Hibi fica onde estava");
