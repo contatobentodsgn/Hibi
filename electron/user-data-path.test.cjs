@@ -5,11 +5,12 @@ const os = require('node:os');
 const path = require('node:path');
 const { resolveUserDataPath, APP_FOLDER, LEGACY_FOLDER } = require('./user-data-path.cjs');
 
-function appDataWith(folders) {
+function appDataWith(folders, { workspaces = [] } = {}) {
   const appData = fs.mkdtempSync(path.join(os.tmpdir(), 'hibi-user-data-'));
   for (const [folder, content] of Object.entries(folders)) {
     fs.mkdirSync(path.join(appData, folder), { recursive: true });
     fs.writeFileSync(path.join(appData, folder, 'marca.txt'), content);
+    if (workspaces.includes(folder)) fs.writeFileSync(path.join(appData, folder, 'workspace.db'), content);
   }
   return appData;
 }
@@ -25,7 +26,7 @@ test('a fresh install goes straight to the named folder', () => {
 });
 
 test('the old folder is moved into place, with every file intact', () => {
-  const appData = appDataWith({ [LEGACY_FOLDER]: 'trabalho da pessoa' });
+  const appData = appDataWith({ [LEGACY_FOLDER]: 'trabalho da pessoa' }, { workspaces: [LEGACY_FOLDER] });
   const notices = [];
 
   const resolved = resolveUserDataPath({ appData, onNotice: (notice) => notices.push(notice) });
@@ -36,10 +37,8 @@ test('the old folder is moved into place, with every file intact', () => {
   assert.deepEqual(notices.map((notice) => notice.kind), ['migrated']);
 });
 
-test('a stale folder with the new name is renamed aside instead of overwritten', () => {
-  const appData = appDataWith({ [APP_FOLDER]: 'build antigo', [LEGACY_FOLDER]: 'trabalho de hoje' });
-  touch(path.join(appData, APP_FOLDER), new Date('2026-09-01T00:00:00Z'));
-  touch(path.join(appData, LEGACY_FOLDER), new Date('2026-09-17T00:00:00Z'));
+test('uma pasta com o nome do app mas sem workspace é posta de lado, e a antiga com dados entra', () => {
+  const appData = appDataWith({ [APP_FOLDER]: 'build antigo', [LEGACY_FOLDER]: 'trabalho de hoje' }, { workspaces: [LEGACY_FOLDER] });
   const notices = [];
 
   const resolved = resolveUserDataPath({ appData, now: () => new Date('2026-09-17T12:00:00Z'), onNotice: (notice) => notices.push(notice) });
@@ -51,10 +50,12 @@ test('a stale folder with the new name is renamed aside instead of overwritten',
   assert.deepEqual(notices.map((notice) => notice.kind), ['superseded', 'migrated']);
 });
 
-test('a newer folder with the new name wins, and the old one is left where it is', () => {
-  const appData = appDataWith({ [APP_FOLDER]: 'trabalho de hoje', [LEGACY_FOLDER]: 'abandonado' });
-  touch(path.join(appData, APP_FOLDER), new Date('2026-09-17T00:00:00Z'));
-  touch(path.join(appData, LEGACY_FOLDER), new Date('2026-09-01T00:00:00Z'));
+// O defeito que isto conserta: um app antigo (ou uma branch rodando em desenvolvimento) recriava a
+// pasta legada, ela parecia a mais nova, e a pasta verdadeira era posta de lado — o app abria vazio.
+test('a pasta do app com dados nunca é trocada, mesmo que a antiga pareça mais nova', () => {
+  const appData = appDataWith({ [APP_FOLDER]: 'trabalho de hoje', [LEGACY_FOLDER]: 'abandonado' }, { workspaces: [APP_FOLDER, LEGACY_FOLDER] });
+  touch(path.join(appData, APP_FOLDER), new Date('2026-09-01T00:00:00Z'));
+  touch(path.join(appData, LEGACY_FOLDER), new Date('2026-09-17T00:00:00Z'));
 
   const resolved = resolveUserDataPath({ appData });
 
@@ -72,4 +73,20 @@ test('a move that fails keeps the app on the folder it already had', () => {
   assert.equal(resolved, path.join(appData, LEGACY_FOLDER));
   assert.equal(read(path.join(resolved, 'marca.txt')), 'trabalho da pessoa');
   assert.equal(notices[0]?.kind, 'failed');
+});
+
+test('duas pastas sem workspace nenhum: fica a do app, e nada é movido', () => {
+  const appData = appDataWith({ [APP_FOLDER]: 'vazia', [LEGACY_FOLDER]: 'também vazia' });
+  const notices = [];
+
+  assert.equal(resolveUserDataPath({ appData, onNotice: (notice) => notices.push(notice) }), path.join(appData, APP_FOLDER));
+  assert.deepEqual(notices.map((notice) => notice.kind), ['kept']);
+  assert.equal(fs.existsSync(path.join(appData, LEGACY_FOLDER)), true);
+});
+
+test('o armazenamento de antes do banco também conta como dados', () => {
+  const appData = appDataWith({ [APP_FOLDER]: 'só localStorage', [LEGACY_FOLDER]: 'com banco' }, { workspaces: [LEGACY_FOLDER] });
+  fs.mkdirSync(path.join(appData, APP_FOLDER, 'Local Storage'));
+
+  assert.equal(read(path.join(resolveUserDataPath({ appData }), 'marca.txt')), 'só localStorage');
 });
