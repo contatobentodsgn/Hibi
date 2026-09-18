@@ -112,7 +112,8 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
     else clarification = unclearTime(reminder[2]!);
   }
   else if (slackPost) toolCalls = [{ name: 'integration.send', arguments: { connectorId: 'slack', kind: 'slack.post', payload: { channel: `#${slackPost[1].trim()}`, text: slackPost[2].trim() } } }];
-  else if (/^(iniciar|começar|comecar|start).*(foco|focus)/i.test(message)) toolCalls = [{ name: 'focus.start', arguments: {} }];
+  // "Inicie o foco", "começa um foco": a fala usa o imperativo tanto quanto o infinitivo.
+  else if (/^(inici[ae]r?|come[cç][ae]r?|start)\b.*(foco|focus)/iu.test(message)) toolCalls = [{ name: 'focus.start', arguments: {} }];
   else if (/(agenda|calend|hor.rio|schedule|today|hoje)/u.test(lower)) toolCalls = [{ name: 'search.schedule', arguments: {} }];
   else if (/(lembrete|remind)/u.test(lower)) toolCalls = [{ name: 'search.reminders', arguments: {} }];
   else if (/(taref|task|pend.ncia|todo)/u.test(lower)) toolCalls = [{ name: 'search.tasks', arguments: {} }];
