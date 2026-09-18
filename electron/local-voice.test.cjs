@@ -60,6 +60,8 @@ test('com autoStop, o serviço pede ao adaptador que encerre na pausa e diz por 
   const service = createLocalVoiceService({ adapter: { listen: async (request) => { pedidos.push(request); return { ended: 'silence' }; } } });
   assert.equal((await service.listen({ autoStop: true })).ended, 'silence');
   assert.equal(pedidos[0].silenceMs > 0 && pedidos[0].noSpeechMs > pedidos[0].silenceMs, true);
+  // O teto depois da primeira palavra impede que ruído de fundo segure a escuta.
+  assert.equal(pedidos[0].maxSpeechMs > pedidos[0].noSpeechMs, true);
   await service.listen();
   assert.equal(pedidos[1].silenceMs, undefined);
 });

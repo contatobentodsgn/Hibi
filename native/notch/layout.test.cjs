@@ -40,10 +40,13 @@ test('o fonte recusa apresentações com ações e não guarda mais o host inter
   assert.match(source, /- \(NSString \*\)accessibilityLabel \{ return self\.message; \}/);
 });
 
+// O monitor é o que contém o centro do painel nos dois eixos: só pelo eixo horizontal, um MacBook acima
+// de um monitor externo mais largo caía dentro da faixa do externo, e o cartão de texto ia para ele.
 test('converte a posição do Electron a partir do monitor sob o centro da janela', () => {
   const source = readSource();
 
-  assert.match(source, /CGFloat centerX = x \+ width \/ 2\.0;/);
+  assert.match(source, /NSPoint center = NSMakePoint\(x \+ width \/ 2\.0, NSMaxY\(primary\.frame\) - \(y \+ height \/ 2\.0\)\);/);
+  assert.match(source, /if \(NSPointInRect\(center, candidate\.frame\)\)/);
   assert.match(source, /NSMaxY\(targetScreen\.frame\) - height \+ kMenuBarInset/);
   assert.doesNotMatch(source, /NSScreen\.mainScreen/);
 });
