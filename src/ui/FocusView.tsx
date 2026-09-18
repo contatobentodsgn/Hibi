@@ -20,7 +20,7 @@ export type FocusPresenceBridge = Readonly<{
   subscribe?: (callback: (event: PresenceEvent) => void) => () => void;
 }>;
 type CompanionActionInput = Readonly<{ requestId: string; actionId: 'confirm' | 'cancel' }>;
-type Props = { onEvent: (action: string, detail: string, result?: string) => void; onFocusStarted?: () => void; onFocusCompleted?: () => void; onFocusLifecycle?: (event: FocusLifecycleEvent) => void; onFocusWindowChange?: (endsAtMs: number | null) => void; mode?: FocusMode; onModeChange?: (mode: FocusMode) => void; sessionMinutes?: number; awayBehavior?: AwayBehavior; idleMinutes?: number; focusLoopAnimation?: FocusLoopAnimation; activity?: readonly ActivityRecord[]; presence?: FocusPresenceBridge; onCompanionEvent?: (event: CompanionEvent) => void; subscribeCompanionActions?: (callback: (action: CompanionActionInput) => void) => () => void };
+type Props = { /** Pedido de fora (Taby, voz) para começar a sessão assim que a tela abrir. */ autoStart?: boolean; onAutoStarted?: () => void; onEvent: (action: string, detail: string, result?: string) => void; onFocusStarted?: () => void; onFocusCompleted?: () => void; onFocusLifecycle?: (event: FocusLifecycleEvent) => void; onFocusWindowChange?: (endsAtMs: number | null) => void; mode?: FocusMode; onModeChange?: (mode: FocusMode) => void; sessionMinutes?: number; awayBehavior?: AwayBehavior; idleMinutes?: number; focusLoopAnimation?: FocusLoopAnimation; activity?: readonly ActivityRecord[]; presence?: FocusPresenceBridge; onCompanionEvent?: (event: CompanionEvent) => void; subscribeCompanionActions?: (callback: (action: CompanionActionInput) => void) => () => void };
 
 // A pergunta do `focus.idle_check` e a oferta do `focus.resume_prompt`, cada uma com o id da
 // apresentação no companion — é por ele que uma resposta dada no notch encontra a pergunta daqui.
@@ -42,7 +42,7 @@ export const notCompletedText = (locale: Locale, presentMinutes: number, planned
   return translate(locale, 'focus.presence.notCompleted').replace('{present}', () => minutes(presentMinutes)).replace('{planned}', () => minutes(plannedMinutes));
 };
 
-export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLifecycle, onFocusWindowChange, mode = 'focus', onModeChange, sessionMinutes, awayBehavior, idleMinutes, focusLoopAnimation, activity, presence, onCompanionEvent, subscribeCompanionActions }: Props) {
+export function FocusView({ autoStart, onAutoStarted, onEvent, onFocusStarted, onFocusCompleted, onFocusLifecycle, onFocusWindowChange, mode = 'focus', onModeChange, sessionMinutes, awayBehavior, idleMinutes, focusLoopAnimation, activity, presence, onCompanionEvent, subscribeCompanionActions }: Props) {
   const t = useT();
   const { language } = useLocale();
   const onBreak = mode === 'break';
@@ -155,6 +155,19 @@ export function FocusView({ onEvent, onFocusStarted, onFocusCompleted, onFocusLi
     emitLifecycle(starting ? 'start' : 'pause', pending);
     onEvent(starting ? 'focus-start' : 'focus-stop', starting ? 'Started Post 1 focus' : 'Stopped focus session', 'pass');
   };
+
+  // "Iniciar foco" pelo Taby (ou pela voz) só abria esta tela e anunciava no notch uma sessão que não
+  // existia: o relógio ficava parado e nada era contado. Agora o pedido começa a sessão como o botão
+  // faria. O início espera o mount terminar: no StrictMode o efeito roda duas vezes, e o timeout
+  // cancelado na primeira evita iniciar e abandonar a sessão no mesmo instante.
+  useEffect(() => {
+    if (!autoStart || onBreak) return undefined;
+    const timer = window.setTimeout(() => {
+      if (lifecycle.current.phase !== 'running') toggle();
+      onAutoStarted?.();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [autoStart]);
 
   // Pausa por ausência: pela máquina de estados, com o período ausente descontado, e o relógio da tela
   // volta a mostrar o que falta pelo tempo medido — os minutos em que ninguém estava ali são devolvidos.
