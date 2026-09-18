@@ -41,6 +41,7 @@ import { createLocalHibiRuntime, LocalToolProvider } from './ai/local-runtime';
 import { ElectronConfiguredProvider } from './ai/electron-provider';
 import { OfflineBrainProvider } from './ai/offline-brain-provider';
 import { useTabyShortcut } from './ui/useTabyShortcut';
+import { useVoiceTurn } from './ui/useVoiceTurn';
 import { HeuristicAiProvider } from './ai/heuristic-provider';
 import { CompanionController } from './companion/controller';
 import type { CompanionEvent } from './companion/contracts';
@@ -132,6 +133,8 @@ export default function App() {
   // thread que morasse dentro da tela perderia essas perguntas. Recebe o turno porque a resposta do
   // assistente é gravada uma vez só, deste lado.
   const conversations = useConversations({ turn: assistantTurn, onEvent: log });
+  // A voz vive aqui, e não na tela Taby: o atalho pode ouvir com a janela escondida, e o notch mostra.
+  const voice = useVoiceTurn({ ask: (text) => { conversations.record({ role: 'user', text, at: new Date().toISOString() }); void assistantTurn.ask(text); }, turnState: assistantTurn.state, onCompanionEvent: dispatchCompanion });
 
   const refreshData = () => setData(repository.snapshot());
   // Chamado só depois da mutação aplicada. Se registrar falhar, a ação continua valendo: só avisa.
@@ -394,7 +397,11 @@ export default function App() {
     setRoute(next);
     log(source, options.folder === undefined ? `Opened ${next}` : `Opened ${next} · folder`);
   };
-  useTabyShortcut(() => navigate('taby', 'shortcut'));
+  useTabyShortcut((request) => {
+    // No modo notch a janela nem aparece: trocar de tela ali só mudaria o que a pessoa vê depois.
+    if (!request?.background) navigate('taby', 'shortcut');
+    if (request?.listen) void voice.start({ notch: request.background });
+  });
 
   const content = useMemo(() => {
     const props = { onEvent: log, onNavigate: navigate };
@@ -411,7 +418,7 @@ export default function App() {
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
       case 'review': return <ReviewView data={data} onNavigate={navigate} onCreateBlock={createBlock} />;
       case 'stats': return <StatsView records={data.activity} referenceDate={new Date()} onEvent={log} />;
-      case 'taby': return <TabyView data={data} turn={assistantTurn} conversations={conversations} />;
+      case 'taby': return <TabyView data={data} turn={assistantTurn} conversations={conversations} voice={voice} />;
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'agenda': case 'day': case 'week': return <AgendaView {...props} data={data} mode={route === 'agenda' ? undefined : route} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onModeChange={(mode) => setRoute(mode)} />;
@@ -427,7 +434,7 @@ export default function App() {
       ? <FocusBackgroundNotice onReturn={() => navigate('focus')} />
       : null;
     return <>{banner}{focusHost}{screen}</>;
-  }, [route, calendarDay, focusActive, focusStartPending, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, folderFilter, openPalette, focusSettings]);
+  }, [route, calendarDay, focusActive, focusStartPending, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, voice.listening, voice.transcript, voice.notice, folderFilter, openPalette, focusSettings]);
 
   return (
     <AppShell active={route} onNavigate={(key) => {
