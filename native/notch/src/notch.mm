@@ -44,6 +44,7 @@ NSString *StringFromValue(const Napi::Value &value) {
 @property(nonatomic, strong) AVPlayerLooper *animationLooper;
 @property(nonatomic, strong) AVPlayerLayer *animationLayer;
 @property(nonatomic, copy) NSString *currentAnimationPath;
+@property(nonatomic) CGFloat cameraInset;
 @property(nonatomic, strong) CAShapeLayer *shapeMask;
 - (void)setPresentationMessage:(NSString *)message;
 - (void)applyTopInset:(CGFloat)topInset;
@@ -100,7 +101,7 @@ NSString *StringFromValue(const Napi::Value &value) {
   self.shapeMask.frame = bounds;
   self.shapeMask.path = path;
   CGPathRelease(path);
-  self.animationLayer.frame = bounds;
+  self.animationLayer.frame = [self videoFrame];
 }
 - (void)advanceFace:(NSTimer *)timer {
   if (self.animationLayer) return;
@@ -108,8 +109,16 @@ NSString *StringFromValue(const Napi::Value &value) {
   [self setNeedsDisplay:YES];
 }
 - (void)applyTopInset:(CGFloat)topInset {
-  // A geometria já está presa ao topo físico; o formato é igual em telas com e sem câmera.
+  // A câmera física cobre o topo do painel: sem descontar essa faixa, ela cortava as orelhas do gato.
+  // O vídeo ocupa só o que fica abaixo dela e, por manter a proporção, encolhe junto. Numa tela sem
+  // câmera a faixa é zero e o gato fica do tamanho inteiro.
+  self.cameraInset = MAX(0.0, topInset);
   [self setNeedsLayout:YES];
+}
+- (NSRect)videoFrame {
+  const NSRect bounds = self.bounds;
+  const CGFloat visible = MAX(0.0, bounds.size.height - self.cameraInset);
+  return NSMakeRect(NSMinX(bounds), NSMinY(bounds), bounds.size.width, visible);
 }
 - (void)setAnimationPath:(NSString *)animationPath {
   // O mesmo vídeo segue tocando: cada palavra do ditado reapresenta o notch, e recarregar o vídeo a
@@ -133,7 +142,7 @@ NSString *StringFromValue(const Napi::Value &value) {
   self.animationPlayer = player;
   self.animationLayer = [AVPlayerLayer playerLayerWithPlayer:player];
   self.animationLayer.videoGravity = AVLayerVideoGravityResizeAspect;
-  self.animationLayer.frame = self.bounds;
+  self.animationLayer.frame = [self videoFrame];
   [self.layer insertSublayer:self.animationLayer atIndex:0];
   [player play];
   [self setNeedsDisplay:YES];
