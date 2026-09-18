@@ -390,7 +390,7 @@ export default function App() {
       case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={() => setReminderCreateOpen(true)} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
-      case 'review': return <ReviewView data={data} onNavigate={navigate} />;
+      case 'review': return <ReviewView data={data} onNavigate={navigate} onCreateBlock={createBlock} />;
       case 'stats': return <StatsView records={data.activity} referenceDate={new Date()} onEvent={log} />;
       case 'taby': return <TabyView data={data} turn={assistantTurn} conversations={conversations} />;
       case 'help': return <HelpView onNavigate={navigate} />;
