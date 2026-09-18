@@ -440,6 +440,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:calendar-sync:execute-approved', (_event, input) => calendarSyncService.executeApproved(input));
   ipcMain.handle('hibi:calendar-sync:prepare-update', (_event, input) => calendarSyncService.prepareUpdate(input));
   ipcMain.handle('hibi:calendar-sync:resolve-conflict', (_event, input) => calendarSyncService.resolveConflict(input));
+  ipcMain.handle('hibi:calendar-sync:changes', () => calendarSyncService.listChanges());
+  ipcMain.handle('hibi:calendar-sync:acknowledge-incoming', (_event, input) => calendarSyncService.acknowledgeIncoming(input));
   const workspaceStore = () => { if (!workspaceDatabase) throw new Error('The workspace database is unavailable.'); return workspaceDatabase; };
   // A entrada vem do renderer: texto fora do formato vira erro de validação, e não exceção de tipo.
   const workspaceInput = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});

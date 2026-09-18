@@ -189,6 +189,17 @@ export default function App() {
     log('delete', block.title);
     recordActivity(blockActivity('deleted', block, new Date().toISOString()));
   };
+  // Trazer para o Hibi o horário de um evento movido no calendário: passa pela mesma validação de um bloco novo.
+  const moveBlock = (id: string, start: string, end: string): boolean => {
+    const current = repository.listBlocks().find((block) => block.id === id);
+    if (!current) return false;
+    const validation = validateScheduleBlock({ ...current, start, end }, repository.listBlocks());
+    if (!validation.valid) { setValidationError(validation.errors.join('\n')); log('validation', current.title, 'blocked'); return false; }
+    repository.updateBlock(id, { start, end });
+    refreshData();
+    log('edit', current.title, 'calendar-incoming');
+    return true;
+  };
   const createTask = ({ title, durationMinutes, folder }: NewTaskForm) => { repository.createTask({ title, durationMinutes, category: 'work', folder, status: 'open' }); refreshData(); log('create', title); setTaskCreateOpen(false); };
   const createReminder = ({ title, category, date, frequency, time, weekdays }: NewReminderForm) => {
     if (frequency === 'one-time') repository.createReminder({ title, category, status: 'open', schedule: { at: `${date}T${time}:00` } });
@@ -398,7 +409,7 @@ export default function App() {
       case 'agenda': case 'day': case 'week': return <AgendaView {...props} data={data} mode={route === 'agenda' ? undefined : route} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onModeChange={(mode) => setRoute(mode)} />;
       case 'focus': return null;
       case 'break': return focusView('break');
-      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} focusSettings={focusSettings} onFocusSettingsChange={updateFocusSettings} />;
+      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} onMoveBlock={moveBlock} focusSettings={focusSettings} onFocusSettingsChange={updateFocusSettings} />;
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} onClearAiHistory={clearAiHistory} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;

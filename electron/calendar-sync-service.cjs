@@ -1,5 +1,5 @@
 const crypto = require("node:crypto");
-const { localTimeZone, toInstant, toOffsetIso } = require("./calendar-time.cjs");
+const { localTimeZone, toFloatingWallClock, toInstant, toOffsetIso } = require("./calendar-time.cjs");
 
 const TEXT_LIMIT = 240;
 const MAX_RANGE_MS = 366 * 24 * 60 * 60 * 1_000;
@@ -13,6 +13,7 @@ const MAX_CALENDARS_PER_READ = 200;
 // Cada evento ausente da janela custa uma busca pelo id (e, no Google, uma chamada de rede). O que passar do
 // teto fica como está e é reavaliado na próxima leitura.
 const MAX_LOOKUPS_PER_READ = 50;
+const MAX_CHANGES = 200;
 const boundedText = (value, maximum = TEXT_LIMIT) =>
   typeof value === "string" &&
   value.trim().length > 0 &&
@@ -421,6 +422,58 @@ function createCalendarSyncService({
         ],
       });
       return this.getState();
+    },
+    // O que mudou de um lado só desde a última sincronização de cada vínculo, num calendário bidirecional.
+    // Antes a publicação era de mão única e uma vez só: editar o bloco no Hibi não chegava ao calendário, e
+    // mover o evento no calendário não chegava ao Hibi, sem aviso. Um vínculo com conflito fica de fora:
+    // os dois lados mudaram, e quem decide é a resolução de conflito.
+    //  - `outgoing`: o bloco mudou no Hibi. Enviar é `prepareUpdate` e a confirmação de sempre.
+    //  - `incoming`: o evento mudou de horário no calendário (a leitura atualiza a janela remota do
+    //    vínculo) e o bloco não. Trazer é o renderer mover o bloco e chamar `acknowledgeIncoming`.
+    listChanges() {
+      const blocks = loadedBlocks();
+      if (!blocks) return { outgoing: [], incoming: [] };
+      const conflicted = new Set(list("conflicts").map((conflict) => conflict?.id));
+      const outgoing = [];
+      const incoming = [];
+      for (const link of list("links")) {
+        if (!isCalendarId(link?.calendarId) || modeFor(link.calendarId) !== "bidirectional") continue;
+        if (conflicted.has(`${link.calendarId}:${link.remoteId}`)) continue;
+        const local = blocks.find((entry) => entry?.id === link.localId);
+        if (!local) continue;
+        const base = { localId: local.id, calendarId: link.calendarId, summary: summaryFor(local) };
+        if (blockFingerprint(local) !== link.localFingerprint) {
+          outgoing.push(base);
+          continue;
+        }
+        const remoteStart = toInstant(link.remoteStartsAt);
+        const remoteEnd = toInstant(link.remoteEndsAt);
+        const localStart = toInstant(local.start);
+        const localEnd = toInstant(local.end);
+        if (!remoteStart || !remoteEnd || !localStart || !localEnd || remoteEnd <= remoteStart) continue;
+        if (remoteStart.getTime() !== localStart.getTime() || remoteEnd.getTime() !== localEnd.getTime())
+          incoming.push({ ...base, start: toFloatingWallClock(remoteStart), end: toFloatingWallClock(remoteEnd) });
+      }
+      return { outgoing: outgoing.slice(0, MAX_CHANGES), incoming: incoming.slice(0, MAX_CHANGES) };
+    },
+    // O bloco já foi movido para o horário do calendário: o vínculo passa a considerar essa versão a
+    // sincronizada, senão a mudança trazida apareceria em seguida como uma edição a enviar. Só vale para o
+    // horário que o calendário tem agora.
+    acknowledgeIncoming(input) {
+      const safe = objectInput(input);
+      const block = blockFrom(safe.block);
+      if (!isCalendarId(safe.calendarId) || !block) throw new Error("Calendar block is invalid.");
+      requireSettings();
+      const found = list("links").find((entry) => entry?.localId === block.id && entry?.calendarId === safe.calendarId);
+      if (!found) throw new Error("This Hibi block is not linked to the selected calendar.");
+      const remoteStart = toInstant(found.remoteStartsAt);
+      const remoteEnd = toInstant(found.remoteEndsAt);
+      if (!remoteStart || !remoteEnd || toInstant(block.startsAt)?.getTime() !== remoteStart.getTime() || toInstant(block.endsAt)?.getTime() !== remoteEnd.getTime())
+        throw new Error("The Hibi block does not match the calendar event.");
+      saveState({
+        links: list("links").map((entry) => entry === found ? { ...found, localFingerprint: blockFingerprint(block) } : entry),
+      });
+      return this.listChanges();
     },
     async preparePublish(input) {
       const safe = objectInput(input);

@@ -65,6 +65,8 @@ const EXPECTED_CHANNELS = [
   "hibi:calendar-sync:execute-approved",
   "hibi:calendar-sync:prepare-update",
   "hibi:calendar-sync:resolve-conflict",
+  "hibi:calendar-sync:changes",
+  "hibi:calendar-sync:acknowledge-incoming",
   "hibi:workspace:read",
   "hibi:workspace:save",
   "hibi:workspace:restore-points",
@@ -1260,6 +1262,7 @@ test("os canais de sincronização de calendário respondem a entrada malformada
     "hibi:calendar-sync:execute-approved",
     "hibi:calendar-sync:prepare-update",
     "hibi:calendar-sync:resolve-conflict",
+    "hibi:calendar-sync:acknowledge-incoming",
   ];
   const inputs = [
     undefined,
