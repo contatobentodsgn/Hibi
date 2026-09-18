@@ -41,28 +41,38 @@ const pad = (value: number) => String(value).padStart(2, '0');
  * do que perguntar.
  */
 export function parseSpokenTime(input: string): string | null {
-  const text = input.trim().toLocaleLowerCase('pt-BR').replace(/[.!?…]+$/u, '').trim();
-  if (/^meio[-\s]?dia$/u.test(text)) return '12:00';
-  if (/^meio[-\s]?dia\s+e\s+meia$/u.test(text)) return '12:30';
-  if (/^meia[-\s]?noite$/u.test(text)) return '00:00';
-  if (/^meia[-\s]?noite\s+e\s+meia$/u.test(text)) return '00:30';
+  let text = input.trim().toLocaleLowerCase('pt-BR').replace(/[.!?…]+$/u, '').trim()
+    .replace(/^(?:às|as|à|a|para\s+as|para\s+às|pras)\s+/u, '').trim();
+  // O período do dia vem por último e vale para qualquer forma da hora: "9h00 da manhã",
+  // "9:30 da noite", "nove e meia da manhã". Antes só "9 da manhã" era entendido.
+  const periodMatch = text.match(/\s*(?:da|de)\s+(manhã|manha|tarde|noite|madrugada)$/u);
+  const period = periodMatch?.[1] ?? null;
+  if (periodMatch) text = text.slice(0, periodMatch.index).trim();
 
+  if (!period && /^meio[-\s]?dia$/u.test(text)) return '12:00';
+  if (!period && /^meio[-\s]?dia\s+e\s+meia$/u.test(text)) return '12:30';
+  if (!period && /^meia[-\s]?noite$/u.test(text)) return '00:00';
+  if (!period && /^meia[-\s]?noite\s+e\s+meia$/u.test(text)) return '00:30';
+
+  let hour: number | undefined;
+  let minutes = 0;
   const clock = text.match(/^(\d{1,2}):(\d{2})$/u);
-  if (clock) return valid(Number(clock[1]), Number(clock[2]));
-
-  const hours = text.match(/^(\d{1,2})\s*(?:h|hs|horas?)(?:\s*(?:e\s*)?(\d{1,2})(?:\s*(?:min|minutos?))?)?$/u);
-  if (hours) return valid(Number(hours[1]), hours[2] ? Number(hours[2]) : 0);
-
-  const period = text.match(/^(\d{1,2}|[\p{L}]+)(?:\s*(?:h|horas?))?(?:\s+e\s+(meia|quinze|(\d{1,2})))?\s+da\s+(manhã|manha|tarde|noite|madrugada)$/u);
-  if (period) {
-    const base = /^\d+$/u.test(period[1]!) ? Number(period[1]) : NUMBER_WORDS[period[1]!];
-    if (base === undefined || base < 1 || base > 12) return null;
-    const minutes = period[2] === 'meia' ? 30 : period[2] === 'quinze' ? 15 : period[3] ? Number(period[3]) : 0;
-    const part = period[4]!;
-    const hour = part === 'tarde' || part === 'noite' ? (base === 12 ? 12 : base + 12) : part.startsWith('madrug') || part.startsWith('manh') ? (base === 12 ? 0 : base) : base;
-    return valid(hour, minutes);
+  const hours = text.match(/^(\d{1,2})\s*(?:h|hs|horas?)?(?:\s*(?:e\s*)?(\d{1,2})(?:\s*(?:min|minutos?))?)?$/u);
+  const words = text.match(/^([\p{L}]+)(?:\s+horas?)?(?:\s+e\s+(meia|quinze|(\d{1,2})))?$/u);
+  if (clock) { hour = Number(clock[1]); minutes = Number(clock[2]); }
+  else if (hours) { hour = Number(hours[1]); minutes = hours[2] ? Number(hours[2]) : 0; }
+  else if (words && NUMBER_WORDS[words[1]!] !== undefined) {
+    hour = NUMBER_WORDS[words[1]!];
+    minutes = words[2] === 'meia' ? 30 : words[2] === 'quinze' ? 15 : words[3] ? Number(words[3]) : 0;
   }
-  return null;
+  else return null;
+  if (hour === undefined) return null;
+  if (!period) return valid(hour, minutes);
+  // Com período, a hora é a do relógio de 12 horas: "13 da tarde" não existe.
+  if (hour < 1 || hour > 12) return null;
+  // "12 da tarde" é meio-dia; "12 da noite" e "12 da madrugada" são meia-noite.
+  if (hour === 12) return valid(period === 'tarde' ? 12 : 0, minutes);
+  return valid(period === 'tarde' || period === 'noite' ? hour + 12 : hour, minutes);
 }
 
 function valid(hour: number, minutes: number): string | null {
@@ -75,11 +85,43 @@ const DAY_WORDS: ReadonlyArray<readonly [RegExp, number]> = [
   [/(?:^|\s)(?:para\s+|pra\s+|de\s+)?amanh[ãa](?=\s|$)/iu, 1],
   [/(?:^|\s)(?:para\s+|pra\s+|de\s+)?hoje(?=\s|$)/iu, 0],
 ];
+const WEEKDAYS: Record<string, number> = { domingo: 0, segunda: 1, terça: 2, terca: 2, quarta: 3, quinta: 4, sexta: 5, sábado: 6, sabado: 6 };
+const WEEKDAY = /(?:^|\s)(?:n[ao]\s+|para\s+|pra\s+)?(?:(?:próxim[ao]|proxim[ao])\s+)?(domingo|segunda|terça|terca|quarta|quinta|sexta|sábado|sabado)(?:-feira)?(?=\s|$)/iu;
+const DAY_OF_MONTH = /(?:^|\s)(?:n[ao]\s+|para\s+o\s+|pro\s+)?dia\s+(\d{1,2})(?:\s+de\s+([\p{L}]+))?(?=\s|$)|(?:^|\s)(\d{1,2})\/(\d{1,2})(?=\s|$)/iu;
+const MONTHS: Record<string, number> = { janeiro: 1, fevereiro: 2, março: 3, marco: 3, abril: 4, maio: 5, junho: 6, julho: 7, agosto: 8, setembro: 9, outubro: 10, novembro: 11, dezembro: 12 };
 
-/** O dia dito ("hoje", "amanhã", "depois de amanhã"), em dias a partir de hoje, e o texto sem ele. */
-export function takeSpokenDay(text: string): { days: number | null; rest: string } {
-  for (const [pattern, days] of DAY_WORDS) {
-    if (pattern.test(text)) return { days, rest: text.replace(pattern, ' ').replace(/\s+/gu, ' ').trim() };
+const dayKeyOf = (year: number, month: number, day: number) => `${year}-${pad(month)}-${pad(day)}`;
+const daysBetween = (fromKey: string, toKey: string) => Math.round((Date.UTC(+toKey.slice(0, 4), +toKey.slice(5, 7) - 1, +toKey.slice(8, 10)) - Date.UTC(+fromKey.slice(0, 4), +fromKey.slice(5, 7) - 1, +fromKey.slice(8, 10))) / 86_400_000);
+
+/**
+ * O dia dito, em dias a partir de `today` (`AAAA-MM-DD`), e o texto sem ele: "hoje", "amanhã",
+ * "depois de amanhã", um dia da semana (o próximo, nunca o de hoje: "sexta" dito numa sexta é a da
+ * semana que vem), "dia 25" (deste mês, ou do próximo se já passou) e "25/09".
+ */
+export function takeSpokenDay(text: string, today?: string): { days: number | null; rest: string } {
+  const cut = (pattern: RegExp) => text.replace(pattern, ' ').replace(/\s+/gu, ' ').trim();
+  for (const [pattern, days] of DAY_WORDS) if (pattern.test(text)) return { days, rest: cut(pattern) };
+  if (!today) return { days: null, rest: text.trim() };
+  const weekday = text.match(WEEKDAY);
+  if (weekday) {
+    const current = new Date(Date.UTC(+today.slice(0, 4), +today.slice(5, 7) - 1, +today.slice(8, 10))).getUTCDay();
+    const ahead = (WEEKDAYS[weekday[1]!.toLocaleLowerCase('pt-BR')]! - current + 7) % 7 || 7;
+    return { days: ahead, rest: cut(WEEKDAY) };
+  }
+  const date = text.match(DAY_OF_MONTH);
+  if (date) {
+    const year = +today.slice(0, 4); const month = +today.slice(5, 7); const todayDay = +today.slice(8, 10);
+    const day = Number(date[1] ?? date[3]);
+    const namedMonth = date[2] ? MONTHS[date[2].toLocaleLowerCase('pt-BR')] : undefined;
+    if (date[2] && !namedMonth) return { days: null, rest: text.trim() };
+    const wantedMonth = date[4] ? Number(date[4]) : namedMonth ?? (day >= todayDay ? month : month + 1);
+    const wantedYear = wantedMonth > 12 ? year + 1 : year;
+    const normalizedMonth = ((wantedMonth - 1) % 12) + 1;
+    let key = dayKeyOf(wantedYear, normalizedMonth, day);
+    const check = new Date(Date.UTC(wantedYear, normalizedMonth - 1, day));
+    if (check.getUTCDate() !== day || normalizedMonth < 1) return { days: null, rest: text.trim() };
+    if (daysBetween(today, key) < 0) key = dayKeyOf(wantedYear + 1, normalizedMonth, day);
+    return { days: daysBetween(today, key), rest: cut(DAY_OF_MONTH) };
   }
   return { days: null, rest: text.trim() };
 }
@@ -92,7 +134,7 @@ const RANGE = new RegExp(`\\s*(?:d[ae]s?|entre)\\s+${TIME_START}(.+?)\\s+(?:às|
 const AT = new RegExp(`(?:^|\\s+)(?:às|as|à|a|para\\s+as|para\\s+às|pras)\\s+${TIME_START}(.+?)\\s*$`, 'iu');
 
 export type ScheduleRequest =
-  | Readonly<{ kind: 'block'; title: string; days: number; start: string; end: string }>
+  | Readonly<{ kind: 'block'; title: string; days: number; start: string; end: string; meeting: boolean }>
   | Readonly<{ kind: 'unclear'; said: string }>;
 
 const plusMinutes = (time: string, minutes: number): string => {
@@ -105,11 +147,11 @@ const plusMinutes = (time: string, minutes: number): string => {
  * na agenda. Antes esses pedidos não eram reconhecidos e iam para o cérebro offline, que respondia
  * "marquei" sem marcar nada. Sem horário final, a reunião dura uma hora.
  */
-export function parseScheduleRequest(message: string): ScheduleRequest | null {
+export function parseScheduleRequest(message: string, today?: string): ScheduleRequest | null {
   const found = message.match(SCHEDULE);
   if (!found) return null;
   const noun = found[1]!.toLocaleLowerCase('pt-BR');
-  const { days, rest: withoutDay } = takeSpokenDay(found[2]!.replace(/\s+(?:para|pra)\s+mim\b/iu, ' '));
+  const { days, rest: withoutDay } = takeSpokenDay(found[2]!.replace(/\s+(?:para|pra)\s+mim\b/iu, ' '), today);
   let rest = withoutDay;
   let start: string | null = null;
   let end: string | null = null;
@@ -127,5 +169,6 @@ export function parseScheduleRequest(message: string): ScheduleRequest | null {
   } else return { kind: 'unclear', said: '' };
   const detail = rest.replace(/^[\s:–-]+/u, '').trim();
   const label = noun === 'bloco' || noun.startsWith('hor') ? detail || 'Bloco' : `${noun === 'reuniao' ? 'Reunião' : noun[0]!.toLocaleUpperCase('pt-BR') + noun.slice(1)}${detail ? ` ${detail}` : ''}`;
-  return { kind: 'block', title: label, days: days ?? 0, start, end };
+  // Reunião, compromisso e evento são reuniões (agenda, tarefas e calendário); bloco e horário, só agenda.
+  return { kind: 'block', title: label, days: days ?? 0, start, end, meeting: !(noun === 'bloco' || noun.startsWith('hor')) };
 }
