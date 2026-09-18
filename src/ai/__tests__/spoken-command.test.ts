@@ -49,7 +49,8 @@ describe('normalizeSpokenCommand', () => {
 
 describe('comandos ditados no Taby', () => {
   const pedir = async (message: string) => {
-    const runtime = createLocalHibiRuntime(new LocalRepository(createSeedData()));
+    // Agenda vazia: os comandos são o assunto aqui, não os horários que a seed já ocupa.
+    const runtime = createLocalHibiRuntime(new LocalRepository({ ...createSeedData(), blocks: [] }));
     return runtime.runTurn({ message, surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
   };
   const chamada = async (message: string) => (await pedir(message)).confirmation?.calls[0];
@@ -102,6 +103,35 @@ describe('comandos ditados no Taby', () => {
   it('o foco começa no imperativo também', async () => {
     for (const frase of ['Inicie o foco', 'Taby, começa um foco.', 'inicia uma sessão de foco', 'comece o foco agora'])
       expect(await chamada(frase), frase).toMatchObject({ name: 'focus.start' });
+  });
+
+  // Visto no app: estes pedidos iam para o cérebro offline, que dizia "marquei" sem marcar nada.
+  it('marcar uma reunião vira um bloco na agenda, no dia dito, com uma hora de duração', async () => {
+    expect(await chamada('Marque uma reunião para mim amanhã às 15h00')).toMatchObject({ name: 'block.create', arguments: { title: 'Reunião', start: '2026-09-19T15:00:00', end: '2026-09-19T16:00:00' } });
+    expect(await chamada('Taby, agende uma reunião com a Ana hoje às 3 da tarde.')).toMatchObject({ arguments: { title: 'Reunião com a Ana', start: '2026-09-18T15:00:00', end: '2026-09-18T16:00:00' } });
+    expect(await chamada('marque um compromisso depois de amanhã das 14h às 16h30')).toMatchObject({ arguments: { title: 'Compromisso', start: '2026-09-20T14:00:00', end: '2026-09-20T16:30:00' } });
+  });
+
+  it('marcar sem horário, ou com um horário que não dá para entender, vira pergunta', async () => {
+    const semHorario = await pedir('marque uma reunião amanhã');
+    expect(semHorario.confirmation).toBeUndefined();
+    expect(semHorario.reply).toMatch(/^Para que horário\?/);
+    const confuso = await pedir('agende uma reunião amanhã às 3 e pouco');
+    expect(confuso.confirmation).toBeUndefined();
+    expect(confuso.reply).toMatch(/Não entendi o horário "3 e pouco"/);
+  });
+
+  it('um horário já ocupado é dito antes de pedir confirmação', async () => {
+    const repository = new LocalRepository(createSeedData());
+    repository.createBlock({ title: 'Kabrito Post 05', start: '2026-09-19T15:00:00', end: '2026-09-19T16:00:00', category: 'work' });
+    const resultado = await createLocalHibiRuntime(repository).runTurn({ message: 'Marque uma reunião para mim amanhã às 15h', surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
+    expect(resultado.confirmation).toBeUndefined();
+    expect(resultado.reply).toMatch(/já está ocupado por "Kabrito Post 05"/);
+  });
+
+  it('"amanhã" no lembrete vai para a data, e não para o título', async () => {
+    expect(await chamada('me lembra de ligar para o banco amanhã às 15h')).toMatchObject({ name: 'reminder.create', arguments: { title: 'ligar para o banco', at: '2026-09-19T15:00:00' } });
+    expect(await chamada('me lembra de ligar para o banco às 15h de amanhã')).toMatchObject({ arguments: { title: 'ligar para o banco', at: '2026-09-19T15:00:00' } });
   });
 
   it('as frases escritas continuam funcionando como antes', async () => {
