@@ -471,7 +471,13 @@ function createCalendarSyncService({
       if (!remoteStart || !remoteEnd || toInstant(block.startsAt)?.getTime() !== remoteStart.getTime() || toInstant(block.endsAt)?.getTime() !== remoteEnd.getTime())
         throw new Error("The Hibi block does not match the calendar event.");
       saveState({
-        links: list("links").map((entry) => entry === found ? { ...found, localFingerprint: blockFingerprint(block) } : entry),
+        // Pelo par bloco e calendário, não pela identidade do objeto: o arquivo de configurações devolve
+        // uma cópia nova a cada leitura, e a comparação por identidade nunca achava o vínculo.
+        links: list("links").map((entry) =>
+          entry?.localId === block.id && entry?.calendarId === safe.calendarId
+            ? { ...entry, localFingerprint: blockFingerprint(block) }
+            : entry,
+        ),
       });
       return this.listChanges();
     },

@@ -838,3 +838,21 @@ test("confirmar a chegada com outro horário que o do calendário é recusado", 
   assert.throws(() => service.acknowledgeIncoming({ calendarId: "apple:other", block: { id: "block-1", title: "Planejar semana", startsAt: "2026-09-14T15:00:00", endsAt: "2026-09-14T16:00:00" } }), /not linked/);
   assert.equal(memory.saves.length, saves);
 });
+
+// Visto no app instalado: com o arquivo de configurações de verdade, que devolve uma cópia a cada leitura,
+// trazer o horário do calendário não atualizava o vínculo, e o bloco aparecia em seguida como "mudou no Hibi".
+test("trazer o horário do calendário grava o vínculo também no arquivo de configurações real", (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "hibi-calendar-ack-"));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const calendarSettings = createCalendarSyncSettings({ filePath: path.join(folder, "calendar-sync.json") });
+  const moved = { remoteStartsAt: local("2026-09-14T15:00:00"), remoteEndsAt: local("2026-09-14T16:00:00") };
+  calendarSettings.save({ calendars: bidirectional("apple:personal"), links: [link(moved)] });
+  const blocks = [workspaceBlock()];
+  const service = createCalendarSyncService({ eventKit: appleKit(), integrations: { listStatus: async () => [] }, settings: noTargets, calendarSettings, workspace: () => ({ blocks }) });
+
+  blocks[0] = workspaceBlock({ start: "2026-09-14T15:00:00", end: "2026-09-14T16:00:00" });
+  service.acknowledgeIncoming({ calendarId: "apple:personal", block: { id: "block-1", title: "Planejar semana", startsAt: "2026-09-14T15:00:00", endsAt: "2026-09-14T16:00:00" } });
+
+  assert.equal(calendarSettings.get().links[0].localFingerprint, blockFingerprint(blocks[0]));
+  assert.deepEqual(service.listChanges(), { outgoing: [], incoming: [] });
+});
