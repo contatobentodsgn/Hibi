@@ -523,3 +523,22 @@ test('sem escolha feita, o mascote nasce na tela interna com câmera', () => {
 
   assert.deepEqual(posicionamentos, [1]);
 });
+
+// O recorte do notch tem 225 pt de largura: uma resposta de duas frases não cabe ali.
+test('um cartão com texto ganha a área de leitura, e sem texto o painel volta ao tamanho do notch', () => {
+  let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, platform: 'darwin' });
+  const { notchBounds, actionBounds } = require('./notch-geometry.cjs');
+  const display = screen.getPrimaryDisplay();
+
+  manager.show({ requestId: 'resposta', kind: 'result', text: 'Use a técnica de 25 minutos e faça pausas curtas.', actions: [], interaction: 'passthrough', host: 'electron' });
+  const comTexto = notch.calls.filter(([name]) => name === 'bounds').at(-1)[1];
+
+  assert.equal(comTexto.width, actionBounds(display).width);
+  assert.ok(comTexto.width > notchBounds(display).width, 'ler exige mais largura que o recorte do notch');
+
+  manager.show({ requestId: 'mascote', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'electron' });
+  const semTexto = notch.calls.filter(([name]) => name === 'bounds').at(-1)[1];
+
+  assert.deepEqual([semTexto.width, semTexto.height], [notchBounds(display).width, notchBounds(display).height]);
+});
