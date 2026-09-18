@@ -98,7 +98,8 @@ test('pelo atalho no modo notch, o notch mostra o que é ouvido, sem trocar de t
   const telaAntes = await page.getByRole('heading', { level: 1 }).first().textContent();
 
   await voice(page).shortcut({ listen: true, background: true });
-  await expect.poll(() => voice(page).calls()).toContain('notch:listening:Ouvindo…');
+  // Sem texto ainda: a barra mostra "Ouvindo…" como dica; o ditado toma o lugar dela.
+  await expect.poll(() => voice(page).calls()).toContain('notch:listening:');
   await voice(page).say('crie uma tarefa ligar para a escola');
   await expect.poll(() => voice(page).calls()).toContain('notch:listening:crie uma tarefa ligar para a escola');
   await voice(page).finish('silence');
