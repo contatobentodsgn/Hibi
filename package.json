@@ -57,7 +57,8 @@
         "NSCalendarsUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose.",
         "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose.",
         "NSMicrophoneUsageDescription": "Hibi needs the microphone to turn what you say into text on this Mac.",
-        "NSSpeechRecognitionUsageDescription": "Hibi recognises your speech on this Mac to type what you dictate."
+        "NSSpeechRecognitionUsageDescription": "Hibi recognises your speech on this Mac to type what you dictate.",
+        "LSUIElement": true
       },
       "binaries": [
         "Contents/Resources/native/voice/build/hibi-voice"

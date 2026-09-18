@@ -230,11 +230,13 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase, sin
       quit: () => { captured.quitCalls = (captured.quitCalls ?? 0) + 1; },
       focus: () => { captured.appFocuses = (captured.appFocuses ?? 0) + 1; },
       requestSingleInstanceLock: () => singleInstance,
+      getName: () => 'Hibi',
+      dock: { hide: () => { captured.dockHidden = true; }, isVisible: () => captured.dockHidden !== true },
       whenReady: () => ({ then: (callback) => { readyPromise = Promise.resolve().then(callback); return readyPromise; } }),
     },
     BrowserWindow: BrowserWindowFake,
     Tray: class { constructor() { trayCalls.criado += 1; } setToolTip() {} setContextMenu(menu) { trayCalls.itens = menu.template; } on(event, fn) { trayCalls[event] = fn; } destroy() { trayCalls.destruido = true; } },
-    Menu: { buildFromTemplate: (template) => ({ template }) },
+    Menu: { buildFromTemplate: (template) => ({ template }), setApplicationMenu: (menu) => { captured.appMenu = menu; } },
     nativeImage: { createFromPath: () => ({ setTemplateImage() {} }) },
     globalShortcut: {
       register(accelerator, handler) { shortcuts.set(accelerator, handler); return !refusedShortcuts.has(accelerator); },
@@ -527,6 +529,15 @@ test("a segunda cópia encerra sem registrar nada, em vez de abrir um segundo Hi
   assert.equal(harness.captured.quitCalls, 1);
   assert.deepEqual([...harness.handlers.keys()], [], "uma cópia recusada não pode registrar canal nenhum");
   assert.equal(harness.trayCalls.criado, 0);
+});
+
+test("o Hibi sai do Dock, e os atalhos de edição continuam montados", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  assert.equal(harness.captured.dockHidden, true, "sem isto o app continua no Dock e no ⌘Tab");
+  const edit = harness.captured.appMenu.template.find((menu) => menu.label === "Edit");
+  assert.deepEqual(edit.submenu.filter((item) => item.role).map((item) => item.role), ["undo", "redo", "cut", "copy", "paste", "selectAll"], "o menu escondido é quem carrega ⌘C e ⌘V");
 });
 
 test("fechar a janela esconde o app, que continua na barra de menus", async (t) => {

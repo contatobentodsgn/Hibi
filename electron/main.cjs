@@ -29,6 +29,7 @@ const { createLocalModelDownload } = require('./local-model-download.cjs');
 const { createLocalModelService } = require('./local-model-service.cjs');
 const { createElectronUpdateService } = require('./updates.cjs');
 const { createAppTray } = require('./tray.cjs');
+const { buildAppMenuTemplate, hideFromDock } = require('./app-menu.cjs');
 const { createShortcutSettings } = require('./shortcut-settings.cjs');
 const { createTabyShortcut } = require('./taby-shortcut.cjs');
 const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
@@ -524,6 +525,10 @@ app.whenReady().then(async () => {
   createWindow();
   // Depois da janela principal, para não correr com o carregamento da overlay: o companion de
   // inicialização é a prova visual de que o notch físico está coberto, e nasce na tela com câmera.
+  // Só barra de menus: sem ícone no Dock e sem ⌘Tab. O menu do app continua montado porque é ele
+  // que carrega ⌘C, ⌘V, ⌘Z e ⌘A dentro dos campos.
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildAppMenuTemplate({ appName: app.getName?.() ?? 'Hibi' })));
+  hideFromDock({ app });
   appTray = createAppTray({ Tray, Menu, nativeImage, onOpen: summonWindow, onTaby: summonTaby, onHide: () => mainWindow?.hide(), onQuit: () => { quitting = true; app.quit(); } });
   tabyShortcut.apply();
   showStartupNotch(notchWindow, startupNotchAnimationPath());

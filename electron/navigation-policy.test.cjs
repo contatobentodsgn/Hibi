@@ -19,10 +19,10 @@ const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
   if (request === "electron") {
     return {
-      app: { isPackaged: true, whenReady: () => ({ then() {} }), on() {}, getVersion() { return "test"; }, getPath() { return appData; }, setPath() {}, requestSingleInstanceLock: () => true, focus() {} },
+      app: { isPackaged: true, whenReady: () => ({ then() {} }), on() {}, getVersion() { return "test"; }, getPath() { return appData; }, setPath() {}, requestSingleInstanceLock: () => true, focus() {}, getName: () => 'Hibi', dock: { hide() {}, isVisible: () => false } },
       BrowserWindow: { getAllWindows() { return []; } },
       Tray: class { setToolTip() {} setContextMenu() {} on() {} destroy() {} },
-      Menu: { buildFromTemplate: (template) => ({ template }) },
+      Menu: { buildFromTemplate: (template) => ({ template }), setApplicationMenu() {} },
       nativeImage: { createFromPath: () => ({ setTemplateImage() {} }) },
       ipcMain: { handle() {} },
       Notification: {},
