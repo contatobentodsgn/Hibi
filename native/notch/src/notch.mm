@@ -43,6 +43,7 @@ NSString *StringFromValue(const Napi::Value &value) {
 @property(nonatomic, strong) AVQueuePlayer *animationPlayer;
 @property(nonatomic, strong) AVPlayerLooper *animationLooper;
 @property(nonatomic, strong) AVPlayerLayer *animationLayer;
+@property(nonatomic, copy) NSString *currentAnimationPath;
 @property(nonatomic, strong) CAShapeLayer *shapeMask;
 - (void)setPresentationMessage:(NSString *)message;
 - (void)applyTopInset:(CGFloat)topInset;
@@ -111,6 +112,10 @@ NSString *StringFromValue(const Napi::Value &value) {
   [self setNeedsLayout:YES];
 }
 - (void)setAnimationPath:(NSString *)animationPath {
+  // O mesmo vídeo segue tocando: cada palavra do ditado reapresenta o notch, e recarregar o vídeo a
+  // cada uma reiniciava a animação do mascote.
+  if (self.animationLayer && animationPath.length > 0 && [self.currentAnimationPath isEqualToString:animationPath]) return;
+  self.currentAnimationPath = animationPath.length > 0 ? [animationPath copy] : nil;
   [self.animationPlayer pause];
   [self.animationLayer removeFromSuperlayer];
   self.animationPlayer = nil;
