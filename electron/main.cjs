@@ -540,7 +540,14 @@ app.whenReady().then(async () => {
   showStartupNotch(notchWindow, startupNotchAnimationPath());
   app.on("activate", () => summonWindow());
 });
-app.on("before-quit", () => { quitting = true; appTray?.destroy(); tabyShortcut?.dispose(); detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
+app.on("before-quit", () => { quitting = true; localVoiceService?.stop(); appTray?.destroy(); tabyShortcut?.dispose(); detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
+// O helper de voz é outro processo: sem este `stop`, uma escuta aberta sobrevivia ao app, com o
+// microfone ligado e ninguém para desligá-lo. Ver o `localVoiceService?.stop()` no before-quit.
+//
+// A atualização fecha as janelas **antes** do `before-quit`, e a janela principal só se esconde
+// enquanto `quitting` for falso: sem isto, "Reiniciar e instalar" escondia a janela e a instalação
+// era abortada.
+app.on("before-quit-for-update", () => { quitting = true; });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
 module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, rendererRecoveryPrompt, safeAiStreamEvent, routeNotchAction, isRendererPresentationAllowed };
