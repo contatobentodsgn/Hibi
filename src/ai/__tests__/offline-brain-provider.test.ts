@@ -112,3 +112,26 @@ it('uma falha do modelo cai nas ferramentas locais em vez de quebrar a pergunta'
 
   expect(proposal.reply).toBe('Posso ajudar com tarefas.');
 });
+
+// Visto no app: "Marque uma reunião para mim amanhã às 15h00" → "Marquei uma reunião amanhã às 15h00",
+// sem nenhum bloco criado.
+describe('o cérebro offline não diz que fez o que não fez', () => {
+  it('uma promessa de ação vira a verdade, com o jeito de pedir', async () => {
+    for (const text of ['Não há reuniões marcadas para hoje. Marquei uma reunião amanhã às 15h00.', 'Claro, vou te lembrar às 15h.', 'Pronto, está agendada.', "Sure, I've scheduled it for 3pm."]) {
+      const runLocalModel = vi.fn(async ({ requestId }: { requestId: string }) => ({ requestId, status: 'complete' as const, text }));
+      const proposal = await new OfflineBrainProvider({ runLocalModel }, tools()).generate(request({ message: 'oi, tudo bem?' }), new AbortController().signal);
+      expect(proposal.reply, text).toMatch(/^Não fiz nada ainda/);
+      expect(proposal.toolCalls).toEqual([]);
+    }
+  });
+
+  it('uma conversa comum passa intacta', async () => {
+    const runLocalModel = vi.fn(async ({ requestId }: { requestId: string }) => ({ requestId, status: 'complete' as const, text: 'Você tem três reuniões marcadas para hoje.' }));
+    const proposal = await new OfflineBrainProvider({ runLocalModel }, tools()).generate(request({ message: 'quantas reuniões tenho hoje?' }), new AbortController().signal);
+    expect(proposal.reply).toBe('Você tem três reuniões marcadas para hoje.');
+  });
+
+  it('o prompt diz ao modelo que ele não age', () => {
+    expect(buildOfflineBrainPrompt(request())).toMatch(/never say that you did or that you will/);
+  });
+});

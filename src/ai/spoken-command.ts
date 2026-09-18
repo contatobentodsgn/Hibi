@@ -8,7 +8,7 @@
  * com "às 15h" no título, e "Taby, crie uma tarefa" listava as tarefas em vez de criar.
  */
 
-const COMMAND_VERBS = 'crie|criar|adicione|adicionar|edite|editar|renomeie|renomear|exclua|excluir|apague|apagar|remova|remover|envie|enviar|poste|postar|publique|publicar|inicie|inicia|iniciar|comece|começa|comeca|começar|comecar|me\\s+lembr[ae]r?|lembr[ae]-me|lembre|lembrar';
+const COMMAND_VERBS = 'marque|marcar|agende|agendar|reserve|reservar|crie|criar|adicione|adicionar|edite|editar|renomeie|renomear|exclua|excluir|apague|apagar|remova|remover|envie|enviar|poste|postar|publique|publicar|inicie|inicia|iniciar|comece|começa|comeca|começar|comecar|me\\s+lembr[ae]r?|lembr[ae]-me|lembre|lembrar';
 // O jeito falado de pedir um lembrete — "me lembra de ligar às 15h" — vira o comando que o Taby já
 // entende. Sem isso a frase ia para a conversa, e o cérebro offline respondia "claro, vou lembrar"
 // sem criar lembrete nenhum.
@@ -68,4 +68,64 @@ export function parseSpokenTime(input: string): string | null {
 function valid(hour: number, minutes: number): string | null {
   if (!Number.isInteger(hour) || !Number.isInteger(minutes) || hour < 0 || hour > 23 || minutes < 0 || minutes > 59) return null;
   return `${pad(hour)}:${pad(minutes)}`;
+}
+
+const DAY_WORDS: ReadonlyArray<readonly [RegExp, number]> = [
+  [/(?:^|\s)(?:para\s+|pra\s+)?depois\s+de\s+amanh[ãa](?=\s|$)/iu, 2],
+  [/(?:^|\s)(?:para\s+|pra\s+|de\s+)?amanh[ãa](?=\s|$)/iu, 1],
+  [/(?:^|\s)(?:para\s+|pra\s+|de\s+)?hoje(?=\s|$)/iu, 0],
+];
+
+/** O dia dito ("hoje", "amanhã", "depois de amanhã"), em dias a partir de hoje, e o texto sem ele. */
+export function takeSpokenDay(text: string): { days: number | null; rest: string } {
+  for (const [pattern, days] of DAY_WORDS) {
+    if (pattern.test(text)) return { days, rest: text.replace(pattern, ' ').replace(/\s+/gu, ' ').trim() };
+  }
+  return { days: null, rest: text.trim() };
+}
+
+const SCHEDULE = /^(?:marque|marcar|agende|agendar|reserve|reservar|crie|criar|adicione|adicionar)\s+(?:uma?\s+)?(reunião|reuniao|compromisso|evento|bloco|horário|horario)\b(.*)$/iu;
+// Um horário começa com número, "meio"/"meia" ou número por extenso: sem isso o "a" de "com a Ana"
+// era lido como o "a" de "às 15h".
+const TIME_START = '(?=\\d|meio|meia|uma\\b|duas|tr[êe]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)';
+const RANGE = new RegExp(`\\s*(?:d[ae]s?|entre)\\s+${TIME_START}(.+?)\\s+(?:às|as|a|até|ate|e)\\s+${TIME_START}(.+?)\\s*$`, 'iu');
+const AT = new RegExp(`(?:^|\\s+)(?:às|as|à|a|para\\s+as|para\\s+às|pras)\\s+${TIME_START}(.+?)\\s*$`, 'iu');
+
+export type ScheduleRequest =
+  | Readonly<{ kind: 'block'; title: string; days: number; start: string; end: string }>
+  | Readonly<{ kind: 'unclear'; said: string }>;
+
+const plusMinutes = (time: string, minutes: number): string => {
+  const total = Math.min(23 * 60 + 59, Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5)) + minutes);
+  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+};
+
+/**
+ * "Marque uma reunião com a Ana amanhã às 15h", "agende um compromisso hoje das 14h às 16h": um bloco
+ * na agenda. Antes esses pedidos não eram reconhecidos e iam para o cérebro offline, que respondia
+ * "marquei" sem marcar nada. Sem horário final, a reunião dura uma hora.
+ */
+export function parseScheduleRequest(message: string): ScheduleRequest | null {
+  const found = message.match(SCHEDULE);
+  if (!found) return null;
+  const noun = found[1]!.toLocaleLowerCase('pt-BR');
+  const { days, rest: withoutDay } = takeSpokenDay(found[2]!.replace(/\s+(?:para|pra)\s+mim\b/iu, ' '));
+  let rest = withoutDay;
+  let start: string | null = null;
+  let end: string | null = null;
+  const range = rest.match(RANGE);
+  const at = range ? null : rest.match(AT);
+  if (range) {
+    start = parseSpokenTime(range[1]!); end = parseSpokenTime(range[2]!);
+    if (!start || !end) return { kind: 'unclear', said: !start ? range[1]! : range[2]! };
+    rest = rest.slice(0, range.index);
+  } else if (at) {
+    start = parseSpokenTime(at[1]!);
+    if (!start) return { kind: 'unclear', said: at[1]! };
+    end = plusMinutes(start, 60);
+    rest = rest.slice(0, at.index);
+  } else return { kind: 'unclear', said: '' };
+  const detail = rest.replace(/^[\s:–-]+/u, '').trim();
+  const label = noun === 'bloco' || noun.startsWith('hor') ? detail || 'Bloco' : `${noun === 'reuniao' ? 'Reunião' : noun[0]!.toLocaleUpperCase('pt-BR') + noun.slice(1)}${detail ? ` ${detail}` : ''}`;
+  return { kind: 'block', title: label, days: days ?? 0, start, end };
 }

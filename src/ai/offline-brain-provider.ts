@@ -42,7 +42,7 @@ export function offlineBrainLanguage(request: AiProviderRequest): 'pt' | 'en' {
 export function buildOfflineBrainPrompt(request: AiProviderRequest): string {
   const language = offlineBrainLanguage(request) === 'pt' ? 'Brazilian Portuguese' : 'English'
   const sections = [
-    `You are Taby, the assistant inside the Hibi app. Always reply in ${language}, short and direct, in at most 4 sentences. Never invent events, tasks or data that are not listed below.`,
+    `You are Taby, the assistant inside the Hibi app. Always reply in ${language}, short and direct, in at most 4 sentences. Never invent events, tasks or data that are not listed below. You cannot create, schedule, change or delete anything: never say that you did or that you will. If the user asks for an action, say you could not do it from here.`,
     `Now: ${request.currentTime}`,
   ]
   const evidence = newestWithin(request.contextEvidence.map((item) => `- ${item.label}: ${clip(item.content, 300)}`), MAX_EVIDENCE_CHARS)
@@ -58,6 +58,18 @@ export function buildOfflineBrainPrompt(request: AiProviderRequest): string {
 
 export function cleanOfflineBrainReply(text: string): string {
   return clip(text.replace(/<think>[\s\S]*?(<\/think>|$)/g, ''), MAX_REPLY_CHARS)
+}
+
+// O modelo pequeno às vezes promete o que não pode fazer: "Marquei uma reunião amanhã às 15h" sem
+// nenhum bloco criado. Quem só conversa não pode dizer que agiu — a resposta vira a verdade, com o
+// jeito de pedir que o Taby entende.
+const ACTION_CLAIM = /\b(marquei|agendei|criei|adicionei|anotei|salvei|reservei|removi|apaguei|exclu[íi]|cancelei|coloquei|lembrarei|vou\s+(?:te\s+|lhe\s+)?(?:lembrar|marcar|agendar|criar|adicionar|anotar|salvar|ligar|avisar)|(?:est[áa]|ficou)\s+(?:marcad|agendad|criad|salv)[ao]|I(?:'ve| have)?\s+(?:scheduled|created|added|booked|saved|set)|I(?:'ll| will)\s+(?:remind|schedule|create|add|book))\b/iu
+
+export function honestOfflineBrainReply(reply: string, language: 'pt' | 'en'): string {
+  if (!ACTION_CLAIM.test(reply)) return reply
+  return language === 'pt'
+    ? 'Não fiz nada ainda: por aqui eu só converso. Para eu agir, peça assim: "marque uma reunião amanhã às 15h", "crie uma tarefa revisar contrato" ou "me lembra de ligar às 16h".'
+    : 'I have not done anything yet: here I can only talk. To make me act, say for example "marque uma reunião amanhã às 15h" or "crie uma tarefa revisar contrato".'
 }
 
 function abortError(): DOMException {
@@ -99,7 +111,7 @@ export class OfflineBrainProvider implements AiProvider {
         return toolsProposal
       }
       if (signal.aborted || result.status === 'cancelled') throw abortError()
-      const reply = result.status === 'complete' ? cleanOfflineBrainReply(result.text) : ''
+      const reply = result.status === 'complete' ? honestOfflineBrainReply(cleanOfflineBrainReply(result.text), offlineBrainLanguage(request)) : ''
       if (!reply) return toolsProposal
       return {
         reply,

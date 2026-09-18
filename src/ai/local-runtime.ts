@@ -1,7 +1,7 @@
-import { normalizeSpokenCommand, parseSpokenTime } from './spoken-command';
+import { normalizeSpokenCommand, parseScheduleRequest, parseSpokenTime, takeSpokenDay } from './spoken-command';
 import { LocalRepository } from '../data/local-repository';
 import { validateScheduleBlock } from '../domain/conflicts';
-import { localDateKey } from '../domain/date-context';
+import { localDateKey, shiftDayKey } from '../domain/date-context';
 import { toFloatingWallClock } from '../domain/wall-clock';
 import type { Category, ScheduleBlock, Task } from '../domain/models';
 import { AiToolPolicy } from './policy';
@@ -86,7 +86,7 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
   const task = match(message, /^(?:crie|criar|adicione|adicionar)\s+(?:uma?\s+)?tarefa\s*:?[\s-]*(.+)$/i);
   const note = match(message, /^(?:crie|criar|adicione|adicionar)\s+(?:uma?\s+)?nota\s*:?[\s-]*(.+)$/i);
   // Os horários chegam como a ditação escreve ("15h", "3 da tarde") e são lidos por `parseSpokenTime`.
-  const block = message.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?bloco\s*:?[\s-]*(.+?)\s+(?:das?|de(?=\s+\d))\s+(.+?)\s+(?:às?|as|até|a)\s+(.+)$/iu);
+  const schedule = parseScheduleRequest(message);
   const reminder = message.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?lembrete\s*:?[\s-]*(.+?)(?:\s+(?:para\s+)?(?:às?|as)\s+(.+))?$/iu);
   const mutation = message.match(/^(?:edite|editar|renomeie|renomear)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+?)\s+(?:para|como)\s+(.+)$/i);
   const removal = message.match(/^(?:exclua|excluir|apague|apagar|remova|remover)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+)$/i);
@@ -100,15 +100,26 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
     if (entity) toolCalls = removal ? [{ name: `${descriptor.name}.delete`, arguments: { id: entity.id } }] : [{ name: `${descriptor.name}.update`, arguments: { id: entity.id, title: mutation![3].trim() } }];
   } else if (task) toolCalls = [{ name: 'task.create', arguments: { title: task, durationMinutes: 60 } }];
   else if (note) toolCalls = [{ name: 'note.create', arguments: { title: note, content: note } }];
-  else if (block) {
-    const start = parseSpokenTime(block[2]!); const end = parseSpokenTime(block[3]!);
-    if (start && end) toolCalls = [{ name: 'block.create', arguments: { title: block[1]!.trim(), start: `${today}T${start}:00`, end: `${today}T${end}:00`, category: 'work' } }];
-    else clarification = unclearTime(!start ? block[2]! : block[3]!);
+  else if (schedule) {
+    if (schedule.kind === 'unclear') clarification = schedule.said ? unclearTime(schedule.said) : 'Para que horário? Diga, por exemplo, "amanhã às 15h" ou "hoje das 14h às 16h".';
+    else {
+      const day = shiftDayKey(today, schedule.days);
+      const start = `${day}T${schedule.start}:00`; const end = `${day}T${schedule.end}:00`;
+      // O horário ocupado é dito antes da confirmação: confirmar e só então ouvir "conflita" é perder um passo.
+      const blocks = repository.listBlocks();
+      const taken = validateScheduleBlock({ id: 'proposed', title: schedule.title, start, end, category: 'work' }, blocks).conflicts.map((conflict) => blocks.find((block) => block.id === conflict.existingId)?.title).filter(Boolean);
+      if (taken.length) clarification = `Esse horário já está ocupado por ${taken.map((title) => `"${title}"`).join(' e ')}. Quer outro horário?`;
+      else toolCalls = [{ name: 'block.create', arguments: { title: schedule.title, start, end, category: 'work' } }];
+    }
   }
   else if (reminder) {
     // Um horário dito e não entendido nunca vira "agora": o lembrete tocaria na hora errada.
-    const time = reminder[2] ? parseSpokenTime(reminder[2]) : nowTime;
-    if (time) toolCalls = [{ name: 'reminder.create', arguments: { title: reminder[1]!.trim(), at: `${today}T${time}:00` } }];
+    // "amanhã" pode vir no título ("ligar amanhã às 15h") ou no horário ("às 15h de amanhã").
+    const inTitle = takeSpokenDay(reminder[1]!);
+    const inTime = reminder[2] ? takeSpokenDay(reminder[2]) : { days: null, rest: '' };
+    const days = inTitle.days ?? inTime.days ?? 0;
+    const time = reminder[2] ? parseSpokenTime(inTime.rest) : nowTime;
+    if (time) toolCalls = [{ name: 'reminder.create', arguments: { title: inTitle.rest || reminder[1]!.trim(), at: `${shiftDayKey(today, days)}T${time}:00` } }];
     else clarification = unclearTime(reminder[2]!);
   }
   else if (slackPost) toolCalls = [{ name: 'integration.send', arguments: { connectorId: 'slack', kind: 'slack.post', payload: { channel: `#${slackPost[1].trim()}`, text: slackPost[2].trim() } } }];
