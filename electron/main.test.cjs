@@ -107,6 +107,11 @@ const EXPECTED_CHANNELS = [
   "hibi:local-voice:speak",
   "hibi:voice-settings:get",
   "hibi:voice-settings:set",
+  "hibi:bar:current",
+  "hibi:bar:action",
+  "hibi:bar:submit",
+  "hibi:bar:voice",
+  "hibi:bar:close",
   "hibi:notch:size",
   "hibi:notch:set-size",
   "hibi:notch:test",
@@ -206,6 +211,11 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
       windows.push(this);
     }
     isDestroyed() { return this.destroyed; }
+    // A barra do Taby é outra janela: posição, camada e exibição sem foco.
+    setBounds(bounds) { this.bounds = bounds; }
+    setAlwaysOnTop(...args) { this.alwaysOnTop = args; }
+    setVisibleOnAllWorkspaces() {}
+    showInactive() { this.hidden = false; this.inactiveShows = (this.inactiveShows ?? 0) + 1; }
     isMinimized() { return this.minimized === true; }
     hide() { this.hidden = true; this.hides = (this.hides ?? 0) + 1; }
     isVisible() { return this.hidden !== true; }
@@ -297,6 +307,8 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
     setPreferredDisplay(displayId) { this.calls.push(["setPreferredDisplay", displayId]); this.preferredDisplay = displayId; },
     setSize(size) { this.calls.push(["setSize", size]); this.size = size; return size; },
     reposition() { this.calls.push(["reposition"]); return true; },
+    currentDisplay() { return { id: 1, bounds: { x: 0, y: 0, width: 1512, height: 982 } }; },
+    currentSize() { return this.size ?? "normal"; },
     describeDisplays() { return { resolvedDisplayId: 1, reason: "primary", displays: DISPLAYS.map((display) => ({ ...display })) }; },
     destroy() { this.calls.push(["destroy"]); },
   };
@@ -482,7 +494,9 @@ test("uma instalação nova abre a pasta do app sem nada para mover", async (t) 
   assert.equal(harness.paths.get("userData"), path.join(harness.appData, "Hibi"));
 });
 
-test("o atalho global traz a janela para a frente e abre o Taby", async (t) => {
+// O atalho abre a barra do Taby embaixo do notch, para digitar ou falar sem sair do app em que se está:
+// a janela do Hibi não vem para a frente.
+test("o atalho global abre a barra do Taby, com o teclado, sem trazer a janela", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
   const janela = harness.mainWindow();
@@ -491,12 +505,14 @@ test("o atalho global traz a janela para a frente e abre o Taby", async (t) => {
   assert.deepEqual(await harness.handlers.get("hibi:shortcut:get")(harness.event), { accelerator: "Command+Shift+Space", status: "active" });
   harness.shortcuts.get("Command+Shift+Space")();
 
-  assert.equal(janela.isMinimized(), false, "a janela minimizada precisa voltar antes de receber o pedido");
-  assert.equal(janela.shows, 1);
-  assert.equal(janela.focuses, 1);
-  assert.deepEqual(janela.sent.filter(([channel]) => channel === "hibi:shortcut:taby"), [["hibi:shortcut:taby"]]);
+  const barra = harness.windows.find((window) => window.options?.type === "panel" || String(window.loaded?.at?.(-1) ?? "").includes("bar"));
+  assert.ok(barra, "a barra precisa existir depois do atalho");
+  assert.equal(barra.focuses, 1, "a barra recebe o teclado para digitar");
+  assert.equal(janela.isMinimized(), true, "a janela do Hibi fica onde estava");
+  assert.equal(janela.shows ?? 0, 0);
+  assert.equal(barra.sent.at(-1)[0], "hibi:bar:content");
+  assert.equal(barra.sent.at(-1)[1].mode, "input");
 });
-
 // "Abrir e já ouvir": a janela aparece, e o pedido leva a escuta junto.
 test("com a voz no atalho, o atalho abre o Taby já ouvindo", async (t) => {
   const harness = await loadMain({ seedUserData: (userData) => fs.writeFileSync(path.join(userData, "voice-settings.json"), JSON.stringify({ shortcutVoice: "window", spokenReplies: false })) });
@@ -737,7 +753,8 @@ test("todo canal invocado pelo preload tem handler no processo principal, e vice
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  const preload = fs.readFileSync(PRELOAD_PATH, "utf8");
+  // A janela principal e a barra do Taby têm preloads próprios; juntos cobrem todos os canais.
+  const preload = fs.readFileSync(PRELOAD_PATH, "utf8") + fs.readFileSync(path.join(path.dirname(PRELOAD_PATH), "bar-preload.cjs"), "utf8");
   const invoked = new Set([...preload.matchAll(/ipcRenderer\.invoke\(\s*['"]([^'"]+)['"]/g)].map((match) => match[1]));
   assert.deepEqual([...invoked].sort(), [...harness.handlers.keys()].sort());
 });
@@ -1050,6 +1067,42 @@ test("hibi:notch:show recusa apresentações inválidas e as do prefixo reservad
   assert.deepEqual(await harness.invoke("hibi:notch:show", presentation), { degraded: true, requestId: "c-1", host: "electron" });
 });
 
+// Regra do produto: no notch só o mascote. O texto e os botões de uma apresentação vão para a barra.
+test("uma apresentação com texto vira mascote no notch e texto na barra", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  await harness.invoke("hibi:notch:show", { requestId: "r-1", kind: "result", text: "Tarefa criada: revisar contrato", actions: [] });
+
+  const [, noNotch] = harness.notchManager.calls.at(-1);
+  assert.equal(noNotch.text, null);
+  assert.deepEqual(noNotch.actions, []);
+  assert.equal(noNotch.host, "native");
+  assert.match(noNotch.animationPath, /mascot\/happy_[1-4]\.mp4$/);
+  const barra = harness.windows.find((window) => window.options?.webPreferences?.preload?.endsWith("bar-preload.cjs"));
+  assert.deepEqual(barra.sent.at(-1), ["hibi:bar:content", { requestId: "r-1", mode: "reply", kind: "result", text: "Tarefa criada: revisar contrato", actions: [] }]);
+});
+
+test("os canais da barra só ouvem a janela dela, e o texto dela vira pedido na janela principal", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  harness.shortcuts.get("Command+Shift+Space")();
+  const barra = harness.windows.find((window) => window.options?.webPreferences?.preload?.endsWith("bar-preload.cjs"));
+  const daBarra = { sender: barra.webContents };
+  const outro = { sender: harness.mainWindow().webContents };
+
+  assert.equal(await harness.handlers.get("hibi:bar:submit")(outro, "apague tudo"), false);
+  assert.equal(await harness.handlers.get("hibi:bar:voice")(outro, "start"), false);
+  assert.equal(await harness.handlers.get("hibi:bar:submit")(daBarra, "   "), false);
+  assert.equal(await harness.handlers.get("hibi:bar:voice")(daBarra, "gravar"), false);
+  assert.deepEqual(harness.mainWindow().sent.filter(([channel]) => channel.startsWith("hibi:bar:")), []);
+
+  assert.equal(await harness.handlers.get("hibi:bar:submit")(daBarra, "  crie uma tarefa revisar contrato "), true);
+  assert.equal(await harness.handlers.get("hibi:bar:voice")(daBarra, "start"), true);
+  assert.equal(await harness.handlers.get("hibi:bar:close")(daBarra), true);
+  assert.deepEqual(harness.mainWindow().sent.filter(([channel]) => channel.startsWith("hibi:bar:")), [["hibi:bar:submit", "crie uma tarefa revisar contrato"], ["hibi:bar:voice", "start"], ["hibi:bar:closed", "taby-bar-input"]]);
+});
+
 test("hibi:notch:action e hibi:notch:hide só aceitam identificadores limitados", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
@@ -1059,8 +1112,11 @@ test("hibi:notch:action e hibi:notch:hide só aceitam identificadores limitados"
   assert.equal(await harness.invoke("hibi:notch:action", "x".repeat(129), "confirm"), false);
   assert.deepEqual(semInicializacao(harness.notchManager.calls), []);
 
+  // Sem a confirmação na barra, nem um identificador válido resolve nada.
+  assert.equal(await harness.invoke("hibi:notch:action", "c-1", "confirm"), false);
+  await harness.invoke("hibi:notch:show", { requestId: "c-1", kind: "confirmation", text: "Ok?", actions: [{ id: "confirm", label: "Ok" }] });
   assert.equal(await harness.invoke("hibi:notch:action", "c-1", "confirm"), true);
-  assert.deepEqual(harness.notchManager.calls.at(-1), ["resolveAction", "c-1", "confirm"]);
+  assert.deepEqual(harness.mainWindow().sent.at(-1), ["hibi:companion:action", { requestId: "c-1", actionId: "confirm" }]);
 
   await harness.invoke("hibi:notch:hide", { requestId: "c-1" });
   assert.deepEqual(harness.notchManager.calls.at(-1), ["hide", ""]);
@@ -1558,8 +1614,8 @@ test("o companion de inicialização nasce com o app, passivo e com o loop a toc
   assert.deepEqual(presentation.actions, []);
   assert.equal(presentation.kind, "idle");
   assert.equal(presentation.host, "native");
-  // O painel nativo toca o loop a partir de um arquivo, então o caminho precisa chegar até ele.
-  assert.match(presentation.animationPath, /companion-assets\/animations\/notch\/idle_01_loop\.mp4$/);
+  // O painel nativo toca o mascote oficial a partir de um arquivo dos recursos do pacote.
+  assert.match(presentation.animationPath, /mascot\/idle\.mp4$/);
 
   // E o mesmo companion é o ocioso: quando um cartão sai do ar, o mascote volta em vez de deixar o
   // notch vazio. O gerenciador recebe como o encontrar.

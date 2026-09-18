@@ -161,6 +161,9 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
       position(); return true;
     },
     get size() { return size; },
+    // O monitor e o tamanho do notch: a barra do Taby nasce embaixo do mascote, no mesmo lugar.
+    currentDisplay: () => selectedDisplay(),
+    currentSize: () => size,
     reposition() { if (activeHost === 'native') return nativeBridge?.repositionHost?.(selectedDisplayId()) === true; position(); return Boolean(getWindow()); },
     describeDisplays() {
       const displays = screen.getAllDisplays();
