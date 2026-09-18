@@ -255,7 +255,10 @@ test('foco concluído e cancelado somam os minutos medidos, só o concluído con
   await page.getByRole('button', { name: 'Start focus' }).click();
   await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
   await page.clock.runFor(7 * 60 * 1000);
-  // Sair do Foco com a sessão em andamento a abandona: vira focus.cancelled com os 7 minutos medidos.
+  // Pausada e trocada pelo descanso, a sessão é abandonada: vira focus.cancelled com os 7 minutos medidos.
+  await page.getByRole('button', { name: 'Pause session' }).click();
+  await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
+  await expect(page.getByRole('button', { name: 'Começar pausa' })).toBeVisible();
   await openStats(page);
 
   // focusMinutes = concluído (25) + cancelado (7); focusSessions conta só a concluída.
@@ -265,8 +268,9 @@ test('foco concluído e cancelado somam os minutos medidos, só o concluído con
     await expect(summaryCard(page, 'Tempo de foco').getByText('Sessões concluídas: 1', { exact: true })).toBeVisible();
     await expect(cardValue(page, 'Tarefas concluídas')).toHaveText('0');
     await expect(todayCells(page)).toHaveText(['0', '32', '0', '0']);
-    await expect(historyItems(page)).toHaveCount(4);
+    await expect(historyItems(page)).toHaveCount(5);
     await expect(historyItems(page).filter({ hasText: 'Foco iniciado' })).toHaveCount(2);
+    await expect(historyItems(page).filter({ hasText: 'Foco pausado' })).toHaveCount(1);
     await expect(historyItems(page).filter({ hasText: 'Sessão de foco concluída' })).toHaveCount(1);
     await expect(historyItems(page).filter({ hasText: 'Sessão de foco concluída' })).toContainText('25 min');
     await expect(historyItems(page).filter({ hasText: 'Sessão de foco cancelada' })).toHaveCount(1);
