@@ -78,6 +78,32 @@ describe('comandos ditados no Taby', () => {
     expect(await chamada('Crie uma tarefa revisar roteiro.')).toMatchObject({ arguments: { title: 'revisar roteiro' } });
   });
 
+  // Visto no app instalado: "me lembra de…" ia para a conversa, e o cérebro offline respondia "claro,
+  // vou ligar para o banco às 15h" sem criar lembrete nenhum.
+  it('"me lembra de…" e as outras formas faladas criam o lembrete', async () => {
+    const esperado = { name: 'reminder.create', arguments: { title: 'ligar para o banco', at: '2026-09-18T15:00:00' } };
+    expect(await chamada('Taby, me lembra de ligar para o banco às 15h.')).toMatchObject(esperado);
+    expect(await chamada('Me lembre de ligar para o banco às 3 da tarde')).toMatchObject(esperado);
+    expect(await chamada('Lembre-me de ligar para o banco às 15h')).toMatchObject(esperado);
+    expect(await chamada('Hebe, lembrar de ligar para o banco às 15h')).toMatchObject(esperado);
+  });
+
+  it('"me lembra" com horário que não dá para entender vira pergunta', async () => {
+    const resultado = await pedir('me lembra de ligar para o banco às depois do almoço');
+    expect(resultado.confirmation).toBeUndefined();
+    expect(resultado.reply).toMatch(/Não entendi o horário/);
+  });
+
+  it('"lembretes de hoje" continua sendo uma consulta, não um lembrete novo', async () => {
+    expect(normalizeSpokenCommand('Taby, lembretes de hoje')).not.toMatch(/^crie/);
+    expect(await chamada('Taby, lembretes de hoje')).toBeUndefined();
+  });
+
+  it('o foco começa no imperativo também', async () => {
+    for (const frase of ['Inicie o foco', 'Taby, começa um foco.', 'inicia uma sessão de foco', 'comece o foco agora'])
+      expect(await chamada(frase), frase).toMatchObject({ name: 'focus.start' });
+  });
+
   it('as frases escritas continuam funcionando como antes', async () => {
     expect(await chamada('crie uma tarefa: revisar roteiro')).toMatchObject({ name: 'task.create', arguments: { title: 'revisar roteiro' } });
     expect(await chamada('crie um lembrete tomar água às 15:00')).toMatchObject({ arguments: { at: '2026-09-18T15:00:00' } });

@@ -8,7 +8,11 @@
  * com "às 15h" no título, e "Taby, crie uma tarefa" listava as tarefas em vez de criar.
  */
 
-const COMMAND_VERBS = 'crie|criar|adicione|adicionar|edite|editar|renomeie|renomear|exclua|excluir|apague|apagar|remova|remover|envie|enviar|poste|postar|publique|publicar|inicie|iniciar|comece|começar|comecar';
+const COMMAND_VERBS = 'crie|criar|adicione|adicionar|edite|editar|renomeie|renomear|exclua|excluir|apague|apagar|remova|remover|envie|enviar|poste|postar|publique|publicar|inicie|inicia|iniciar|comece|começa|comeca|começar|comecar|me\\s+lembr[ae]r?|lembr[ae]-me|lembre|lembrar';
+// O jeito falado de pedir um lembrete — "me lembra de ligar às 15h" — vira o comando que o Taby já
+// entende. Sem isso a frase ia para a conversa, e o cérebro offline respondia "claro, vou lembrar"
+// sem criar lembrete nenhum.
+const SPOKEN_REMINDER = /^(?:me\s+lembr(?:a|e|ar)|lembr(?:a|e)-me|lembre\s+me|lembrar(?:-me)?)\s+(?:de\s+|que\s+|para\s+)?(.+)$/iu;
 
 /**
  * Tira o que a fala acrescenta e o comando não usa: o chamamento no começo ("Taby,", "ei Taby",
@@ -17,9 +21,10 @@ const COMMAND_VERBS = 'crie|criar|adicione|adicionar|edite|editar|renomeie|renom
  */
 export function normalizeSpokenCommand(message: string): string {
   let text = message.trim().replace(/[.!?…]+$/u, '').trim();
-  const vocative = new RegExp(`^(?:(?:ei|oi|olá|ola|hey)[,\\s]+)?(?:[\\p{L}]+[,:]?\\s+)?(?:por\\s+favor[,\\s]+)?(?=(?:${COMMAND_VERBS})\\b)`, 'iu');
-  text = text.replace(vocative, '');
-  return text.replace(/^(?:por\s+favor[,\s]+)/iu, '');
+  const vocative = new RegExp(`^(?:(?:ei|oi|olá|ola|hey)[,\\s]+)?(?:(?!me\\s)[\\p{L}]+[,:]?\\s+)?(?:por\\s+favor[,\\s]+)?(?=(?:${COMMAND_VERBS})\\b)`, 'iu');
+  text = text.replace(vocative, '').replace(/^(?:por\s+favor[,\s]+)/iu, '');
+  const reminder = text.match(SPOKEN_REMINDER);
+  return reminder ? `crie um lembrete ${reminder[1]}` : text;
 }
 
 const NUMBER_WORDS: Record<string, number> = {
