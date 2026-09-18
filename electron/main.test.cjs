@@ -597,6 +597,26 @@ test("uma segunda cópia do app não abre: ela traz a primeira para a frente", a
   assert.equal(janela.isVisible(), true);
 });
 
+test("sair do app encerra uma escuta de voz aberta, em vez de deixar o microfone ligado", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  harness.quit();
+
+  assert.ok(harness.voiceService.calls.some(([name]) => name === "stop"), "o helper é outro processo e não morre com o app");
+});
+
+test("a atualização consegue fechar a janela para instalar, em vez de só escondê-la", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const janela = harness.mainWindow();
+
+  harness.appEvents.get("before-quit-for-update")();
+  const evento = janela.close();
+
+  assert.equal(evento.defaultPrevented, false);
+});
+
 test("registra exatamente os canais IPC esperados, uma única vez cada", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
