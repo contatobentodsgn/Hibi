@@ -56,6 +56,8 @@ declare global {
       executeApprovedCalendarPublish?: (input: { actionId: string; confirmationId: string }) => Promise<{ remoteId: string }>;
       prepareCalendarUpdate?: (input: { calendarId: string; block: { id: string; title: string; startsAt: string; endsAt: string; allDay?: boolean } }) => Promise<{ id: string; confirmationId: string; requiresConfirmation: true; calendarId: string; summary: string }>;
       resolveCalendarConflict?: (input: { id: string; choice: 'keep-calendar' | 'keep-hibi' }) => Promise<{ resolved: true; choice: 'keep-calendar' } | { resolved: false; choice: 'keep-hibi'; action: { id: string; confirmationId: string; requiresConfirmation: true; calendarId: string; summary: string } }>;
+      listCalendarSyncChanges?: () => Promise<{ outgoing: readonly { localId: string; calendarId: string; summary: string }[]; incoming: readonly { localId: string; calendarId: string; summary: string; start: string; end: string }[] }>;
+      acknowledgeCalendarIncoming?: (input: { calendarId: string; block: { id: string; title: string; startsAt: string; endsAt: string; allDay?: boolean } }) => Promise<{ outgoing: readonly { localId: string; calendarId: string; summary: string }[]; incoming: readonly { localId: string; calendarId: string; summary: string; start: string; end: string }[] }>;
       configureWebhook?: (secret: string) => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       startWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       stopWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;

@@ -43,6 +43,8 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,executeApprovedCalendarPublish: (input) => ipcRenderer.invoke('hibi:calendar-sync:execute-approved', input)
   ,prepareCalendarUpdate: (input) => ipcRenderer.invoke('hibi:calendar-sync:prepare-update', input)
   ,resolveCalendarConflict: (input) => ipcRenderer.invoke('hibi:calendar-sync:resolve-conflict', input)
+  ,listCalendarSyncChanges: () => ipcRenderer.invoke('hibi:calendar-sync:changes')
+  ,acknowledgeCalendarIncoming: (input) => ipcRenderer.invoke('hibi:calendar-sync:acknowledge-incoming', input)
   ,configureWebhook: (secret) => ipcRenderer.invoke('hibi:webhook:configure', secret)
   ,startWebhook: () => ipcRenderer.invoke('hibi:webhook:start')
   ,stopWebhook: () => ipcRenderer.invoke('hibi:webhook:stop')

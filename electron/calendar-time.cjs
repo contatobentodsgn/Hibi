@@ -34,6 +34,11 @@ function toOffsetIso(date) {
   return `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}${sign}${pad(Math.floor(absolute / 60))}:${pad(absolute % 60)}`;
 }
 
+/** A hora de parede local do instante, sem fuso: `2026-09-15T09:00:00`, a forma de um bloco do Hibi. */
+function toFloatingWallClock(date) {
+  return `${localDateKey(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 /** O dia de calendário local do instante, `2026-09-15`. */
 function localDateKey(date) {
   return `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -49,4 +54,4 @@ function localTimeZone() {
   }
 }
 
-module.exports = { localDateKey, localTimeZone, toInstant, toOffsetIso };
+module.exports = { localDateKey, localTimeZone, toFloatingWallClock, toInstant, toOffsetIso };
