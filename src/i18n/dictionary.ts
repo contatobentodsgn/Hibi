@@ -341,6 +341,8 @@ const pt = {
   'voice.error.noOnDevice': 'Este idioma não tem reconhecimento de fala no próprio Mac. Baixe o idioma em Ajustes do Sistema › Teclado › Ditado.',
   'voice.error.noMicrophone': 'Nenhum microfone disponível agora.',
   'voice.error.generic': 'A voz parou por um erro. Tente de novo.',
+  'background.focus.running': 'Sessão de foco em andamento.',
+  'background.focus.return': 'Voltar ao foco',
   // Tint é do Codex: acrescente somente neste bloco, sem reordenar chaves vizinhas.
   'tint.title': 'Cor de destaque',
   'tint.detail': 'Muda a assinatura visual e os estados de foco, sem alterar as cores da agenda.',
@@ -689,6 +691,8 @@ const en: Record<DictionaryKey, string> = {
   'voice.error.noOnDevice': 'This language has no on-device speech recognition on this Mac. Download it in System Settings › Keyboard › Dictation.',
   'voice.error.noMicrophone': 'No microphone is available right now.',
   'voice.error.generic': 'Voice stopped because of an error. Try again.',
+  'background.focus.running': 'Focus session in progress.',
+  'background.focus.return': 'Back to focus',
   // Tint is owned by Codex: add only within this block and do not reorder neighbouring keys.
   'tint.title': 'App tint',
   'tint.detail': 'Changes the visual signature and focus states without changing calendar category colours.',

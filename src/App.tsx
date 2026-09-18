@@ -16,6 +16,7 @@ import { HomeView } from './ui/HomeView';
 import { TasksView } from './ui/TasksView';
 import { RemindersView, type EditedReminderSchedule } from './ui/RemindersView';
 import { FocusView } from './ui/FocusView';
+import { FocusBackgroundNotice } from './ui/FocusBackgroundNotice';
 import { deriveFocusMood, focusSessionsCompletedToday } from './ui/focus-mood';
 import { SettingsView } from './ui/SettingsView';
 import { InstrumentationView } from './ui/InstrumentationView';
@@ -82,6 +83,9 @@ export default function App() {
   const workspaceWarned = useRef(false);
   const [route, setRoute] = useState<NavKey>('home');
   const [focusStartPending, setFocusStartPending] = useState(false);
+  // Uma sessão de foco iniciada (rodando ou pausada) sobrevive à troca de tela: com o app na barra de
+  // menus a pessoa abre Tarefas no meio do foco o tempo todo, e desmontar a tela abandonava a sessão.
+  const [focusActive, setFocusActive] = useState(false);
   // Filtro de pasta pedido junto com a navegação. O `nonce` muda a cada navegação e vira `key` das
   // telas, então o filtro pedido é reaplicado mesmo quando se volta à mesma tela.
   const [folderFilter, setFolderFilter] = useState<{ folder: string | null; nonce: number }>({ folder: null, nonce: 0 });
@@ -371,7 +375,12 @@ export default function App() {
 
   const content = useMemo(() => {
     const props = { onEvent: log, onNavigate: navigate };
-    switch (route) {
+    const focusView = (mode: 'focus' | 'break') => <FocusView key={mode} {...props} autoStart={focusStartPending} onAutoStarted={() => setFocusStartPending(false)} mode={mode} onModeChange={(next) => navigate(next)} sessionMinutes={focusSettings.sessionMinutes} awayBehavior={focusSettings.awayBehavior} idleMinutes={focusSettings.idleMinutes} focusLoopAnimation={focusSettings.focusLoopAnimation} activity={data.activity} presence={{ watch: window.hibiDesktop?.watchFocusPresence, subscribe: window.hibiDesktop?.onFocusPresence }} onCompanionEvent={dispatchCompanion} subscribeCompanionActions={window.hibiDesktop?.onCompanionAction} onFocusWindowChange={setFocusUntilMs} onFocusLifecycle={(event) => { if (mode === 'focus') setFocusActive(event.type === 'started' || event.type === 'resumed' || event.type === 'paused'); recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString())); }} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000, focusLoopAnimation: focusSettings.focusLoopAnimation, focusMood: deriveFocusMood({ awayPending: false, completedToday: focusSessionsCompletedToday(data.activity, new Date()) }) })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
+    // A tela de Foco fica montada, escondida, enquanto a sessão existir. A pausa de descanso continua
+    // encerrando a sessão: ela é outra tela, e o botão só aparece com o relógio parado.
+    const keepFocus = route === 'focus' || (focusActive && route !== 'break');
+    const focusHost = keepFocus ? <div className="focus-host" style={{ display: route === 'focus' ? 'contents' : 'none' }}>{focusView('focus')}</div> : null;
+    const screen = (() => { switch (route) {
       case 'tasks': return <TasksView key={`tasks-${folderFilter.nonce}`} {...props} data={data} initialFolder={folderFilter.folder} onTaskStatusChange={changeTaskStatus} onCreateTask={(title) => createTask({ title, durationMinutes: 60, folder: 'Bento' })} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
       case 'notes': return <NotesView key={`notes-${folderFilter.nonce}`} data={data} initialFolder={folderFilter.folder} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
       case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={() => setReminderCreateOpen(true)} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
@@ -383,14 +392,19 @@ export default function App() {
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'agenda': case 'day': case 'week': return <AgendaView {...props} data={data} mode={route === 'agenda' ? undefined : route} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onModeChange={(mode) => setRoute(mode)} />;
-      case 'focus': case 'break': return <FocusView key={route} {...props} autoStart={focusStartPending} onAutoStarted={() => setFocusStartPending(false)} mode={route === 'break' ? 'break' : 'focus'} onModeChange={(next) => navigate(next)} sessionMinutes={focusSettings.sessionMinutes} awayBehavior={focusSettings.awayBehavior} idleMinutes={focusSettings.idleMinutes} focusLoopAnimation={focusSettings.focusLoopAnimation} activity={data.activity} presence={{ watch: window.hibiDesktop?.watchFocusPresence, subscribe: window.hibiDesktop?.onFocusPresence }} onCompanionEvent={dispatchCompanion} subscribeCompanionActions={window.hibiDesktop?.onCompanionAction} onFocusWindowChange={setFocusUntilMs} onFocusLifecycle={(event) => recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString()))} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000, focusLoopAnimation: focusSettings.focusLoopAnimation, focusMood: deriveFocusMood({ awayPending: false, completedToday: focusSessionsCompletedToday(data.activity, new Date()) }) })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
+      case 'focus': return null;
+      case 'break': return focusView('break');
       case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} focusSettings={focusSettings} onFocusSettingsChange={updateFocusSettings} />;
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} onClearAiHistory={clearAiHistory} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;
       default: return <HomeView {...props} data={data} onOpenCommands={openPalette} />;
-    }
-  }, [route, focusStartPending, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, folderFilter, openPalette, focusSettings]);
+    } })();
+    const banner = focusActive && route !== 'focus' && route !== 'break'
+      ? <FocusBackgroundNotice onReturn={() => navigate('focus')} />
+      : null;
+    return <>{banner}{focusHost}{screen}</>;
+  }, [route, focusActive, focusStartPending, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, folderFilter, openPalette, focusSettings]);
 
   return (
     <AppShell active={route} onNavigate={(key) => {
