@@ -79,7 +79,7 @@ declare global {
       cancelLocalModel?: (requestId: string) => Promise<boolean>;
       shutdownLocalModel?: () => Promise<{ status: string; modelId: string | null; error: string | null }>;
       getLocalVoiceState?: () => Promise<{ status: string; locale: string; error: string | null; reason?: string | null }>;
-      listenLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null; reason?: string | null }>;
+      listenLocalVoice?: (options?: { autoStop?: boolean }) => Promise<{ status: string; locale: string; error: string | null; reason?: string | null; ended?: 'silence' | 'no-speech' | 'stopped' | 'done' | null }>;
       setLocalVoiceLocale?: (locale: string) => Promise<{ status: string; locale: string; error: string | null }>;
       stopLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null; reason?: string | null }>;
       onLocalVoiceText?: (callback: (text: string) => void) => () => void;
@@ -94,7 +94,10 @@ declare global {
       onUpdateState?: (callback: (state: { status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }) => void) => () => void;
       getTabyShortcut?: () => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled' }>;
       setTabyShortcut?: (accelerator: string | null) => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled'; error?: 'invalid' }>;
-      onTabyShortcut?: (callback: () => void) => () => void;
+      onTabyShortcut?: (callback: (request: { listen: boolean; background: boolean }) => void) => () => void;
+      speakLocalVoice?: (text: string) => Promise<{ status: string; spoken: boolean }>;
+      getVoiceSettings?: () => Promise<{ shortcutVoice: 'off' | 'window' | 'notch'; spokenReplies: boolean }>;
+      setVoiceSettings?: (patch: { shortcutVoice?: 'off' | 'window' | 'notch'; spokenReplies?: boolean }) => Promise<{ shortcutVoice: 'off' | 'window' | 'notch'; spokenReplies: boolean; error?: 'invalid' }>;
       onCompanionPresentation?: (callback: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' }) => void) => () => void;
       onCompanionAction?: (callback: (action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void) => () => void;
       onNotificationTriggered?: (callback: (entry: NotificationEntry) => void) => () => void;

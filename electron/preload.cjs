@@ -70,7 +70,10 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,cancelLocalModel: (requestId) => ipcRenderer.invoke('hibi:local-model:cancel', requestId)
   ,shutdownLocalModel: () => ipcRenderer.invoke('hibi:local-model:shutdown')
   ,getLocalVoiceState: () => ipcRenderer.invoke('hibi:local-voice:state')
-  ,listenLocalVoice: () => ipcRenderer.invoke('hibi:local-voice:listen')
+  ,listenLocalVoice: (options) => ipcRenderer.invoke('hibi:local-voice:listen', { autoStop: options?.autoStop === true })
+  ,speakLocalVoice: (text) => ipcRenderer.invoke('hibi:local-voice:speak', text)
+  ,getVoiceSettings: () => ipcRenderer.invoke('hibi:voice-settings:get')
+  ,setVoiceSettings: (patch) => ipcRenderer.invoke('hibi:voice-settings:set', patch)
   ,setLocalVoiceLocale: (locale) => ipcRenderer.invoke('hibi:local-voice:set-locale', locale)
   ,stopLocalVoice: () => ipcRenderer.invoke('hibi:local-voice:stop')
   ,onLocalVoiceText: (callback) => { if (typeof callback !== 'function') throw new TypeError('Voice listener must be a function.'); const listener = (_event, text) => { if (typeof text === 'string') callback(text); }; ipcRenderer.on('hibi:local-voice:text', listener); return () => ipcRenderer.removeListener('hibi:local-voice:text', listener); }
@@ -85,7 +88,7 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,onUpdateState: (callback) => { const listener = (_event, state) => callback(state); ipcRenderer.on('hibi:updates:state', listener); return () => ipcRenderer.removeListener('hibi:updates:state', listener); }
   ,getTabyShortcut: () => ipcRenderer.invoke('hibi:shortcut:get')
   ,setTabyShortcut: (accelerator) => ipcRenderer.invoke('hibi:shortcut:set', accelerator)
-  ,onTabyShortcut: (callback) => { const listener = () => callback(); ipcRenderer.on('hibi:shortcut:taby', listener); return () => ipcRenderer.removeListener('hibi:shortcut:taby', listener); }
+  ,onTabyShortcut: (callback) => { const listener = (_event, request) => callback({ listen: request?.listen === true, background: request?.background === true }); ipcRenderer.on('hibi:shortcut:taby', listener); return () => ipcRenderer.removeListener('hibi:shortcut:taby', listener); }
   ,onAiStreamEvent: (callback) => {
     if (typeof callback !== 'function') throw new TypeError('AI stream listener must be a function.');
     let subscribed = true;

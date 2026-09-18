@@ -104,6 +104,9 @@ const EXPECTED_CHANNELS = [
   "hibi:local-voice:listen",
   "hibi:local-voice:set-locale",
   "hibi:local-voice:stop",
+  "hibi:local-voice:speak",
+  "hibi:voice-settings:get",
+  "hibi:voice-settings:set",
   "hibi:notch:size",
   "hibi:notch:set-size",
   "hibi:notch:test",
@@ -223,7 +226,8 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
     current: { status: 'ready', locale: 'pt-BR', error: null },
     state() { return { ...this.current }; },
     setLocale(locale) { this.calls.push(['setLocale', locale]); this.current = { ...this.current, locale: locale === 'en-US' ? 'en-US' : 'pt-BR' }; return this.state(); },
-    listen(request) { this.calls.push(['listen']); request?.onText?.('agendar reunião'); this.current = { ...this.current, status: 'listening' }; return this.state(); },
+    listen(request) { this.calls.push(['listen']); this.lastListen = request; request?.onText?.('agendar reunião'); this.current = { ...this.current, status: 'listening' }; return this.state(); },
+    async speak(text) { this.calls.push(['speak', text]); return this.state(); },
     stop() { this.calls.push(['stop']); this.current = { ...this.current, status: 'ready' }; return this.state(); },
   };
   const electronFake = {
@@ -491,6 +495,67 @@ test("o atalho global traz a janela para a frente e abre o Taby", async (t) => {
   assert.equal(janela.shows, 1);
   assert.equal(janela.focuses, 1);
   assert.deepEqual(janela.sent.filter(([channel]) => channel === "hibi:shortcut:taby"), [["hibi:shortcut:taby"]]);
+});
+
+// "Abrir e já ouvir": a janela aparece, e o pedido leva a escuta junto.
+test("com a voz no atalho, o atalho abre o Taby já ouvindo", async (t) => {
+  const harness = await loadMain({ seedUserData: (userData) => fs.writeFileSync(path.join(userData, "voice-settings.json"), JSON.stringify({ shortcutVoice: "window", spokenReplies: false })) });
+  t.after(() => harness.cleanup());
+  const janela = harness.mainWindow();
+
+  harness.shortcuts.get("Command+Shift+Space")();
+
+  assert.equal(janela.shows, 1);
+  assert.deepEqual(janela.sent.filter(([channel]) => channel === "hibi:shortcut:taby"), [["hibi:shortcut:taby", { listen: true, background: false }]]);
+});
+
+// "Só ouvir, no notch": nada de janela na frente de quem está em outro app.
+test("com a voz no notch, o atalho ouve sem mostrar a janela, e a barra de menus continua só abrindo", async (t) => {
+  const harness = await loadMain({ seedUserData: (userData) => fs.writeFileSync(path.join(userData, "voice-settings.json"), JSON.stringify({ shortcutVoice: "notch", spokenReplies: false })) });
+  t.after(() => harness.cleanup());
+  const janela = harness.mainWindow();
+  const showsAntes = janela.shows ?? 0;
+
+  harness.shortcuts.get("Command+Shift+Space")();
+
+  assert.equal(janela.shows ?? 0, showsAntes);
+  assert.deepEqual(janela.sent.filter(([channel]) => channel === "hibi:shortcut:taby").at(-1), ["hibi:shortcut:taby", { listen: true, background: true }]);
+});
+
+test("com a voz no notch, o Taby da barra de menus continua só abrindo a janela", async (t) => {
+  const harness = await loadMain({ seedUserData: (userData) => fs.writeFileSync(path.join(userData, "voice-settings.json"), JSON.stringify({ shortcutVoice: "notch", spokenReplies: false })) });
+  t.after(() => harness.cleanup());
+  const janela = harness.mainWindow();
+  const showsAntes = janela.shows ?? 0;
+
+  harness.trayCalls.itens.find((item) => /Taby/.test(item.label ?? "")).click();
+
+  assert.equal(janela.shows, showsAntes + 1);
+  assert.deepEqual(janela.sent.filter(([channel]) => channel === "hibi:shortcut:taby").at(-1), ["hibi:shortcut:taby"]);
+});
+
+test("a resposta só é lida em voz alta com o ajuste ligado, e o ajuste recusa valores inventados", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  assert.equal((await harness.invoke("hibi:local-voice:speak", "Olá")).spoken, false);
+  assert.deepEqual(harness.voiceService.calls.filter(([name]) => name === "speak"), []);
+
+  assert.deepEqual(await harness.invoke("hibi:voice-settings:set", { spokenReplies: true }), { shortcutVoice: "off", spokenReplies: true });
+  assert.equal((await harness.invoke("hibi:local-voice:speak", "Olá")).spoken, true);
+  assert.deepEqual(harness.voiceService.calls.filter(([name]) => name === "speak"), [["speak", "Olá"]]);
+
+  assert.equal((await harness.invoke("hibi:voice-settings:set", { shortcutVoice: "sempre" })).error, "invalid");
+  assert.deepEqual(await harness.invoke("hibi:voice-settings:get"), { shortcutVoice: "off", spokenReplies: true });
+});
+
+test("a escuta pedida com autoStop chega assim ao serviço, e sem ele não", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("hibi:local-voice:listen", { autoStop: true });
+  assert.equal(harness.voiceService.lastListen.autoStop, true);
+  await harness.invoke("hibi:local-voice:listen", { autoStop: "sim" });
+  assert.equal(harness.voiceService.lastListen.autoStop, false);
 });
 
 test("trocar o atalho solta a tecla anterior e guarda a escolha", async (t) => {
