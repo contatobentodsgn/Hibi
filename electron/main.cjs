@@ -299,7 +299,9 @@ function summonTaby() {
 
 // O notch recebe só o mascote: o estado vira um vídeo, sem texto nem botão.
 function mascotPresentation(presentation) {
-  const state = mascot.stateFor(presentation.kind);
+  // Uma resposta que é pergunta ("Para que horário?") deixa o gato curioso, não feliz: nada foi concluído.
+  const asks = presentation.kind === 'result' && typeof presentation.text === 'string' && presentation.text.trim().endsWith('?');
+  const state = asks ? 'curious' : mascot.stateFor(presentation.kind);
   return { requestId: presentation.requestId, kind: presentation.kind, text: null, actions: [], interaction: 'passthrough', host: 'native', animationPath: mascot.animationPath(state) };
 }
 
