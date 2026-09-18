@@ -86,6 +86,14 @@ let localApiWorkspace = { tasks: [], reminders: [], blocks: [] };
 // Até o renderer mandar o workspace, a sincronização de calendário não sabe quais blocos existem.
 let localApiWorkspaceSynced = false;
 const pendingLocalApiWrites = new Map();
+// Um pedido de escrita da API local espera a resposta pelo mesmo prazo do cartão de confirmação. Antes ele
+// ficava guardado para sempre: um cartão já sumido podia ser aprovado horas depois, e o mapa só crescia.
+const LOCAL_API_WRITE_TTL_MS = 60_000;
+const MAX_PENDING_LOCAL_API_WRITES = 50;
+const prunePendingLocalApiWrites = (nowMs = Date.now()) => {
+  for (const [id, entry] of pendingLocalApiWrites) if (entry.expiresAt <= nowMs) pendingLocalApiWrites.delete(id);
+  while (pendingLocalApiWrites.size > MAX_PENDING_LOCAL_API_WRITES) pendingLocalApiWrites.delete(pendingLocalApiWrites.keys().next().value);
+};
 let notchWindow;
 let notchSettings;
 let notchTest;
@@ -333,7 +341,8 @@ app.whenReady().then(async () => {
   calendarSyncService = createCalendarSyncService({ eventKit: eventKitCalendar, integrations: integrationManager, settings: connectorSettings, calendarSettings: calendarSyncSettings, workspace: () => (localApiWorkspaceSynced ? localApiWorkspace : null) });
   localApi = createLocalApi({ tokenStore: createLocalApiTokenStore({ keychain: createMacKeychain() }), workspace: () => localApiWorkspace, prepareWrite: async (intent) => {
     const confirmationId = `local-api-${crypto.randomUUID()}`;
-    pendingLocalApiWrites.set(confirmationId, intent);
+    pendingLocalApiWrites.set(confirmationId, { intent, expiresAt: Date.now() + LOCAL_API_WRITE_TTL_MS });
+    prunePendingLocalApiWrites();
     sendToMainWindow('hibi:local-api:confirmation', { confirmationId, kind: intent.kind, payload: intent.payload });
     return { confirmationId, requiresConfirmation: true };
   } });
@@ -466,9 +475,10 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:local-api:status', () => ({ running: localApi.isRunning() }));
   ipcMain.handle('hibi:local-api:resolve-write', (_event, input) => {
     const confirmationId = typeof input?.confirmationId === 'string' ? input.confirmationId : '';
-    const intent = pendingLocalApiWrites.get(confirmationId);
-    if (!intent) return { resolved: false };
+    const entry = pendingLocalApiWrites.get(confirmationId);
+    if (!entry) return { resolved: false };
     pendingLocalApiWrites.delete(confirmationId);
+    if (entry.expiresAt <= Date.now()) return { resolved: false, expired: true };
     return { resolved: true, approved: input?.approved === true };
   });
   ipcMain.handle('hibi:webhook:configure', async (_event, secret) => { await webhookService.configure(secret); return webhookService.status(); });

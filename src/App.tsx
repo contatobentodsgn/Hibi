@@ -16,6 +16,7 @@ import { HomeView } from './ui/HomeView';
 import { TasksView } from './ui/TasksView';
 import { RemindersView, type EditedReminderSchedule } from './ui/RemindersView';
 import { FocusView } from './ui/FocusView';
+import { appendEventRecord, loadEventLog } from './ui/event-log';
 import { useCalendarDay } from './ui/useCalendarDay';
 import { FocusBackgroundNotice } from './ui/FocusBackgroundNotice';
 import { deriveFocusMood, focusSessionsCompletedToday } from './ui/focus-mood';
@@ -118,12 +119,12 @@ export default function App() {
   const [deadlineEditTaskId, setDeadlineEditTaskId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState('');
   const [pendingLocalApiIntent, setPendingLocalApiIntent] = useState<LocalApiIntent | null>(null);
-  const [events, setEvents] = useState<EventRecord[]>(() => { try { const saved = window.localStorage.getItem('hibi-events'); return saved ? JSON.parse(saved) as EventRecord[] : initialEvents; } catch { return initialEvents; } });
+  const [events, setEvents] = useState<EventRecord[]>(() => { try { return loadEventLog(window.localStorage.getItem('hibi-events'), initialEvents); } catch { return initialEvents; } });
   const clearEvents = () => setEvents([]);
   const clearAiHistory = () => setAiHistory([]);
 
   const log = (action: string, detail: string, result?: string) => {
-    setEvents((current) => [{ id: Math.max(0, ...current.map((event) => event.id)) + 1, at: new Date().toLocaleTimeString('pt-BR'), route, action, detail, result }, ...current]);
+    setEvents((current) => appendEventRecord(current, { at: new Date().toLocaleTimeString('pt-BR'), route, action, detail, result }));
   };
 
   const assistantTurn = useAssistantTurn({ runtime: aiRuntime, onEvent: log, onCompanionEvent: dispatchCompanion, onCompanionError: (text) => dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }) });
@@ -307,12 +308,19 @@ export default function App() {
     // Sem descartar a apresentação, o estado do companion guarda a confirmação até ela expirar e o
     // relógio a mostra de novo no notch, já respondida.
     dispatchCompanion({ type: 'presentation.dismissed', requestId: intent.confirmationId });
-    if (approved) {
-      const mutation = localApiTaskMutation(intent);
-      if (mutation) { repository.createTask(mutation); refreshData(); log('local-api', mutation.title, 'approved'); }
-    }
-    await window.hibiDesktop?.resolveLocalApiWrite?.({ confirmationId: intent.confirmationId, approved });
+    // O processo principal decide primeiro: um pedido expirado ou já respondido não cria nada aqui.
+    const outcome = await window.hibiDesktop?.resolveLocalApiWrite?.({ confirmationId: intent.confirmationId, approved });
+    if (!approved) return;
+    if (!outcome?.resolved) { log('local-api', 'confirmation expired', 'expired'); setValidationError('A confirmação da API local expirou. Peça de novo pelo app que enviou.'); return; }
+    const mutation = localApiTaskMutation(intent);
+    if (mutation) { repository.createTask(mutation); refreshData(); log('local-api', mutation.title, 'approved'); }
   };
+  // O cartão da API local some com o prazo do pedido: depois disso o processo principal já não aceita a resposta.
+  React.useEffect(() => {
+    if (!pendingLocalApiIntent) return undefined;
+    const timer = window.setTimeout(() => setPendingLocalApiIntent((current) => (current === pendingLocalApiIntent ? null : current)), 60_000);
+    return () => window.clearTimeout(timer);
+  }, [pendingLocalApiIntent]);
 
   const testNativeNotification = async () => {
     const shown = await window.hibiDesktop?.showTestNotification?.();

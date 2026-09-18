@@ -62,7 +62,7 @@ declare global {
       startWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       stopWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       getWebhookStatus?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
-      resolveLocalApiWrite?: (input: { confirmationId: string; approved: boolean }) => Promise<{ resolved: boolean; approved?: boolean }>;
+      resolveLocalApiWrite?: (input: { confirmationId: string; approved: boolean }) => Promise<{ resolved: boolean; approved?: boolean; expired?: boolean }>;
       showNotch?: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly unknown[]; interaction: 'passthrough' | 'capture' }) => Promise<{ degraded: boolean; requestId: string; host?: 'native' | 'electron' }>;
       hideNotch?: (requestId: string) => Promise<boolean>;
       resolveNotchAction?: (requestId: string, actionId: 'confirm' | 'cancel') => Promise<boolean>;
