@@ -29,3 +29,13 @@ export function validateScheduleBlock(proposed: ScheduleBlock, existing: Schedul
   if (conflicts.some((conflict) => conflict.severity === 'hard')) errors.push('O bloco conflita com um compromisso fixo.');
   return { valid: errors.length === 0, errors, conflicts };
 }
+
+/** Cada par de blocos que se sobrepõe, uma vez só, na ordem em que começam. */
+export function overlappingPairs(blocks: readonly ScheduleBlock[]): Array<readonly [ScheduleBlock, ScheduleBlock]> {
+  const sorted = [...blocks].sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+  const pairs: Array<readonly [ScheduleBlock, ScheduleBlock]> = [];
+  sorted.forEach((block, index) => {
+    for (const later of sorted.slice(index + 1)) if (overlaps(block, later)) pairs.push([block, later]);
+  });
+  return pairs;
+}

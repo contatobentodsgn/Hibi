@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseIcsEvents, toIcsCalendar, toIcsStamp } from '../ics';
+import { parseIcsEvents, readIcsCalendar, toIcsCalendar, toIcsStamp } from '../ics';
 import type { ScheduleBlock } from '../models';
 
 const block = (id: string, title: string, start: string, end: string): ScheduleBlock => ({ id, title, start, end, category: 'work' });
@@ -33,14 +33,63 @@ describe('exportação ICS', () => {
 });
 
 describe('importação ICS', () => {
-  it('lê um evento de qualquer fuso como hora de parede, sem carimbar offset', () => {
-    const events = parseIcsEvents([
-      'BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:tokyo',
-      'DTSTART;TZID=Asia/Tokyo:20260911T210000', 'DTEND;TZID=Asia/Tokyo:20260911T220000',
-      'SUMMARY:Evento importado', 'END:VEVENT', 'END:VCALENDAR',
+  // A hora de parede gravada é a deste Mac: lida de volta como hora local, ela tem que ser o mesmo instante
+  // que o arquivo descreve. Vale em qualquer fuso em que a suíte rode.
+  const instantOf = (wallClock: string) => new Date(wallClock).getTime();
+  const one = (lines: string[]) => readIcsCalendar(['BEGIN:VCALENDAR', 'BEGIN:VEVENT', ...lines, 'SUMMARY:Evento', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n'));
+
+  it('um horário em UTC (o que o Google exporta) entra no instante certo, não como hora local', () => {
+    const { events } = one(['DTSTART:20260911T110000Z', 'DTEND:20260911T123000Z']);
+
+    expect(events).toHaveLength(1);
+    expect(instantOf(events[0].start)).toBe(Date.UTC(2026, 8, 11, 11, 0));
+    expect(instantOf(events[0].end)).toBe(Date.UTC(2026, 8, 11, 12, 30));
+    expect(events[0].start).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);
+  });
+
+  it('um horário com TZID é a hora de parede daquele fuso', () => {
+    const { events } = one(['DTSTART;TZID=Asia/Tokyo:20260911T210000', 'DTEND;TZID=Asia/Tokyo:20260911T220000']);
+
+    expect(instantOf(events[0].start)).toBe(Date.UTC(2026, 8, 11, 12, 0));
+    expect(instantOf(events[0].end)).toBe(Date.UTC(2026, 8, 11, 13, 0));
+  });
+
+  it('usa o offset do fuso na data do evento, com e sem horário de verão', () => {
+    const inverno = one(['DTSTART;TZID="America/New_York":20260115T090000', 'DTEND;TZID="America/New_York":20260115T100000']).events[0];
+    const verao = one(['DTSTART;TZID=America/New_York:20260310T090000', 'DTEND;TZID=America/New_York:20260310T100000']).events[0];
+
+    expect(instantOf(inverno.start)).toBe(Date.UTC(2026, 0, 15, 14, 0));
+    expect(instantOf(verao.start)).toBe(Date.UTC(2026, 2, 10, 13, 0));
+  });
+
+  it('acerta o offset no dia em que o horário de verão começa', () => {
+    // 03:30 em Nova York no dia 08/03/2026 já é horário de verão (-4), mas às 03:30 UTC ainda era -5.
+    const virada = one(['DTSTART;TZID=America/New_York:20260308T033000', 'DTEND;TZID=America/New_York:20260308T043000']).events[0];
+
+    expect(instantOf(virada.start)).toBe(Date.UTC(2026, 2, 8, 7, 30));
+  });
+
+  it('um TZID desconhecido fica como hora de parede, em vez de derrubar o evento', () => {
+    expect(one(['DTSTART;TZID=Pacific Standard Time:20260911T080000', 'DTEND;TZID=Pacific Standard Time:20260911T090000']).events[0])
+      .toEqual({ title: 'Evento', start: '2026-09-11T08:00:00', end: '2026-09-11T09:00:00' });
+  });
+
+  it('evento de dia inteiro não vira bloco, mas é contado', () => {
+    const result = readIcsCalendar([
+      'BEGIN:VEVENT', 'DTSTART;VALUE=DATE:20260911', 'DTEND;VALUE=DATE:20260912', 'SUMMARY:Feriado', 'END:VEVENT',
+      'BEGIN:VEVENT', 'DTSTART:20260911T080000', 'DTEND:20260911T090000', 'SUMMARY:Aula', 'END:VEVENT',
+      'BEGIN:VEVENT', 'UID:x', 'SUMMARY:Sem horário', 'END:VEVENT',
     ].join('\n'));
 
-    expect(events).toEqual([{ title: 'Evento importado', start: '2026-09-11T21:00:00', end: '2026-09-11T22:00:00' }]);
+    expect(result.events.map((event) => event.title)).toEqual(['Aula']);
+    expect(result.skippedAllDay).toBe(1);
+    expect(result.skippedInvalid).toBe(1);
+  });
+
+  it('junta linhas dobradas e aceita SUMMARY com parâmetro', () => {
+    const { events } = readIcsCalendar('BEGIN:VEVENT\r\nDTSTART:20260911T080000\r\nDTEND:20260911T090000\r\nSUMMARY;LANGUAGE=pt-BR:Revisão de\r\n  cálculo\r\nEND:VEVENT\r\n');
+
+    expect(events[0].title).toBe('Revisão de cálculo');
   });
 
   it('ignora o evento sem DTSTART/DTEND utilizável', () => {
