@@ -1,8 +1,8 @@
 # Hibi — status de implementação e plano consolidado
 
-Atualizado em 2026-09-17 (cobrindo do #79 ao #117). Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
+Atualizado em 2026-09-18 (cobrindo do #79 ao #144). Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
 
-Última bateria completa no `main` (`5a67129`): 782 testes Vitest em 98 arquivos, 516 `node --test`, 147 e2e Playwright, `tsc` sem erros, build de produção com o addon nativo, e os verificadores `parity:check` (18 invariantes) e `safety:renderer`, que agora rodam na CI. A suíte dá **o mesmo resultado** em `America/Sao_Paulo` e em `Pacific/Kiritimati` (UTC+14), e a CI roda as duas: foi por não rodar assim que lembretes semanais chegaram a ser gravados no dia errado, e que um lembrete sem recorrência tocava horas fora do horário mostrado na tela.
+Última bateria completa no `main` (`0e9bed7`): 845 testes Vitest em 104 arquivos, 611 `node --test`, 176 e2e Playwright, `tsc` sem erros, build de produção com o addon nativo, e os verificadores `parity:check` (18 invariantes) e `safety:renderer`, que agora rodam na CI. A suíte dá **o mesmo resultado** em `America/Sao_Paulo` e em `Pacific/Kiritimati` (UTC+14), e a CI roda as duas: foi por não rodar assim que lembretes semanais chegaram a ser gravados no dia errado, e que um lembrete sem recorrência tocava horas fora do horário mostrado na tela.
 
 ## Status atual
 
@@ -188,6 +188,51 @@ Itens entram nesta lista em ordem de gravidade; "tarefa criada" significa que j�
 1. **Assinatura e releases, para o atualizador funcionar.** O serviço entrou no `main` no #124, com o feed vindo do empacotamento, e o caminho de publicação ficou pronto no #127: `release:preflight` recusa cedo o que falta (inclusive certificado de desenvolvimento no lugar do de distribuição), o workflow `release.yml` publica por tag num runner macOS, e [`docs/release-signing.md`](release-signing.md) tem o passo a passo. **O que falta é de conta, não de código**: entrar no Apple Developer Program, criar o certificado `Developer ID Application` e gerar a senha específica de app — três coisas que só o dono do projeto faz, e que nenhuma IA precisa ver. Enquanto isso, `npm run app:install` instala a versão do repositório neste Mac com um comando (#122).
 
    Correção de registro: o #122 afirmou que o atualizador já estava no `main`. Estava errado — os arquivos foram lidos do checkout principal, que está na branch do Codex. No `main` não havia nada até o #124.
+
+2. **Validação ao vivo dos lotes 1 a 4 no app instalado.** Tudo foi verificado com testes, mutações e bateria completa, mas o app instalado neste Mac é anterior ao #130. Falta reinstalar (`npm run app:install`, com o Hibi fechado pela barra de menus) e conferir:
+   - parar a voz sem erro;
+   - "lembrete às 15h" ditado;
+   - "iniciar foco" pelo Taby;
+   - confirmações no notch com outra pergunta no meio;
+   - a sessão de foco sobrevivendo à troca de tela;
+   - o calendário nos dois sentidos com o "Hibi Teste": publicar, mover no Calendário do macOS, trazer, editar no Hibi e enviar.
+
+3. **Achados baixos da revisão de 18/09, ainda abertos:**
+   - clicar duas vezes em Conectar no OAuth faz a segunda tentativa falhar;
+   - trocar o segredo do webhook só vale depois de reiniciar o receptor;
+   - "Revogar" no OAuth só apaga do Keychain;
+   - o log da migração promete um ponto de restauração que não existe;
+   - o log de eventos cresce sem limite;
+   - pedidos de escrita da API local não expiram.
+
+4. **Voz além do botão Falar:**
+   - enviar sozinho ao terminar de falar;
+   - voz pelo atalho global e pelo notch;
+   - resposta falada. O código de fala existe, mas nada o liga à tela; é opcional.
+
+5. **Calendário:** do calendário para o Hibi vem só o horário, não o título (#144), e a exclusão remota continua sendo tratada como conflito.
+
+Saíram desta lista em 2026-09-18, na revisão de ponta a ponta de todos os fluxos e na auditoria da voz. Três revisores leram o `main` em paralelo, a voz foi auditada rodando o app, e os achados viraram quatro lotes, todos mergeados com mutações que mordem:
+
+- **Lote 1 — dados e segurança:**
+  - o manifesto do modelo offline agora entra no pacote (#130);
+  - a pasta de dados com um workspace nunca é trocada pela legada, e uma gravação recusada pelo banco é recuperada com ponto de restauração (#131);
+  - a chave de API não é reenviada a um endereço novo, sair do app para o helper de voz, e "Reiniciar e instalar" reinicia de verdade (#132).
+- **Lote 2 — voz e comandos:**
+  - parar a voz não mostra mais erro, e o motivo real de uma falha aparece (#133);
+  - comandos ditados entendem "às 15h", "das 14h às 15h", "Taby, …" e o ponto final da ditação (#134);
+  - "iniciar foco" pelo Taby começa uma sessão de verdade (#135).
+- **Lote 3 — notch e cérebro:**
+  - cancelar para a geração do modelo, o modelo carrega uma vez só, e uma falha de carga volta às ferramentas locais (#136);
+  - uma confirmação pendente não é mais coberta por outro cartão nem fica morta no notch (#137).
+- **Lote 4 — produtividade:**
+  - a sessão de foco sobrevive à troca de tela (#138);
+  - o .ics em UTC ou com TZID entra na hora certa e o de dia inteiro é contado; blocos fora de 08h–22h aparecem; a conferência de sobreposição é real; Check plan e 24h funcionam (#139);
+  - a tarefa rápida nasce na pasta filtrada (#140);
+  - as telas viram o dia à meia-noite, e um lembrete único não é mais gravado no passado (#141);
+  - uma meta sai de "Complete" quando o alvo aumenta, o Review reserva horário para a tarefa sem agenda e guarda o Dismiss, e "Review spacing" abre o lembrete certo (#142);
+  - uma prévia velha do Notion é recusada antes de escrever (#143);
+  - o calendário leva edições nos dois sentidos depois de publicar o bloco (#144).
 
 Saíram desta lista em 2026-09-17, depois de conferidos no app: a **voz em desenvolvimento** — três causas empilhadas, resolvidas no #120, sendo a última o macOS responsabilizar o terminal que abria o app — e o **iCloud ausente**. A frase estava errada — o EventKit nunca filtrou por tipo de conta, então bastou o usuário ligar o iCloud Calendar no Mac para os seis calendários dele aparecerem no Hibi, com a origem ao lado do nome, e a leitura devolver os eventos que o próprio Hibi publicou. Ficou no lugar a decisão sobre um conector CalDAV próprio, que é outra coisa.
 
