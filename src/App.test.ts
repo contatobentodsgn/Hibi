@@ -77,7 +77,7 @@ describe('activity ledger wiring', () => {
   it('records Taby task status changes and focus lifecycle events', () => {
     expect(appSource).not.toContain('onTaskCompleted');
     expect(appSource).toContain("onTaskStatusChanged: (before: Task, after: Task) => { recordActivity(taskStatusActivity(before, after.status ?? 'open', new Date().toISOString()));");
-    expect(appSource).toContain('onFocusLifecycle={(event) => recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString()))}');
+    expect(appSource).toContain('recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString()));');
   });
 
   it('records blocks created and deleted through Taby, but not block updates', () => {
