@@ -196,6 +196,21 @@ describe('LocalRepository', () => {
     expect(repository.getGoal(goal.id)?.status).toBe('open');
   });
 
+  it('reabre a meta concluída quando o alvo aumenta, e conclui quando diminui até o progresso', () => {
+    const goal = repository.createGoal({ title: 'Ler livros', target: 3, current: 0 });
+    repository.setGoalProgress(goal.id, 3);
+
+    expect(repository.updateGoal(goal.id, { target: 5 })).toMatchObject({ current: 3, target: 5, status: 'open' });
+    expect(repository.updateGoal(goal.id, { target: 2 })).toMatchObject({ current: 2, target: 2, status: 'completed' });
+    expect(repository.updateGoal(goal.id, { title: 'Ler mais livros' }).status).toBe('completed');
+  });
+
+  it('mudar o alvo de uma meta pausada não a tira da pausa', () => {
+    const goal = repository.createGoal({ title: 'Correr', target: 10, current: 4, status: 'paused' });
+
+    expect(repository.updateGoal(goal.id, { target: 3 })).toMatchObject({ current: 3, status: 'paused' });
+  });
+
   it('loads legacy snapshots without habit or goal collections', () => {
     const legacy = JSON.parse(repository.exportJson()) as Record<string, unknown>;
     delete legacy.habits;
