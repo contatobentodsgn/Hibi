@@ -11,7 +11,8 @@ type Props = {
   data: StudyData;
   onEvent: (action: string, detail: string, result?: string) => void;
   onTaskStatusChange: (id: string, status: EntityStatus) => void;
-  onCreateTask?: (title: string) => void;
+  // `folder` é a pasta filtrada na hora de criar: `null` sem filtro, '' em "Sem pasta".
+  onCreateTask?: (title: string, folder: string | null) => void;
   onRenameTask?: (id: string, title: string) => void;
   onDeleteTask?: (id: string) => void;
   onEditTaskDeadline?: (id: string) => void;
@@ -39,7 +40,7 @@ export function TasksView({ data, onEvent, onTaskStatusChange, onCreateTask, onR
   const activeFolder = folder !== null && allFolders.some((entry) => entry.name === folder) ? folder : null;
   const visibleFolders = allFolders.filter((entry) => entry.tasks > 0 || entry.name === activeFolder);
   const visibleTasks = [...data.tasks].filter((task) => (scope === 'all' || isOpen(task)) && (activeFolder === null || folderOf(task) === activeFolder)).sort((a, b) => deadlineSort ? (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999') : 0);
-  const submitNewTask = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const title = newTitle.trim(); if (!title) return; onCreateTask?.(title); setNewTitle(''); setCreating(false); };
+  const submitNewTask = (event: React.FormEvent<HTMLFormElement>) => { event.preventDefault(); const title = newTitle.trim(); if (!title) return; onCreateTask?.(title, activeFolder); setNewTitle(''); setCreating(false); };
   const startEditing = (id: string, title: string) => { setEditingId(id); setEditTitle(title); };
   const submitRename = (event: React.FormEvent<HTMLFormElement>, id: string, currentTitle: string) => { event.preventDefault(); const title = editTitle.trim(); if (title && title !== currentTitle) onRenameTask?.(id, title); setEditingId(null); };
 

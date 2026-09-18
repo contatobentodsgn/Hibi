@@ -381,7 +381,7 @@ export default function App() {
     const keepFocus = route === 'focus' || (focusActive && route !== 'break');
     const focusHost = keepFocus ? <div className="focus-host" style={{ display: route === 'focus' ? 'contents' : 'none' }}>{focusView('focus')}</div> : null;
     const screen = (() => { switch (route) {
-      case 'tasks': return <TasksView key={`tasks-${folderFilter.nonce}`} {...props} data={data} initialFolder={folderFilter.folder} onTaskStatusChange={changeTaskStatus} onCreateTask={(title) => createTask({ title, durationMinutes: 60, folder: 'Bento' })} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
+      case 'tasks': return <TasksView key={`tasks-${folderFilter.nonce}`} {...props} data={data} initialFolder={folderFilter.folder} onTaskStatusChange={changeTaskStatus} onCreateTask={(title, folder) => createTask({ title, durationMinutes: 60, folder: folder ?? 'Bento' })} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
       case 'notes': return <NotesView key={`notes-${folderFilter.nonce}`} data={data} initialFolder={folderFilter.folder} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
       case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={() => setReminderCreateOpen(true)} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
