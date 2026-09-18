@@ -38,8 +38,9 @@ function createWebhookVerifier({ secret, now = () => Date.now() } = {}) {
   };
 }
 
-function createLoopbackWebhookReceiver({ verifier } = {}) {
-  if (!verifier || typeof verifier.verify !== 'function') throw new Error('A webhook verifier is required.');
+function createLoopbackWebhookReceiver({ verifier: initialVerifier } = {}) {
+  if (!initialVerifier || typeof initialVerifier.verify !== 'function') throw new Error('A webhook verifier is required.');
+  let verifier = initialVerifier;
   let server;
   const reply = (response, status, payload) => {
     const body = Buffer.from(JSON.stringify(payload));
@@ -73,6 +74,9 @@ function createLoopbackWebhookReceiver({ verifier } = {}) {
     },
     async stop() { if (!server) return; const active = server; server = undefined; await new Promise((resolve, reject) => active.close((error) => error ? reject(error) : resolve())); },
     isRunning: () => Boolean(server),
+    // Trocar o segredo vale na hora, na mesma porta: antes o receptor em execução continuava aceitando só
+    // o segredo antigo até ser reiniciado.
+    useVerifier(next) { if (!next || typeof next.verify !== 'function') throw new Error('A webhook verifier is required.'); verifier = next; },
   };
 }
 
@@ -80,7 +84,7 @@ function createWebhookService({ keychain, account = WEBHOOK_SECRET_ACCOUNT } = {
   if (!keychain || typeof keychain.get !== 'function' || typeof keychain.set !== 'function' || typeof keychain.has !== 'function' || typeof keychain.remove !== 'function') throw new Error('Webhook service dependencies are required.');
   let receiver;
   return {
-    async configure(secret) { if (typeof secret !== 'string' || !secret.trim() || secret.length > 8_192) throw new Error('A webhook signing secret is required.'); await keychain.set(account, secret.trim()); },
+    async configure(secret) { if (typeof secret !== 'string' || !secret.trim() || secret.length > 8_192) throw new Error('A webhook signing secret is required.'); await keychain.set(account, secret.trim()); receiver?.useVerifier(createWebhookVerifier({ secret: secret.trim() })); },
     async start() { if (receiver) return receiver.start(); const secret = await keychain.get(account); receiver = createLoopbackWebhookReceiver({ verifier: createWebhookVerifier({ secret }) }); return receiver.start(); },
     async stop() { if (!receiver) return; const current = receiver; receiver = undefined; await current.stop(); },
     async status() { return { running: Boolean(receiver?.isRunning()), hasSecret: await keychain.has(account), ...(receiver?.isRunning() ? { origin: (await receiver.start()).origin } : {}) }; },
