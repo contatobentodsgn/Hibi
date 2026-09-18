@@ -81,7 +81,9 @@ export class OfflineBrainProvider implements AiProvider {
       ...proposal,
       providerMetadata: { ...proposal.providerMetadata, providerId: proposal.providerMetadata?.providerId ?? this.tools.id, provider: proposal.providerMetadata?.provider ?? this.tools.label },
     }
-    if (toolsProposal.toolCalls.length || !this.bridge.runLocalModel) return toolsProposal
+    // Uma ação reconhecida, ou uma pergunta de volta ("não entendi o horário"), é a resposta: o modelo
+    // responderia por cima dela com uma conversa.
+    if (toolsProposal.toolCalls.length || toolsProposal.providerMetadata?.finishReason === 'needs-clarification' || !this.bridge.runLocalModel) return toolsProposal
     if (signal.aborted) throw abortError()
     const requestId = createCorrelationId().slice(0, 80)
     const cancel = () => { void this.bridge.cancelLocalModel?.(requestId) }
