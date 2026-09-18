@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createLocalVoiceService } = require('./local-voice.cjs');
+const { createLocalVoiceService, normalizeVocabulary } = require('./local-voice.cjs');
 
 test('reports unavailable without a native adapter', async () => {
   const voice = createLocalVoiceService();
@@ -64,4 +64,19 @@ test('com autoStop, o serviço pede ao adaptador que encerre na pausa e diz por 
   assert.equal(pedidos[0].maxSpeechMs > pedidos[0].noSpeechMs, true);
   await service.listen();
   assert.equal(pedidos[1].silenceMs, undefined);
+});
+
+test('o vocabulário chega ao adaptador limpo: só textos curtos, sem repetir e até 100', async () => {
+  const pedidos = [];
+  const service = createLocalVoiceService({ adapter: { listen: (request) => { pedidos.push(request.vocabulary); return Promise.resolve(); }, stop() {}, speak: () => Promise.resolve() } });
+  const muitos = Array.from({ length: 150 }, (_, index) => `Termo ${index}`);
+
+  await service.listen({ vocabulary: ['  Kabrito\n OS ', 'kabrito os', 42, 'x', 'a'.repeat(41), 'Cristiane'] });
+  await service.listen({ vocabulary: muitos });
+  await service.listen({ vocabulary: 'Kabrito' });
+
+  assert.deepEqual(pedidos[0], ['Kabrito OS', 'Cristiane']);
+  assert.equal(pedidos[1].length, 100);
+  assert.deepEqual(pedidos[2], []);
+  assert.deepEqual(normalizeVocabulary(undefined), []);
 });

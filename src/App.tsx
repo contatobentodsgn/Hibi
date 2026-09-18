@@ -42,6 +42,7 @@ import { ElectronConfiguredProvider } from './ai/electron-provider';
 import { OfflineBrainProvider } from './ai/offline-brain-provider';
 import { useTabyShortcut } from './ui/useTabyShortcut';
 import { useVoiceTurn } from './ui/useVoiceTurn';
+import { voiceVocabulary } from './ai/voice-vocabulary';
 import { HeuristicAiProvider } from './ai/heuristic-provider';
 import { CompanionController } from './companion/controller';
 import type { CompanionEvent } from './companion/contracts';
@@ -145,7 +146,7 @@ export default function App() {
   // assistente é gravada uma vez só, deste lado.
   const conversations = useConversations({ turn: assistantTurn, onEvent: log });
   // A voz vive aqui, e não na tela Taby: o atalho pode ouvir com a janela escondida, e o notch mostra.
-  const voice = useVoiceTurn({ ask: (text) => { conversations.record({ role: 'user', text, at: new Date().toISOString() }); void assistantTurn.ask(text); }, turnState: assistantTurn.state, onCompanionEvent: dispatchCompanion });
+  const voice = useVoiceTurn({ ask: (text) => { conversations.record({ role: 'user', text, at: new Date().toISOString() }); void assistantTurn.ask(text); }, turnState: assistantTurn.state, onCompanionEvent: dispatchCompanion, vocabulary: () => voiceVocabulary(data) });
   const voiceRef = useRef(voice);
   voiceRef.current = voice;
 

@@ -574,6 +574,13 @@ test("a escuta pedida com autoStop chega assim ao serviço, e sem ele não", asy
   assert.equal(harness.voiceService.lastListen.autoStop, false);
 });
 
+test("o vocabulário pedido pela tela chega ao serviço de voz", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("hibi:local-voice:listen", { autoStop: true, vocabulary: ["Kabrito", "Cristiane"] });
+  assert.deepEqual(harness.voiceService.lastListen.vocabulary, ["Kabrito", "Cristiane"]);
+});
+
 test("trocar o atalho solta a tecla anterior e guarda a escolha", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());

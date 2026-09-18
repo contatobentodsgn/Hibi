@@ -53,7 +53,20 @@ test('o caminho do helper segue os recursos do app empacotado', () => {
   void adapter.listen({ locale: 'en-US', onText: () => {} });
 
   assert.equal(chamadas[0][0], '/Applications/Hibi.app/Contents/Resources/native/voice/build/hibi-voice');
-  assert.deepEqual(chamadas[0][1], ['listen', 'en-US']);
+  assert.deepEqual(chamadas[0][1], ['listen', 'en-US', '--vocabulary-stdin']);
+});
+
+test('o vocabulário vai pela entrada do helper, e não pela linha de comando', () => {
+  const chamadas = [];
+  const recebido = [];
+  const child = { ...helperFalso([]), stdin: { on() {}, end(texto) { recebido.push(texto); } } };
+  const adapter = createMacVoiceAdapter({ spawnProcess: (...args) => { chamadas.push(args); return child; }, helperPath: '/tmp/hibi-voice-falso' });
+
+  void adapter.listen({ locale: 'pt-BR', onText: () => {}, vocabulary: ['Kabrito', 'Cristiane'] });
+
+  assert.deepEqual(JSON.parse(recebido[0]), ['Kabrito', 'Cristiane']);
+  assert.equal(chamadas[0][1].some((arg) => arg.includes('Kabrito')), false);
+  assert.equal(chamadas[0][2].stdio[0], 'pipe');
 });
 
 // Em desenvolvimento o `process.resourcesPath` aponta para dentro do Electron baixado, onde o

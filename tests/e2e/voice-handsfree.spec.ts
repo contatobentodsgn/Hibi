@@ -18,7 +18,7 @@ async function installVoice(page: Page, settings = { shortcutVoice: 'off', spoke
     };
     (window as unknown as { voiceE2E: Log }).voiceE2E = log;
     (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
-      listenLocalVoice: (options: { autoStop?: boolean }) => { calls.push(`listen:${options?.autoStop === true}`); return new Promise((resolve) => { finishListen = resolve; }); },
+      listenLocalVoice: (options: { autoStop?: boolean; vocabulary?: string[] }) => { calls.push(`listen:${options?.autoStop === true}`); calls.push(`vocabulary:${JSON.stringify(options?.vocabulary ?? [])}`); return new Promise((resolve) => { finishListen = resolve; }); },
       stopLocalVoice: async () => { calls.push('stop'); log.finish('stopped'); return { status: 'ready' }; },
       onLocalVoiceText: (callback: (text: string) => void) => { textListeners.push(callback); return () => textListeners.splice(textListeners.indexOf(callback), 1); },
       speakLocalVoice: async (text: string) => { calls.push(`speak:${text}`); return { status: 'ready', spoken: true }; },
@@ -54,6 +54,18 @@ test('falar e parar de falar envia o pedido sozinho, sem apertar Enviar', async 
   // O pedido virou turno: o cartão de confirmação da tarefa aparece, e o campo esvazia.
   await expect(page.getByRole('alert').filter({ hasText: 'Confirme' })).toBeVisible();
   await expect(campo(page)).toHaveValue('');
+});
+
+test('a escuta leva ao reconhecedor os nomes que já estão no Hibi', async ({ page }) => {
+  await installVoice(page);
+  await openTaby(page);
+  await page.getByRole('button', { name: 'Falar' }).click();
+
+  const pedido = (await voice(page).calls()).find((call) => call.startsWith('vocabulary:')) ?? 'vocabulary:[]';
+  const termos = JSON.parse(pedido.slice('vocabulary:'.length)) as string[];
+  // Os dados de exemplo têm "Kabrito Post 01…06" e a pasta "Bento".
+  expect(termos).toEqual(expect.arrayContaining(['Bento', 'Kabrito', 'Kabrito Post 01']));
+  expect(termos.length).toBeLessThanOrEqual(100);
 });
 
 test('parar pelo botão deixa o texto no campo para editar, sem enviar', async ({ page }) => {

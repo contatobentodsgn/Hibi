@@ -35,10 +35,14 @@ function createMacVoiceAdapter({ spawnProcess = spawn, helperPath, exists = exis
      * nunca dá o resultado final por conta própria, e sem isso a pessoa precisava apertar Parar. Com
      * `noSpeechMs`, termina também quando ninguém disse nada. O motivo volta em `ended`.
      */
-    listen({ locale = 'pt-BR', onText, silenceMs = 0, noSpeechMs = 0, maxSpeechMs = 0 } = {}) {
+    listen({ locale = 'pt-BR', onText, silenceMs = 0, noSpeechMs = 0, maxSpeechMs = 0, vocabulary = [] } = {}) {
       child?.kill('SIGTERM');
-      const current = spawnProcess(resolvedHelperPath, ['listen', locale], { stdio: ['ignore', 'pipe', 'ignore'] });
+      // O vocabulário vai pela entrada do helper, não pela linha de comando: os nomes da pessoa não ficam
+      // expostos na lista de processos. O helper lê até o fim da entrada antes de abrir o microfone.
+      const current = spawnProcess(resolvedHelperPath, ['listen', locale, '--vocabulary-stdin'], { stdio: ['pipe', 'pipe', 'ignore'] });
       child = current;
+      current.stdin?.on?.('error', () => { /* helper que já saiu não recebe o vocabulário, e tudo bem */ });
+      current.stdin?.end(JSON.stringify(Array.isArray(vocabulary) ? vocabulary : []));
       let failure = null;
       let ended = null;
       let timer = null;

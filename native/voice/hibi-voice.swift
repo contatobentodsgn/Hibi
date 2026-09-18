@@ -19,6 +19,13 @@ struct HibiVoice {
         let args = CommandLine.arguments
         guard args.dropFirst().first == "listen" else { emit(["type": "error", "message": "listen command required"]); return }
         let locale = args.dropFirst(2).first ?? "pt-BR"
+        // Os nomes que o Hibi pede para favorecer ("Kabrito", "Cristiane") chegam pela entrada, em JSON,
+        // e não pela linha de comando, onde qualquer processo os veria. Sem a opção, nada é lido.
+        var vocabulary: [String] = []
+        if args.contains("--vocabulary-stdin") {
+            let data = FileHandle.standardInput.readDataToEndOfFile()
+            vocabulary = ((try? JSONSerialization.jsonObject(with: data)) as? [String] ?? []).prefix(100).map { $0 }
+        }
         guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: locale)), recognizer.isAvailable else { emit(["type": "error", "message": "Speech locale unavailable"]); return }
         // O Hibi promete que o que se fala fica neste Mac. Sem reconhecimento no dispositivo, a Apple
         // pode processar o áudio nos servidores dela: então aqui se recusa, em vez de mandar o áudio
@@ -36,6 +43,7 @@ struct HibiVoice {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = true
+        request.contextualStrings = vocabulary
         let input = audio.inputNode
         let task = recognizer.recognitionTask(with: request) { result, error in
             if let result { emit(["type": "text", "final": result.isFinal, "text": result.bestTranscription.formattedString]) }
