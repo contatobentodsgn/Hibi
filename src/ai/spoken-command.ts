@@ -42,7 +42,7 @@ const pad = (value: number) => String(value).padStart(2, '0');
  */
 export function parseSpokenTime(input: string): string | null {
   let text = input.trim().toLocaleLowerCase('pt-BR').replace(/[.!?…]+$/u, '').trim()
-    .replace(/^(?:às|as|à|a|para\s+as|para\s+às|pras)\s+/u, '').trim();
+    .replace(/^(?:às|as|à|a|ao|para\s+as|para\s+às|pras|pro)\s+/u, '').trim();
   // O período do dia vem por último e vale para qualquer forma da hora: "9h00 da manhã",
   // "9:30 da noite", "nove e meia da manhã". Antes só "9 da manhã" era entendido.
   const periodMatch = text.match(/\s*(?:da|de)\s+(manhã|manha|tarde|noite|madrugada)$/u);
@@ -131,7 +131,7 @@ const SCHEDULE = /^(?:marque|marcar|agende|agendar|reserve|reservar|crie|criar|a
 // era lido como o "a" de "às 15h".
 const TIME_START = '(?=\\d|meio|meia|uma\\b|duas|tr[êe]s|quatro|cinco|seis|sete|oito|nove|dez|onze|doze)';
 const RANGE = new RegExp(`\\s*(?:d[ae]s?|entre)\\s+${TIME_START}(.+?)\\s+(?:às|as|a|até|ate|e)\\s+${TIME_START}(.+?)\\s*$`, 'iu');
-const AT = new RegExp(`(?:^|\\s+)(?:às|as|à|a|para\\s+as|para\\s+às|pras)\\s+${TIME_START}(.+?)\\s*$`, 'iu');
+const AT = new RegExp(`(?:^|\\s+)(?:às|as|à|a|ao|para\\s+as|para\\s+às|pras|pro)\\s+${TIME_START}(.+?)\\s*$`, 'iu');
 
 export type ScheduleRequest =
   | Readonly<{ kind: 'block'; title: string; days: number; start: string; end: string; meeting: boolean }>

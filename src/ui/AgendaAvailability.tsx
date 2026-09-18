@@ -21,7 +21,7 @@ export function AgendaAvailability({ blocks, days, wallClock = new Date().toTime
   const focusBlocks = rhythms.reduce((total, rhythm) => total + rhythm.workCount, 0)
   const nextFreeWindow = rhythms.flatMap((rhythm) => rhythm.freeWindows).find((window): window is FreeWindow => window.minutes > 0)
   const visibleBlocks = blocks.filter((block) => days.includes(block.start.slice(0, 10)))
-  const conflicts = new Set(visibleBlocks.flatMap((block) => findConflicts(block, visibleBlocks).map((conflict) => [conflict.proposedId, conflict.existingId].sort().join(':'))))
+  const conflicts = new Set(visibleBlocks.flatMap((block) => findConflicts(block, visibleBlocks).filter((conflict) => conflict.severity === 'hard').map((conflict) => [conflict.proposedId, conflict.existingId].sort().join(':'))))
 
   return <section className="agenda-availability" aria-label="Agenda availability">
     <div><span>Time planned</span><strong>{formatMinutes(plannedMinutes)}</strong></div>

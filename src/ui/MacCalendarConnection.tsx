@@ -89,7 +89,7 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
     const block = blocks.find((entry) => entry.id === change.localId);
     if (!block || !onMoveBlock || !window.hibiDesktop?.acknowledgeCalendarIncoming) return;
     if (!onMoveBlock(block.id, change.start, change.end)) {
-      setNotice(`“${change.summary}” não pôde ser movido no Hibi: o novo horário conflita com outro bloco.`);
+      setNotice(`“${change.summary}” não pôde ser movido no Hibi: o horário que veio do calendário não é válido.`);
       return;
     }
     try {

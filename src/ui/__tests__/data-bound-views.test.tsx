@@ -149,16 +149,22 @@ describe('study views', () => {
     expect(markup).toContain('Schedule conflicts');
   });
 
-  it('reports local overlap pairs once instead of claiming a conflict-free plan', () => {
+  // Uma demanda sobre outra coisa não é conflito; dois compromissos fixos no mesmo horário são.
+  it('reports only commitments that clash, once per pair', () => {
+    const day = keyFromToday(0);
     const conflicting = {
       ...agenda,
-      blocks: [...agenda.blocks, { id: 'overlap', title: 'Overlapping block', start: `${keyFromToday(0)}T09:30:00`, end: `${keyFromToday(0)}T10:30:00`, category: 'work' as const }],
+      blocks: [
+        { id: 'meeting-a', title: 'Reunião A', start: `${day}T09:00:00`, end: `${day}T10:00:00`, category: 'work' as const, isHard: true },
+        { id: 'meeting-b', title: 'Reunião B', start: `${day}T09:30:00`, end: `${day}T10:30:00`, category: 'work' as const, isHard: true },
+        { id: 'post', title: 'Post', start: `${day}T09:00:00`, end: `${day}T11:00:00`, category: 'work' as const },
+      ],
     };
     const markup = renderToStaticMarkup(
       <AgendaAvailability blocks={conflicting.blocks} days={[keyFromToday(0)]} wallClock="08:30" />,
     );
 
-    expect(markup).toContain('2 to review');
+    expect(markup).toContain('1 to review');
   });
 
   // A data do bloco mais antigo do workspace não é "hoje": um workspace só com blocos velhos
