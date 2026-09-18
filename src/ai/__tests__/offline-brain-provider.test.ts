@@ -103,3 +103,12 @@ describe('offline brain provider', () => {
     expect(result.provider).toMatchObject({ id: 'offline-brain', label: 'Hibi offline brain', model: 'qwen3-1.7b' });
   });
 });
+
+// Memória insuficiente ou motor nativo ausente não podem terminar a pergunta em "Provider unavailable".
+it('uma falha do modelo cai nas ferramentas locais em vez de quebrar a pergunta', async () => {
+  const provider = new OfflineBrainProvider({ runLocalModel: async () => { throw new Error('sem memória'); } }, tools());
+
+  const proposal = await provider.generate(request(), new AbortController().signal);
+
+  expect(proposal.reply).toBe('Posso ajudar com tarefas.');
+});
