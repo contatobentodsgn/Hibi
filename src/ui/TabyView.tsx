@@ -3,33 +3,29 @@ import { LOCAL_CAPABILITIES } from '../domain/capabilities';
 import type { StudyData } from '../domain/models';
 import { provenanceLabel } from '../ai/assistant-turn';
 import { useT } from '../i18n/LocaleProvider';
-import { voiceNotice as noticeForVoice } from './voice-notice';
 import { failurePresentationFor } from './assistant-presentation';
 import { ConversationList } from './ConversationList';
 import { TabyAtelierStatus } from './TabyAtelierStatus';
 import { WorkspaceState } from './WorkspaceState';
 import type { AssistantTurnControls } from './useAssistantTurn';
 import type { ConversationsController } from './useConversations';
+import type { VoiceTurnControls } from './useVoiceTurn';
 
-type Props = { data: StudyData; turn: AssistantTurnControls; conversations: ConversationsController };
+type Props = { data: StudyData; turn: AssistantTurnControls; conversations: ConversationsController; voice?: VoiceTurnControls };
 
-export function TabyView({ data, turn, conversations }: Props) {
+export function TabyView({ data, turn, conversations, voice }: Props) {
   const t = useT();
   const [input, setInput] = useState('');
   // A voz existe só no app de desktop, e o reconhecimento roda neste Mac: o helper nativo recusa
-  // quando o idioma não tem modelo no dispositivo, em vez de mandar o áudio para fora.
-  const [listening, setListening] = useState(false);
-  const [voiceNotice, setVoiceNotice] = useState('');
-  useEffect(() => window.hibiDesktop?.onLocalVoiceText?.((text) => setInput(text)) ?? (() => undefined), []);
+  // quando o idioma não tem modelo no dispositivo, em vez de mandar o áudio para fora. A escuta mora no
+  // App (useVoiceTurn); o campo acompanha o que vai sendo ouvido e esvazia quando o pedido é enviado.
+  const listening = voice?.listening ?? false;
+  const voiceNotice = voice?.notice ?? '';
+  useEffect(() => { if (voice) setInput(voice.transcript); }, [voice?.transcript]);
   const toggleVoice = async () => {
-    if (listening) { await window.hibiDesktop?.stopLocalVoice?.(); setListening(false); return; }
-    const bridge = window.hibiDesktop?.listenLocalVoice;
-    if (!bridge) { setVoiceNotice(t('taby.voice.unavailable')); return; }
-    setListening(true);
-    setVoiceNotice('');
-    const result = await bridge().catch(() => null);
-    setListening(false);
-    setVoiceNotice(noticeForVoice(result, t));
+    if (!voice) return;
+    if (listening) { await voice.stop(); return; }
+    await voice.start();
   };
   const { state } = turn;
   // A thread exibida é a da conversa ativa. Esta tela não escreve nela a partir do turno: quem grava

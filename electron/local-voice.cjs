@@ -1,4 +1,7 @@
 const SUPPORTED_LOCALES = new Set(['pt-BR', 'en-US']);
+// Uma pausa de 1,6 s depois de falar encerra a frase; 8 s sem nenhuma palavra encerram a escuta.
+const SILENCE_MS = 1_600;
+const NO_SPEECH_MS = 8_000;
 
 function createLocalVoiceService({ adapter } = {}) {
   let state = { status: adapter ? 'ready' : 'unavailable', locale: 'pt-BR', error: adapter ? null : 'Local voice adapter is unavailable.' };
@@ -11,9 +14,11 @@ function createLocalVoiceService({ adapter } = {}) {
     async listen(request = {}) {
       if (!adapter?.listen) return publish({ status: 'unavailable', error: 'Local voice adapter is unavailable.' });
       if (active) return publish({ status: 'listening', error: null });
-      active = adapter.listen({ locale: locale(request.locale || state.locale), onText: request.onText });
-      publish({ status: 'listening', error: null, reason: null });
-      try { await active; return publish({ status: 'ready', reason: null }); } catch (error) { return publish({ status: 'error', error: error?.message || 'Local voice failed.', reason: error?.reason ?? 'failed' }); } finally { active = null; }
+      // `autoStop` encerra a escuta quando a fala para (e quando ninguém fala), e a tela envia sozinha.
+      const timing = request.autoStop ? { silenceMs: SILENCE_MS, noSpeechMs: NO_SPEECH_MS } : {};
+      active = adapter.listen({ locale: locale(request.locale || state.locale), onText: request.onText, ...timing });
+      publish({ status: 'listening', error: null, reason: null, ended: null });
+      try { const result = await active; return publish({ status: 'ready', reason: null, ended: result?.ended ?? 'done' }); } catch (error) { return publish({ status: 'error', error: error?.message || 'Local voice failed.', reason: error?.reason ?? 'failed' }); } finally { active = null; }
     },
     stop() { if (active && adapter?.stop) adapter.stop(); active = null; return publish({ status: adapter ? 'ready' : 'unavailable' }); },
     async speak(text, request = {}) {

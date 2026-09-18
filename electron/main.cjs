@@ -32,6 +32,7 @@ const { createAppTray } = require('./tray.cjs');
 const { buildAppMenuTemplate, hideFromDock } = require('./app-menu.cjs');
 const { createShortcutSettings } = require('./shortcut-settings.cjs');
 const { createTabyShortcut } = require('./taby-shortcut.cjs');
+const { createVoiceSettings } = require('./voice-settings.cjs');
 const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
 const { resolveUserDataPath } = require('./user-data-path.cjs');
@@ -99,6 +100,7 @@ let notchSettings;
 let notchTest;
 let detachNotchLifecycle = () => {};
 let tabyShortcut;
+let voiceSettings;
 let updateService;
 let appTray;
 let quitting = false;
@@ -273,9 +275,18 @@ function summonWindow() {
   app.focus?.({ steal: true });
 }
 
-function summonTaby() {
+// Pela barra de menus o Taby só abre. Pelo atalho, conforme o ajuste de voz: abrir e já ouvir, ou ouvir
+// sem abrir a janela, com o que foi ouvido e a resposta no notch.
+function openTaby() {
   summonWindow();
   sendToMainWindow('hibi:shortcut:taby');
+}
+
+function summonTaby() {
+  const mode = voiceSettings?.get().shortcutVoice ?? 'off';
+  if (mode === 'off') { openTaby(); return; }
+  if (mode === 'window') summonWindow();
+  sendToMainWindow('hibi:shortcut:taby', { listen: true, background: mode === 'notch' });
 }
 
 function replaceAiRuntime(runtime) {
@@ -315,6 +326,7 @@ app.whenReady().then(async () => {
   calendarSyncSettings = createCalendarSyncSettings({ filePath: path.join(app.getPath('userData'), 'calendar-sync.json') });
   // O feed vem do empacotamento; num app de desenvolvimento o serviço nasce desligado.
   updateService = createElectronUpdateService({ app, autoUpdater: loadAutoUpdater(), onEvent: (state) => sendToMainWindow('hibi:updates:state', state) });
+  voiceSettings = createVoiceSettings({ filePath: path.join(app.getPath('userData'), 'voice-settings.json') });
   tabyShortcut = createTabyShortcut({ globalShortcut, settings: createShortcutSettings({ filePath: path.join(app.getPath('userData'), 'shortcut-settings.json') }), onTrigger: summonTaby });
   // Um banco que não abre não pode impedir o app de abrir: os canais respondem com erro controlado e o
   // renderer segue no armazenamento local.
@@ -526,16 +538,26 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:local-model:cancel', (_event, requestId) => { localModelService.cancel(requestId); return true; });
   ipcMain.handle('hibi:local-model:shutdown', () => localModelService.shutdown());
   ipcMain.handle('hibi:local-voice:state', () => localVoiceService.state());
-  ipcMain.handle('hibi:local-voice:listen', async () => {
+  ipcMain.handle('hibi:local-voice:listen', async (_event, options) => {
     // A permissão é pedida antes de abrir o microfone, e uma recusa vira estado, não exceção.
     if (process.platform === 'darwin' && systemPreferences?.askForMediaAccess) {
       const allowed = await systemPreferences.askForMediaAccess('microphone').catch(() => false);
       if (!allowed) return { ...localVoiceService.state(), status: 'error', error: 'Microphone access was denied in macOS settings.' };
     }
-    return localVoiceService.listen({ onText: (text) => sendToMainWindow('hibi:local-voice:text', text) });
+    return localVoiceService.listen({ autoStop: options?.autoStop === true, onText: (text) => sendToMainWindow('hibi:local-voice:text', text) });
   });
   ipcMain.handle('hibi:local-voice:set-locale', (_event, locale) => localVoiceService.setLocale(locale));
   ipcMain.handle('hibi:local-voice:stop', () => localVoiceService.stop());
+  // Ler a resposta em voz alta só com o ajuste ligado: o processo principal confere, não só a tela.
+  ipcMain.handle('hibi:local-voice:speak', async (_event, text) => {
+    if (!voiceSettings.get().spokenReplies) return { ...localVoiceService.state(), spoken: false };
+    if (typeof text !== 'string' || !text.trim()) return { ...localVoiceService.state(), spoken: false };
+    return { ...await localVoiceService.speak(text.trim().slice(0, 1_200)), spoken: true };
+  });
+  ipcMain.handle('hibi:voice-settings:get', () => voiceSettings.get());
+  ipcMain.handle('hibi:voice-settings:set', (_event, patch) => {
+    try { return voiceSettings.save(patch); } catch { return { ...voiceSettings.get(), error: 'invalid' }; }
+  });
   ipcMain.handle('hibi:notch:size', () => ({ size: notchSettings.get().size }));
   ipcMain.handle('hibi:notch:set-size', (_event, nextSize) => {
     const size = nextSize === 'compact' ? 'compact' : 'normal';
@@ -550,7 +572,7 @@ app.whenReady().then(async () => {
   // que carrega ⌘C, ⌘V, ⌘Z e ⌘A dentro dos campos.
   Menu.setApplicationMenu(Menu.buildFromTemplate(buildAppMenuTemplate({ appName: app.getName?.() ?? 'Hibi' })));
   hideFromDock({ app });
-  appTray = createAppTray({ Tray, Menu, nativeImage, onOpen: summonWindow, onTaby: summonTaby, onHide: () => mainWindow?.hide(), onQuit: () => { quitting = true; app.quit(); } });
+  appTray = createAppTray({ Tray, Menu, nativeImage, onOpen: summonWindow, onTaby: openTaby, onHide: () => mainWindow?.hide(), onQuit: () => { quitting = true; app.quit(); } });
   tabyShortcut.apply();
   showStartupNotch(notchWindow, startupNotchAnimationPath());
   app.on("activate", () => summonWindow());
