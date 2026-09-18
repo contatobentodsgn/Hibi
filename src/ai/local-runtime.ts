@@ -17,7 +17,10 @@ export type IntegrationActionBridge = Readonly<{
   prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => Promise<{ id: string; connectorId: string; kind: string; confirmationId: string }>;
   executeApproved: (input: { actionId: string; confirmationId: string }) => Promise<{ ok: boolean; remoteId?: string }>;
 }>;
-type Hooks = Readonly<{ onDataChanged?: () => void; onTaskStatusChanged?: (before: Task, after: Task) => void; onBlockCreated?: (block: ScheduleBlock) => void; onBlockDeleted?: (block: ScheduleBlock) => void; onFocusStarted?: () => void; onAudit?: (event: AiAuditEvent) => void; onUsage?: (event: AiRuntimeUsageEvent) => void; integrations?: IntegrationActionBridge }>;
+// Publicar uma reunião no calendário conectado. Devolve o nome do calendário, ou `null` quando nenhum
+// calendário bidirecional foi escolhido em Ajustes › Integrations.
+export type MeetingCalendarBridge = Readonly<{ publish: (block: ScheduleBlock) => Promise<string | null> }>;
+type Hooks = Readonly<{ calendar?: MeetingCalendarBridge; onDataChanged?: () => void; onTaskStatusChanged?: (before: Task, after: Task) => void; onBlockCreated?: (block: ScheduleBlock) => void; onBlockDeleted?: (block: ScheduleBlock) => void; onFocusStarted?: () => void; onAudit?: (event: AiAuditEvent) => void; onUsage?: (event: AiRuntimeUsageEvent) => void; integrations?: IntegrationActionBridge }>;
 const isText = (value: unknown, max = 240): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= max;
 // Aceita a hora de parede flutuante que o app grava e, vindo de um provedor externo, também um
 // instante com fuso — que `wallClock` normaliza antes de virar dado, para que nada com offset entre
@@ -45,6 +48,23 @@ export function createLocalToolRegistry(repository: LocalRepository, hooks: Hook
   register({ name: 'reminder.update', description: 'Update a local reminder title, date/time, or status.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)) && (args.title === undefined || isText(args.title)) && (args.at === undefined || isIsoDateTime(args.at)) && entityStatus(args.status), execute: (args) => { const reminder = repository.updateReminder(id(args), { ...(args.title === undefined ? {} : { title: title(args) }), ...(args.at === undefined ? {} : { schedule: { at: wallClock(args.at) } }), ...(args.status === undefined ? {} : { status: args.status as 'open' | 'completed' | 'paused' }) }); hooks.onDataChanged?.(); return { summary: `Lembrete atualizado: ${reminder.title}`, data: { id: reminder.id } }; } });
   register({ name: 'reminder.delete', description: 'Permanently delete a local reminder.', risk: 'destructive', inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)), execute: (args) => { const reminder = repository.listReminders().find((item) => item.id === id(args)); if (!reminder) throw new Error(`Reminder not found: ${id(args)}`); repository.deleteReminder(reminder.id); hooks.onDataChanged?.(); return { summary: `Lembrete excluído: ${reminder.title}`, data: { id: reminder.id } }; } });
   register({ name: 'block.create', description: 'Create a local schedule block.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['title', 'start', 'end', 'category'] }, validate: (args) => isText(args.title) && isIsoDateTime(args.start) && isIsoDateTime(args.end) && wallClock(args.start) < wallClock(args.end) && category(args.category), execute: (args) => { const input = { title: title(args), start: wallClock(args.start), end: wallClock(args.end), category: args.category as Category } satisfies Omit<ScheduleBlock, 'id'>; const validation = validateScheduleBlock({ ...input, id: 'assistant-preview' }, repository.listBlocks()); if (!validation.valid) throw new Error(validation.errors.join(' ')); const block = repository.createBlock(input); hooks.onDataChanged?.(); hooks.onBlockCreated?.(block); return { summary: `Bloco criado: ${block.title}`, data: { id: block.id } }; } });
+  // Uma reunião pedida ao Taby vai para os três lugares onde a pessoa a procura: a agenda do Hibi, as
+  // tarefas do dia (com prazo no horário) e o calendário conectado. É uma ação só, com uma confirmação.
+  register({ name: 'meeting.create', description: 'Create a meeting: schedule block, task due at its start and an event in the connected calendar.', risk: 'external', externallyVisible: true, inputSchema: { type: 'object', required: ['title', 'start', 'end'] }, validate: (args) => isText(args.title) && isIsoDateTime(args.start) && isIsoDateTime(args.end) && wallClock(args.start) < wallClock(args.end), execute: async (args) => {
+    const input = { title: title(args), start: wallClock(args.start), end: wallClock(args.end), category: 'work' as Category } satisfies Omit<ScheduleBlock, 'id'>;
+    const validation = validateScheduleBlock({ ...input, id: 'assistant-preview' }, repository.listBlocks());
+    if (!validation.valid) throw new Error(validation.errors.join(' '));
+    const block = repository.createBlock(input);
+    const minutes = Math.max(5, Math.round((Date.parse(input.end) - Date.parse(input.start)) / 60_000));
+    const task = repository.createTask({ title: input.title, durationMinutes: Math.min(480, minutes), category: 'work', folder: 'Bento', status: 'open', deadline: input.start });
+    hooks.onDataChanged?.();
+    hooks.onBlockCreated?.(block);
+    let calendar: string | null = null; let calendarFailed = false;
+    try { calendar = (await hooks.calendar?.publish(block)) ?? null; } catch { calendarFailed = true; }
+    const when = `${input.start.slice(8, 10)}/${input.start.slice(5, 7)} às ${input.start.slice(11, 16)}`;
+    const where = calendar ? `na agenda, nas tarefas e no calendário "${calendar}"` : `na agenda e nas tarefas${calendarFailed ? '; o calendário recusou o evento' : hooks.calendar ? '. Para ir também ao seu calendário, escolha um calendário bidirecional em Ajustes › Integrations' : ''}`;
+    return { summary: `Reunião marcada: ${input.title}, ${when}, ${where}.`, data: { blockId: block.id, taskId: task.id, calendar } };
+  } });
   register({ name: 'block.update', description: 'Update a local schedule block.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)) && (args.title === undefined || isText(args.title)) && (args.start === undefined || isIsoDateTime(args.start)) && (args.end === undefined || isIsoDateTime(args.end)) && (args.category === undefined || category(args.category)), execute: (args) => { const current = repository.listBlocks().find((item) => item.id === id(args)); if (!current) throw new Error(`Block not found: ${id(args)}`); const next = { ...current, ...(args.title === undefined ? {} : { title: title(args) }), ...(args.start === undefined ? {} : { start: wallClock(args.start) }), ...(args.end === undefined ? {} : { end: wallClock(args.end) }), ...(args.category === undefined ? {} : { category: args.category as Category }) }; if (next.start >= next.end) throw new Error('Block start must be before end.'); const validation = validateScheduleBlock(next, repository.listBlocks().filter((item) => item.id !== next.id)); if (!validation.valid) throw new Error(validation.errors.join(' ')); const block = repository.updateBlock(next.id, next); hooks.onDataChanged?.(); return { summary: `Bloco atualizado: ${block.title}`, data: { id: block.id } }; } });
   // Criar e apagar mudam os minutos planejados, então viram atividade; editar um bloco não é registrado.
   // listBlocks já devolve cópias: o bloco apagado continua legível para o registro.
@@ -74,8 +94,75 @@ const resolveEntity = (entities: readonly NamedEntity[], reference: string) => {
 
 const unclearTime = (said: string) => `Não entendi o horário "${said.trim()}". Diga, por exemplo, "às 15h" ou "às 3 da tarde".`;
 
+
+type Scheduling = Readonly<{ title: string; day: string; start: string; end: string; meeting: boolean }>;
+/**
+ * Um horário pedido vira reunião (agenda, tarefas e calendário) ou bloco. O horário ocupado é dito antes
+ * da confirmação: confirmar e só então ouvir "conflita" é perder um passo.
+ */
+function schedulingProposal(repository: LocalRepository, { title, day, start: startTime, end: endTime, meeting }: Scheduling): { toolCalls: AiToolCall[]; clarification: string | null; meetingReply: string | null } {
+  const start = `${day}T${startTime}:00`; const end = `${day}T${endTime}:00`;
+  const blocks = repository.listBlocks();
+  const taken = validateScheduleBlock({ id: 'proposed', title, start, end, category: 'work' }, blocks).conflicts.map((conflict) => blocks.find((block) => block.id === conflict.existingId)?.title).filter(Boolean);
+  if (taken.length) return { toolCalls: [], clarification: `Esse horário já está ocupado por ${taken.map((name) => `"${name}"`).join(' e ')}. Quer outro horário?`, meetingReply: null };
+  if (!meeting) return { toolCalls: [{ name: 'block.create', arguments: { title, start, end, category: 'work' } }], clarification: null, meetingReply: null };
+  return { toolCalls: [{ name: 'meeting.create', arguments: { title, start, end } }], clarification: null, meetingReply: `Marcar "${title}" em ${day.slice(8, 10)}/${day.slice(5, 7)}, das ${startTime} às ${endTime}, na agenda, nas tarefas e no calendário conectado?` };
+}
+
+/** O que o cérebro offline entendeu de um pedido, com dia e horário como a pessoa os disse. */
+export type SpokenIntent = Readonly<{ action: 'meeting' | 'task' | 'reminder' | 'note' | 'focus' | 'agenda' | 'none'; title: string; day: string; time: string; endTime: string }>;
+
+const capitalized = (text: string) => (text ? text[0]!.toLocaleUpperCase('pt-BR') + text.slice(1) : text);
+const plusHour = (time: string) => { const total = Math.min(23 * 60 + 59, Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5)) + 60); return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`; };
+
+/**
+ * A intenção extraída pelo cérebro offline vira a mesma proposta que um comando dito vira: dia e horário
+ * lidos pelo código (nunca pelo modelo), conflito conferido e confirmação antes de qualquer escrita.
+ * `null` quando não é um pedido de ação.
+ */
+export function intentProposal(intent: SpokenIntent, request: AiProviderRequest, repository: LocalRepository): AiProviderProposal | null {
+  const instant = new Date(request.currentTime);
+  const today = localDateKey(Number.isNaN(instant.getTime()) ? new Date() : instant);
+  // O modelo às vezes deixa no título o dia ou o horário que já vieram à parte ("tenho dentista na
+  // quinta"): o título fica só com o assunto.
+  const withoutWhen = [intent.day, intent.time, intent.endTime].map((part) => part.trim()).filter(Boolean)
+    .reduce((text, part) => text.replace(new RegExp(`\\s*(?:n[ao]s?\\s+|às?\\s+|as\\s+|de\\s+|para\\s+)?${part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'iu'), ''), intent.title);
+  const title = capitalized(withoutWhen.trim().replace(/^(?:tenho|preciso(?:\s+de)?|vou ter)\s+/iu, '').replace(/[.!?…]+$/u, '').trim().slice(0, 200));
+  const said = (value: string) => value.trim();
+  const dayOf = (): string | null => { if (!said(intent.day)) return today; const found = takeSpokenDay(said(intent.day), today); return found.days === null ? null : shiftDayKey(today, found.days); };
+  const done = (toolCalls: AiToolCall[], reply: string, clarification = false): AiProviderProposal => ({ reply, toolCalls, notchPresentation: null, providerMetadata: { model: 'local-tool-provider', ...(clarification ? { finishReason: 'needs-clarification' } : {}) } });
+  const ask = (text: string) => done([], text, true);
+  switch (intent.action) {
+    case 'meeting': {
+      const day = dayOf();
+      if (!day) return ask(`Não entendi o dia "${said(intent.day)}". Diga, por exemplo, "amanhã" ou "sexta".`);
+      if (!said(intent.time)) return ask('Para que horário? Diga, por exemplo, "amanhã às 15h" ou "hoje das 14h às 16h".');
+      const start = parseSpokenTime(intent.time);
+      if (!start) return ask(unclearTime(intent.time));
+      const end = said(intent.endTime) ? parseSpokenTime(intent.endTime) : plusHour(start);
+      if (!end || end <= start) return ask(unclearTime(intent.endTime));
+      const scheduled = schedulingProposal(repository, { title: title || 'Reunião', day, start, end, meeting: true });
+      return scheduled.clarification ? ask(scheduled.clarification) : done(scheduled.toolCalls, scheduled.meetingReply!);
+    }
+    case 'task': return title ? done([{ name: 'task.create', arguments: { title, durationMinutes: 60 } }], `Criar a tarefa "${title}"?`) : null;
+    case 'reminder': {
+      if (!title) return null;
+      const day = dayOf();
+      if (!day) return ask(`Não entendi o dia "${said(intent.day)}". Diga, por exemplo, "amanhã" ou "sexta".`);
+      if (!said(intent.time)) return ask(`Para que horário é o lembrete "${title}"?`);
+      const time = parseSpokenTime(intent.time);
+      if (!time) return ask(unclearTime(intent.time));
+      return done([{ name: 'reminder.create', arguments: { title, at: `${day}T${time}:00` } }], `Lembrar de "${title}" em ${day.slice(8, 10)}/${day.slice(5, 7)} às ${time}?`);
+    }
+    case 'note': return title ? done([{ name: 'note.create', arguments: { title, content: title } }], `Anotar "${title}"?`) : null;
+    case 'focus': return done([{ name: 'focus.start', arguments: {} }], 'Começar uma sessão de foco?');
+    case 'agenda': return done([{ name: 'search.schedule', arguments: {} }], 'Olhando a sua agenda.');
+    default: return null;
+  }
+}
+
 function localProposal(request: AiProviderRequest, repository: LocalRepository): AiProviderProposal {
-  const message = normalizeSpokenCommand(request.message); const lower = message.toLocaleLowerCase('pt-BR'); let toolCalls: AiToolCall[] = []; let clarification: string | null = null;
+  const message = normalizeSpokenCommand(request.message); const lower = message.toLocaleLowerCase('pt-BR'); let toolCalls: AiToolCall[] = []; let clarification: string | null = null; let meetingReply: string | null = null;
   // `currentTime` chega como instante em UTC (`toISOString`), mas "das 22:00 às 23:00" é o relógio
   // de quem pediu. Fatiar o texto UTC dava o dia e a hora de Greenwich: a leste e a oeste o bloco
   // nascia no dia errado. Dia de calendário sai sempre de `date-context`, nunca de uma fatia de ISO.
@@ -86,7 +173,7 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
   const task = match(message, /^(?:crie|criar|adicione|adicionar)\s+(?:uma?\s+)?tarefa\s*:?[\s-]*(.+)$/i);
   const note = match(message, /^(?:crie|criar|adicione|adicionar)\s+(?:uma?\s+)?nota\s*:?[\s-]*(.+)$/i);
   // Os horários chegam como a ditação escreve ("15h", "3 da tarde") e são lidos por `parseSpokenTime`.
-  const schedule = parseScheduleRequest(message);
+  const schedule = parseScheduleRequest(message, today);
   const reminder = message.match(/^(?:crie|criar|adicione|adicionar)\s+(?:um\s+)?lembrete\s*:?[\s-]*(.+?)(?:\s+(?:para\s+)?(?:às?|as)\s+(.+))?$/iu);
   const mutation = message.match(/^(?:edite|editar|renomeie|renomear)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+?)\s+(?:para|como)\s+(.+)$/i);
   const removal = message.match(/^(?:exclua|excluir|apague|apagar|remova|remover)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+)$/i);
@@ -102,21 +189,13 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
   else if (note) toolCalls = [{ name: 'note.create', arguments: { title: note, content: note } }];
   else if (schedule) {
     if (schedule.kind === 'unclear') clarification = schedule.said ? unclearTime(schedule.said) : 'Para que horário? Diga, por exemplo, "amanhã às 15h" ou "hoje das 14h às 16h".';
-    else {
-      const day = shiftDayKey(today, schedule.days);
-      const start = `${day}T${schedule.start}:00`; const end = `${day}T${schedule.end}:00`;
-      // O horário ocupado é dito antes da confirmação: confirmar e só então ouvir "conflita" é perder um passo.
-      const blocks = repository.listBlocks();
-      const taken = validateScheduleBlock({ id: 'proposed', title: schedule.title, start, end, category: 'work' }, blocks).conflicts.map((conflict) => blocks.find((block) => block.id === conflict.existingId)?.title).filter(Boolean);
-      if (taken.length) clarification = `Esse horário já está ocupado por ${taken.map((title) => `"${title}"`).join(' e ')}. Quer outro horário?`;
-      else toolCalls = [{ name: 'block.create', arguments: { title: schedule.title, start, end, category: 'work' } }];
-    }
+    else ({ toolCalls, clarification, meetingReply } = schedulingProposal(repository, { title: schedule.title, day: shiftDayKey(today, schedule.days), start: schedule.start, end: schedule.end, meeting: schedule.meeting }));
   }
   else if (reminder) {
     // Um horário dito e não entendido nunca vira "agora": o lembrete tocaria na hora errada.
     // "amanhã" pode vir no título ("ligar amanhã às 15h") ou no horário ("às 15h de amanhã").
-    const inTitle = takeSpokenDay(reminder[1]!);
-    const inTime = reminder[2] ? takeSpokenDay(reminder[2]) : { days: null, rest: '' };
+    const inTitle = takeSpokenDay(reminder[1]!, today);
+    const inTime = reminder[2] ? takeSpokenDay(reminder[2], today) : { days: null, rest: '' };
     const days = inTitle.days ?? inTime.days ?? 0;
     const time = reminder[2] ? parseSpokenTime(inTime.rest) : nowTime;
     if (time) toolCalls = [{ name: 'reminder.create', arguments: { title: inTitle.rest || reminder[1]!.trim(), at: `${shiftDayKey(today, days)}T${time}:00` } }];
@@ -128,12 +207,12 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
   else if (/(agenda|calend|hor.rio|schedule|today|hoje)/u.test(lower)) toolCalls = [{ name: 'search.schedule', arguments: {} }];
   else if (/(lembrete|remind)/u.test(lower)) toolCalls = [{ name: 'search.reminders', arguments: {} }];
   else if (/(taref|task|pend.ncia|todo)/u.test(lower)) toolCalls = [{ name: 'search.tasks', arguments: {} }];
-  const reply = clarification ?? (toolCalls.length ? 'Preparei uma ação local para sua revisão.' : 'Posso ajudar com tarefas, agenda, lembretes, notas e foco locais.');
+  const reply = clarification ?? meetingReply ?? (toolCalls.length ? 'Preparei uma ação local para sua revisão.' : 'Posso ajudar com tarefas, agenda, lembretes, notas e foco locais.');
   // A pergunta de volta é a resposta certa: marcada, para o cérebro offline não responder por cima dela.
   return { reply, toolCalls, notchPresentation: null, providerMetadata: { model: 'local-tool-provider', ...(clarification ? { finishReason: 'needs-clarification' } : {}) } };
 }
 
-export class LocalToolProvider implements AiProvider { readonly id = 'local-tools'; readonly label = 'Hibi local tools'; constructor(private readonly repository: LocalRepository) {} async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> { if (signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError'); return localProposal(request, this.repository); } }
+export class LocalToolProvider implements AiProvider { readonly id = 'local-tools'; readonly label = 'Hibi local tools'; constructor(private readonly repository: LocalRepository) {} fromIntent(intent: SpokenIntent, request: AiProviderRequest): AiProviderProposal | null { return intentProposal(intent, request, this.repository); } async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> { if (signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError'); return localProposal(request, this.repository); } }
 
 export function createLocalHibiRuntime(repository: LocalRepository, hooks: Hooks = {}, provider: AiProvider = new LocalToolProvider(repository), fallbackProvider: AiProvider = new HeuristicAiProvider(), fallbackPolicy: AiFallbackPolicy | (() => AiFallbackPolicy) = 'automatic'): AiTurnRuntime {
   const registry = createLocalToolRegistry(repository, hooks);

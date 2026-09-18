@@ -1,8 +1,9 @@
 import type { AiProvider, AiProviderProposal, AiProviderRequest } from './contracts'
 import { createCorrelationId } from './electron-provider'
+import type { SpokenIntent } from './local-runtime'
 
 type OfflineBrainBridge = {
-  runLocalModel?: (input: { requestId: string; prompt: string }) => Promise<{ requestId: string | null; status: 'complete' | 'cancelled' | 'unavailable'; text: string }>
+  runLocalModel?: (input: { requestId: string; prompt: string; mode?: 'chat' | 'intent' }) => Promise<{ requestId: string | null; status: 'complete' | 'cancelled' | 'unavailable'; text: string }>
   cancelLocalModel?: (requestId: string) => Promise<boolean>
 }
 
@@ -72,6 +73,51 @@ export function honestOfflineBrainReply(reply: string, language: 'pt' | 'en'): s
     : 'I have not done anything yet: here I can only talk. To make me act, say for example "marque uma reunião amanhã às 15h" or "crie uma tarefa revisar contrato".'
 }
 
+// Parece um pedido de ação? Só então o modelo é consultado para extrair a intenção: uma conversa comum não
+// paga uma segunda rodada do modelo.
+const REQUEST_HINT = /\b(?:marc|agend|reserv|cri[ae]|adicion|anot|lembr|avis|coloc|bot[ae]|p[õo]e|ponha|preciso|tenho que|quero|inici|comec|começ)|reuni|tarefa|compromisso|consulta|evento|lembrete|amanh[ãa]|hoje|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|\b\d{1,2}\s*(?:h\b|:\d{2}|horas?)/iu
+
+export const looksLikeRequest = (message: string): boolean => REQUEST_HINT.test(message)
+
+export function buildIntentPrompt(message: string): string {
+  return [
+    'Leia o pedido e responda só com JSON.',
+    'action: "meeting" (reunião, compromisso, consulta ou evento com horário), "task" (algo a fazer), "reminder" (lembrar ou avisar de algo), "note" (anotar), "focus" (começar foco), "agenda" (perguntar o que tem na agenda), "none" (conversa, pergunta ou outra coisa).',
+    'Pedir para lembrar ou avisar ("me lembra", "lembra eu", "me avisa") é sempre "reminder", mesmo com horário.',
+    'title: o assunto, curto, sem o dia, sem o horário e sem "tenho" ou "preciso".',
+    'day: o dia exatamente como foi dito (hoje, amanhã, sexta, dia 25) ou "".',
+    'time: o horário exatamente como foi dito (9h, 3 da tarde, 9h00 da manhã) ou "".',
+    'endTime: o horário de fim, se foi dito, ou "".',
+    'Pedido: preciso falar com o contador sexta às 14h',
+    '{"action":"meeting","title":"falar com o contador","day":"sexta","time":"14h","endTime":""}',
+    'Pedido: bota aí pra eu comprar pão',
+    '{"action":"task","title":"comprar pão","day":"","time":"","endTime":""}',
+    'Pedido: me avisa de tomar remédio às 8 da noite',
+    '{"action":"reminder","title":"tomar remédio","day":"","time":"8 da noite","endTime":""}',
+    'Pedido: lembra eu de pagar o aluguel amanhã às 9h',
+    '{"action":"reminder","title":"pagar o aluguel","day":"amanhã","time":"9h","endTime":""}',
+    'Pedido: tenho consulta no médico na terça às 16h',
+    '{"action":"meeting","title":"consulta no médico","day":"terça","time":"16h","endTime":""}',
+    'Pedido: tudo bem com você?',
+    '{"action":"none","title":"","day":"","time":"","endTime":""}',
+    `Pedido: ${clip(message, 600)}`,
+    '/no_think',
+  ].join('\n')
+}
+
+const INTENT_ACTIONS = new Set(['meeting', 'task', 'reminder', 'note', 'focus', 'agenda', 'none'])
+/** O JSON do modo intenção, conferido campo a campo; qualquer coisa fora do formato é `null`. */
+export function parseIntent(text: string): SpokenIntent | null {
+  try {
+    const value = JSON.parse(text.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim()) as Record<string, unknown>
+    if (!value || typeof value !== 'object' || !INTENT_ACTIONS.has(String(value.action))) return null
+    const field = (key: string) => (typeof value[key] === 'string' ? (value[key] as string).slice(0, 200) : '')
+    return { action: value.action as SpokenIntent['action'], title: field('title'), day: field('day'), time: field('time'), endTime: field('endTime') }
+  } catch { return null }
+}
+
+type IntentTools = AiProvider & { fromIntent?: (intent: SpokenIntent, request: AiProviderRequest) => AiProviderProposal | null }
+
 function abortError(): DOMException {
   return new DOMException('The AI turn was cancelled.', 'AbortError')
 }
@@ -85,7 +131,23 @@ export class OfflineBrainProvider implements AiProvider {
   readonly id = 'offline-brain'
   readonly label = 'Hibi offline brain'
 
-  constructor(private readonly bridge: OfflineBrainBridge, private readonly tools: AiProvider) {}
+  private async understand(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal | null> {
+    if (!this.tools.fromIntent || !this.bridge.runLocalModel || !looksLikeRequest(request.message)) return null
+    const requestId = createCorrelationId().slice(0, 80)
+    const cancel = () => { void this.bridge.cancelLocalModel?.(requestId) }
+    signal.addEventListener('abort', cancel, { once: true })
+    try {
+      const result = await this.bridge.runLocalModel({ requestId, prompt: buildIntentPrompt(request.message), mode: 'intent' }).catch(() => null)
+      if (signal.aborted) throw abortError()
+      const intent = result?.status === 'complete' ? parseIntent(result.text) : null
+      const proposal = intent ? this.tools.fromIntent(intent, request) : null
+      return proposal ? { ...proposal, providerMetadata: { ...proposal.providerMetadata, providerId: this.id, provider: this.label, model: MODEL } } : null
+    } finally {
+      signal.removeEventListener('abort', cancel)
+    }
+  }
+
+  constructor(private readonly bridge: OfflineBrainBridge, private readonly tools: IntentTools) {}
 
   async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> {
     const proposal = await this.tools.generate(request, signal)
@@ -97,6 +159,10 @@ export class OfflineBrainProvider implements AiProvider {
     // responderia por cima dela com uma conversa.
     if (toolsProposal.toolCalls.length || toolsProposal.providerMetadata?.finishReason === 'needs-clarification' || !this.bridge.runLocalModel) return toolsProposal
     if (signal.aborted) throw abortError()
+    // Um pedido que as frases fixas não reconheceram ("preciso falar com o contador sexta às 14h") passa
+    // pelo modo intenção: o modelo extrai ação, assunto, dia e horário, e o código faz o resto.
+    const understood = await this.understand(request, signal)
+    if (understood) return understood
     const requestId = createCorrelationId().slice(0, 80)
     const cancel = () => { void this.bridge.cancelLocalModel?.(requestId) }
     signal.addEventListener('abort', cancel, { once: true })

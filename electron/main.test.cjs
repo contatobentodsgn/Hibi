@@ -1083,6 +1083,15 @@ test("uma apresentação com texto vira mascote no notch e texto na barra", asyn
   assert.deepEqual(barra.sent.at(-1), ["hibi:bar:content", { requestId: "r-1", mode: "reply", kind: "result", text: "Tarefa criada: revisar contrato", actions: [] }]);
 });
 
+test("uma resposta que é pergunta deixa o gato curioso, não feliz", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("hibi:notch:show", { requestId: "q-1", kind: "result", text: "Para que horário?", actions: [] });
+  assert.match(harness.notchManager.calls.at(-1)[1].animationPath, /mascot\/idle_curious\.mp4$/);
+  await harness.invoke("hibi:notch:show", { requestId: "q-2", kind: "result", text: "Reunião marcada.", actions: [] });
+  assert.match(harness.notchManager.calls.at(-1)[1].animationPath, /mascot\/happy_[1-4]\.mp4$/);
+});
+
 test("os canais da barra só ouvem a janela dela, e o texto dela vira pedido na janela principal", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());

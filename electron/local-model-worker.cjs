@@ -1,3 +1,5 @@
+const { INTENT_SCHEMA, modeOf } = require('./local-model-intent.cjs');
+
 const MAX_PROMPT_CHARS = 12_000;
 const MAX_OUTPUT_CHARS = 8_000;
 
@@ -11,7 +13,7 @@ function createLocalModelWorker({ engine } = {}) {
   let queue = Promise.resolve();
   if (!engine || typeof engine.load !== 'function' || typeof engine.complete !== 'function') throw new Error('Local model engine is unavailable.');
 
-  const answer = async ({ requestId, prompt }) => {
+  const answer = async ({ requestId, prompt, mode }) => {
     waiting.delete(requestId);
     // Cancelada ainda na fila: nem chega ao motor.
     if (cancelledWhileWaiting.delete(requestId)) return { requestId, status: 'cancelled', text: '' };
@@ -21,7 +23,9 @@ function createLocalModelWorker({ engine } = {}) {
     try {
       // O sinal chega ao motor: cancelar **interrompe** a geração, em vez de só ignorar o que ainda
       // viria. Sem ele, uma pergunta cancelada seguia gerando até 512 tokens, e a seguinte esperava.
-      for await (const delta of engine.complete(prompt, { signal: controller.signal })) {
+      // No modo intenção, a saída é presa ao JSON do schema fixo do processo principal.
+      const options = { signal: controller.signal, ...(mode === 'intent' ? { jsonSchema: INTENT_SCHEMA } : {}) };
+      for await (const delta of engine.complete(prompt, options)) {
         if (controller.signal.aborted) break;
         if (typeof delta !== 'string') continue;
         output = (output + delta).slice(0, MAX_OUTPUT_CHARS);
@@ -34,12 +38,12 @@ function createLocalModelWorker({ engine } = {}) {
 
   return {
     async load(modelPath) { await engine.load(modelPath); loaded = true; return { status: 'ready' }; },
-    prompt({ requestId, prompt }) {
+    prompt({ requestId, prompt, mode }) {
       if (!loaded) return Promise.reject(new Error('Local model is not loaded.'));
       if (typeof requestId !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(requestId)) return Promise.reject(new Error('Invalid local model request id.'));
       if (typeof prompt !== 'string' || prompt.length === 0 || prompt.length > MAX_PROMPT_CHARS) return Promise.reject(new Error('Local model prompt is invalid.'));
       waiting.add(requestId);
-      const next = queue.then(() => answer({ requestId, prompt }));
+      const next = queue.then(() => answer({ requestId, prompt, mode: modeOf(mode) }));
       queue = next.catch(() => undefined);
       return next;
     },

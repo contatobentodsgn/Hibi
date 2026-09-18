@@ -109,7 +109,8 @@ export function useAssistantTurn({ runtime, onEvent, onCompanionEvent, onCompani
       const result = await runtime.runTurn({ message: trimmed, surface: 'desktop', requestId, useLocalFallback, now: new Date() });
       if (activeRequestId.current !== requestId) return;
       if (result.confirmation) {
-        const text = `${result.reply}\n\nConfirme para continuar.`;
+        // Uma resposta que já é a pergunta ("Marcar a reunião…?") não precisa do lembrete de confirmar.
+        const text = result.reply.trim().endsWith('?') ? result.reply.trim() : `${result.reply}\n\nConfirme para continuar.`;
         dispatch({ type: 'turn.confirmation', requestId, confirmation: result.confirmation, text, provenance: provenanceOf(result) });
         onCompanionEvent?.(companionEventFor('confirmation', result.confirmation.id, text, Date.now()));
         onEvent('assistant-action', result.confirmation.calls.map((call) => call.name).join(', '), 'confirmation-required');
