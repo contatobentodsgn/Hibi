@@ -283,8 +283,10 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
     activePresentation: null,
     activeInteractive: false,
     diagnostics: { available: true, visible: false, displayId: 1, host: "electron" },
-    show(presentation) { this.calls.push(["show", presentation]); this.shown = presentation; return { degraded: true, requestId: presentation.requestId, host: "electron" }; },
-    hide(requestId) { this.calls.push(["hide", requestId]); return requestId === this.shown?.requestId; },
+    // Como o gerenciador real: uma apresentação na overlay Electron fica ativa até ser escondida; o
+    // mascote no painel nativo não conta como apresentação ativa.
+    show(presentation) { this.calls.push(["show", presentation]); this.shown = presentation; this.activePresentation = presentation.host === 'native' ? null : presentation; return { degraded: true, requestId: presentation.requestId, host: "electron" }; },
+    hide(requestId) { this.calls.push(["hide", requestId]); const hidden = requestId === this.shown?.requestId; if (hidden) { this.shown = null; this.activePresentation = null; } return hidden; },
     resolveAction(requestId, actionId) { this.calls.push(["resolveAction", requestId, actionId]); return true; },
     setPreferredDisplay(displayId) { this.calls.push(["setPreferredDisplay", displayId]); this.preferredDisplay = displayId; },
     setSize(size) { this.calls.push(["setSize", size]); this.size = size; return size; },
@@ -615,6 +617,45 @@ test("a atualização consegue fechar a janela para instalar, em vez de só esco
   const evento = janela.close();
 
   assert.equal(evento.defaultPrevented, false);
+});
+
+// A sincronização do Notion fala com o notch por fora do controlador do companion: um cartão dela não
+// pode apagar uma confirmação que espera um clique.
+test("nenhum cartão pedido pelo renderer cobre uma confirmação no ar", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const confirmacao = { requestId: "confirmar", kind: "confirmation", text: "Criar a tarefa?", actions: [{ id: "confirm", label: "Confirmar" }, { id: "cancel", label: "Cancelar" }], interaction: "capture" };
+
+  await harness.invoke("hibi:notch:show", confirmacao);
+  const passivo = await harness.invoke("hibi:notch:show", { requestId: "notion", kind: "result", text: "Sincronizado", actions: [], interaction: "passthrough" });
+  const outra = await harness.invoke("hibi:notch:show", { ...confirmacao, requestId: "notion-confirmar" });
+
+  assert.deepEqual(passivo, { deferred: true, requestId: "confirmar" });
+  assert.deepEqual(outra, { deferred: true, requestId: "confirmar" });
+  assert.equal((await harness.invoke("hibi:notch:current"))?.requestId, "confirmar");
+});
+
+test("um cartão sem botões continua podendo ser trocado: só a confirmação espera", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("hibi:notch:show", { requestId: "resposta", kind: "result", text: "Use a técnica de 25 minutos.", actions: [], interaction: "passthrough", host: "electron" });
+
+  const seguinte = await harness.invoke("hibi:notch:show", { requestId: "lembrete", kind: "reminder", text: "Beber água", actions: [], interaction: "passthrough" });
+
+  assert.equal(seguinte.deferred, undefined);
+  assert.equal(seguinte.requestId, "lembrete");
+});
+
+test("respondida a confirmação, o notch volta a aceitar cartões do renderer", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("hibi:notch:show", { requestId: "confirmar", kind: "confirmation", text: "Criar?", actions: [{ id: "confirm", label: "Confirmar" }], interaction: "capture" });
+  await harness.invoke("hibi:notch:hide", "confirmar");
+
+  const depois = await harness.invoke("hibi:notch:show", { requestId: "notion", kind: "result", text: "Sincronizado", actions: [], interaction: "passthrough" });
+
+  assert.equal(depois.deferred, undefined);
+  assert.equal(depois.requestId, "notion");
 });
 
 test("registra exatamente os canais IPC esperados, uma única vez cada", async (t) => {

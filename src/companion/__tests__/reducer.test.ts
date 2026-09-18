@@ -84,7 +84,10 @@ describe('companion reducer', () => {
     const check = reduceCompanion(initialCompanionState, { type: 'focus.idle_check', requestId: 'focus-idle-1', text: 'Você ainda está aí?', actions, nowMs: 0, expiresInMs: 60_000 });
     expect(check).toMatchObject({ requestId: 'focus-idle-1', kind: 'confirmation', actions, interaction: 'capture', expiresAtMs: 60_000 });
 
-    const resume = reduceCompanion(check, { type: 'focus.resume_prompt', requestId: 'focus-resume-1', pauseReason: 'away', text: 'Retomar?', actions, nowMs: 10 });
+    // Como a tela de Foco faz (`replacePrompt`): dispensa a pergunta anterior e só então oferece retomar.
+    // Uma confirmação pendente não é coberta por outra; ela sai primeiro.
+    const dispensada = reduceCompanion(check, { type: 'presentation.dismissed', requestId: 'focus-idle-1' });
+    const resume = reduceCompanion(dispensada, { type: 'focus.resume_prompt', requestId: 'focus-resume-1', pauseReason: 'away', text: 'Retomar?', actions, nowMs: 10 });
     expect(resume).toMatchObject({ requestId: 'focus-resume-1', kind: 'confirmation', interaction: 'capture' });
   });
 
@@ -129,5 +132,39 @@ describe('companion reducer', () => {
       type: 'ai.result', requestId: 'turn-a', text: 'Ready', nowMs: 0,
     });
     expect(reduceCompanion(result, { type: 'presentation.dismissed', requestId: 'turn-a' })).toEqual(initialCompanionState);
+  });
+});
+
+// Um cartão por cima de uma confirmação pendente a apagava do notch, e o pedido ficava sem lugar
+// para ser respondido.
+describe('confirmação pendente', () => {
+  const pendente = reduceCompanion(initialCompanionState, {
+    type: 'confirmation.requested', requestId: 'confirmar-tarefa', text: 'Criar a tarefa?', nowMs: 100, expiresInMs: 60_000,
+    actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }],
+  });
+
+  it('um erro de mesma prioridade não toma o lugar dela', () => {
+    const depois = reduceCompanion(pendente, { type: 'error.raised', requestId: 'erro-form', text: 'Título obrigatório', nowMs: 200, expiresInMs: 5_000 });
+
+    expect(depois.requestId).toBe('confirmar-tarefa');
+  });
+
+  it('a pergunta de ausência do foco e uma resposta também esperam', () => {
+    expect(reduceCompanion(pendente, { type: 'focus.idle_check', requestId: 'foco', text: 'Ainda está aí?', nowMs: 200, expiresInMs: 30_000, actions: [] } as never).requestId).toBe('confirmar-tarefa');
+    expect(reduceCompanion(pendente, { type: 'ai.result', requestId: 'resposta', text: 'Feito.', nowMs: 200, expiresInMs: 8_000 }).requestId).toBe('confirmar-tarefa');
+  });
+
+  it('nem outra confirmação toma o lugar; depois de dispensada, o resto volta a aparecer', () => {
+    const outra = reduceCompanion(pendente, { type: 'confirmation.requested', requestId: 'outra', text: 'Apagar?', nowMs: 200, expiresInMs: 60_000, actions: [{ id: 'confirm', label: 'Confirmar' }] });
+    expect(outra.requestId).toBe('confirmar-tarefa');
+
+    const dispensada = reduceCompanion(pendente, { type: 'presentation.dismissed', requestId: 'confirmar-tarefa' });
+    expect(reduceCompanion(dispensada, { type: 'ai.result', requestId: 'resposta', text: 'Feito.', nowMs: 300, expiresInMs: 8_000 }).requestId).toBe('resposta');
+  });
+
+  it('expirada, ela deixa de bloquear', () => {
+    const expirou = reduceCompanion(pendente, { type: 'time.elapsed', nowMs: 100 + 60_000 });
+
+    expect(reduceCompanion(expirou, { type: 'ai.result', requestId: 'resposta', text: 'Feito.', nowMs: 60_200, expiresInMs: 8_000 }).requestId).toBe('resposta');
   });
 });

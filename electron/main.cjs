@@ -473,7 +473,17 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:webhook:start', async () => { await webhookService.start(); return webhookService.status(); });
   ipcMain.handle('hibi:webhook:stop', async () => { await webhookService.stop(); return webhookService.status(); });
   ipcMain.handle('hibi:webhook:status', () => webhookService.status());
-  ipcMain.handle('hibi:notch:show', (_event, presentation) => { if (!isRendererPresentationAllowed(presentation)) throw new Error('Invalid companion presentation.'); return notchWindow.show(presentation); });
+  ipcMain.handle('hibi:notch:show', (_event, presentation) => {
+    if (!isRendererPresentationAllowed(presentation)) throw new Error('Invalid companion presentation.');
+    // Uma confirmação no ar espera um clique. Nenhum outro cartão pedido pelo renderer a cobre —
+    // inclusive de quem fala com o notch por fora do controlador do companion, como a sincronização
+    // do Notion. Senão a confirmação sumia e o pedido ficava pendente sem cartão.
+    // Confirmações sempre vão para a overlay Electron (o painel nativo recusa botões), que é o que
+    // `activePresentation` descreve.
+    const active = notchWindow.activePresentation;
+    if (active && active.actions.length > 0 && active.requestId !== presentation.requestId) return { deferred: true, requestId: active.requestId };
+    return notchWindow.show(presentation);
+  });
   ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
   ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));
   ipcMain.handle('hibi:notch:current', () => notchWindow.activePresentation ?? null);
