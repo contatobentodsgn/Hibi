@@ -87,6 +87,14 @@ export function useAssistantTurn({ runtime, onEvent, onCompanionEvent, onCompani
   const ask = useCallback(async (message: string, options: { useLocalFallback?: boolean } = {}) => {
     const trimmed = message.trim();
     if (!trimmed || stateRef.current.status === 'streaming') return;
+    // Perguntar de novo com uma confirmação pendente a descarta — nada dela é executado. Antes o cartão
+    // ficava no notch e o clique em "Confirmar" era jogado fora em silêncio: a pessoa achava que tinha
+    // confirmado. Agora o cartão sai, e o registro diz que a ação ficou para trás.
+    const pending = stateRef.current;
+    if (pending.status === 'confirmation') {
+      onCompanionEvent?.({ type: 'presentation.dismissed', requestId: pending.confirmation.id });
+      onEvent('assistant-action', pending.confirmation.calls.map((call) => call.name).join(', '), 'superseded');
+    }
     const useLocalFallback = options.useLocalFallback === true;
     const requestId = assistantRequestId();
     activeRequestId.current = requestId;
