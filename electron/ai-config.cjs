@@ -57,12 +57,28 @@ function createAiConfiguration({ filePath, keychain = createMacKeychain() }) {
     fs.writeFileSync(filePath, JSON.stringify(config), { encoding: 'utf8', mode: 0o600 });
     fs.chmodSync(filePath, 0o600);
   };
+  /**
+   * A chave guardada pertence ao servidor para o qual foi emitida. Trocar o endereço para outro
+   * servidor sem colar chave nova mandaria a chave antiga — a do Groq, por exemplo — para o servidor
+   * novo: primeiro no teste de conexão, depois em toda pergunta. Mesmo servidor com caminho diferente
+   * (`/v1` para `/openai/v1`) continua usando a chave.
+   */
+  const originOf = (endpoint) => { try { return new URL(endpoint).origin; } catch { return null; } };
+  const reusesKeyForAnotherServer = async (config, value) => {
+    if (typeof value.apiKey === 'string' && value.apiKey.trim()) return false;
+    const saved = read();
+    if (saved.provider === config.provider && originOf(saved.endpoint) === originOf(config.endpoint)) return false;
+    return Boolean(await keychain.get(config.provider));
+  };
+  const NEEDS_OWN_KEY = 'A new endpoint needs its own API key. Paste the key issued for this server.';
+
   return {
     filePath,
     getStatus: async () => redact(read()),
     save: async (value) => {
       const config = validateConfig(value);
       if (config.provider === 'local' && value.apiKey) throw new Error('An API key requires an external provider.');
+      if (config.provider !== 'local' && await reusesKeyForAnotherServer(config, value)) throw new Error(NEEDS_OWN_KEY);
       if (value.apiKey !== undefined && value.apiKey !== '') await keychain.set(config.provider, value.apiKey);
       write(config);
       return redact(config);
@@ -83,6 +99,7 @@ function createAiConfiguration({ filePath, keychain = createMacKeychain() }) {
     getCandidateRuntimeConfig: async (value) => {
       const config = validateConfig(value);
       if (config.provider === 'local') return {};
+      if (await reusesKeyForAnotherServer(config, value)) throw new Error(NEEDS_OWN_KEY);
       const apiKey = typeof value.apiKey === 'string' && value.apiKey.trim() ? value.apiKey : await keychain.get(config.provider);
       return { ...config, apiKey };
     },

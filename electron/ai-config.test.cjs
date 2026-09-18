@@ -60,3 +60,53 @@ test('saves only after a candidate connection succeeds', async () => {
   assert.equal(candidate.model, 'gpt-test');
   assert.equal(status.hasApiKey, true);
 });
+
+// A chave guardada pertence ao servidor para o qual foi emitida.
+function keychainCom(chave) {
+  const guardadas = new Map(chave ? [['openai-compatible', chave]] : []);
+  return {
+    set: async (conta, valor) => { guardadas.set(conta, valor); },
+    get: async (conta) => guardadas.get(conta) ?? null,
+    has: async (conta) => guardadas.has(conta),
+    remove: async (conta) => guardadas.delete(conta),
+  };
+}
+const groq = { provider: 'openai-compatible', endpoint: 'https://api.groq.com/openai/v1/chat/completions', model: 'openai/gpt-oss-120b' };
+
+test('trocar para outro servidor sem colar chave não leva a chave antiga para ele, nem no teste nem ao salvar', async () => {
+  const config = createAiConfiguration({ filePath: tempFile(), keychain: keychainCom(null) });
+  await config.save({ ...groq, apiKey: 'chave-do-groq' });
+  const outro = { ...groq, endpoint: 'https://proxy.terceiro.example/v1/chat/completions' };
+  const chamadas = [];
+
+  await assert.rejects(() => config.getCandidateRuntimeConfig(outro), /needs its own API key/);
+  await assert.rejects(() => verifyAndSaveAiConfiguration({ configuration: config, value: outro, verifyCandidate: async (candidate) => chamadas.push(candidate) }), /needs its own API key/);
+  await assert.rejects(() => config.save(outro), /needs its own API key/);
+
+  assert.deepEqual(chamadas, [], 'o servidor novo nunca pode receber a chave antiga');
+  assert.equal((await config.getRuntimeConfig()).endpoint, groq.endpoint, 'a configuração que funcionava continua valendo');
+});
+
+test('o mesmo servidor com outro caminho continua usando a chave guardada', async () => {
+  const config = createAiConfiguration({ filePath: tempFile(), keychain: keychainCom(null) });
+  await config.save({ ...groq, apiKey: 'chave-do-groq' });
+
+  const candidato = await config.getCandidateRuntimeConfig({ ...groq, endpoint: 'https://api.groq.com/v1/chat/completions' });
+
+  assert.equal(candidato.apiKey, 'chave-do-groq');
+});
+
+test('um servidor novo com a chave dele colada funciona normalmente', async () => {
+  const config = createAiConfiguration({ filePath: tempFile(), keychain: keychainCom(null) });
+  await config.save({ ...groq, apiKey: 'chave-do-groq' });
+  const outro = { ...groq, endpoint: 'https://api.outro.example/v1/chat/completions', apiKey: 'chave-do-outro' };
+
+  assert.equal((await config.getCandidateRuntimeConfig(outro)).apiKey, 'chave-do-outro');
+  assert.equal((await config.save(outro)).endpoint, outro.endpoint);
+});
+
+test('sem chave nenhuma guardada, configurar um servidor novo sem chave não é bloqueado', async () => {
+  const config = createAiConfiguration({ filePath: tempFile(), keychain: keychainCom(null) });
+
+  assert.equal((await config.save(groq)).hasApiKey, false);
+});
