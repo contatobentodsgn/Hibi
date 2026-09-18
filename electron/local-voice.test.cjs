@@ -41,3 +41,16 @@ test('um idioma desconhecido volta ao padrão, e é o normalizado que chega ao a
 
   assert.deepEqual(pedidos, ['en-US', 'pt-BR']);
 });
+
+test('o motivo que o helper deu atravessa o serviço até a tela', async () => {
+  const recusa = Object.assign(new Error('Speech recognition permission denied'), { reason: 'permission' });
+  const service = createLocalVoiceService({ adapter: { listen: async () => { throw recusa; } } });
+
+  assert.deepEqual(await service.listen(), { status: 'error', locale: 'pt-BR', error: 'Speech recognition permission denied', reason: 'permission' });
+});
+
+test('uma escuta que termina bem volta a "pronto", sem erro nem motivo', async () => {
+  const service = createLocalVoiceService({ adapter: { listen: async () => undefined } });
+
+  assert.deepEqual(await service.listen(), { status: 'ready', locale: 'pt-BR', error: null, reason: null });
+});

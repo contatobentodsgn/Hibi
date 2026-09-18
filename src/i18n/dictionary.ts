@@ -337,6 +337,10 @@ const pt = {
   'taby.voice.start': 'Falar',
   'taby.voice.stop': 'Parar voz',
   'taby.voice.unavailable': 'A voz existe no app de desktop, com reconhecimento neste Mac.',
+  'voice.error.permission': 'O macOS não deu permissão para o microfone ou para o reconhecimento de fala. Libere em Ajustes do Sistema › Privacidade e Segurança.',
+  'voice.error.noOnDevice': 'Este idioma não tem reconhecimento de fala no próprio Mac. Baixe o idioma em Ajustes do Sistema › Teclado › Ditado.',
+  'voice.error.noMicrophone': 'Nenhum microfone disponível agora.',
+  'voice.error.generic': 'A voz parou por um erro. Tente de novo.',
   // Tint é do Codex: acrescente somente neste bloco, sem reordenar chaves vizinhas.
   'tint.title': 'Cor de destaque',
   'tint.detail': 'Muda a assinatura visual e os estados de foco, sem alterar as cores da agenda.',
@@ -681,6 +685,10 @@ const en: Record<DictionaryKey, string> = {
   'taby.voice.start': 'Speak',
   'taby.voice.stop': 'Stop voice',
   'taby.voice.unavailable': 'Voice is available in the desktop app, recognised on this Mac.',
+  'voice.error.permission': 'macOS has not allowed the microphone or speech recognition. Allow them in System Settings › Privacy & Security.',
+  'voice.error.noOnDevice': 'This language has no on-device speech recognition on this Mac. Download it in System Settings › Keyboard › Dictation.',
+  'voice.error.noMicrophone': 'No microphone is available right now.',
+  'voice.error.generic': 'Voice stopped because of an error. Try again.',
   // Tint is owned by Codex: add only within this block and do not reorder neighbouring keys.
   'tint.title': 'App tint',
   'tint.detail': 'Changes the visual signature and focus states without changing calendar category colours.',

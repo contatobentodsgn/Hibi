@@ -18,16 +18,51 @@ function resolveHelperPath({ exists = existsSync } = {}) {
   return candidates.find((candidate) => exists(candidate)) ?? candidates[candidates.length - 1];
 }
 
+/** Um motivo estável para a tela escolher o texto, em vez de repetir a mensagem do helper. */
+function voiceFailureReason(message) {
+  if (/permission/i.test(message)) return 'permission';
+  if (/on-device/i.test(message)) return 'no-on-device';
+  if (/microfone|microphone/i.test(message)) return 'no-microphone';
+  return 'failed';
+}
+
 function createMacVoiceAdapter({ spawnProcess = spawn, helperPath, exists = existsSync } = {}) {
   const resolvedHelperPath = helperPath || resolveHelperPath({ exists });
   let child = null;
   return {
     listen({ locale = 'pt-BR', onText } = {}) {
       child?.kill('SIGTERM');
-      child = spawnProcess(resolvedHelperPath, ['listen', locale], { stdio: ['ignore', 'pipe', 'ignore'] });
-      child.stdout?.setEncoding('utf8');
-      child.stdout?.on('data', (data) => data.split('\n').filter(Boolean).forEach((line) => { try { const event = JSON.parse(line); if (event.type === 'text') onText?.(event.text); } catch {} }));
-      return new Promise((resolve, reject) => { child.once('error', reject); child.once('close', (code) => { child = null; code === 0 ? resolve() : reject(new Error(`macOS speech recognition exited with code ${code}`)); }); });
+      const current = spawnProcess(resolvedHelperPath, ['listen', locale], { stdio: ['ignore', 'pipe', 'ignore'] });
+      child = current;
+      let failure = null;
+      // O helper fala JSON por linha, mas o pipe entrega pedaços: uma linha pode chegar partida em
+      // dois. Guardar o resto evita perder justamente o texto final da fala.
+      let pending = '';
+      current.stdout?.setEncoding('utf8');
+      current.stdout?.on('data', (data) => {
+        const lines = (pending + data).split('\n');
+        pending = lines.pop() ?? '';
+        for (const line of lines.filter(Boolean)) {
+          try {
+            const event = JSON.parse(line);
+            if (event.type === 'text') onText?.(event.text);
+            // O helper diz por que parou (permissão, idioma sem modelo local, sem microfone). Antes
+            // isso era descartado e a tela mostrava uma frase genérica que não dizia o que houve.
+            else if (event.type === 'error' && typeof event.message === 'string') failure = event.message;
+          } catch { /* linha que não é JSON não vira texto digitado */ }
+        }
+      });
+      return new Promise((resolve, reject) => {
+        current.once('error', reject);
+        current.once('close', (code, signal) => {
+          if (child === current) child = null;
+          if (failure) return reject(Object.assign(new Error(failure), { reason: voiceFailureReason(failure) }));
+          // Parar a escuta é pedido de quem usa, não falha: o helper encerra por SIGTERM. Tratar isso
+          // como erro fazia toda escuta interrompida terminar em "exited with code null".
+          if (code === 0 || signal === 'SIGTERM') return resolve();
+          reject(new Error(`macOS speech recognition exited with code ${code}`));
+        });
+      });
     },
     speak(text, { locale = 'pt-BR' } = {}) {
       child?.kill('SIGTERM');
@@ -41,4 +76,4 @@ function createMacVoiceAdapter({ spawnProcess = spawn, helperPath, exists = exis
   };
 }
 
-module.exports = { resolveHelperPath, createMacVoiceAdapter };
+module.exports = { resolveHelperPath, createMacVoiceAdapter, voiceFailureReason };

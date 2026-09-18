@@ -12,8 +12,8 @@ function createLocalVoiceService({ adapter } = {}) {
       if (!adapter?.listen) return publish({ status: 'unavailable', error: 'Local voice adapter is unavailable.' });
       if (active) return publish({ status: 'listening', error: null });
       active = adapter.listen({ locale: locale(request.locale || state.locale), onText: request.onText });
-      publish({ status: 'listening', error: null });
-      try { await active; return publish({ status: 'ready' }); } catch (error) { return publish({ status: 'error', error: error?.message || 'Local voice failed.' }); } finally { active = null; }
+      publish({ status: 'listening', error: null, reason: null });
+      try { await active; return publish({ status: 'ready', reason: null }); } catch (error) { return publish({ status: 'error', error: error?.message || 'Local voice failed.', reason: error?.reason ?? 'failed' }); } finally { active = null; }
     },
     stop() { if (active && adapter?.stop) adapter.stop(); active = null; return publish({ status: adapter ? 'ready' : 'unavailable' }); },
     async speak(text, request = {}) {

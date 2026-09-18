@@ -3,6 +3,7 @@ import { LOCAL_CAPABILITIES } from '../domain/capabilities';
 import type { StudyData } from '../domain/models';
 import { provenanceLabel } from '../ai/assistant-turn';
 import { useT } from '../i18n/LocaleProvider';
+import { voiceNotice as noticeForVoice } from './voice-notice';
 import { failurePresentationFor } from './assistant-presentation';
 import { ConversationList } from './ConversationList';
 import { TabyAtelierStatus } from './TabyAtelierStatus';
@@ -27,7 +28,8 @@ export function TabyView({ data, turn, conversations }: Props) {
     setListening(true);
     setVoiceNotice('');
     const result = await bridge().catch(() => null);
-    if (result?.status !== 'listening') { setListening(false); setVoiceNotice(result?.error ?? t('taby.voice.unavailable')); }
+    setListening(false);
+    setVoiceNotice(noticeForVoice(result, t));
   };
   const { state } = turn;
   // A thread exibida é a da conversa ativa. Esta tela não escreve nela a partir do turno: quem grava
