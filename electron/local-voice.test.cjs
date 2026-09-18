@@ -46,11 +46,20 @@ test('o motivo que o helper deu atravessa o serviço até a tela', async () => {
   const recusa = Object.assign(new Error('Speech recognition permission denied'), { reason: 'permission' });
   const service = createLocalVoiceService({ adapter: { listen: async () => { throw recusa; } } });
 
-  assert.deepEqual(await service.listen(), { status: 'error', locale: 'pt-BR', error: 'Speech recognition permission denied', reason: 'permission' });
+  assert.deepEqual(await service.listen(), { status: 'error', locale: 'pt-BR', error: 'Speech recognition permission denied', reason: 'permission', ended: null });
 });
 
 test('uma escuta que termina bem volta a "pronto", sem erro nem motivo', async () => {
   const service = createLocalVoiceService({ adapter: { listen: async () => undefined } });
 
-  assert.deepEqual(await service.listen(), { status: 'ready', locale: 'pt-BR', error: null, reason: null });
+  assert.deepEqual(await service.listen(), { status: 'ready', locale: 'pt-BR', error: null, reason: null, ended: 'done' });
+});
+
+test('com autoStop, o serviço pede ao adaptador que encerre na pausa e diz por que terminou', async () => {
+  const pedidos = [];
+  const service = createLocalVoiceService({ adapter: { listen: async (request) => { pedidos.push(request); return { ended: 'silence' }; } } });
+  assert.equal((await service.listen({ autoStop: true })).ended, 'silence');
+  assert.equal(pedidos[0].silenceMs > 0 && pedidos[0].noSpeechMs > pedidos[0].silenceMs, true);
+  await service.listen();
+  assert.equal(pedidos[1].silenceMs, undefined);
 });

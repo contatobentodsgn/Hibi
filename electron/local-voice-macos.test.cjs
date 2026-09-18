@@ -135,3 +135,61 @@ test('um encerramento que ninguém pediu continua sendo erro', async () => {
 
   await assert.rejects(() => adapter.listen({ locale: 'pt-BR' }), /exited with code 134/);
 });
+
+// Um helper que fala e depois fica quieto, com relógio controlado: a pausa encerra a escuta sozinha.
+const helperQueFala = (linhas) => {
+  const ouvintes = new Map();
+  let aoFalar;
+  const child = {
+    killed: null,
+    stdout: { setEncoding() {}, on(event, fn) { if (event === 'data') aoFalar = fn; } },
+    once(event, fn) { ouvintes.set(event, fn); return this; },
+    kill(signal) { child.killed = signal; ouvintes.get('close')?.(null, signal); },
+    falar: () => linhas.forEach((linha) => aoFalar(`${linha}\n`)),
+  };
+  return child;
+};
+const relogio = () => {
+  const timers = new Map(); let proximo = 0;
+  return { set: (fn, ms) => { proximo += 1; timers.set(proximo, { fn, ms }); return proximo; }, clear: (id) => timers.delete(id), disparar: (ms) => { for (const [id, timer] of [...timers]) if (timer.ms === ms) { timers.delete(id); timer.fn(); } }, pendentes: () => [...timers.values()].map((timer) => timer.ms) };
+};
+
+test('depois de falar, a pausa encerra a escuta e o motivo é "silence"', async () => {
+  const child = helperQueFala(['{"type":"text","final":false,"text":"crie uma tarefa"}']);
+  const tempo = relogio();
+  const adapter = createMacVoiceAdapter({ spawnProcess: () => child, helperPath: '/tmp/h', setTimer: tempo.set, clearTimer: tempo.clear });
+
+  const escuta = adapter.listen({ onText: () => {}, silenceMs: 1600, noSpeechMs: 8000 });
+  assert.deepEqual(tempo.pendentes(), [8000]);
+  child.falar();
+  // A primeira palavra troca a espera por fala pela espera da pausa.
+  assert.deepEqual(tempo.pendentes(), [1600]);
+  tempo.disparar(1600);
+
+  assert.deepEqual(await escuta, { ended: 'silence' });
+  assert.equal(child.killed, 'SIGTERM');
+});
+
+test('sem nenhuma palavra, a escuta termina como "no-speech"', async () => {
+  const child = helperQueFala([]);
+  const tempo = relogio();
+  const adapter = createMacVoiceAdapter({ spawnProcess: () => child, helperPath: '/tmp/h', setTimer: tempo.set, clearTimer: tempo.clear });
+
+  const escuta = adapter.listen({ onText: () => {}, silenceMs: 1600, noSpeechMs: 8000 });
+  tempo.disparar(8000);
+
+  assert.deepEqual(await escuta, { ended: 'no-speech' });
+});
+
+test('parar pela tela continua sendo "stopped", e sem os prazos nada encerra sozinho', async () => {
+  const child = helperQueFala(['{"type":"text","final":false,"text":"oi"}']);
+  const tempo = relogio();
+  const adapter = createMacVoiceAdapter({ spawnProcess: () => child, helperPath: '/tmp/h', setTimer: tempo.set, clearTimer: tempo.clear });
+
+  const escuta = adapter.listen({ onText: () => {} });
+  child.falar();
+  assert.deepEqual(tempo.pendentes(), []);
+  adapter.stop();
+
+  assert.deepEqual(await escuta, { ended: 'stopped' });
+});

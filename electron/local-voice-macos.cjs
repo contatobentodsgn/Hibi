@@ -26,15 +26,27 @@ function voiceFailureReason(message) {
   return 'failed';
 }
 
-function createMacVoiceAdapter({ spawnProcess = spawn, helperPath, exists = existsSync } = {}) {
+function createMacVoiceAdapter({ spawnProcess = spawn, helperPath, exists = existsSync, setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
   const resolvedHelperPath = helperPath || resolveHelperPath({ exists });
   let child = null;
   return {
-    listen({ locale = 'pt-BR', onText } = {}) {
+    /**
+     * Com `silenceMs`, a escuta termina sozinha quando a fala para: o reconhecimento no próprio Mac quase
+     * nunca dá o resultado final por conta própria, e sem isso a pessoa precisava apertar Parar. Com
+     * `noSpeechMs`, termina também quando ninguém disse nada. O motivo volta em `ended`.
+     */
+    listen({ locale = 'pt-BR', onText, silenceMs = 0, noSpeechMs = 0 } = {}) {
       child?.kill('SIGTERM');
       const current = spawnProcess(resolvedHelperPath, ['listen', locale], { stdio: ['ignore', 'pipe', 'ignore'] });
       child = current;
       let failure = null;
+      let ended = null;
+      let timer = null;
+      const endAfter = (ms, reason) => {
+        if (timer) clearTimer(timer);
+        timer = ms > 0 ? setTimer(() => { ended = reason; current.kill('SIGTERM'); }, ms) : null;
+      };
+      endAfter(noSpeechMs, 'no-speech');
       // O helper fala JSON por linha, mas o pipe entrega pedaços: uma linha pode chegar partida em
       // dois. Guardar o resto evita perder justamente o texto final da fala.
       let pending = '';
@@ -45,7 +57,7 @@ function createMacVoiceAdapter({ spawnProcess = spawn, helperPath, exists = exis
         for (const line of lines.filter(Boolean)) {
           try {
             const event = JSON.parse(line);
-            if (event.type === 'text') onText?.(event.text);
+            if (event.type === 'text') { onText?.(event.text); if (typeof event.text === 'string' && event.text.trim()) endAfter(silenceMs, 'silence'); }
             // O helper diz por que parou (permissão, idioma sem modelo local, sem microfone). Antes
             // isso era descartado e a tela mostrava uma frase genérica que não dizia o que houve.
             else if (event.type === 'error' && typeof event.message === 'string') failure = event.message;
@@ -55,11 +67,13 @@ function createMacVoiceAdapter({ spawnProcess = spawn, helperPath, exists = exis
       return new Promise((resolve, reject) => {
         current.once('error', reject);
         current.once('close', (code, signal) => {
+          if (timer) clearTimer(timer);
           if (child === current) child = null;
           if (failure) return reject(Object.assign(new Error(failure), { reason: voiceFailureReason(failure) }));
           // Parar a escuta é pedido de quem usa, não falha: o helper encerra por SIGTERM. Tratar isso
           // como erro fazia toda escuta interrompida terminar em "exited with code null".
-          if (code === 0 || signal === 'SIGTERM') return resolve();
+          if (code === 0) return resolve({ ended: ended ?? 'done' });
+          if (signal === 'SIGTERM') return resolve({ ended: ended ?? 'stopped' });
           reject(new Error(`macOS speech recognition exited with code ${code}`));
         });
       });
