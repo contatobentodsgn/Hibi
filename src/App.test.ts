@@ -107,7 +107,7 @@ describe('local calendar day', () => {
   // o app pular para amanhã depois das 21h em São Paulo.
   it('never derives the current day from the UTC instant', () => {
     expect(appSource).not.toContain('new Date().toISOString().slice(0, 10)');
-    expect(appSource).toContain('?? todayKey()');
+    expect(appSource).toContain('const today = todayKey();');
   });
 });
 

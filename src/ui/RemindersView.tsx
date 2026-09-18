@@ -26,7 +26,8 @@ const weekdayOptions = [0, 1, 2, 3, 4, 5, 6];
 
 function reminderDetail(reminder: Reminder): string {
   const recurrence = reminder.schedule.recurrence;
-  if (!recurrence) return `${reminder.schedule.at.slice(11, 16)} · one-time`;
+  // O dia entra: sem ele, um lembrete único de outro dia (ou já passado) parecia ser de hoje.
+  if (!recurrence) return `${reminder.schedule.at.slice(8, 10)}/${reminder.schedule.at.slice(5, 7)} ${reminder.schedule.at.slice(11, 16)} · one-time`;
   if (recurrence.frequency === 'daily') return `Every day · ${recurrence.time ?? reminder.schedule.at.slice(11, 16)}`;
   return (recurrence.weekdays ?? []).map((day) => `${weekdayLabels[day]} ${recurrence.timesByWeekday?.[day] ?? recurrence.time ?? reminder.schedule.at.slice(11, 16)}`).join(' · ');
 }

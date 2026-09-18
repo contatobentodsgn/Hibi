@@ -16,6 +16,7 @@ import { HomeView } from './ui/HomeView';
 import { TasksView } from './ui/TasksView';
 import { RemindersView, type EditedReminderSchedule } from './ui/RemindersView';
 import { FocusView } from './ui/FocusView';
+import { useCalendarDay } from './ui/useCalendarDay';
 import { FocusBackgroundNotice } from './ui/FocusBackgroundNotice';
 import { deriveFocusMood, focusSessionsCompletedToday } from './ui/focus-mood';
 import { SettingsView } from './ui/SettingsView';
@@ -82,6 +83,8 @@ export default function App() {
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const workspaceWarned = useRef(false);
   const [route, setRoute] = useState<NavKey>('home');
+  // Muda à meia-noite e renderiza as telas de novo: "hoje" nelas é calculado ao renderizar.
+  const calendarDay = useCalendarDay();
   const [focusStartPending, setFocusStartPending] = useState(false);
   // Uma sessão de foco iniciada (rodando ou pausada) sobrevive à troca de tela: com o app na barra de
   // menus a pessoa abre Tarefas no meio do foco o tempo todo, e desmontar a tela abandonava a sessão.
@@ -143,8 +146,9 @@ export default function App() {
     }
     refreshData();
   };
-  // Data sugerida para um lembrete novo: o começo do plano guardado e, sem plano, hoje.
-  const planStartDate = () => repository.listBlocks().map((block) => block.start.slice(0, 10)).filter(Boolean).sort()[0] ?? todayKey();
+  // Data sugerida para um lembrete novo: o começo do plano guardado, se ainda está por vir, e senão hoje.
+  // O bloco mais antigo guardado costuma estar no passado, e um lembrete único lá nunca tocaria.
+  const planStartDate = () => { const start = repository.listBlocks().map((block) => block.start.slice(0, 10)).filter(Boolean).sort()[0]; const today = todayKey(); return start && start > today ? start : today; };
 
   // getTask/getHabit/getGoal devolvem o objeto vivo do repositório: o "antes" precisa ser copiado.
   const changeTaskStatus = (id: string, status: EntityStatus) => {
@@ -404,7 +408,7 @@ export default function App() {
       ? <FocusBackgroundNotice onReturn={() => navigate('focus')} />
       : null;
     return <>{banner}{focusHost}{screen}</>;
-  }, [route, focusActive, focusStartPending, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, folderFilter, openPalette, focusSettings]);
+  }, [route, calendarDay, focusActive, focusStartPending, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, folderFilter, openPalette, focusSettings]);
 
   return (
     <AppShell active={route} onNavigate={(key) => {
