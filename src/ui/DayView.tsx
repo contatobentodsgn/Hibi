@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { localNoon, shiftDayKey, todayKey } from '../domain/date-context';
 import { durationMinutes, toDateKey } from '../domain/schedule';
 import type { ScheduleBlock, StudyData } from '../domain/models';
-import { overlappingPairs } from '../domain/conflicts';
+import { commitmentClashes } from '../domain/conflicts';
 import { useT } from '../i18n/LocaleProvider';
 import { visibleHours } from './calendar-grid';
 import { ConflictSummary } from './ConflictSummary';
@@ -23,7 +23,7 @@ export function DayView({ data, onEvent, onCreateBlock, onDeleteBlock }: Props) 
   const [checked, setChecked] = useState(false);
   const t = useT();
   const dayBlocks = data.blocks.filter((block) => toDateKey(block.start) === dayDate);
-  const conflicts = overlappingPairs(dayBlocks);
+  const conflicts = commitmentClashes(dayBlocks);
   const dayLabel = localNoon(dayDate).toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase().replace(',', ' ·');
   const blocks = data.blocks.filter((block) => toDateKey(block.start) === dayDate && (layer === 'schedule' || (layer === 'important' ? block.isHard === true : block.category === 'break')));
   const addBlock = () => onCreateBlock({ title: 'Quick study block', start: `${dayDate}T08:00:00`, end: `${dayDate}T09:00:00`, category: 'work' });

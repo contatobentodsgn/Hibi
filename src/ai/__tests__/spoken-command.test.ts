@@ -156,12 +156,23 @@ describe('comandos ditados no Taby', () => {
     expect(confuso.reply).toMatch(/Não entendi o horário "3 e pouco"/);
   });
 
-  it('um horário já ocupado é dito antes de pedir confirmação', async () => {
-    const repository = new LocalRepository(createSeedData());
+  // Pedido do usuário: a reunião não atrapalha a demanda da Kabrito, que é produção de post.
+  it('uma reunião sobre uma demanda é marcada, e a pergunta conta o que já está no horário', async () => {
+    const repository = new LocalRepository({ ...createSeedData(), blocks: [] });
     repository.createBlock({ title: 'Kabrito Post 05', start: '2026-09-19T15:00:00', end: '2026-09-19T16:00:00', category: 'work' });
     const resultado = await createLocalHibiRuntime(repository).runTurn({ message: 'Marque uma reunião para mim amanhã às 15h', surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
-    expect(resultado.confirmation).toBeUndefined();
-    expect(resultado.reply).toMatch(/já está ocupado por "Kabrito Post 05"/);
+    expect(resultado.confirmation?.calls[0]).toMatchObject({ name: 'meeting.create' });
+    expect(resultado.reply).toBe('No mesmo horário: "Kabrito Post 05". Marcar "Reunião" em 19/09, das 15:00 às 16:00, na agenda, nas tarefas e no calendário conectado?');
+  });
+
+  it('sobre outro compromisso, a pergunta avisa em destaque, e confirmar marca mesmo assim', async () => {
+    const repository = new LocalRepository({ ...createSeedData(), blocks: [] });
+    repository.createBlock({ title: 'Almoço', start: '2026-09-19T12:00:00', end: '2026-09-19T14:00:00', category: 'break', isHard: true });
+    const runtime = createLocalHibiRuntime(repository);
+    const resultado = await runtime.runTurn({ message: 'Marque uma reunião amanhã ao meio-dia', surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
+    expect(resultado.reply).toMatch(/^Atenção: no mesmo horário já tem o compromisso "Almoço"\. Marcar/);
+    await runtime.confirm(resultado.confirmation!);
+    expect(repository.listBlocks().find((block) => block.title === 'Reunião')).toMatchObject({ isHard: true, start: '2026-09-19T12:00:00' });
   });
 
   it('"amanhã" no lembrete vai para a data, e não para o título', async () => {

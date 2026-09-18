@@ -79,7 +79,7 @@ test('um bloco editado no Hibi é enviado ao calendário só depois da confirma�
   await expect(changesBox(page)).toHaveCount(0);
 });
 
-test('trazer um horário que conflita com outro bloco não move nada nem avisa o vínculo', async ({ page }) => {
+test('trazer um horário que cai sobre uma demanda move o bloco normalmente: dividir horário não é conflito', async ({ page }) => {
   await installCalendarBridge(page, { outgoing: [], incoming: [{ localId: 'e2e-aula', calendarId: 'apple:casa', summary: 'Aula', start: '2026-09-21T11:00:00', end: '2026-09-21T12:00:00' }] });
   await page.goto('/');
   await page.evaluate(() => {
@@ -97,7 +97,6 @@ test('trazer um horário que conflita com outro bloco não move nada nem avisa o
 
   await changesBox(page).getByRole('button', { name: 'Trazer para o Hibi' }).click();
 
-  await expect(page.getByText('“Aula” não pôde ser movido no Hibi: o novo horário conflita com outro bloco.')).toBeVisible();
-  expect(await block(page, 'e2e-aula')).toMatchObject({ start: '2026-09-21T09:00:00' });
-  expect((await calls(page)).filter((call) => call.startsWith('acknowledge'))).toEqual([]);
+  await expect.poll(() => block(page, 'e2e-aula')).toMatchObject({ start: '2026-09-21T11:00:00', end: '2026-09-21T12:00:00' });
+  expect(await calls(page)).toContain('acknowledge:apple:casa:e2e-aula:2026-09-21T11:00:00:2026-09-21T12:00:00');
 });

@@ -1,6 +1,6 @@
 import { normalizeSpokenCommand, parseScheduleRequest, parseSpokenTime, takeSpokenDay } from './spoken-command';
 import { LocalRepository } from '../data/local-repository';
-import { validateScheduleBlock } from '../domain/conflicts';
+import { findConflicts, validateScheduleBlock } from '../domain/conflicts';
 import { localDateKey, shiftDayKey } from '../domain/date-context';
 import { toFloatingWallClock } from '../domain/wall-clock';
 import type { Category, ScheduleBlock, Task } from '../domain/models';
@@ -51,7 +51,8 @@ export function createLocalToolRegistry(repository: LocalRepository, hooks: Hook
   // Uma reunião pedida ao Taby vai para os três lugares onde a pessoa a procura: a agenda do Hibi, as
   // tarefas do dia (com prazo no horário) e o calendário conectado. É uma ação só, com uma confirmação.
   register({ name: 'meeting.create', description: 'Create a meeting: schedule block, task due at its start and an event in the connected calendar.', risk: 'external', externallyVisible: true, inputSchema: { type: 'object', required: ['title', 'start', 'end'] }, validate: (args) => isText(args.title) && isIsoDateTime(args.start) && isIsoDateTime(args.end) && wallClock(args.start) < wallClock(args.end), execute: async (args) => {
-    const input = { title: title(args), start: wallClock(args.start), end: wallClock(args.end), category: 'work' as Category } satisfies Omit<ScheduleBlock, 'id'>;
+    // Uma reunião é compromisso fixo: é contra outros compromissos que um horário repetido merece atenção.
+    const input = { title: title(args), start: wallClock(args.start), end: wallClock(args.end), category: 'work' as Category, isHard: true } satisfies Omit<ScheduleBlock, 'id'>;
     const validation = validateScheduleBlock({ ...input, id: 'assistant-preview' }, repository.listBlocks());
     if (!validation.valid) throw new Error(validation.errors.join(' '));
     const block = repository.createBlock(input);
@@ -102,11 +103,16 @@ type Scheduling = Readonly<{ title: string; day: string; start: string; end: str
  */
 function schedulingProposal(repository: LocalRepository, { title, day, start: startTime, end: endTime, meeting }: Scheduling): { toolCalls: AiToolCall[]; clarification: string | null; meetingReply: string | null } {
   const start = `${day}T${startTime}:00`; const end = `${day}T${endTime}:00`;
-  const blocks = repository.listBlocks();
-  const taken = validateScheduleBlock({ id: 'proposed', title, start, end, category: 'work' }, blocks).conflicts.map((conflict) => blocks.find((block) => block.id === conflict.existingId)?.title).filter(Boolean);
-  if (taken.length) return { toolCalls: [], clarification: `Esse horário já está ocupado por ${taken.map((name) => `"${name}"`).join(' e ')}. Quer outro horário?`, meetingReply: null };
   if (!meeting) return { toolCalls: [{ name: 'block.create', arguments: { title, start, end, category: 'work' } }], clarification: null, meetingReply: null };
-  return { toolCalls: [{ name: 'meeting.create', arguments: { title, start, end } }], clarification: null, meetingReply: `Marcar "${title}" em ${day.slice(8, 10)}/${day.slice(5, 7)}, das ${startTime} às ${endTime}, na agenda, nas tarefas e no calendário conectado?` };
+  // Marcar no mesmo horário de outra coisa não é problema: uma demanda (produzir um post) divide o
+  // horário com uma reunião. A pergunta só conta o que já está lá, e avisa em destaque quando é outro
+  // compromisso fixo (o almoço, outra reunião) — quem decide é a pessoa, ao confirmar.
+  const blocks = repository.listBlocks();
+  const overlaps = findConflicts({ id: 'proposed', title, start, end, category: 'work', isHard: true }, blocks).map((conflict) => ({ conflict, block: blocks.find((block) => block.id === conflict.existingId) })).filter((item) => item.block);
+  const names = (severity: 'hard' | 'soft') => overlaps.filter((item) => item.conflict.severity === severity).map((item) => `"${item.block!.title}"`).join(' e ');
+  const notes = [names('hard') ? `Atenção: no mesmo horário já tem o compromisso ${names('hard')}.` : '', names('soft') ? `No mesmo horário: ${names('soft')}.` : ''].filter(Boolean).join(' ');
+  const question = `Marcar "${title}" em ${day.slice(8, 10)}/${day.slice(5, 7)}, das ${startTime} às ${endTime}, na agenda, nas tarefas e no calendário conectado?`;
+  return { toolCalls: [{ name: 'meeting.create', arguments: { title, start, end } }], clarification: null, meetingReply: notes ? `${notes} ${question}` : question };
 }
 
 /** O que o cérebro offline entendeu de um pedido, com dia e horário como a pessoa os disse. */
