@@ -150,3 +150,24 @@ test("recusa caminho ausente, teto inválido e runtime sem SQLite", () => {
     /SQLite is unavailable/,
   );
 });
+
+// O registro do app dizia "migrado, com ponto de restauração", mas o banco vazio não tinha estado
+// anterior, e nenhum ponto era criado.
+test("a migração para um banco vazio guarda como ponto o que veio do armazenamento local", () => {
+  const database = createWorkspaceDatabase({ filePath: workspaceFile(), now: () => "2026-09-18T09:00:00.000Z" });
+
+  database.save(payloadWith("migrado"), { restorePoint: "data.restorePoint.migration" });
+  database.save(payloadWith("depois"));
+
+  const [point] = database.listRestorePoints();
+  assert.equal(point.label, "data.restorePoint.migration");
+  assert.equal(database.restore(point.id).payload, payloadWith("migrado"));
+  database.close();
+});
+
+test("outro rótulo num banco vazio continua sem ponto: não há estado anterior", () => {
+  const database = createWorkspaceDatabase({ filePath: workspaceFile() });
+  database.save(payloadWith("primeiro"), { restorePoint: "data.restorePoint.beforeReset" });
+  assert.deepEqual(database.listRestorePoints(), []);
+  database.close();
+});
