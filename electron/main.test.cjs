@@ -141,7 +141,7 @@ function createSenderFake() {
   };
 }
 
-async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase } = {}) {
+async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase, singleInstance = true } = {}) {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), "hibi-main-test-"));
   seedUserData?.(userData);
   // A pasta de dados é escolhida na carga do módulo: o dublê guarda o que foi pedido em vez de
@@ -150,6 +150,7 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase } = 
   seedAppData?.(appData);
   const paths = new Map();
   const shortcuts = new Map();
+  const trayCalls = { criado: 0, itens: [], destruido: false };
   const refusedShortcuts = new Set();
 
   const handlers = new Map();
@@ -179,6 +180,7 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase } = 
       this.windowOpenHandler = null;
       this.contentListeners = new Map();
       const owner = this;
+      this.on = (event, listener) => { if (event === 'close') owner.contentListeners.set('__close', listener); };
       this.webContents = {
         on: (event, listener) => { owner.contentListeners.set(event, listener); },
         send: (...args) => {
@@ -194,9 +196,12 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase } = 
     }
     isDestroyed() { return this.destroyed; }
     isMinimized() { return this.minimized === true; }
+    hide() { this.hidden = true; this.hides = (this.hides ?? 0) + 1; }
+    isVisible() { return this.hidden !== true; }
+    close() { const event = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } }; this.contentListeners.get('__close')?.(event); if (!event.defaultPrevented) this.destroyed = true; return event; }
     minimize() { this.minimized = true; }
     restore() { this.minimized = false; this.restores = (this.restores ?? 0) + 1; }
-    show() { this.shows = (this.shows ?? 0) + 1; }
+    show() { this.hidden = false; this.shows = (this.shows ?? 0) + 1; }
     focus() { this.focuses = (this.focuses ?? 0) + 1; }
     loadURL(url) { this.loaded.push(url); }
     loadFile(file, options) { this.loaded.push([file, options]); }
@@ -224,9 +229,13 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase } = 
       on: (event, listener) => { appEvents.set(event, listener); },
       quit: () => { captured.quitCalls = (captured.quitCalls ?? 0) + 1; },
       focus: () => { captured.appFocuses = (captured.appFocuses ?? 0) + 1; },
+      requestSingleInstanceLock: () => singleInstance,
       whenReady: () => ({ then: (callback) => { readyPromise = Promise.resolve().then(callback); return readyPromise; } }),
     },
     BrowserWindow: BrowserWindowFake,
+    Tray: class { constructor() { trayCalls.criado += 1; } setToolTip() {} setContextMenu(menu) { trayCalls.itens = menu.template; } on(event, fn) { trayCalls[event] = fn; } destroy() { trayCalls.destruido = true; } },
+    Menu: { buildFromTemplate: (template) => ({ template }) },
+    nativeImage: { createFromPath: () => ({ setTemplateImage() {} }) },
     globalShortcut: {
       register(accelerator, handler) { shortcuts.set(accelerator, handler); return !refusedShortcuts.has(accelerator); },
       unregister(accelerator) { shortcuts.delete(accelerator); },
@@ -390,6 +399,7 @@ async function loadMain({ seedUserData, seedAppData, breakWorkspaceDatabase } = 
     paths,
     shortcuts,
     refusedShortcuts,
+    trayCalls,
     handlers,
     duplicateChannels,
     appEvents,
@@ -508,6 +518,64 @@ test("um atualizador que não monta deixa o app abrir, com as atualizações des
   assert.deepEqual(await harness.handlers.get("hibi:updates:state")(harness.event), { status: "disabled", version: null, error: null });
   assert.deepEqual(await harness.handlers.get("hibi:updates:check")(harness.event), { status: "disabled", version: null, error: null });
   assert.deepEqual(await harness.handlers.get("hibi:updates:download")(harness.event), { status: "disabled", version: null, error: null });
+});
+
+test("a segunda cópia encerra sem registrar nada, em vez de abrir um segundo Hibi", async (t) => {
+  const harness = await loadMain({ singleInstance: false });
+  t.after(() => harness.cleanup());
+
+  assert.equal(harness.captured.quitCalls, 1);
+  assert.deepEqual([...harness.handlers.keys()], [], "uma cópia recusada não pode registrar canal nenhum");
+  assert.equal(harness.trayCalls.criado, 0);
+});
+
+test("fechar a janela esconde o app, que continua na barra de menus", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const janela = harness.mainWindow();
+
+  const evento = janela.close();
+
+  assert.equal(evento.defaultPrevented, true, "fechar não pode encerrar um app que segue rodando");
+  assert.equal(janela.isVisible(), false);
+  assert.equal(janela.isDestroyed(), false);
+});
+
+test("o ícone da barra de menus traz a janela de volta depois de escondida", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const janela = harness.mainWindow();
+  janela.close();
+  const abrir = harness.trayCalls.itens.find((item) => item.label === "Abrir Hibi");
+
+  abrir.click();
+
+  assert.equal(janela.isVisible(), true);
+  assert.equal(janela.focuses >= 1, true);
+});
+
+test("sair pelo ícone deixa a janela fechar de verdade e tira o ícone da barra", async (t) => {
+  const harness = await loadMain();
+  const janela = harness.mainWindow();
+
+  harness.trayCalls.itens.find((item) => item.label === "Sair do Hibi").click();
+  const evento = janela.close();
+
+  assert.equal(evento.defaultPrevented, false);
+  harness.quit();
+  assert.equal(harness.trayCalls.destruido, true);
+});
+
+// Duas cópias abertas desenhavam dois notches, cada um obedecendo aos próprios ajustes.
+test("uma segunda cópia do app não abre: ela traz a primeira para a frente", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const janela = harness.mainWindow();
+  janela.close();
+
+  harness.appEvents.get("second-instance")();
+
+  assert.equal(janela.isVisible(), true);
 });
 
 test("registra exatamente os canais IPC esperados, uma única vez cada", async (t) => {

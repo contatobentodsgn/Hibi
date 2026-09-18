@@ -19,8 +19,11 @@ const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
   if (request === "electron") {
     return {
-      app: { isPackaged: true, whenReady: () => ({ then() {} }), on() {}, getVersion() { return "test"; }, getPath() { return appData; }, setPath() {} },
+      app: { isPackaged: true, whenReady: () => ({ then() {} }), on() {}, getVersion() { return "test"; }, getPath() { return appData; }, setPath() {}, requestSingleInstanceLock: () => true, focus() {} },
       BrowserWindow: { getAllWindows() { return []; } },
+      Tray: class { setToolTip() {} setContextMenu() {} on() {} destroy() {} },
+      Menu: { buildFromTemplate: (template) => ({ template }) },
+      nativeImage: { createFromPath: () => ({ setTemplateImage() {} }) },
       ipcMain: { handle() {} },
       Notification: {},
       dialog: dialogStub,
