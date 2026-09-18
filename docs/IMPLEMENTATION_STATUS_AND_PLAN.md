@@ -1,8 +1,8 @@
 # Hibi — status de implementação e plano consolidado
 
-Atualizado em 2026-09-18 (cobrindo do #79 ao #144). Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
+Atualizado em 2026-09-18 (cobrindo do #79 ao #149). Este documento é a fonte operacional do status atual e da paridade com o app original; os planos em `docs/superpowers/plans/` preservam o histórico de decisões e execução. `docs/parity-audit.md` fica como registro histórico de 07/09.
 
-Última bateria completa no `main` (`0e9bed7`): 845 testes Vitest em 104 arquivos, 611 `node --test`, 176 e2e Playwright, `tsc` sem erros, build de produção com o addon nativo, e os verificadores `parity:check` (18 invariantes) e `safety:renderer`, que agora rodam na CI. A suíte dá **o mesmo resultado** em `America/Sao_Paulo` e em `Pacific/Kiritimati` (UTC+14), e a CI roda as duas: foi por não rodar assim que lembretes semanais chegaram a ser gravados no dia errado, e que um lembrete sem recorrência tocava horas fora do horário mostrado na tela.
+Última bateria completa antes do último merge (#149): 849 testes Vitest, 624 `node --test`, 183 e2e Playwright, `tsc` sem erros, build de produção com o addon nativo, e os verificadores `parity:check` (18 invariantes) e `safety:renderer`, que agora rodam na CI. A suíte dá **o mesmo resultado** em `America/Sao_Paulo` e em `Pacific/Kiritimati` (UTC+14), e a CI roda as duas: foi por não rodar assim que lembretes semanais chegaram a ser gravados no dia errado, e que um lembrete sem recorrência tocava horas fora do horário mostrado na tela.
 
 ## Status atual
 
@@ -189,28 +189,33 @@ Itens entram nesta lista em ordem de gravidade; "tarefa criada" significa que j�
 
    Correção de registro: o #122 afirmou que o atualizador já estava no `main`. Estava errado — os arquivos foram lidos do checkout principal, que está na branch do Codex. No `main` não havia nada até o #124.
 
-2. **Validação ao vivo dos lotes 1 a 4 no app instalado.** Tudo foi verificado com testes, mutações e bateria completa, mas o app instalado neste Mac é anterior ao #130. Falta reinstalar (`npm run app:install`, com o Hibi fechado pela barra de menus) e conferir:
-   - parar a voz sem erro;
-   - "lembrete às 15h" ditado;
-   - "iniciar foco" pelo Taby;
-   - confirmações no notch com outra pergunta no meio;
-   - a sessão de foco sobrevivendo à troca de tela;
-   - o calendário nos dois sentidos com o "Hibi Teste": publicar, mover no Calendário do macOS, trazer, editar no Hibi e enviar.
+2. **Voz falada de ponta a ponta, com uma pessoa falando.**
+   - A escuta real já foi conferida no app instalado: abre, para pelo botão sem erro, e termina sozinha com "Não ouvi nada".
+   - O envio sozinho depois da pausa, a voz pelo atalho e pelo notch, e a resposta lida em voz alta (#149) estão cobertos com um dublê do reconhecimento.
+   - Falta alguém dizer um pedido de verdade com cada modo do ajuste **Voz pelo atalho**.
 
-3. **Achados baixos da revisão de 18/09, ainda abertos:**
-   - clicar duas vezes em Conectar no OAuth faz a segunda tentativa falhar;
-   - trocar o segredo do webhook só vale depois de reiniciar o receptor;
-   - "Revogar" no OAuth só apaga do Keychain;
-   - o log da migração promete um ponto de restauração que não existe;
-   - o log de eventos cresce sem limite;
-   - pedidos de escrita da API local não expiram.
+3. **Calendário:** do calendário para o Hibi vem só o horário, não o título (#144), e a exclusão remota continua sendo tratada como conflito.
 
-4. **Voz além do botão Falar:**
-   - enviar sozinho ao terminar de falar;
-   - voz pelo atalho global e pelo notch;
-   - resposta falada. O código de fala existe, mas nada o liga à tela; é opcional.
-
-5. **Calendário:** do calendário para o Hibi vem só o horário, não o título (#144), e a exclusão remota continua sendo tratada como conflito.
+Saíram desta lista em 2026-09-18, na validação ao vivo no app instalado (`22857b6`):
+- **Conferido ao vivo:**
+  - lembrete ditado;
+  - foco pelo Taby, sobrevivendo à troca de tela;
+  - voz abrindo e parando sem erro;
+  - uma confirmação pendente saindo do notch quando chega outra pergunta;
+  - o calendário "Hibi Teste" nos dois sentidos: publicar, mover no Calendário do macOS, trazer, renomear no Hibi, enviar e ver o título novo no Calendário.
+- **Defeitos que a validação revelou, corrigidos:**
+  - "me lembra de…", "lembre-me de…" e o foco no imperativo não eram entendidos, e o cérebro offline prometia um lembrete que não criava (#146);
+  - trazer um horário do calendário não gravava o vínculo, porque o arquivo real devolve cópias e a comparação era por identidade (#147).
+- **Os achados baixos da revisão** (#148):
+  - o OAuth com duplo clique, e a revogação no provedor;
+  - o segredo do webhook valendo na hora;
+  - o ponto de restauração da migração;
+  - o teto do log de eventos;
+  - a expiração dos pedidos da API local.
+- **A voz além do botão Falar** (#149):
+  - envio sozinho depois da pausa;
+  - voz pelo atalho, com a janela ou só no notch;
+  - resposta lida em voz alta, opcional e desligada por padrão.
 
 Saíram desta lista em 2026-09-18, na revisão de ponta a ponta de todos os fluxos e na auditoria da voz. Três revisores leram o `main` em paralelo, a voz foi auditada rodando o app, e os achados viraram quatro lotes, todos mergeados com mutações que mordem:
 
