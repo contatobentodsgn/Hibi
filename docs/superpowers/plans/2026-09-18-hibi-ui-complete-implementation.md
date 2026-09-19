@@ -24,8 +24,9 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 | U04 | Concluída (Claude) | #171 | A seção Aparência da nova UI (`src/ui/redesign/settings/AppearanceSettings.tsx`) nos Ajustes atuais: os três painéis do preview (Tema, "Um toque de cor", Reduzir movimento e Mais contraste), que conferem 0 px com o preview em 1x, e o painel novo "Menu de navegação" (Superior/Inferior, com miniaturas). A posição fica guardada, vale na hora e não remonta telas, rascunhos nem a sessão de foco. Comparações em `docs/redesign/u04-assets/`. |
 | U04b | Concluída (Claude) | #172 | Posição automática, decidida pelo usuário: a barra desce só quando o mascote do notch e a janela do Hibi estão no mesmo monitor; em monitores diferentes, fica em cima. "Automática" vira o padrão; Superior e Inferior fixam a posição. O processo principal diz à tela se os dois dividem o monitor e avisa quando isso muda (canal `hibi:notch:window-placement`). |
 | U04c | Concluída (Claude) | #173 | Tema escuro com as telas atuais: o conteúdo para antes do notch claro, que sumia sobre a ilha clara, em cima (rolando) e embaixo (sempre). A regra depende de `.legacy-surface` e some sozinha com as telas novas, que voltam ao desenho do preview. |
-| Revisão U03–U04b | Em revisão (Claude) | este PR | Uma revisão independente dos PRs #170 a #172, feita enquanto o Codex não os revisava, achou oito defeitos, nenhum grave. Os oito foram corrigidos, cada um com um teste que falha sem a correção (lista abaixo). Parada, a janela continua pixel a pixel a do preview. O Codex ainda pode revisar os quatro PRs. |
-| U05–U28 | Pendentes | — | A U05 é a próxima. |
+| Revisão U03–U04b | Concluída (Claude) | #174 | Uma revisão independente dos PRs #170 a #172, feita enquanto o Codex não os revisava, achou oito defeitos, nenhum grave. Os oito foram corrigidos, cada um com um teste que falha sem a correção (lista abaixo). Parada, a janela continua pixel a pixel a do preview. Depois do merge, o Codex revisou #170 a #174 e não achou nada (relatório na issue #48). |
+| U05 | Em revisão (Claude) | este PR | Os componentes comuns, criados para a Hoje (U06), a primeira tela a usá-los: `SectionHeader`, `EntityDetailsPanel` (a folha de detalhes), `ActionDialog` (o diálogo de ação curta do preview), `HibiEmptyState` e `RoundLink`. O diálogo confere com o `.preview-dialog` do preview nos dois temas. Os padrões de formulário ficam para a U07, a primeira tela com formulários. |
+| U06–U28 | Pendentes | — | A U06 é a próxima. |
 
 **Decisões registradas durante a execução:**
 - **Licença do componente da navegação** (`adaptive-notch-navigation-bar.tsx`): o usuário o desenvolveu no Codex, a partir de um prompt. É obra do projeto, sem licença de terceiros a conferir, e está liberado para a U03.
@@ -78,6 +79,19 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 6. **`aria-current="page"` na seção:** em Hábitos, "Hoje" era anunciado como a página atual, e a trilha marcava Hábitos. O destino que contém a página agora leva `aria-current="true"` (`ariaCurrentFor` em `routes.ts`); o visual não muda.
 7. **Cruzar 1280 px tirava o foco das ações**, que trocam de lugar e remontam. A barra lembra em qual ação o foco estava e o devolve à mesma ação no lugar novo.
 8. **Avisos da Aparência nasciam junto com a região de aviso**, e o leitor de tela costuma calar essas regiões. As duas regiões ficam sempre na página, vazias quando não há o que dizer.
+
+**Decisões da U05 (diálogos, detalhes e estados comuns):**
+- **Detalhe numa folha, ação curta num diálogo.** O detalhe de um item é o `EntityDetailsPanel`, sobre o `Drawer` do HeroUI: presa à direita, a 8 px da moldura, e abaixo de 640 px sobe de baixo. A ação curta e a confirmação ficam no `ActionDialog`, sobre o `Modal`. Os dois prendem o foco, fecham com Escape, com clique fora e com o X, e devolvem o foco a quem abriu.
+- **O botão que abre vai dentro do componente** (`trigger`) e precisa ser um `Button` do HeroUI. Assim, o React Aria o liga ao diálogo e devolve o foco a ele. Sem isso, o `Modal` aberto por fora avisava de um gatilho sem botão.
+- **O visual é o do `.preview-dialog`:** papel, raio de 26 px, sombra longa e o véu `#20202b38` com desfoque de 5 px. A folha usa o mesmo papel e o mesmo véu.
+- **Sobre papel (cartões e folhas), a ação secundária é `tertiary`**, no cinza suave. `secondary` é o papel com sombra do preview, feito para o canvas; sobre papel, ele some.
+- **Criado só o que a Hoje usa**, como pede o aceite da unidade ("nenhuma arquitetura genérica de formulários sem necessidade real"). Entram com o primeiro formulário real, na U07:
+  - salvar e cancelar;
+  - erro por campo;
+  - envio em andamento e clique duplicado;
+  - erro recuperável;
+  - confirmação destrutiva;
+  - Toast.
 
 **Regras que valem para todas as próximas unidades** (nascidas na U01 e na U02 e seguradas por `tests/e2e/heroui-foundation.spec.ts`):
 1. Toda superfície nova é montada dentro de `HibiUiRoot` (`src/ui/redesign/components/HibiUiRoot.tsx`), que cria o contêiner `.hibi-ui` e desenha popovers, menus e diálogos dentro dele.
@@ -423,14 +437,14 @@ Paralelismo útil depois de U05: Tarefas/Lembretes, Agenda, Notas e Taby podem s
 
 ### U05 — Formulários, painéis e feedback
 
-**Criar conforme consumo:** `EntityDetailsPanel.tsx`, `ConfirmActionDialog.tsx`, `AsyncNotice.tsx`, `SectionHeader.tsx` em `src/ui/redesign/components/`.
+**Criar conforme consumo:** `EntityDetailsPanel.tsx`, `ConfirmActionDialog.tsx`, `AsyncNotice.tsx`, `SectionHeader.tsx` em `src/ui/redesign/components/`. Na U05 entraram `SectionHeader`, `EntityDetailsPanel`, `ActionDialog` (a base do diálogo de confirmação), `HibiEmptyState` e `RoundLink`, que a Hoje usa.
 
-- [ ] Definir detalhe em Drawer no desktop e apresentação adaptada em janela estreita; modal para ação curta e confirmação.
-- [ ] Padronizar salvar/cancelar, erro por campo, envio em andamento e prevenção de clique duplicado.
-- [ ] Definir erro recuperável com tentar novamente sem perder edição; se serviço atual não reportar erro, registrar limitação do contrato e pedir correção ao dono.
-- [ ] Padronizar vazio inicial, busca sem resultado, indisponibilidade de bridge e falta de permissão.
-- [ ] Usar Toast para feedback não bloqueante; erro que exige decisão fica visível junto à ação.
-- [ ] Testar foco, Escape, clique fora e descarte de rascunho conforme tipo de formulário; confirmação destrutiva nunca fecha como sucesso implícito.
+- [x] Definir detalhe em Drawer no desktop e apresentação adaptada em janela estreita; modal para ação curta e confirmação.
+- [ ] Padronizar salvar/cancelar, erro por campo, envio em andamento e prevenção de clique duplicado. *(U07, com o primeiro formulário real.)*
+- [ ] Definir erro recuperável com tentar novamente sem perder edição; se serviço atual não reportar erro, registrar limitação do contrato e pedir correção ao dono. *(U07.)*
+- [x] Padronizar vazio inicial, busca sem resultado, indisponibilidade de bridge e falta de permissão. *(`HibiEmptyState`; cada tela escreve o texto do seu caso.)*
+- [ ] Usar Toast para feedback não bloqueante; erro que exige decisão fica visível junto à ação. *(Com o primeiro consumidor.)*
+- [x] Testar foco, Escape, clique fora e descarte de rascunho conforme tipo de formulário; confirmação destrutiva nunca fecha como sucesso implícito. *(Foco, Escape, clique fora e X testados; rascunho e confirmação destrutiva, na U07.)*
 
 **Aceite:** componentes consumidos pelo piloto; nenhuma arquitetura genérica de formulários sem necessidade real.
 

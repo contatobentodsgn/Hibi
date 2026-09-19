@@ -412,6 +412,7 @@ const pt = {
   'redesign.appearance.autoDetail': 'Na automática, a barra desce quando o mascote do notch está na mesma tela que o Hibi.',
   'redesign.appearance.autoNowBottom': 'Agora embaixo: o mascote está nesta tela.',
   'redesign.appearance.autoNowTop': 'Agora em cima: o mascote não está nesta tela.',
+  'redesign.common.close': 'Fechar',
 } as const
 
 export type DictionaryKey = keyof typeof pt
@@ -823,6 +824,7 @@ const en: Record<DictionaryKey, string> = {
   'redesign.appearance.autoDetail': "Automatic moves the bar down when the notch mascot is on the same screen as Hibi.",
   'redesign.appearance.autoNowBottom': 'At the bottom now: the mascot is on this screen.',
   'redesign.appearance.autoNowTop': "At the top now: the mascot isn't on this screen.",
+  'redesign.common.close': 'Close',
 }
 
 export const dictionary: Record<Locale, Record<DictionaryKey, string>> = { pt, en }
