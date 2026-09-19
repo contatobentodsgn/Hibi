@@ -184,8 +184,12 @@ function NotchItem({ item, isActive, current, onSelect }: NotchItemProps) {
       )}
     >
       {isActive && (
+        // A pílula desliza de um destino ao outro (uma pílula sai, outra entra com o mesmo `layoutId`). Parada
+        // num destino, ela não mede de novo a cada render (`layoutDependency` fixa): sem isso, ao a barra
+        // trocar de borda, ela atravessava a janela inteira atrás do botão.
         <motion.span
           layoutId="notch-active-pill"
+          layoutDependency={id}
           className="absolute inset-0 rounded-full bg-zinc-800 dark:bg-zinc-300"
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         />

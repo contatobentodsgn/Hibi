@@ -185,3 +185,71 @@ test('a Aparência não mexe no monitor do mascote do notch', async ({ page }) =
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
   expect(await page.evaluate(() => (window as unknown as { hibiE2E: { calls: (number | null)[] } }).hibiE2E.calls)).toEqual([]);
 });
+
+// Revisão da U04b: a resposta da ponte chega depois do primeiro desenho.
+test('na automática, o Hibi abre com a barra onde ela ficou da última vez, sem descer depois', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('hibi.ui.mascot-shares-display.v1', 'true');
+    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+      info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
+      getNotchWindowPlacement: () => new Promise((resolve) => { setTimeout(() => resolve({ sharesDisplay: true }), 300); }),
+      onNotchWindowPlacementChanged: () => () => undefined,
+    };
+    // Cada posição que a barra teve, quadro a quadro, desde o primeiro.
+    const seen: string[] = [];
+    (window as unknown as { hibiE2E: { seen: string[] } }).hibiE2E = { seen };
+    const watch = () => {
+      const position = document.querySelector('.notch-frame')?.getAttribute('data-position');
+      if (position && seen.at(-1) !== position) seen.push(position);
+      if (performance.now() < 4000) requestAnimationFrame(watch);
+    };
+    requestAnimationFrame(watch);
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await expect.poll(() => notchBottom(page)).toBe(900 - 8);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate(() => (window as unknown as { hibiE2E: { seen: string[] } }).hibiE2E.seen)).toEqual(['bottom']);
+});
+
+test('a resposta nova sobre o mascote fica guardada para a próxima abertura', async ({ page }) => {
+  await installMascotPlacement(page, true);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('hibi.ui.mascot-shares-display.v1'))).toBe('true');
+  await moveWindow(page, false);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('hibi.ui.mascot-shares-display.v1'))).toBe('false');
+});
+
+test('quando a barra troca de borda, a pílula do destino atual vai junto, e entre destinos ela ainda desliza', async ({ page }) => {
+  await installMascotPlacement(page, false);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await expect.poll(() => notchBottom(page)).toBe(8 + 44);
+  // A maior distância entre a pílula e o botão dela, quadro a quadro, depois de a barra descer.
+  const drift = await page.evaluate(() => new Promise<number>((resolve) => {
+    (window as unknown as { hibiE2E: { move: (shares: boolean) => void } }).hibiE2E.move(true);
+    let worst = 0;
+    const start = performance.now();
+    const tick = () => {
+      const button = document.querySelector('.notch-center [aria-current]');
+      const pill = button?.querySelector(':scope > span:first-child');
+      if (button && pill) worst = Math.max(worst, Math.abs(pill.getBoundingClientRect().top - button.getBoundingClientRect().top));
+      if (performance.now() - start < 600) requestAnimationFrame(tick);
+      else resolve(worst);
+    };
+    requestAnimationFrame(tick);
+  }));
+  expect(await notchBottom(page)).toBe(900 - 8);
+  expect(drift).toBeLessThan(1);
+
+  // Trocar de destino continua animado: no quadro seguinte ao clique, a pílula ainda viaja.
+  const target = nav(page).getByRole('button', { name: 'Taby', exact: true });
+  await target.click();
+  const offset = await target.evaluate((button) => new Promise<number>((resolve) => requestAnimationFrame(() => {
+    const pill = button.querySelector(':scope > span:first-child')!.getBoundingClientRect();
+    resolve(Math.abs(pill.left - button.getBoundingClientRect().left));
+  })));
+  expect(offset).toBeGreaterThan(1);
+});
+

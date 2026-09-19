@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NAVIGATION_POSITION_KEY, parseNavigationPreference, readNavigationPreference, resolveNavigationPosition, writeNavigationPreference } from '../shell/navigation-preferences'
+import { MASCOT_PLACEMENT_KEY, NAVIGATION_POSITION_KEY, parseNavigationPreference, readMascotPlacement, readNavigationPreference, resolveNavigationPosition, writeMascotPlacement, writeNavigationPreference } from '../shell/navigation-preferences'
 
 const memory = (initial: Record<string, string> = {}) => {
   const values = new Map(Object.entries(initial))
@@ -38,5 +38,19 @@ describe('posição da barra de navegação', () => {
     expect(storage.values.get('hibi.ui.navigation-position.v1')).toBe('auto')
     expect(writeNavigationPreference(refusing, 'bottom')).toBe(false)
     expect(writeNavigationPreference(null, 'top')).toBe(false)
+  })
+
+  it('guarda a última resposta sobre o mascote para o primeiro quadro, e sem ela o mascote não divide a tela', () => {
+    const storage = memory()
+    expect(readMascotPlacement(storage)).toBe(false)
+    writeMascotPlacement(storage, true)
+    expect(storage.values.get('hibi.ui.mascot-shares-display.v1')).toBe('true')
+    expect(readMascotPlacement(storage)).toBe(true)
+    writeMascotPlacement(storage, false)
+    expect(readMascotPlacement(storage)).toBe(false)
+    expect(readMascotPlacement(memory({ [MASCOT_PLACEMENT_KEY]: 'sim' }))).toBe(false)
+    expect(readMascotPlacement(refusing)).toBe(false)
+    expect(readMascotPlacement(null)).toBe(false)
+    expect(() => writeMascotPlacement(refusing, true)).not.toThrow()
   })
 })
