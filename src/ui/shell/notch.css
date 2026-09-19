@@ -33,4 +33,15 @@
    que ficam no canto de cima. Na camada dos utilitários, porque vence o `px-[42px]` da faixa. */
 @layer utilities {
   .notch-frame[data-position="bottom"] .hibi-topbar { padding-left: 84px; }
+
+  /*
+   * Tema escuro com as telas atuais (U04c). As telas atuais são uma ilha clara nos dois temas
+   * (`.legacy-surface`), e no escuro o notch é claro: rolando por baixo dele, o branco o apagava (com a
+   * barra embaixo, o tempo todo). Aqui a faixa da barra deixa de ser respiro dentro da área de rolagem e
+   * vira margem fora dela: o conteúdo para antes do notch, que fica sobre a superfície escura, como no
+   * preview. As telas novas são escuras e não usam a ilha: para elas a regra some sozinha e o conteúdo
+   * volta a passar por baixo da barra, como no desenho aprovado.
+   */
+  [data-theme="dark"] .notch-frame[data-position="top"] .notch-viewport:has(.legacy-surface) { padding-top: 0; margin-top: calc(var(--spacing) * 17.5); height: calc(100% - var(--spacing) * 17.5); }
+  [data-theme="dark"] .notch-frame[data-position="bottom"] .notch-viewport:has(.legacy-surface) { padding-bottom: 0; margin-bottom: calc(var(--spacing) * 17.5); height: calc(100% - var(--spacing) * 17.5); }
 }
