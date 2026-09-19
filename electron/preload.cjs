@@ -80,6 +80,8 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,getNotchSize: () => ipcRenderer.invoke('hibi:notch:size')
   ,setNotchSize: (size) => ipcRenderer.invoke('hibi:notch:set-size', size)
   ,testNotch: (locale) => ipcRenderer.invoke('hibi:notch:test', locale)
+  ,getNotchWindowPlacement: () => ipcRenderer.invoke('hibi:notch:window-placement')
+  ,onNotchWindowPlacementChanged: (callback) => { if (typeof callback !== 'function') throw new TypeError('Placement listener must be a function.'); const listener = (_event, state) => callback({ sharesDisplay: state?.sharesDisplay === true }); ipcRenderer.on('hibi:notch:window-placement-changed', listener); return () => ipcRenderer.removeListener('hibi:notch:window-placement-changed', listener); }
   ,onNotchDisplaysChanged: (callback) => { const listener = () => callback(); ipcRenderer.on('hibi:notch:displays-changed', listener); return () => ipcRenderer.removeListener('hibi:notch:displays-changed', listener); }
   ,getUpdateState: () => ipcRenderer.invoke('hibi:updates:state')
   ,checkForUpdate: () => ipcRenderer.invoke('hibi:updates:check')
