@@ -23,7 +23,8 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 | U03 | Concluída (Claude) | #170 | A Adaptive Notch Navigation substituiu o dock: Hoje · Agenda · Tarefas · Notas · Taby na barra, e Comandos, "Mais" (provisório) e Ajustes no notch da direita. O notch confere pixel a pixel com o preview (claro em cima e embaixo, escuro contra o preview assentado, em 1x e Retina), sem emendas em larguras ímpares. Achou e corrigiu dois defeitos da base (ordem das camadas e variante `dark` do HeroUI). Comparações, capturas da janela real e da UI antiga em `docs/redesign/u03-assets/`. Duas pendências para a U04, abaixo. |
 | U04 | Concluída (Claude) | #171 | A seção Aparência da nova UI (`src/ui/redesign/settings/AppearanceSettings.tsx`) nos Ajustes atuais: os três painéis do preview (Tema, "Um toque de cor", Reduzir movimento e Mais contraste), que conferem 0 px com o preview em 1x, e o painel novo "Menu de navegação" (Superior/Inferior, com miniaturas). A posição fica guardada, vale na hora e não remonta telas, rascunhos nem a sessão de foco. Comparações em `docs/redesign/u04-assets/`. |
 | U04b | Concluída (Claude) | #172 | Posição automática, decidida pelo usuário: a barra desce só quando o mascote do notch e a janela do Hibi estão no mesmo monitor; em monitores diferentes, fica em cima. "Automática" vira o padrão; Superior e Inferior fixam a posição. O processo principal diz à tela se os dois dividem o monitor e avisa quando isso muda (canal `hibi:notch:window-placement`). |
-| U04c | Em revisão (Claude) | este PR | Tema escuro com as telas atuais: o conteúdo para antes do notch claro, que sumia sobre a ilha clara, em cima (rolando) e embaixo (sempre). A regra depende de `.legacy-surface` e some sozinha com as telas novas, que voltam ao desenho do preview. |
+| U04c | Concluída (Claude) | #173 | Tema escuro com as telas atuais: o conteúdo para antes do notch claro, que sumia sobre a ilha clara, em cima (rolando) e embaixo (sempre). A regra depende de `.legacy-surface` e some sozinha com as telas novas, que voltam ao desenho do preview. |
+| Revisão U03–U04b | Em revisão (Claude) | este PR | Uma revisão independente dos PRs #170 a #172, feita enquanto o Codex não os revisava, achou oito defeitos, nenhum grave. Os oito foram corrigidos, cada um com um teste que falha sem a correção (lista abaixo). Parada, a janela continua pixel a pixel a do preview. O Codex ainda pode revisar os quatro PRs. |
 | U05–U28 | Pendentes | — | A U05 é a próxima. |
 
 **Decisões registradas durante a execução:**
@@ -42,7 +43,7 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 - **Fonte:** a nova UI usa a fonte do sistema, como o preview. A Inter das telas atuais vazava pelo `--default-font-family` do reset do Tailwind, e só a comparação lado a lado mostrou isso.
 
 **Decisões da U03 (navegação oficial):**
-- **Semântica de navegação, não de abas:** `nav` com `aria-current="page"` no destino atual; setas, Home e End percorrem a barra; no modo compacto, a lista fechada sai do Tab (`inert`), abrir leva o foco ao destino atual, escolher ou Escape devolvem o foco ao botão.
+- **Semântica de navegação, não de abas:** `nav` com `aria-current="page"` no destino atual (desde a revisão, `true` quando a página mora dentro dele, e a trilha marca a página); setas, Home e End percorrem a barra; no modo compacto, a lista fechada sai do Tab (`inert`), abrir leva o foco ao destino atual, escolher ou Escape devolvem o foco ao botão.
 - **O texto da barra é o que o preview mostra, não o que o código dele declara.** O CSS global do preview (`button { font: inherit; color: inherit }`, sem camada) vence os utilitários do componente: nas capturas aprovadas, todos os itens ficam no branco da barra, com peso normal. A pílula e o ícone marcam o destino atual. O Hibi reproduz esse resultado.
 - **Ajustes, Comandos e "Mais" no notch da direita**, o espaço de ações do componente (`rightContent`, com o `.notch-action` do preview). O "Mais" é provisório: guarda Foco, Lembretes, Hábitos, Metas, Revisão, Estatísticas, Ajuda, Eventos, Feedback, Atualizações e Hardware até a U19 dar os acessos pelo contexto. Foco saiu da barra, porque na nova arquitetura é uma sessão aberta a partir de Hoje e das tarefas.
 - **Um lugar marcado por vez:** o destino onde a rota mora (Lembretes marca Tarefas; Hábitos, Metas, Revisão e Estatísticas marcam Hoje), Ajustes para Ajuda, Feedback, Eventos, Atualizações e Hardware, e o "Mais" durante a sessão de foco. A trilha do topo do preview mostra o caminho: "Meu espaço / Tarefas / Lembretes". `routes.ts` resolve toda rota antiga (`destinationFor`), e o tipo obriga cada uma a ter lugar.
@@ -68,6 +69,16 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 
 **Decisão da U04c (pedida pelo usuário, 19/09): no escuro, as telas atuais não passam por baixo do notch.** No tema escuro o notch é claro, e as telas atuais são uma ilha clara nos dois temas: rolando por baixo dele (em cima) ou sempre (embaixo), o branco apagava o notch. Enquanto houver `.legacy-surface` na área de trabalho, a faixa da barra deixa de ser respiro dentro da rolagem e vira margem fora dela (`notch.css`): o conteúdo termina antes da faixa, e o notch fica sobre a superfície escura, como no preview. No claro nada muda, e as telas novas, escuras, voltam sozinhas ao desenho aprovado (conteúdo passando por baixo). Capturas em `docs/redesign/u04c-assets/`.
 
+**Revisão independente da U03 à U04b (19/09).** Os oito defeitos e o que mudou:
+1. **Conteúdo visível e não clicável sob a faixa de arrastar.** Rolando, o conteúdo passava por baixo da faixa do topo, onde o clique arrasta a janela (e o duplo clique a amplia). Agora ele some sob uma borda da cor da superfície (`.notch-scroll-edge`), que só aparece com a área de trabalho rolada e para antes da barra de rolagem. É a mesma ideia do topo translúcido do shell antigo e da borda de rolagem do macOS. Parada, a janela não muda. O foco que entra pelo teclado para abaixo da faixa (`scroll-padding`).
+2. **O menu compacto ficava aberto depois de navegar por fora dele** (Ajustes, "Mais", a paleta, o atalho do Taby), com o fundo escurecido sobre a tela nova. Agora qualquer troca de tela o fecha, e o foco que sai da ilha também.
+3. **PageDown, espaço, setas, Home e End não rolavam nada** com o foco na barra ou em nada (ao abrir o app), porque a área de rolagem é irmã da barra. Nesses casos a barra rola a área de trabalho; com o foco ou o clique dentro dela, o próprio Chromium rola, uma vez só.
+4. **A automática abria com a barra em cima e a descia logo depois**, porque a resposta do processo principal chega depois do primeiro desenho. A última resposta fica guardada (`hibi.ui.mascot-shares-display.v1`) e vale para o primeiro quadro. A pílula do destino atual também atravessava a janela quando a barra trocava de borda; agora ela vai junto com o botão (`layoutDependency`) e continua deslizando entre destinos.
+5. **O Tab chegava à barra só depois da tela inteira.** A barra voltou para antes do conteúdo na árvore, como no preview. As regiões de arrastar continuam certas, porque o conteúdo não declara região (regra 12).
+6. **`aria-current="page"` na seção:** em Hábitos, "Hoje" era anunciado como a página atual, e a trilha marcava Hábitos. O destino que contém a página agora leva `aria-current="true"` (`ariaCurrentFor` em `routes.ts`); o visual não muda.
+7. **Cruzar 1280 px tirava o foco das ações**, que trocam de lugar e remontam. A barra lembra em qual ação o foco estava e o devolve à mesma ação no lugar novo.
+8. **Avisos da Aparência nasciam junto com a região de aviso**, e o leitor de tela costuma calar essas regiões. As duas regiões ficam sempre na página, vazias quando não há o que dizer.
+
 **Regras que valem para todas as próximas unidades** (nascidas na U01 e na U02 e seguradas por `tests/e2e/heroui-foundation.spec.ts`):
 1. Toda superfície nova é montada dentro de `HibiUiRoot` (`src/ui/redesign/components/HibiUiRoot.tsx`), que cria o contêiner `.hibi-ui` e desenha popovers, menus e diálogos dentro dele.
 2. **Todo CSS da nova UI vai em camada** (`@layer theme`, `components` ou `utilities`). Dentro de `.hibi-ui`, cada elemento descarta o CSS sem camada (`all: revert-layer`), porque é assim que o CSS das telas atuais fica de fora. Uma regra nova sem camada seria descartada do mesmo jeito. Estilo em linha continua valendo.
@@ -80,7 +91,7 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 9. **`heroui.css` é o primeiro import de `src/main.tsx`** (U03). A primeira menção a uma camada fixa a ordem, e o CSS de um componente entra quando o módulo dele é avaliado; com outro CSS em camada antes, o reset passa por cima dos utilitários.
 10. **`dark:` segue só o `data-theme` da raiz** (U03). A variante do HeroUI caía na preferência do macOS e casava com elementos aninhados na mesma classe; `heroui.css` a redefine.
 11. **As primitivas `--hibi-*` ficam na raiz** (U03); as variáveis que o HeroUI lê, só dentro de `.hibi-ui`.
-12. **Janela do macOS:** nada acima da barra declara `-webkit-app-region`. O Chromium monta as regiões na ordem da árvore e herda o valor, e até `none` vira `no-drag`. A faixa do topo arrasta; botões, conteúdo e menus, não.
+12. **Janela do macOS:** nada acima da barra declara `-webkit-app-region`. O Chromium monta as regiões na ordem da árvore e herda o valor, e até `none` vira `no-drag`. A faixa do topo arrasta; botões, conteúdo e menus, não. Desde a revisão, a barra vem antes do conteúdo na árvore, e **o conteúdo não declara região**: um `drag` numa tela venceria os botões da barra. O que rola por baixo da faixa fica sob a borda da superfície.
 13. **As telas atuais ficam fora de `.hibi-ui`** dentro do shell; cada tela reconstruída monta a própria `HibiUiRoot`. A prévia do shell sem as telas é `?overlay=ui-navigation`, só no desenvolvimento.
 
 ## 1. Estado deste documento e evidências
@@ -290,6 +301,8 @@ export const NAVIGATION_POSITION_KEY = 'hibi.ui.navigation-position.v1';
 export function parseNavigationPreference(value: unknown): NavigationPreference {
   return value === 'top' || value === 'bottom' ? value : 'auto';
 }
+// Desde a revisão da U04b: a última resposta sobre o mascote, só para o primeiro quadro da automática.
+export const MASCOT_PLACEMENT_KEY = 'hibi.ui.mascot-shares-display.v1';
 ```
 
 Leitura/gravação deve tolerar storage indisponível; o app continua utilizável e comunica quando a preferência não pôde ser persistida. Troca aplica imediatamente, não remonta o workspace nem reinicia a sessão. Não estender formato de backup silenciosamente: se exportação de preferências visuais for desejada, Claude altera o contrato em PR próprio.
