@@ -4,6 +4,7 @@ import { LayoutGroup, motion } from 'motion/react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { HibiUiRoot } from '../redesign/components/HibiUiRoot';
+import { useThemePreference } from '../theme-context';
 import { nextFocusIndex } from './routes';
 
 /*
@@ -286,6 +287,10 @@ const barButtons = (nav: HTMLElement) =>
     (button) => !button.closest('[data-notch-drawer]') && button.getClientRects().length > 0 && !(button as HTMLButtonElement).disabled
   );
 
+// O passo de uma seta e o de uma página, os do Chromium.
+const LINE_STEP = 40;
+const PAGE_FRACTION = 0.875;
+
 export function AdaptiveNotchNavigation({
   items,
   activeId,
@@ -311,6 +316,7 @@ export function AdaptiveNotchNavigation({
   const drawerId = useId();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const wide = useWideLayout();
+  const { motion: motionPreference } = useThemePreference();
   const isBottom = position === 'bottom';
   const activeItem = items.find((item) => item.id === activeId);
   const ActiveIcon = activeItem?.icon;
@@ -342,6 +348,45 @@ export function AdaptiveNotchNavigation({
     viewport.addEventListener('scroll', update, { passive: true });
     return () => viewport.removeEventListener('scroll', update);
   }, []);
+
+  // Rolagem pelo teclado. O Chromium rola a partir do elemento em foco (sem foco, do último clicado), subindo
+  // pelos ancestrais até achar o que role; a área de trabalho é irmã da barra, e a janela em si não rola. Com o
+  // foco num botão da barra, ou em nada (ao abrir o app), as teclas não rolavam nada: nesses casos, a barra rola
+  // a área de trabalho. Com o foco ou o clique dentro dela, o próprio Chromium rola, e aqui nada acontece.
+  useEffect(() => {
+    let pressed: EventTarget | null = null;
+    const remember = (event: PointerEvent) => {
+      pressed = event.target;
+    };
+    const scroll = (event: globalThis.KeyboardEvent) => {
+      const viewport = viewportRef.current;
+      if (!viewport || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      const active = document.activeElement;
+      const idle = !active || active === document.body || active === document.documentElement;
+      const start = idle ? pressed : active;
+      if (start instanceof Node && start.isConnected && viewport.contains(start)) return;
+      const onBar = !idle && !!navRef.current?.contains(active) && !active.closest('[data-notch-drawer]');
+      // Espaço, Home e End só sem foco: num botão, o espaço o aperta, e Home e End já andam pela barra.
+      const keys = idle ? ['PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', ' ', 'Home', 'End'] : onBar ? ['PageDown', 'PageUp', 'ArrowDown', 'ArrowUp'] : [];
+      if (!keys.includes(event.key)) return;
+      event.preventDefault();
+      const reduce = motionPreference === 'reduce' || !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const behavior: ScrollBehavior = reduce ? 'instant' : 'smooth';
+      if (event.key === 'Home' || event.key === 'End') {
+        viewport.scrollTo({ top: event.key === 'Home' ? 0 : viewport.scrollHeight, behavior });
+        return;
+      }
+      const down = event.key === 'PageDown' || event.key === 'ArrowDown' || (event.key === ' ' && !event.shiftKey);
+      const step = event.key.startsWith('Arrow') ? LINE_STEP : viewport.clientHeight * PAGE_FRACTION;
+      viewport.scrollBy({ top: down ? step : -step, behavior });
+    };
+    document.addEventListener('pointerdown', remember, true);
+    window.addEventListener('keydown', scroll);
+    return () => {
+      document.removeEventListener('pointerdown', remember, true);
+      window.removeEventListener('keydown', scroll);
+    };
+  }, [motionPreference]);
 
   // Fechar sem escolher devolve o foco ao botão, se ele estava no menu. Clicar fora não rouba o foco de
   // onde a pessoa clicou.

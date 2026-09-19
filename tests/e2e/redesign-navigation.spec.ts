@@ -327,3 +327,41 @@ test('o foco que entra na tela pelo teclado para abaixo da faixa da barra, não 
   expect(top).toBeGreaterThanOrEqual(8 + 70 - 1);
 });
 
+test('as teclas de rolar rolam a tela com o foco na barra ou em nada, e uma vez só com o foco na tela', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('hibi-motion', 'reduce'));
+  await page.setViewportSize({ width: 1440, height: 700 });
+  await page.goto('/');
+  await fillWorkArea(page);
+  const viewport = page.locator('.notch-viewport');
+  const top = () => viewport.evaluate((element) => element.scrollTop);
+  const step = await viewport.evaluate((element) => element.clientHeight * 0.875);
+  // A rolagem anda em pixels inteiros.
+  const near = (target: number) => async () => Math.abs((await top()) - target);
+
+  // Ao abrir, sem foco em nada.
+  await page.keyboard.press('PageDown');
+  await expect.poll(near(step)).toBeLessThanOrEqual(1);
+  await page.keyboard.press('Home');
+  await expect.poll(top).toBe(0);
+  await page.keyboard.press('End');
+  await expect.poll(top).toBe(await viewport.evaluate((element) => element.scrollHeight - element.clientHeight));
+  await page.keyboard.press('Home');
+  await expect.poll(top).toBe(0);
+
+  // Com o foco num destino da barra, que as setas para os lados percorrem.
+  await nav(page).getByRole('button', { name: 'Hoje', exact: true }).click();
+  await page.keyboard.press('PageDown');
+  await expect.poll(near(step)).toBeLessThanOrEqual(1);
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(near(step - 40)).toBeLessThanOrEqual(1);
+  await expect(nav(page).getByRole('button', { name: 'Hoje', exact: true })).toBeFocused();
+
+  // Com o clique na tela, quem rola é o próprio Chromium: uma página, não duas.
+  await viewport.evaluate((element) => { element.scrollTop = 0; });
+  await page.mouse.click(700, 300);
+  await page.keyboard.press('PageDown');
+  await expect.poll(top).toBeGreaterThan(0);
+  await page.waitForTimeout(600);
+  expect(await top()).toBeLessThan(step * 1.2);
+});
+
