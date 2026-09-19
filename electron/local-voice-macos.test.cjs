@@ -239,3 +239,72 @@ test('com ruído mudando o parcial sem parar, o teto encerra a escuta', async ()
 
   assert.deepEqual(await escuta, { ended: 'silence' });
 });
+
+// Com o nível do microfone, o fim da voz encerra a frase: o reconhecedor segue revisando o texto depois
+// que a pessoa para, e esperar o texto assentar atrasava o envio.
+const helperComVoz = () => {
+  const ouvintes = new Map();
+  let aoFalar;
+  const child = {
+    killed: null,
+    stdout: { setEncoding() {}, on(event, fn) { if (event === 'data') aoFalar = fn; } },
+    once(event, fn) { ouvintes.set(event, fn); return this; },
+    kill(signal) { child.killed = signal; ouvintes.get('close')?.(null, signal); },
+    enviar: (evento) => aoFalar(`${JSON.stringify(evento)}\n`),
+  };
+  return child;
+};
+const comVoz = () => {
+  const child = helperComVoz();
+  const tempo = relogio();
+  const adapter = createMacVoiceAdapter({ spawnProcess: () => child, helperPath: '/tmp/h', setTimer: tempo.set, clearTimer: tempo.clear });
+  const escuta = adapter.listen({ onText: () => {}, silenceMs: 1300, noSpeechMs: 8000, voiceHangoverMs: 900 });
+  return { child, tempo, escuta };
+};
+
+test('falando, o texto não agenda o fim; a voz parar agenda', async () => {
+  const { child, tempo, escuta } = comVoz();
+  child.enviar({ type: 'voice', active: true });
+  child.enviar({ type: 'text', final: false, text: 'adia a reunião' });
+  assert.deepEqual(tempo.pendentes(), [], 'falando, nem a espera por fala nem a pausa ficam armadas');
+  child.enviar({ type: 'text', final: false, text: 'adia a reunião para as 16h' });
+  assert.deepEqual(tempo.pendentes(), []);
+  child.enviar({ type: 'voice', active: false });
+  assert.deepEqual(tempo.pendentes(), [900]);
+  tempo.disparar(900);
+  assert.deepEqual(await escuta, { ended: 'silence' });
+});
+
+// Visto ao vivo: com uma espera menor para o texto, "me lembra de ligar para o banco … depois do almoço"
+// terminava na pausa, antes de "depois do almoço".
+test('texto que chega numa pausa recomeça a espera inteira, sem encurtá-la', async () => {
+  const { child, tempo, escuta } = comVoz();
+  child.enviar({ type: 'voice', active: true });
+  child.enviar({ type: 'text', final: false, text: 'me lembra de ligar' });
+  child.enviar({ type: 'voice', active: false });
+  const antes = tempo.agendados();
+  child.enviar({ type: 'text', final: false, text: 'me lembra de ligar para o banco' });
+  assert.equal(tempo.agendados(), antes + 1, 'o texto novo recomeça a espera');
+  assert.deepEqual(tempo.pendentes(), [900]);
+  tempo.disparar(900);
+  assert.deepEqual(await escuta, { ended: 'silence' });
+});
+
+test('voltar a falar antes do fim cancela o fim', async () => {
+  const { child, tempo } = comVoz();
+  child.enviar({ type: 'voice', active: true });
+  child.enviar({ type: 'text', final: false, text: 'marque' });
+  child.enviar({ type: 'voice', active: false });
+  assert.deepEqual(tempo.pendentes(), [900]);
+  child.enviar({ type: 'voice', active: true });
+  assert.deepEqual(tempo.pendentes(), []);
+});
+
+test('voz sem nenhuma palavra reconhecida ainda termina como "no-speech"', async () => {
+  const { child, tempo, escuta } = comVoz();
+  child.enviar({ type: 'voice', active: true });
+  child.enviar({ type: 'voice', active: false });
+  assert.deepEqual(tempo.pendentes(), [8000]);
+  tempo.disparar(8000);
+  assert.deepEqual(await escuta, { ended: 'no-speech' });
+});

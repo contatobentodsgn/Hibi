@@ -80,3 +80,12 @@ test('o vocabulário chega ao adaptador limpo: só textos curtos, sem repetir e 
   assert.deepEqual(pedidos[2], []);
   assert.deepEqual(normalizeVocabulary(undefined), []);
 });
+
+test('a escuta que envia sozinha leva os prazos da voz ao adaptador', async () => {
+  const pedidos = [];
+  const service = createLocalVoiceService({ adapter: { listen: (request) => { pedidos.push(request); return Promise.resolve(); }, stop() {}, speak: () => Promise.resolve() } });
+  await service.listen({ autoStop: true });
+  await service.listen({});
+  assert.equal(pedidos[0].voiceHangoverMs, 900);
+  assert.equal(pedidos[1].voiceHangoverMs, undefined);
+});

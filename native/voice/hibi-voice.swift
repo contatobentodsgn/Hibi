@@ -2,6 +2,31 @@ import AVFoundation
 import Foundation
 import Speech
 
+/// Diz quando há voz no microfone, pelo nível do áudio, e avisa só nas mudanças. O piso de ruído se ajusta
+/// ao ambiente (sobe devagar, desce na hora); é voz o que passa de três vezes o piso por pelo menos 60 ms,
+/// e o silêncio só conta depois de 300 ms, para as pausas entre palavras não virarem fim de fala. A ideia
+/// de início e fim com margem vem do Handy (MIT); o código é do Hibi.
+final class VoiceActivity: @unchecked Sendable {
+    private var floor: Float = 0
+    private var voicedFor: Double = 0
+    private var quietFor: Double = 0
+    private var active = false
+
+    func push(_ buffer: AVAudioPCMBuffer) {
+        guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return }
+        let count = Int(buffer.frameLength)
+        var sum: Float = 0
+        for index in 0..<count { sum += samples[index] * samples[index] }
+        let level = (sum / Float(count)).squareRoot()
+        let seconds = Double(count) / buffer.format.sampleRate
+        floor = floor == 0 ? level : (level < floor ? level : floor + (level - floor) * 0.01)
+        let voiced = level > max(0.003, floor * 3)
+        if voiced { voicedFor += seconds; quietFor = 0 } else { quietFor += seconds; voicedFor = 0 }
+        if !active && voicedFor >= 0.06 { active = true; HibiVoice.emit(["type": "voice", "active": true]) }
+        else if active && quietFor >= 0.3 { active = false; HibiVoice.emit(["type": "voice", "active": false]) }
+    }
+}
+
 @main
 struct HibiVoice {
     static func emit(_ object: [String: Any]) {
@@ -73,7 +98,8 @@ struct HibiVoice {
             task.cancel()
             return
         }
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in request.append(buffer) }
+        let activity = VoiceActivity()
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in activity.push(buffer); request.append(buffer) }
         do { audio.prepare(); try audio.start(); emit(["type": "ready", "engine": "classic"]) } catch { emit(["type": "error", "message": error.localizedDescription]); task.cancel(); return }
         classicRunning = true
         Task {
@@ -167,7 +193,9 @@ struct HibiVoice {
         }
         guard let converter = AVAudioConverter(from: inputFormat, to: analyzerFormat) else { return false }
         let (inputs, feed) = AsyncStream<AnalyzerInput>.makeStream()
+        let activity = VoiceActivity()
         input.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { buffer, _ in
+            activity.push(buffer)
             let ratio = analyzerFormat.sampleRate / inputFormat.sampleRate
             let capacity = AVAudioFrameCount((Double(buffer.frameLength) * ratio).rounded(.up)) + 1
             guard let converted = AVAudioPCMBuffer(pcmFormat: analyzerFormat, frameCapacity: capacity) else { return }

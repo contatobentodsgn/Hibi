@@ -35,7 +35,7 @@ function createMacVoiceAdapter({ spawnProcess = spawn, helperPath, exists = exis
      * nunca dá o resultado final por conta própria, e sem isso a pessoa precisava apertar Parar. Com
      * `noSpeechMs`, termina também quando ninguém disse nada. O motivo volta em `ended`.
      */
-    listen({ locale = 'pt-BR', onText, silenceMs = 0, noSpeechMs = 0, maxSpeechMs = 0, vocabulary = [] } = {}) {
+    listen({ locale = 'pt-BR', onText, silenceMs = 0, noSpeechMs = 0, maxSpeechMs = 0, voiceHangoverMs = 0, vocabulary = [] } = {}) {
       child?.kill('SIGTERM');
       // O vocabulário vai pela entrada do helper, não pela linha de comando: os nomes da pessoa não ficam
       // expostos na lista de processos. O helper lê até o fim da entrada antes de abrir o microfone.
@@ -56,6 +56,11 @@ function createMacVoiceAdapter({ spawnProcess = spawn, helperPath, exists = exis
       // e um teto depois da primeira palavra encerra mesmo com ruído de fundo mudando o parcial.
       let lastText = '';
       let cap = null;
+      // Com o nível do microfone (eventos "voice" do helper), o fim da fala é o fim da voz, e não o texto
+      // parar de mudar: o reconhecedor segue revisando o texto depois que a pessoa para, e isso atrasava o
+      // envio. Sem esses eventos — fala baixa demais para o nível, helper antigo —, vale a regra do texto.
+      let heardVoice = false;
+      let speaking = false;
       // O helper fala JSON por linha, mas o pipe entrega pedaços: uma linha pode chegar partida em
       // dois. Guardar o resto evita perder justamente o texto final da fala.
       let pending = '';
@@ -71,9 +76,16 @@ function createMacVoiceAdapter({ spawnProcess = spawn, helperPath, exists = exis
               const text = typeof event.text === 'string' ? event.text.trim() : '';
               if (text && text !== lastText) {
                 lastText = text;
-                endAfter(silenceMs, 'silence');
+                // Falando, quem encerra é o fim da voz. Em silêncio, o texto que ainda chega recomeça a espera
+                // inteira, nunca uma menor: com uma espera curta, uma pausa de 0,9 s no meio da frase cortava.
+                endAfter(speaking ? 0 : heardVoice && voiceHangoverMs > 0 ? voiceHangoverMs : silenceMs, 'silence');
                 if (!cap && maxSpeechMs > 0) cap = setTimer(() => { ended = 'silence'; current.kill('SIGTERM'); }, maxSpeechMs);
               }
+            }
+            else if (event.type === 'voice' && voiceHangoverMs > 0) {
+              speaking = event.active === true;
+              if (speaking) { heardVoice = true; if (lastText) endAfter(0, 'silence'); }
+              else if (lastText) endAfter(voiceHangoverMs, 'silence');
             }
             // O helper diz por que parou (permissão, idioma sem modelo local, sem microfone). Antes
             // isso era descartado e a tela mostrava uma frase genérica que não dizia o que houve.
