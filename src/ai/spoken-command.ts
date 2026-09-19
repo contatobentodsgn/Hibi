@@ -10,7 +10,7 @@ import { normalizePortuguese } from './ptbr-normalizer';
  * com "às 15h" no título, e "Taby, crie uma tarefa" listava as tarefas em vez de criar.
  */
 
-const COMMAND_VERBS = 'marque|marcar|agende|agendar|reserve|reservar|crie|criar|adicione|adicionar|edite|editar|renomeie|renomear|exclua|excluir|apague|apagar|remova|remover|envie|enviar|poste|postar|publique|publicar|inicie|inicia|iniciar|comece|começa|comeca|começar|comecar|me\\s+lembr[ae]r?|lembr[ae]-me|lembre|lembrar';
+const COMMAND_VERBS = 'adi[ae]r?|adie|mov[ae]r?|mova|mud[ae]r?|remarc[ae]r?|remarque|deix[ae]r?|conclu[ai]r?|fiz|terminei|acabei|cancel[ae]r?|cancele|tir[ae]r?|tire|marque|marcar|agende|agendar|reserve|reservar|crie|criar|adicione|adicionar|edite|editar|renomeie|renomear|exclua|excluir|apague|apagar|remova|remover|envie|enviar|poste|postar|publique|publicar|inicie|inicia|iniciar|comece|começa|comeca|começar|comecar|me\\s+lembr[ae]r?|lembr[ae]-me|lembre|lembrar';
 // O jeito falado de pedir um lembrete — "me lembra de ligar às 15h" — vira o comando que o Taby já
 // entende. Sem isso a frase ia para a conversa, e o cérebro offline respondia "claro, vou lembrar"
 // sem criar lembrete nenhum.

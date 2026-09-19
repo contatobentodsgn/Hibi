@@ -1,4 +1,5 @@
 import { normalizeSpokenCommand, parseScheduleRequest, parseSpokenTime, takeSpokenDay } from './spoken-command';
+import { entityProposal, parseEntityCommand, type Subject } from './entity-commands';
 import { LocalRepository } from '../data/local-repository';
 import { findConflicts, validateScheduleBlock } from '../domain/conflicts';
 import { localDateKey, shiftDayKey } from '../domain/date-context';
@@ -19,7 +20,9 @@ export type IntegrationActionBridge = Readonly<{
 }>;
 // Publicar uma reunião no calendário conectado. Devolve o nome do calendário, ou `null` quando nenhum
 // calendário bidirecional foi escolhido em Ajustes › Integrations.
-export type MeetingCalendarBridge = Readonly<{ publish: (block: ScheduleBlock) => Promise<string | null> }>;
+// `update` leva ao calendário o novo horário de um bloco que já foi publicado nele; devolve o nome do
+// calendário, ou `null` quando o bloco não está lá.
+export type MeetingCalendarBridge = Readonly<{ publish: (block: ScheduleBlock) => Promise<string | null>; update?: (block: ScheduleBlock) => Promise<string | null> }>;
 type Hooks = Readonly<{ calendar?: MeetingCalendarBridge; onDataChanged?: () => void; onTaskStatusChanged?: (before: Task, after: Task) => void; onBlockCreated?: (block: ScheduleBlock) => void; onBlockDeleted?: (block: ScheduleBlock) => void; onFocusStarted?: () => void; onAudit?: (event: AiAuditEvent) => void; onUsage?: (event: AiRuntimeUsageEvent) => void; integrations?: IntegrationActionBridge }>;
 const isText = (value: unknown, max = 240): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= max;
 // Aceita a hora de parede flutuante que o app grava e, vindo de um provedor externo, também um
@@ -42,7 +45,7 @@ export function createLocalToolRegistry(repository: LocalRepository, hooks: Hook
   register({ name: 'task.create', description: 'Create a local task.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['title'] }, validate: (args) => isText(args.title) && (args.durationMinutes === undefined || Number.isInteger(args.durationMinutes) && Number(args.durationMinutes) >= 5 && Number(args.durationMinutes) <= 480), execute: (args) => { const task = repository.createTask({ title: title(args), durationMinutes: Number(args.durationMinutes ?? 60), category: 'work', folder: 'Bento', status: 'open' }); hooks.onDataChanged?.(); return { summary: `Tarefa criada: ${task.title}`, data: { id: task.id } }; } });
   // Só avisa quando o status muda: renomear uma tarefa já concluída não é conclusão nem reabertura.
   // getTask devolve o objeto vivo do repositório, então o "antes" é copiado antes da mutação.
-  register({ name: 'task.update', description: 'Update a local task title, duration, or status.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)) && (args.title === undefined || isText(args.title)) && (args.durationMinutes === undefined || Number.isInteger(args.durationMinutes) && Number(args.durationMinutes) >= 5 && Number(args.durationMinutes) <= 480) && entityStatus(args.status), execute: (args) => { const current = repository.getTask(id(args)); const before = current && { ...current }; const task = repository.updateTask(id(args), { ...(args.title === undefined ? {} : { title: title(args) }), ...(args.durationMinutes === undefined ? {} : { durationMinutes: Number(args.durationMinutes) }), ...(args.status === undefined ? {} : { status: args.status as 'open' | 'completed' | 'paused' }) }); hooks.onDataChanged?.(); if (before && before.status !== task.status) hooks.onTaskStatusChanged?.(before, task); return { summary: `Tarefa atualizada: ${task.title}`, data: { id: task.id } }; } });
+  register({ name: 'task.update', description: 'Update a local task title, duration, deadline, or status.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)) && (args.title === undefined || isText(args.title)) && (args.durationMinutes === undefined || Number.isInteger(args.durationMinutes) && Number(args.durationMinutes) >= 5 && Number(args.durationMinutes) <= 480) && (args.deadline === undefined || isIsoDateTime(args.deadline)) && entityStatus(args.status), execute: (args) => { const current = repository.getTask(id(args)); const before = current && { ...current }; const task = repository.updateTask(id(args), { ...(args.title === undefined ? {} : { title: title(args) }), ...(args.durationMinutes === undefined ? {} : { durationMinutes: Number(args.durationMinutes) }), ...(args.deadline === undefined ? {} : { deadline: wallClock(args.deadline) }), ...(args.status === undefined ? {} : { status: args.status as 'open' | 'completed' | 'paused' }) }); hooks.onDataChanged?.(); if (before && before.status !== task.status) hooks.onTaskStatusChanged?.(before, task); return { summary: `Tarefa atualizada: ${task.title}`, data: { id: task.id } }; } });
   register({ name: 'task.delete', description: 'Permanently delete a local task.', risk: 'destructive', inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)), execute: (args) => { const task = repository.getTask(id(args)); if (!task) throw new Error(`Task not found: ${id(args)}`); repository.deleteTask(task.id); hooks.onDataChanged?.(); return { summary: `Tarefa excluída: ${task.title}`, data: { id: task.id } }; } });
   register({ name: 'reminder.create', description: 'Create a local reminder.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['title', 'at'] }, validate: (args) => isText(args.title) && isIsoDateTime(args.at), execute: (args) => { const reminder = repository.createReminder({ title: title(args), category: 'important', status: 'open', schedule: { at: wallClock(args.at) } }); hooks.onDataChanged?.(); return { summary: `Lembrete criado: ${reminder.title}`, data: { id: reminder.id } }; } });
   register({ name: 'reminder.update', description: 'Update a local reminder title, date/time, or status.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)) && (args.title === undefined || isText(args.title)) && (args.at === undefined || isIsoDateTime(args.at)) && entityStatus(args.status), execute: (args) => { const reminder = repository.updateReminder(id(args), { ...(args.title === undefined ? {} : { title: title(args) }), ...(args.at === undefined ? {} : { schedule: { at: wallClock(args.at) } }), ...(args.status === undefined ? {} : { status: args.status as 'open' | 'completed' | 'paused' }) }); hooks.onDataChanged?.(); return { summary: `Lembrete atualizado: ${reminder.title}`, data: { id: reminder.id } }; } });
@@ -66,13 +69,19 @@ export function createLocalToolRegistry(repository: LocalRepository, hooks: Hook
     const where = calendar ? `na agenda, nas tarefas e no calendário "${calendar}"` : `na agenda e nas tarefas${calendarFailed ? '; o calendário recusou o evento' : hooks.calendar ? '. Para ir também ao seu calendário, escolha um calendário bidirecional em Ajustes › Integrations' : ''}`;
     return { summary: `Reunião marcada: ${input.title}, ${when}, ${where}.`, data: { blockId: block.id, taskId: task.id, calendar } };
   } });
-  register({ name: 'block.update', description: 'Update a local schedule block.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)) && (args.title === undefined || isText(args.title)) && (args.start === undefined || isIsoDateTime(args.start)) && (args.end === undefined || isIsoDateTime(args.end)) && (args.category === undefined || category(args.category)), execute: (args) => { const current = repository.listBlocks().find((item) => item.id === id(args)); if (!current) throw new Error(`Block not found: ${id(args)}`); const next = { ...current, ...(args.title === undefined ? {} : { title: title(args) }), ...(args.start === undefined ? {} : { start: wallClock(args.start) }), ...(args.end === undefined ? {} : { end: wallClock(args.end) }), ...(args.category === undefined ? {} : { category: args.category as Category }) }; if (next.start >= next.end) throw new Error('Block start must be before end.'); const validation = validateScheduleBlock(next, repository.listBlocks().filter((item) => item.id !== next.id)); if (!validation.valid) throw new Error(validation.errors.join(' ')); const block = repository.updateBlock(next.id, next); hooks.onDataChanged?.(); return { summary: `Bloco atualizado: ${block.title}`, data: { id: block.id } }; } });
+  register({ name: 'block.update', description: 'Update a local schedule block.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)) && (args.title === undefined || isText(args.title)) && (args.start === undefined || isIsoDateTime(args.start)) && (args.end === undefined || isIsoDateTime(args.end)) && (args.category === undefined || category(args.category)), execute: async (args) => { const current = repository.listBlocks().find((item) => item.id === id(args)); if (!current) throw new Error(`Block not found: ${id(args)}`); const next = { ...current, ...(args.title === undefined ? {} : { title: title(args) }), ...(args.start === undefined ? {} : { start: wallClock(args.start) }), ...(args.end === undefined ? {} : { end: wallClock(args.end) }), ...(args.category === undefined ? {} : { category: args.category as Category }) }; if (next.start >= next.end) throw new Error('Block start must be before end.'); const validation = validateScheduleBlock(next, repository.listBlocks().filter((item) => item.id !== next.id)); if (!validation.valid) throw new Error(validation.errors.join(' ')); const block = repository.updateBlock(next.id, next); hooks.onDataChanged?.();
+    // Um bloco que já está no calendário conectado muda lá também: a confirmação do Taby é a aprovação.
+    let calendar: string | null = null; let calendarFailed = false;
+    if (args.start !== undefined || args.end !== undefined || args.title !== undefined) { try { calendar = (await hooks.calendar?.update?.(block)) ?? null; } catch { calendarFailed = true; } }
+    const when = `${block.start.slice(8, 10)}/${block.start.slice(5, 7)} às ${block.start.slice(11, 16)}`;
+    return { summary: `Bloco atualizado: ${block.title}, ${when}${calendar ? `, também no calendário "${calendar}"` : calendarFailed ? '; o calendário recusou a mudança' : ''}.`, data: { id: block.id, calendar } }; } });
   // Criar e apagar mudam os minutos planejados, então viram atividade; editar um bloco não é registrado.
   // listBlocks já devolve cópias: o bloco apagado continua legível para o registro.
   register({ name: 'block.delete', description: 'Permanently delete a local schedule block.', risk: 'destructive', inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)), execute: (args) => { const block = repository.listBlocks().find((item) => item.id === id(args)); if (!block) throw new Error(`Block not found: ${id(args)}`); repository.deleteBlock(block.id); hooks.onDataChanged?.(); hooks.onBlockDeleted?.(block); return { summary: `Bloco excluído: ${block.title}`, data: { id: block.id } }; } });
   register({ name: 'note.create', description: 'Create a local note.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['title', 'content'] }, validate: (args) => isText(args.title) && isText(args.content, 10_000), execute: (args) => { const now = new Date().toISOString(); const note = repository.createNote({ title: title(args), content: args.content as string, folder: 'Bento', createdAt: now, updatedAt: now }); hooks.onDataChanged?.(); return { summary: `Nota criada: ${note.title}`, data: { id: note.id } }; } });
   register({ name: 'note.update', description: 'Update a local note title or content.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)) && (args.title === undefined || isText(args.title)) && (args.content === undefined || isText(args.content, 10_000)), execute: (args) => { const note = repository.updateNote(id(args), { ...(args.title === undefined ? {} : { title: title(args) }), ...(args.content === undefined ? {} : { content: args.content as string }), updatedAt: new Date().toISOString() }); hooks.onDataChanged?.(); return { summary: `Nota atualizada: ${note.title}`, data: { id: note.id } }; } });
   register({ name: 'note.delete', description: 'Permanently delete a local note.', risk: 'destructive', inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)), execute: (args) => { const note = repository.listNotes().find((item) => item.id === id(args)); if (!note) throw new Error(`Note not found: ${id(args)}`); repository.deleteNote(note.id); hooks.onDataChanged?.(); return { summary: `Nota excluída: ${note.title}`, data: { id: note.id } }; } });
+  register({ name: 'habit.complete', description: 'Mark a local habit as done on a day.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id', 'date'] }, validate: (args) => Boolean(id(args)) && typeof args.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(args.date), execute: (args) => { const habit = repository.setHabitCompletion(id(args), String(args.date), true); hooks.onDataChanged?.(); return { summary: `Hábito feito: ${habit.title}`, data: { id: habit.id } }; } });
   register({ name: 'focus.start', description: 'Start a local focus session.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object' }, validate: () => true, execute: () => { hooks.onFocusStarted?.(); return { summary: 'Sessão de foco iniciada' }; } });
   // Risco 'external': a política sempre exige o cartão Confirmar/Cancelar antes
   // de executar, e a preparação no processo principal só é consumida aqui.
@@ -116,7 +125,7 @@ function schedulingProposal(repository: LocalRepository, { title, day, start: st
 }
 
 /** O que o cérebro offline entendeu de um pedido, com dia e horário como a pessoa os disse. */
-export type SpokenIntent = Readonly<{ action: 'meeting' | 'task' | 'reminder' | 'note' | 'focus' | 'agenda' | 'none'; title: string; day: string; time: string; endTime: string }>;
+export type SpokenIntent = Readonly<{ action: 'meeting' | 'task' | 'reminder' | 'note' | 'focus' | 'agenda' | 'move' | 'complete' | 'delete' | 'none'; title: string; day: string; time: string; endTime: string }>;
 
 const capitalized = (text: string) => (text ? text[0]!.toLocaleUpperCase('pt-BR') + text.slice(1) : text);
 const plusHour = (time: string) => { const total = Math.min(23 * 60 + 59, Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5)) + 60); return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`; };
@@ -126,7 +135,7 @@ const plusHour = (time: string) => { const total = Math.min(23 * 60 + 59, Number
  * lidos pelo código (nunca pelo modelo), conflito conferido e confirmação antes de qualquer escrita.
  * `null` quando não é um pedido de ação.
  */
-export function intentProposal(intent: SpokenIntent, request: AiProviderRequest, repository: LocalRepository): AiProviderProposal | null {
+export function intentProposal(intent: SpokenIntent, request: AiProviderRequest, repository: LocalRepository, subject: Subject | null = null): AiProviderProposal | null {
   const instant = new Date(request.currentTime);
   const today = localDateKey(Number.isNaN(instant.getTime()) ? new Date() : instant);
   // O modelo às vezes deixa no título o dia ou o horário que já vieram à parte ("tenho dentista na
@@ -139,6 +148,11 @@ export function intentProposal(intent: SpokenIntent, request: AiProviderRequest,
   const done = (toolCalls: AiToolCall[], reply: string, clarification = false): AiProviderProposal => ({ reply, toolCalls, notchPresentation: null, providerMetadata: { model: 'local-tool-provider', ...(clarification ? { finishReason: 'needs-clarification' } : {}) } });
   const ask = (text: string) => done([], text, true);
   switch (intent.action) {
+    // Mexer no que já existe: o assunto é o nome da coisa, e dia e horário são o destino.
+    case 'move': case 'complete': case 'delete': {
+      const when = [said(intent.day), said(intent.time)].filter(Boolean).join(' ');
+      return entityProposal(repository, { action: intent.action, target: intent.title.trim(), when }, today, subject).proposal;
+    }
     case 'meeting': {
       const day = dayOf();
       if (!day) return ask(`Não entendi o dia "${said(intent.day)}". Diga, por exemplo, "amanhã" ou "sexta".`);
@@ -167,7 +181,7 @@ export function intentProposal(intent: SpokenIntent, request: AiProviderRequest,
   }
 }
 
-function localProposal(request: AiProviderRequest, repository: LocalRepository): AiProviderProposal {
+function localProposal(request: AiProviderRequest, repository: LocalRepository, subject: Subject | null = null): { proposal: AiProviderProposal; subject: Subject | null } {
   const message = normalizeSpokenCommand(request.message); const lower = message.toLocaleLowerCase('pt-BR'); let toolCalls: AiToolCall[] = []; let clarification: string | null = null; let meetingReply: string | null = null;
   // `currentTime` chega como instante em UTC (`toISOString`), mas "das 22:00 às 23:00" é o relógio
   // de quem pediu. Fatiar o texto UTC dava o dia e a hora de Greenwich: a leste e a oeste o bloco
@@ -184,6 +198,9 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
   const mutation = message.match(/^(?:edite|editar|renomeie|renomear)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+?)\s+(?:para|como)\s+(.+)$/i);
   const removal = message.match(/^(?:exclua|excluir|apague|apagar|remova|remover)\s+(?:a\s+|o\s+)?(tarefa|lembrete|bloco|nota)\s*:\s*(.+)$/i);
   const slackPost = message.match(/^(?:envie|enviar|poste|postar|publique|publicar)\s+(?:uma\s+)?(?:mensagem\s+)?(?:no|para\s+o)\s+slack\s+#?([\w-]{1,80})\s*:\s*(.+)$/i);
+  // "Adia a reunião com a Ana para as 16h", "já fiz a academia", "apaga isso": algo que já existe.
+  const entity = mutation || removal ? null : parseEntityCommand(message);
+  if (entity) return entityProposal(repository, entity, today, subject);
   if (mutation || removal) {
     const operation = mutation ?? removal!;
     const kind = operation[1]!.toLocaleLowerCase('pt-BR');
@@ -215,10 +232,47 @@ function localProposal(request: AiProviderRequest, repository: LocalRepository):
   else if (/(taref|task|pend.ncia|todo)/u.test(lower)) toolCalls = [{ name: 'search.tasks', arguments: {} }];
   const reply = clarification ?? meetingReply ?? (toolCalls.length ? 'Preparei uma ação local para sua revisão.' : 'Posso ajudar com tarefas, agenda, lembretes, notas e foco locais.');
   // A pergunta de volta é a resposta certa: marcada, para o cérebro offline não responder por cima dela.
-  return { reply, toolCalls, notchPresentation: null, providerMetadata: { model: 'local-tool-provider', ...(clarification ? { finishReason: 'needs-clarification' } : {}) } };
+  return { proposal: { reply, toolCalls, notchPresentation: null, providerMetadata: { model: 'local-tool-provider', ...(clarification ? { finishReason: 'needs-clarification' } : {}) } }, subject: subjectOf(toolCalls) ?? subject };
 }
 
-export class LocalToolProvider implements AiProvider { readonly id = 'local-tools'; readonly label = 'Hibi local tools'; constructor(private readonly repository: LocalRepository) {} fromIntent(intent: SpokenIntent, request: AiProviderRequest): AiProviderProposal | null { return intentProposal(intent, request, this.repository); } async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> { if (signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError'); return localProposal(request, this.repository); } }
+const CREATED: Record<string, Subject['kind']> = { 'task.create': 'task', 'meeting.create': 'block', 'block.create': 'block', 'reminder.create': 'reminder', 'note.create': 'note' };
+/** O que uma proposta de criação põe em assunto: "cria a tarefa X" e, em seguida, "deixa isso pra amanhã". */
+function subjectOf(toolCalls: readonly AiToolCall[]): Subject | null {
+  const created = toolCalls.find((call) => CREATED[call.name] && typeof call.arguments.title === 'string');
+  return created ? { kind: CREATED[created.name]!, title: String(created.arguments.title) } : null;
+}
+
+/**
+ * As ferramentas locais do Taby. Guardam o assunto da conversa — o que foi criado ou mexido por último —
+ * para "deixa isso pra amanhã" saber do que se fala.
+ */
+export class LocalToolProvider implements AiProvider {
+  readonly id = 'local-tools';
+  readonly label = 'Hibi local tools';
+  private subject: Subject | null = null;
+  constructor(private readonly repository: LocalRepository) {}
+  fromIntent(intent: SpokenIntent, request: AiProviderRequest): AiProviderProposal | null {
+    const proposal = intentProposal(intent, request, this.repository, this.subject);
+    if (proposal) this.subject = subjectOf(proposal.toolCalls) ?? subjectFromCalls(this.repository, proposal.toolCalls) ?? this.subject;
+    return proposal;
+  }
+  async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> {
+    if (signal.aborted) throw new DOMException('The AI turn was cancelled.', 'AbortError');
+    const { proposal, subject } = localProposal(request, this.repository, this.subject);
+    this.subject = subject;
+    return proposal;
+  }
+}
+
+/** O alvo de uma proposta sobre algo que já existe, lido pelo id. */
+function subjectFromCalls(repository: LocalRepository, toolCalls: readonly AiToolCall[]): Subject | null {
+  const call = toolCalls.find((item) => typeof item.arguments.id === 'string');
+  if (!call) return null;
+  const idValue = String(call.arguments.id);
+  const kind = call.name.split('.')[0] as Subject['kind'];
+  const entity = [...repository.listBlocks(), ...repository.listTasks(), ...repository.listReminders(), ...repository.listHabits(), ...repository.listNotes()].find((item) => item.id === idValue);
+  return entity ? { kind, id: idValue, title: entity.title } : null;
+}
 
 export function createLocalHibiRuntime(repository: LocalRepository, hooks: Hooks = {}, provider: AiProvider = new LocalToolProvider(repository), fallbackProvider: AiProvider = new HeuristicAiProvider(), fallbackPolicy: AiFallbackPolicy | (() => AiFallbackPolicy) = 'automatic'): AiTurnRuntime {
   const registry = createLocalToolRegistry(repository, hooks);

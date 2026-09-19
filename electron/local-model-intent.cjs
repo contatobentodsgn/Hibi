@@ -5,7 +5,7 @@
  * determinístico do Taby, nunca o modelo. O schema mora aqui, no processo principal: o renderer escolhe
  * o modo, não a gramática.
  */
-const INTENT_ACTIONS = Object.freeze(['meeting', 'task', 'reminder', 'note', 'focus', 'agenda', 'none']);
+const INTENT_ACTIONS = Object.freeze(['meeting', 'task', 'reminder', 'note', 'focus', 'agenda', 'move', 'complete', 'delete', 'none']);
 
 const INTENT_SCHEMA = Object.freeze({
   type: 'object',
