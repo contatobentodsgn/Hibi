@@ -7,8 +7,9 @@
  *
  * - Tudo fica em camadas. O CSS atual não está em camada nenhuma, então vence qualquer regra daqui onde
  *   as duas disputarem a mesma propriedade: nada das telas atuais muda de aparência até ser migrado.
- * - Sem o preflight: ele reescreveria botões, títulos e listas das telas atuais. Uma tela nova que
- *   precise de reset o aplica dentro do próprio contêiner.
+ * - O preflight (reset) do Tailwind vale só dentro de `.hibi-ui` (`hibi-ui-preflight.css`, gerado por
+ *   `scripts/scoped-preflight.mjs`): na página inteira ele reescreveria botões, títulos e listas das telas
+ *   atuais.
  * - Sem detecção automática de classes (`source(none)`): as telas atuais usam `outline`, `filter` e
  *   `block` como nomes de classe, e o Tailwind os transformaria em utilitários — os botões `.outline`
  *   ganhariam contorno sólido. Só as pastas da UI nova são lidas; o que o HeroUI usa por `@apply` já
@@ -29,6 +30,7 @@
 @source "../ui/shell";
 @import "tw-animate-css";
 
+@import "./hibi-ui-preflight.css";
 @import "@heroui/styles/components/index.css" layer(components);
 @import "@heroui/styles/themes/default" layer(theme);
 @import "@heroui/styles/utilities";
@@ -54,12 +56,30 @@
 .legacy-surface { --surface: #fff; }
 
 /*
- * Duas classes do HeroUI têm o mesmo nome de classes das telas atuais: `tag` (o chip de pasta, "Bento") e
- * `empty-state`. Fora de `.hibi-ui`, elas voltam ao padrão do navegador nesta camada — acima da do HeroUI e
- * abaixo do CSS atual, que reaplica o que sempre definiu. Sem isso, o chip "Bento" mudava de desenho.
+ * Cinco classes das telas atuais têm nome de coisa do HeroUI ou do Tailwind: `tag` (o chip de pasta,
+ * "Bento") e `empty-state` são componentes do HeroUI; `block`, `filter` e `outline` são utilitários do
+ * Tailwind, gerados assim que a UI nova os usa. Fora de `.hibi-ui`, essas classes voltam ao padrão do
+ * navegador nesta camada — acima das do HeroUI e do Tailwind e abaixo do CSS atual, que reaplica o que
+ * sempre definiu. Sem isso, o chip "Bento" mudava de desenho, e os botões `.outline` ganhariam contorno.
+ * A lista vem do próprio Tailwind: são as classes das telas atuais que ele reconhece como utilitário.
  */
 @layer legacy-guard {
-  :is(.tag, .empty-state):not(.hibi-ui *),
-  :is(.tag, .empty-state):not(.hibi-ui *)::before,
-  :is(.tag, .empty-state):not(.hibi-ui *)::after { all: revert; }
+  :is(.tag, .empty-state, .block, .filter, .outline):not(.hibi-ui *),
+  :is(.tag, .empty-state, .block, .filter, .outline):not(.hibi-ui *)::before,
+  :is(.tag, .empty-state, .block, .filter, .outline):not(.hibi-ui *)::after { all: revert; }
 }
+
+/*
+ * A outra direção: o CSS atual também não pode entrar na nova UI. Ele não está em camada nenhuma e vence as
+ * camadas do HeroUI e do Tailwind — os botões do HeroUI ganhavam a borda das regras globais de `button`, e a
+ * regra antiga `.outline { color: #222 }` apagava o texto no escuro. Dentro de `.hibi-ui`, cada elemento
+ * descarta o CSS sem camada (`all: revert-layer`) e fica só com as camadas da nova UI.
+ *
+ * Esta regra fica fora de camada de propósito: é o único jeito de vencer o CSS atual. O `:not(#\#)` dá a ela
+ * peso de id, acima de qualquer seletor das telas atuais. Duas consequências para a nova UI: todo CSS dela
+ * vai em camada (senão é descartado aqui também), e estilo em linha (`style`) continua valendo.
+ */
+.hibi-ui :where(*):not(#\#),
+.hibi-ui :where(*):not(#\#)::before,
+.hibi-ui :where(*):not(#\#)::after,
+.hibi-ui :where(*):not(#\#)::placeholder { all: revert-layer; }

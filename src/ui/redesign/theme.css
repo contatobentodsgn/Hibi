@@ -1,0 +1,159 @@
+/*
+ * Tokens da nova UI (U02). Os valores são os do preview aprovado (`Hibi-preview-adaptive-notch-validado-
+ * 2026-09-18.zip`, `src/styles.css`) e valem só dentro de `.hibi-ui`: as telas atuais não os veem.
+ *
+ * Ajustes de contraste: no preview, o texto branco sobre o acento ficava entre 4,0:1 e 4,3:1, e o texto
+ * secundário sobre o fundo claro em 4,25:1, abaixo de 4,5:1 para texto normal. Os tons abaixo foram
+ * escurecidos o mínimo para passar (o roxo padrão foi de #8071a7 para #7c6da1).
+ *
+ * Uma preferência só: o tema (`data-theme`) e o tom (`data-tint`) continuam os da raiz, gravados pelo
+ * `ThemeProvider`. Cada tom do Hibi vira um acento no estilo do preview; `aurora`, o padrão, é o roxo dele.
+ */
+@layer theme {
+  .hibi-ui {
+    --hibi-canvas: #f5f5f7;
+    --hibi-side: #eeeef0;
+    --hibi-paper: #ffffff;
+    --hibi-soft: #f7f7f8;
+    --hibi-ink: #252629;
+    --hibi-ink-muted: #6e6e76;
+    --hibi-line: #e9e9ed;
+    --hibi-edge: #dddde3;
+    --hibi-lavender: #eee9fc; --hibi-lavender-ink: #6b5688;
+    --hibi-blue: #e4effb;     --hibi-blue-ink: #436884;
+    --hibi-peach: #f8e9df;    --hibi-peach-ink: #876148;
+    --hibi-mint: #e3f2e8;     --hibi-mint-ink: #3f7558;
+    --hibi-shadow: 0 3px 4px -3px #16162712, 0 10px 26px -18px #16162720;
+    --hibi-accent: #7c6da1;
+    --hibi-accent-ink: #ffffff;
+    --hibi-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --hibi-radius-control: 12px;
+    --hibi-radius-card: 24px;
+
+    /* O HeroUI lê estas variáveis. */
+    --font-sans: var(--hibi-font);
+    --background: var(--hibi-canvas);
+    --foreground: var(--hibi-ink);
+    --surface: var(--hibi-paper);
+    --surface-foreground: var(--hibi-ink);
+    --surface-secondary: var(--hibi-soft);
+    --surface-secondary-foreground: var(--hibi-ink);
+    --surface-tertiary: var(--hibi-side);
+    --surface-tertiary-foreground: var(--hibi-ink);
+    --overlay: var(--hibi-paper);
+    --overlay-foreground: var(--hibi-ink);
+    --muted: var(--hibi-ink-muted);
+    --default: var(--hibi-soft);
+    --default-foreground: var(--hibi-ink);
+    --field-background: var(--hibi-paper);
+    --field-foreground: var(--hibi-ink);
+    --field-placeholder: var(--hibi-ink-muted);
+    --field-border: var(--hibi-edge);
+    --field-border-width: 1px;
+    --segment: var(--hibi-paper);
+    --segment-foreground: var(--hibi-ink);
+    --border: var(--hibi-line);
+    --separator: var(--hibi-line);
+    --accent: var(--hibi-accent);
+    --accent-foreground: var(--hibi-accent-ink);
+    --focus: var(--hibi-accent);
+    --link: var(--hibi-ink);
+    --radius: 0.5rem;
+    --field-radius: var(--hibi-radius-control);
+    --surface-shadow: var(--hibi-shadow);
+    --overlay-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.06), 0 14px 28px 0 rgba(0, 0, 0, 0.1);
+    --field-shadow: none;
+
+    /*
+     * Calculadas: o HeroUI as declara na raiz, a partir das cores da raiz, e o valor de uma variável é
+     * resolvido onde ela é declarada. Sem redeclará-las aqui, o hover e as versões suaves seguiriam o acento
+     * laranja das telas atuais.
+     */
+    --surface-hover: color-mix(in oklab, var(--surface) 92%, var(--surface-foreground) 8%);
+    --background-secondary: color-mix(in oklab, var(--background) 96%, var(--foreground) 4%);
+    --background-tertiary: color-mix(in oklab, var(--background) 92%, var(--foreground) 8%);
+    --background-inverse: var(--foreground);
+    --default-hover: color-mix(in oklab, var(--default) 96%, var(--default-foreground) 4%);
+    --accent-hover: color-mix(in oklab, var(--accent) 90%, var(--accent-foreground) 10%);
+    --success-hover: color-mix(in oklab, var(--success) 90%, var(--success-foreground) 10%);
+    --warning-hover: color-mix(in oklab, var(--warning) 90%, var(--warning-foreground) 10%);
+    --danger-hover: color-mix(in oklab, var(--danger) 90%, var(--danger-foreground) 10%);
+    --field-hover: color-mix( in oklab, var(--field-background, var(--default)) 90%, var(--field-foreground, var(--foreground)) 2% );
+    --field-focus: var(--field-background, var(--default));
+    --field-border-hover: color-mix( in oklab, var(--field-border, var(--border)) 88%, var(--field-foreground, var(--foreground)) 10% );
+    --field-border-focus: color-mix( in oklab, var(--field-border, var(--border)) 74%, var(--field-foreground, var(--foreground)) 22% );
+    --default-soft: color-mix(in oklab, var(--default) 50%, transparent);
+    --default-soft-foreground: var(--default-foreground);
+    --default-soft-hover: color-mix(in oklab, var(--default) 60%, transparent);
+    --accent-soft: color-mix(in oklab, var(--accent) 15%, transparent);
+    --accent-soft-foreground: color-mix(in oklab, var(--accent) 70%, var(--foreground) 30%);
+    --accent-soft-hover: color-mix(in oklab, var(--accent) 20%, transparent);
+    --danger-soft: color-mix(in oklab, var(--danger) 15%, transparent);
+    --danger-soft-foreground: color-mix(in oklab, var(--danger) 70%, var(--foreground) 40%);
+    --danger-soft-hover: color-mix(in oklab, var(--danger) 20%, transparent);
+    --warning-soft: color-mix(in oklab, var(--warning) 15%, transparent);
+    --warning-soft-foreground: color-mix(in oklab, var(--warning) 80%, var(--foreground) 70%);
+    --warning-soft-hover: color-mix(in oklab, var(--warning) 20%, transparent);
+    --success-soft: color-mix(in oklab, var(--success) 15%, transparent);
+    --success-soft-foreground: color-mix(in oklab, var(--success) 80%, var(--foreground) 60%);
+    --success-soft-hover: color-mix(in oklab, var(--success) 20%, transparent);
+    --separator-secondary: color-mix(in oklab, var(--surface) 85%, var(--surface-foreground) 15%);
+    --separator-tertiary: color-mix(in oklab, var(--surface) 81%, var(--surface-foreground) 19%);
+    --border-secondary: color-mix(in oklab, var(--surface) 78%, var(--surface-foreground) 22%);
+    --border-tertiary: color-mix(in oklab, var(--surface) 66%, var(--surface-foreground) 34%);
+    --surface-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06), 0 0 1px 0 rgba(0, 0, 0, 0.06);
+    --overlay-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.06), 0 -6px 12px 0 rgba(0, 0, 0, 0.03), 0 14px 28px 0 rgba(0, 0, 0, 0.08);
+    --field-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.06), 0 0 1px 0 rgba(0, 0, 0, 0.06);
+
+    font-family: var(--hibi-font);
+    font-size: 14px;
+    letter-spacing: -0.015em;
+  }
+
+  [data-theme="dark"] .hibi-ui {
+    --hibi-canvas: #1b1b1e;
+    --hibi-side: #17171a;
+    --hibi-paper: #26262b;
+    --hibi-soft: #303036;
+    --hibi-ink: #f0f0f3;
+    --hibi-ink-muted: #aaaab5;
+    --hibi-line: #36363e;
+    --hibi-edge: #474751;
+    --hibi-lavender: #3a314e; --hibi-lavender-ink: #d0bfe9;
+    --hibi-blue: #293d51;     --hibi-blue-ink: #b3d2ea;
+    --hibi-peach: #49382f;    --hibi-peach-ink: #e7c3aa;
+    --hibi-mint: #2d4436;     --hibi-mint-ink: #acd1bc;
+    --hibi-shadow: 0 3px 4px -3px #00000040, 0 10px 26px -18px #00000080;
+    --overlay-shadow: 0 0 0 1px var(--hibi-line), 0 14px 28px 0 rgba(0, 0, 0, 0.45);
+    --accent-soft: color-mix(in oklab, var(--accent) 12%, transparent);
+    --accent-soft-foreground: color-mix(in oklab, var(--accent) 80%, var(--foreground) 30%);
+    --accent-soft-hover: color-mix(in oklab, var(--accent) 16%, transparent);
+    --danger-soft-foreground: color-mix(in oklab, var(--danger) 80%, var(--foreground) 30%);
+    --success-soft: color-mix(in oklab, var(--success) 12%, transparent);
+    --success-soft-foreground: color-mix(in oklab, var(--success) 80%, var(--foreground) 30%);
+    --success-soft-hover: color-mix(in oklab, var(--success) 16%, transparent);
+    --warning-soft: color-mix(in oklab, var(--warning) 12%, transparent);
+    --warning-soft-foreground: color-mix(in oklab, var(--warning) 80%, var(--foreground) 30%);
+    --warning-soft-hover: color-mix(in oklab, var(--warning) 16%, transparent);
+  }
+
+  /* O tom escolhido em Ajustes, no estilo do preview; todos com 4,5:1 ou mais sob texto branco. */
+  [data-tint="ocean"] .hibi-ui { --hibi-accent: #4f79a3; }
+  [data-tint="moss"] .hibi-ui { --hibi-accent: #437a5b; }
+  [data-tint="iris"] .hibi-ui { --hibi-accent: #6a67b0; }
+  [data-tint="rose"] .hibi-ui { --hibi-accent: #a3577a; }
+}
+
+/* Acabamento do preview sobre os componentes do HeroUI. */
+@layer components {
+  /* Texto longo num botão quebra a linha em vez de empurrar a tela para o lado (janela estreita, zoom de 200%). */
+  .hibi-ui .button { border-radius: var(--hibi-radius-control); font-size: 13px; font-weight: 500; min-height: 37px; height: auto; max-width: 100%; white-space: normal; text-align: center; box-shadow: none; }
+  .hibi-ui .button--sm { min-height: 30px; font-size: 12px; }
+  .hibi-ui .button--lg { min-height: 44px; font-size: 14px; }
+  .hibi-ui .card { border-radius: var(--hibi-radius-card); box-shadow: var(--hibi-shadow); border: 0; }
+  /* No preview, o botão secundário é papel com sombra; o cinza do HeroUI some sobre o fundo claro. */
+  .hibi-ui .button--secondary { background: var(--hibi-paper); color: var(--hibi-ink); box-shadow: var(--hibi-shadow); }
+  .hibi-ui .button--secondary:hover, .hibi-ui .button--secondary[data-hovered="true"] { background: var(--surface-hover); }
+  /* A trilha das abas é cinza sobre o papel no preview; o `--default` do HeroUI quase some no fundo claro. */
+  .hibi-ui .tabs__list-container { background: var(--hibi-side); }
+}

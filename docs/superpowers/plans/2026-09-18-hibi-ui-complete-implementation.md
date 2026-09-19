@@ -10,6 +10,29 @@
 
 ---
 
+## 0. Estado da execução
+
+Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisão do usuário, o Claude implementa as unidades e o Codex revisa os PRs.** Cada PR traz as provas e os números reais das suítes. Este quadro diz em que ponto a migração está e o que a próxima unidade precisa saber.
+
+| Unidade | Estado | PR | Observações para a revisão |
+| --- | --- | --- | --- |
+| U00 | Concluída (Codex) | #165, #166 | Faltou medir o desempenho da UI atual; o Claude mediu no #166 (`docs/redesign/performance-baseline.md`). Capturas do app atual e matriz por ação ainda são lacunas: a primeira fica para a U03, a segunda para cada tela. |
+| U01 | Concluída (Claude) | #167 | HeroUI 3.2.6, Tailwind 4.3.3, Motion 12.43.0, Lucide 0.577.0. Integração isolada das telas atuais; guia em `docs/redesign/u01-foundation.md`. |
+| U02 | Em revisão (Claude) | este PR | Tokens do preview em `src/ui/redesign/theme.css`, `HibiUiRoot`, galeria só em desenvolvimento (`?overlay=ui-gallery`), reset do Tailwind restrito à nova UI e tema aplicado antes do primeiro desenho. |
+| U03–U28 | Pendentes | — | A U03 é a próxima. |
+
+**Decisões registradas durante a execução:**
+- **Licença do componente da navegação** (`adaptive-notch-navigation-bar.tsx`): o usuário o desenvolveu no Codex, a partir de um prompt. É obra do projeto, sem licença de terceiros a conferir, e está liberado para a U03.
+- **Contraste acima do preview:** o texto branco sobre os acentos do preview e o texto secundário sobre o fundo claro ficavam entre 4,0:1 e 4,3:1. Os tokens foram escurecidos o mínimo para passar de 4,5:1 (o roxo padrão foi de `#8071a7` para `#7c6da1`), e um e2e mede os dois temas nos cinco tons.
+- **Um tom de acento para cada preferência atual:** `aurora` (o padrão) é o roxo do preview; `ocean`, `moss`, `iris` e `rose` viram tons no mesmo estilo. Não há segunda preferência de cor.
+
+**Regras que valem para todas as próximas unidades** (nascidas na U01 e na U02 e seguradas por `tests/e2e/heroui-foundation.spec.ts`):
+1. Toda superfície nova é montada dentro de `HibiUiRoot` (`src/ui/redesign/components/HibiUiRoot.tsx`), que cria o contêiner `.hibi-ui` e desenha popovers, menus e diálogos dentro dele.
+2. **Todo CSS da nova UI vai em camada** (`@layer theme`, `components` ou `utilities`). Dentro de `.hibi-ui`, cada elemento descarta o CSS sem camada (`all: revert-layer`), porque é assim que o CSS das telas atuais fica de fora. Uma regra nova sem camada seria descartada do mesmo jeito. Estilo em linha continua valendo.
+3. O Tailwind só lê `src/ui/redesign` e `src/ui/shell`. O reset dele vale só dentro de `.hibi-ui`, e a cópia é gerada por `scripts/scoped-preflight.mjs`.
+4. As classes `tag`, `empty-state`, `block`, `filter` e `outline` existem nas telas atuais e no HeroUI ou no Tailwind; uma camada de proteção as isola fora de `.hibi-ui`. Classe nova nas telas atuais não pode repetir nome de componente do HeroUI nem de utilitário do Tailwind.
+5. Cores só pelos tokens `--hibi-*` e pelas variáveis do HeroUI já mapeadas em `theme.css`; nada de hexadecimal solto numa tela.
+
 ## 1. Estado deste documento e evidências
 
 Plano consolidado em 18/09/2026. Substitui o plano de 17/09 para sequência e cobertura; o anterior permanece como histórico. Este documento é uma entrega de planejamento: não significa que as telas foram migradas, que houve reserva externa ou que testes do app foram executados nesta etapa.
@@ -109,7 +132,7 @@ Grupos curtos podem compartilhar página. Não criar doze páginas vazias. Busca
 - Referência 15: acabamento de estatísticas, métricas e controles segmentados.
 - Referência 17: superfícies, cartões e detalhes de menus.
 - Preview aprovado: forma da navegação, moldura, recortes curvos, claro/escuro e posição superior/inferior.
-- Preservar fonte e licença do componente anexado; confirmar licença antes de redistribuir o componente na aplicação pública.
+- ~~Preservar fonte e licença do componente anexado; confirmar licença antes de redistribuir o componente na aplicação pública.~~ Resolvido em 19/09: o componente foi desenvolvido pelo próprio usuário no Codex, a partir de um prompt (ver seção 0).
 
 Antes do primeiro PR, conferir integridade do ZIP, extrair em diretório temporário e registrar hashes do componente, CSS e lockfile. Salvar capturas comparáveis do preview nos quatro modos e em janela estreita. Isso é a baseline de comparação; não depender de um servidor que pode ser alterado durante o desenvolvimento.
 
@@ -191,6 +214,8 @@ Todos os caminhos abaixo são relativos à raiz do app. Novos caminhos são prop
 | `tests/e2e/redesign-*.spec.ts` | Comportamento real de controles e fluxos |
 | `docs/redesign/` | Matriz de paridade, decisões e evidências |
 
+**Desde 19/09 (decisão do usuário):** o Claude implementa todas as unidades, inclusive as de apresentação, e mantém a seção 0 deste plano em dia; o Codex revisa cada PR e aponta o que precisa mudar. A divisão original fica abaixo como referência de território.
+
 **Codex:** apresentação, CSS, componentes, tokens, navegação, testes de UI e documentação deste plano.
 
 **Claude:** dependências/lockfile e configuração associada; `electron/`, `native/`, `src/data/`, scripts, IPC, `src/global.d.ts`, CI e status operacional. Se uma tela precisar de capacidade ausente, especificar entrada, saída, erros e disponibilidade em pedido separado; não inventar API nem contornar o adaptador.
@@ -263,13 +288,13 @@ Paralelismo útil depois de U05: Tarefas/Lembretes, Agenda, Notas e Taby podem s
 
 **Criar:** `docs/redesign/baseline.md`, `docs/redesign/parity-matrix.md`, `docs/redesign/reference-manifest.md`.
 
-- [ ] Registrar commit remoto, checkout, alterações locais e reservas vigentes. Preservar a branch histórica e os dois planos.
-- [ ] Comparar o inventário deste documento com rotas, modais, overlays e configurações da principal atual.
-- [ ] Para cada ação atual, registrar origem, destino novo, serviço/callback, estado disponível e teste que a cobre.
-- [ ] Verificar ZIP e assets; registrar hashes e capturas dos quatro modos do preview, sem alterar a referência.
-- [ ] Abrir o app atual com dados de teste; capturar telas e superfícies auxiliares e registrar falhas preexistentes.
-- [ ] Medir tempo de abertura, custo de troca de telas e CPU/memória em ociosidade com mascote visível.
-- [ ] Separar recursos implementados, indisponíveis e simulados pela apresentação atual; não chamar texto estático de capacidade funcional.
+- [x] Registrar commit remoto, checkout, alterações locais e reservas vigentes. Preservar a branch histórica e os dois planos. (#165, `baseline.md`)
+- [x] Comparar o inventário deste documento com rotas, modais, overlays e configurações da principal atual. (#165, `parity-matrix.md`)
+- [ ] Para cada ação atual, registrar origem, destino novo, serviço/callback, estado disponível e teste que a cobre. **Parcial:** a matriz do #165 é por tela, sem o callback de cada ação; cada unidade de tela completa as linhas dela.
+- [x] Verificar ZIP e assets; registrar hashes e capturas dos quatro modos do preview, sem alterar a referência. (#165, `reference-manifest.md`; as capturas do preview ficam no diretório editável, sem hash)
+- [ ] Abrir o app atual com dados de teste; capturar telas e superfícies auxiliares e registrar falhas preexistentes. **Parcial:** o #165 capturou só a Home clara pelo Vite. A U01 e a U02 compararam 20 telas, o notch e a barra, nos dois temas, antes e depois (80 capturas por rodada), mas as imagens não foram arquivadas; a U03 arquiva as da UI atual antes de trocar a navegação.
+- [x] Medir tempo de abertura, custo de troca de telas e CPU/memória em ociosidade com mascote visível. (#166, `performance-baseline.md`, pelo Claude)
+- [x] Separar recursos implementados, indisponíveis e simulados pela apresentação atual; não chamar texto estático de capacidade funcional. (#165, lacunas da matriz)
 
 **Aceite:** todas as rotas da seção 3 e janelas de `src/main.tsx` possuem linha na matriz. A versão de referência pode ser reaberta a partir do arquivo preservado.
 
@@ -277,11 +302,11 @@ Paralelismo útil depois de U05: Tarefas/Lembretes, Agenda, Notas e Taby podem s
 
 **Responsável:** Claude para `package.json`, lockfile e configuração. **Entrada:** versões usadas no preview: HeroUI React/Styles 3.2.6, Tailwind v4, Motion e Lucide. Essas versões são evidência local, não prescrição de atualização indiscriminada.
 
-- [ ] Validar versões compatíveis com React 19, Vite 8 e TypeScript da principal; fixar resolução no lockfile.
-- [ ] Definir ordem de estilos, descoberta das classes e escopo do reset. Identificar o caminho de build dos três renderers.
-- [ ] Provar um Button, um campo e um Popover no desktop de desenvolvimento e na versão empacotada.
-- [ ] Conferir licença da navegação anexada e das dependências.
-- [ ] Confirmar que nenhum estilo global remove transparência de `overlay=notch`/`overlay=bar`.
+- [x] Validar versões compatíveis com React 19, Vite 8 e TypeScript da principal; fixar resolução no lockfile. (#167: versões exatas; 85 pacotes novos, nenhum existente alterado)
+- [x] Definir ordem de estilos, descoberta das classes e escopo do reset. Identificar o caminho de build dos três renderers. (#167; o reset restrito à nova UI veio na U02)
+- [x] Provar um Button, um campo e um Popover no desktop de desenvolvimento e na versão empacotada. (#167, no app instalado; a página de prova foi substituída pela galeria da U02)
+- [x] Conferir licença da navegação anexada e das dependências. (dependências no #167; o componente é do usuário, seção 0)
+- [x] Confirmar que nenhum estilo global remove transparência de `overlay=notch`/`overlay=bar`. (#167: comparação pixel a pixel e barra transparente no app instalado)
 
 **Aceite:** instalação reproduzível, controles funcionais e assets locais resolvidos no pacote. Núcleo e configuração entregues em PR separado quando necessário.
 
@@ -290,11 +315,11 @@ Paralelismo útil depois de U05: Tarefas/Lembretes, Agenda, Notas e Taby podem s
 **Criar:** `src/ui/redesign/theme.css`, `src/ui/redesign/preview/ComponentGallery.tsx`; composições mínimas em `components/`.
 **Reutilizar:** `theme-context.tsx`, `theme.ts`, `tokens.css`, `motion.css`.
 
-- [ ] Mapear tokens do preview para claro/escuro e tint atual, mantendo uma fonte de preferência.
-- [ ] Montar catálogo com botão, campo, seleção, toggle, card, menu, diálogo e estados desabilitado/processando/erro/foco.
-- [ ] Incluir textos longos, pt/en, zoom 200% e múltiplos itens sem dados pessoais.
-- [ ] Verificar portais, contraste e ausência de flash de tema na abertura.
-- [ ] Restringir galeria ao desenvolvimento; não criar um novo destino visível no app final.
+- [x] Mapear tokens do preview para claro/escuro e tint atual, mantendo uma fonte de preferência. (`theme.css`: tokens `--hibi-*` ligados às variáveis do HeroUI; o tom continua sendo o `data-tint` do `ThemeProvider`)
+- [x] Montar catálogo com botão, campo, seleção, toggle, card, menu, diálogo e estados desabilitado/processando/erro/foco. (`ComponentGallery.tsx`; capturas em `docs/redesign/u02-assets/`)
+- [x] Incluir textos longos, pt/en, zoom 200% e múltiplos itens sem dados pessoais. (o zoom de 200% é testado como janela de 640 px sem rolagem lateral)
+- [x] Verificar portais, contraste e ausência de flash de tema na abertura. (e2e: popovers e menus dentro de `.hibi-ui`; 4,5:1 nos dois temas e cinco tons; o tema piscava um quadro na abertura e passou para `useLayoutEffect`)
+- [x] Restringir galeria ao desenvolvimento; não criar um novo destino visível no app final. (`import.meta.env.DEV`: o build de produção não contém a galeria)
 
 **Aceite:** mesma aparência e interação em todas as composições; o acabamento replica o preview aprovado. A galeria serve como instrumento de implementação, não como nova decisão estética pendente.
 

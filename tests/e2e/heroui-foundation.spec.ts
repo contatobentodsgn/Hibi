@@ -1,44 +1,154 @@
 import { test, expect, type Page } from '@playwright/test';
 
-// U01 da nova UI: o HeroUI funciona, e a integração não alcança as telas atuais nem as janelas do notch e
-// da barra, que usam o mesmo CSS. Cada teste abaixo segura uma das barreiras de `src/styles/heroui.css`.
+// A fundação da nova UI (U01 e U02): o HeroUI funciona com os tokens do Hibi, e o CSS da nova UI e o das
+// telas atuais não se misturam, em nenhuma das duas direções. Cada teste segura uma barreira de
+// `src/styles/heroui.css` ou de `src/ui/redesign/theme.css`. A galeria (`?overlay=ui-gallery`) só existe
+// no desenvolvimento, que é onde o e2e roda.
 
-test('o HeroUI funciona: botão, campo e popover desenhado dentro da UI nova', async ({ page }) => {
-  await page.goto('/?overlay=ui-probe');
-  const probe = page.locator('[data-probe="heroui"]');
-  await expect(probe).toBeVisible();
+const gallery = async (page: Page, theme: 'light' | 'dark' = 'light', tint = 'aurora') => {
+  await page.addInitScript(({ value, tone }) => { localStorage.setItem('hibi-theme', value); localStorage.setItem('hibi-tint', tone); }, { value: theme, tone: tint });
+  await page.goto('/?overlay=ui-gallery');
+  await expect(page.locator('[data-gallery]')).toBeVisible();
+};
 
-  await page.getByRole('button', { name: 'Pressionado 0' }).click();
-  await expect(page.getByRole('button', { name: 'Pressionado 1' })).toBeVisible();
+// Luminância relativa (WCAG) de uma cor CSS qualquer — oklch e color-mix inclusive —, resolvida pelo navegador.
+const contrastOf = (page: Page, pairs: Array<[string, string]>) => page.evaluate((list) => {
+  const probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+  const channel = (value: number) => { const c = value / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const luminance = (color: string) => { probe.clearRect(0, 0, 1, 1); probe.fillStyle = '#fff'; probe.fillRect(0, 0, 1, 1); probe.fillStyle = color; probe.fillRect(0, 0, 1, 1); const [r, g, b] = probe.getImageData(0, 0, 1, 1).data; return 0.2126 * channel(r!) + 0.7152 * channel(g!) + 0.0722 * channel(b!); };
+  return list.map(([text, background]) => { const [a, b] = [luminance(text), luminance(background)].sort((x, y) => y - x); return Math.round(((a! + 0.05) / (b! + 0.05)) * 100) / 100; });
+}, pairs);
 
-  await page.getByRole('textbox', { name: 'Nome' }).fill('Kabrito');
-  await page.getByRole('button', { name: 'Abrir popover' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Popover de prova' });
-  await expect(dialog).toHaveText('Olá, Kabrito');
-  // O popover é desenhado no contêiner `.hibi-ui`, e não no `body`: só lá valem as regras da UI nova.
-  expect(await dialog.evaluate((node) => Boolean(node.closest('.hibi-ui')))).toBe(true);
-  // Dentro da UI nova, a cor de borda vem do tema do HeroUI, e não da cor do texto.
+test('o HeroUI funciona: botão, campo e popover desenhado dentro da nova UI', async ({ page }) => {
+  await gallery(page);
+  await page.getByRole('button', { name: 'Salvar 0' }).click();
+  await expect(page.getByRole('button', { name: 'Salvar 1' })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Nome da tarefa' }).first().fill('Kabrito');
+  await expect(page.getByRole('textbox', { name: 'Nome da tarefa' }).first()).toHaveValue('Kabrito');
+
+  await page.getByRole('button', { name: 'Ver resumo' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ver resumo' });
+  await expect(dialog).toHaveText('Três tarefas para hoje, uma atrasada.');
+  // O popover é desenhado dentro da raiz da nova UI (`HibiUiRoot`), e não no `body`.
+  expect(await dialog.evaluate((node) => Boolean(node.closest('.hibi-ui [data-hibi-portal]')))).toBe(true);
+  // Dentro da nova UI, a cor de borda vem do tema, e não da cor do texto.
   const borders = await dialog.evaluate((node) => { const style = getComputedStyle(node); return { border: style.borderTopColor, text: style.color }; });
   expect(borders.border).not.toBe(borders.text);
 });
 
-// Visto no app instalado, no tema escuro: o texto do popover herdava a cor escura da raiz das telas atuais
-// e sumia no fundo escuro do HeroUI.
-test('no tema escuro, o texto da UI nova é claro sobre o fundo escuro', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('hibi-theme', 'dark'));
-  await page.goto('/?overlay=ui-probe');
-  await page.getByRole('button', { name: 'Abrir popover' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Popover de prova' });
+test('menus e listas também abrem dentro da nova UI, e o Escape fecha o diálogo e devolve o foco', async ({ page }) => {
+  await gallery(page);
+  await page.getByRole('button', { name: 'Mais ações' }).click();
+  const menu = page.getByRole('menu', { name: 'Mais ações' });
+  await expect(menu).toBeVisible();
+  expect(await menu.evaluate((node) => Boolean(node.closest('[data-hibi-portal]')))).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+
+  const trigger = page.getByRole('button', { name: 'Abrir diálogo' });
+  await trigger.click();
+  await expect(page.getByRole('dialog', { name: 'Mover tarefa' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Mover tarefa' })).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
+test('pelo teclado, o foco aparece no controle', async ({ page }) => {
+  await gallery(page);
+  await page.getByRole('button', { name: 'Salvar 0' }).focus();
+  await page.keyboard.press('Tab');
+  const focused = page.locator(':focus');
+  await expect(focused).toHaveAttribute('data-focus-visible', 'true');
+  expect(await focused.evaluate((node) => getComputedStyle(node).boxShadow)).not.toBe('none');
+});
+
+test('no tema escuro, o texto da nova UI é claro sobre o fundo escuro', async ({ page }) => {
+  await gallery(page, 'dark');
+  await page.getByRole('button', { name: 'Ver resumo' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Ver resumo' });
   await expect(dialog).toBeVisible();
-  const luminance = await dialog.evaluate((node) => {
-    const probe = document.createElement('canvas').getContext('2d')!;
-    const lum = (color: string) => { probe.fillStyle = color; probe.fillRect(0, 0, 1, 1); const [r, g, b] = probe.getImageData(0, 0, 1, 1).data; return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; };
-    let surface: Element | null = node; let background = 'rgba(0, 0, 0, 0)';
-    while (surface && /rgba\(0, 0, 0, 0\)|transparent/.test(background)) { background = getComputedStyle(surface).backgroundColor; surface = surface.parentElement; }
-    return { text: lum(getComputedStyle(node).color), background: lum(background) };
+  // O diálogo é transparente; o fundo pintado é o do popover em volta dele.
+  const colors = await dialog.evaluate((node) => {
+    let surface: Element | null = node;
+    let background = 'rgba(0, 0, 0, 0)';
+    while (surface && /^rgba\(0, 0, 0, 0\)$|^transparent$/.test(background)) { background = getComputedStyle(surface).backgroundColor; surface = surface.parentElement; }
+    return { text: getComputedStyle(node).color, background };
   });
-  expect(luminance.text).toBeGreaterThan(0.6);
-  expect(luminance.text - luminance.background).toBeGreaterThan(0.4);
+  const [ratio] = await contrastOf(page, [[colors.text, colors.background]]);
+  expect(ratio).toBeGreaterThanOrEqual(4.5);
+});
+
+// O preview aprovado ficava entre 4,0:1 e 4,3:1 no texto branco sobre o acento e no texto secundário.
+for (const theme of ['light', 'dark'] as const) {
+  for (const tint of ['aurora', 'ocean', 'moss', 'iris', 'rose']) {
+    test(`contraste de texto normal (4,5:1) no tema ${theme}, tom ${tint}`, async ({ page }) => {
+      await gallery(page, theme, tint);
+      const read = (selector: string) => page.locator(selector).first().evaluate((node) => ({ text: getComputedStyle(node).color, background: getComputedStyle(node).backgroundColor }));
+      const primary = await read('.button--primary');
+      const root = await page.locator('[data-gallery]').evaluate((node) => { const style = getComputedStyle(node); return { ink: style.color, canvas: style.getPropertyValue('--hibi-canvas'), paper: style.getPropertyValue('--hibi-paper'), muted: style.getPropertyValue('--hibi-ink-muted') }; });
+      const ratios = await contrastOf(page, [[primary.text, primary.background], [root.ink, root.canvas], [root.ink, root.paper], [root.muted, root.canvas], [root.muted, root.paper]]);
+      for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+}
+
+test('cada tom de Ajustes vira um acento diferente na nova UI', async ({ page }) => {
+  const accents = new Set<string>();
+  for (const tint of ['aurora', 'ocean', 'moss', 'iris', 'rose']) {
+    const tab = await page.context().newPage();
+    await gallery(tab, 'light', tint);
+    accents.add(await tab.locator('.button--primary').first().evaluate((node) => getComputedStyle(node).backgroundColor));
+    await tab.close();
+  }
+  expect(accents.size).toBe(5);
+});
+
+// O HeroUI calcula o hover e as versões suaves na raiz, a partir do acento da raiz — o laranja das telas atuais.
+test('o hover e as versões suaves seguem o acento da nova UI', async ({ page }) => {
+  await gallery(page);
+  const colors = await page.locator('[data-gallery]').evaluate((root) => ['--accent', '--accent-hover', '--accent-soft-foreground'].map((name) => {
+    const probe = document.createElement('div');
+    probe.style.background = `var(${name})`;
+    root.appendChild(probe);
+    const color = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return color;
+  }));
+  const canvas = await page.evaluate((list) => {
+    const context = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+    return list.map((color) => { context.fillStyle = '#fff'; context.fillRect(0, 0, 1, 1); context.fillStyle = color; context.fillRect(0, 0, 1, 1); return [...context.getImageData(0, 0, 1, 1).data.slice(0, 3)]; });
+  }, colors);
+  // O roxo da nova UI tem mais azul que vermelho; o laranja das telas atuais, o contrário.
+  for (const [red, , blue] of canvas) expect(blue!).toBeGreaterThan(red!);
+});
+
+test('o tema é aplicado antes de a tela aparecer', async ({ page }) => {
+  // Quadro a quadro, antes de cada desenho: nenhum quadro pode ter conteúdo sem o tema escolhido.
+  await page.addInitScript(() => {
+    localStorage.setItem('hibi-theme', 'dark');
+    const frames: Array<{ content: boolean; theme: string | null }> = [];
+    (window as unknown as { __frames: typeof frames }).__frames = frames;
+    const tick = () => { const root = document.getElementById('root'); frames.push({ content: Boolean(root?.childElementCount), theme: document.documentElement.getAttribute('data-theme') }); if (frames.length < 90) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  });
+  await page.goto('/');
+  await expect(page.locator('.legacy-surface')).toBeVisible();
+  await page.waitForTimeout(500);
+  const frames = await page.evaluate(() => (window as unknown as { __frames: Array<{ content: boolean; theme: string | null }> }).__frames);
+  expect(frames.some((frame) => frame.content)).toBe(true);
+  expect(frames.filter((frame) => frame.content && frame.theme !== 'dark')).toEqual([]);
+});
+
+test('o CSS das telas atuais não entra na nova UI', async ({ page }) => {
+  await gallery(page, 'dark');
+  // As regras globais de `button` das telas atuais davam aos botões do HeroUI uma borda grossa.
+  const button = await page.locator('.button--secondary').first().evaluate((node) => { const style = getComputedStyle(node); return [style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth]; });
+  expect(button).toEqual(['0px', '0px', '0px', '0px']);
+  // `.outline` é classe das telas atuais (`color: #222`) e utilitário do Tailwind: aqui dentro vale o utilitário.
+  const sample = await page.locator('[data-utility-sample]').evaluate((node) => { const style = getComputedStyle(node); return { outline: style.outlineStyle, display: style.display, color: style.color, ink: getComputedStyle(node.closest('.hibi-ui')!).color }; });
+  expect(sample.outline).toBe('solid');
+  expect(sample.display).toBe('block');
+  expect(sample.color).toBe(sample.ink);
 });
 
 // Um elemento das telas atuais, montado dentro de `.legacy-surface`, e as propriedades que ele recebe.
@@ -53,11 +163,12 @@ const legacyStyle = (page: Page, markup: string, properties: string[]) =>
     return result;
   }, { html: markup, names: properties });
 
-test('as telas atuais não ganham utilitários do Tailwind com o nome das suas classes', async ({ page }) => {
+test('as telas atuais não ganham os utilitários do Tailwind que a nova UI usa', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.legacy-surface')).toBeVisible();
-  // `.outline` é um botão das telas atuais; como utilitário do Tailwind, viraria contorno sólido.
+  // A galeria usa `outline` e `block` como utilitários; nas telas atuais eles são classes de botão.
   expect(await legacyStyle(page, '<button class="outline">Cancelar</button>', ['outline-style'])).toEqual({ 'outline-style': 'none' });
+  expect(await legacyStyle(page, '<span class="block">x</span>', ['display'])).toEqual({ display: 'inline' });
 });
 
 test('as classes que o HeroUI e as telas atuais compartilham ficam com o desenho de antes', async ({ page }) => {
@@ -68,6 +179,8 @@ test('as classes que o HeroUI e as telas atuais compartilham ficam com o desenho
   expect(await legacyStyle(page, '<div class="empty-state">Nada</div>', ['user-select'])).toEqual({ 'user-select': 'auto' });
   // A borda de um elemento das telas atuais continua na cor do texto, como sempre.
   expect(await legacyStyle(page, '<div style="border-style: solid; color: rgb(10, 20, 30)">x</div>', ['border-top-color'])).toEqual({ 'border-top-color': 'rgb(10, 20, 30)' });
+  // O reset do Tailwind vale só dentro da nova UI: nas telas atuais, uma lista mantém o marcador do navegador.
+  expect(await legacyStyle(page, '<ul><li>item</li></ul>', ['list-style-type'])).toEqual({ 'list-style-type': 'disc' });
 });
 
 test('no tema escuro, o resumo de Tarefas continua claro e legível', async ({ page }) => {
@@ -77,4 +190,13 @@ test('no tema escuro, o resumo de Tarefas continua claro e legível', async ({ p
   const summary = page.locator('.tasks-atelier-summary');
   await expect(summary).toBeVisible();
   expect(await summary.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(255, 255, 255)');
+});
+
+test('na janela estreita (equivalente a zoom de 200%), a galeria não rola para o lado', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 900 });
+  await gallery(page);
+  await page.getByText('Textos longos').click();
+  await expect(page.getByRole('switch', { name: 'Textos longos' })).toBeChecked();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
 });
