@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { voiceVocabulary } from '../voice-vocabulary';
+import { correctToVocabulary, soundKey, voiceVocabulary } from '../voice-vocabulary';
 import type { StudyData } from '../../domain/models';
 
 type Data = Pick<StudyData, 'tasks' | 'notes' | 'reminders' | 'habits' | 'goals' | 'blocks'>;
@@ -57,5 +57,35 @@ describe('voiceVocabulary', () => {
     const terms = voiceVocabulary({ ...empty, tasks: [task('Almoço'), task('Almoço'), task('Almoço'), task('Post', 'Hibi')] });
 
     expect(terms[0]).toBe('Hibi');
+  });
+});
+
+describe('correctToVocabulary', () => {
+  const vocabulary = ['Kabrito', 'Kabrito OS', 'Cristiane', 'DAS', 'Post', 'Kabrito Post 01'];
+
+  it('troca o que soa como um nome do Hibi pelo nome escrito certo', () => {
+    expect(correctToVocabulary('Revisar o post da cabrito.', vocabulary)).toBe('Revisar o post da Kabrito.');
+    expect(correctToVocabulary('Abre o projeto Cabritos e marca uma reunião', vocabulary)).toBe('Abre o projeto Kabrito e marca uma reunião');
+  });
+
+  it('prefere o nome mais longo que casa', () => {
+    expect(correctToVocabulary('Abre o projeto Cabrito OS agora', vocabulary)).toBe('Abre o projeto Kabrito OS agora');
+    expect(correctToVocabulary('produzir o cabrito post 01', vocabulary)).toBe('produzir o Kabrito Post 01');
+  });
+
+  it('não troca sigla curta que soa como palavra comum, nem só a maiúscula', () => {
+    expect(correctToVocabulary('pagar o das amanhã e revisar o post', vocabulary)).toBe('pagar o das amanhã e revisar o post');
+    expect(correctToVocabulary('o que me dás em troca', vocabulary)).toBe('o que me dás em troca');
+  });
+
+  it('não mexe no que não soa como nenhum nome', () => {
+    expect(correctToVocabulary('Me lembra de ligar para o banco', vocabulary)).toBe('Me lembra de ligar para o banco');
+    expect(correctToVocabulary('qualquer coisa', [])).toBe('qualquer coisa');
+  });
+
+  it('as trocas de grafia comuns soam igual', () => {
+    expect(soundKey('Kabrito')).toBe(soundKey('cabrito'));
+    expect(soundKey('Cristiane')).toBe(soundKey('Kristiane'));
+    expect(soundKey('Marina')).not.toBe(soundKey('Mariana'));
   });
 });

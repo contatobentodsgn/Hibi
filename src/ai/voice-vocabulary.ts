@@ -65,3 +65,49 @@ export function voiceVocabulary(data: Pick<StudyData, 'tasks' | 'notes' | 'remin
     .slice(0, Math.max(0, limit))
     .map((term) => term.text);
 }
+
+/**
+ * Como um nome soa em português, para comparar o que o reconhecedor escreveu com o que está no Hibi:
+ * "Cabrito", "cabritos" e "Kabrito" soam igual. Não é fonética de verdade — só as trocas de grafia que
+ * o reconhecedor costuma fazer com nomes que não conhece.
+ */
+export function soundKey(word: string): string {
+  let key = word.toLocaleLowerCase('pt-BR').replace(/ç/g, 's').normalize('NFD').replace(/\p{M}/gu, '').replace(/[^a-z0-9]/g, '');
+  key = key.replace(/ph/g, 'f').replace(/[cs]h/g, 'x').replace(/qu/g, 'k').replace(/c(?=[ei])/g, 's').replace(/c/g, 'k')
+    .replace(/z/g, 's').replace(/y/g, 'i').replace(/w/g, 'v').replace(/h/g, '').replace(/(.)\1+/g, '$1');
+  // O plural e o "s" solto no fim ("Cabritos") não mudam de quem se fala.
+  return key.length > 3 ? key.replace(/s$/, '') : key;
+}
+
+const WORD = /[\p{L}\p{N}]+/gu;
+const MAX_TERM_WORDS = 3;
+
+/**
+ * Troca no texto reconhecido o que soa como um nome do vocabulário pelo nome escrito como no Hibi:
+ * "revisar o post da cabrito" vira "revisar o post da Kabrito". O reconhecedor de sempre só favorece os
+ * nomes, e ainda erra às vezes; o novo, do macOS 26, nem aceita vocabulário. Corrigir aqui, depois, vale
+ * para os dois.
+ *
+ * Só entram nomes com maiúscula e de até 3 palavras. Siglas curtas ficam de fora: "DAS" soa como "das", e
+ * trocar toda preposição por sigla estragaria o texto. Diferença só de maiúscula também fica como está —
+ * "post" não vira "Post" no meio da frase.
+ */
+export function correctToVocabulary(text: string, vocabulary: readonly string[]): string {
+  const terms = vocabulary
+    .map((term) => ({ term, keys: term.match(WORD)?.map(soundKey) ?? [] }))
+    .filter(({ term, keys }) => /\p{Lu}/u.test(term) && keys.length > 0 && keys.length <= MAX_TERM_WORDS && !(term === term.toUpperCase() && term.replace(/\s/g, '').length <= 3))
+    .sort((first, second) => second.keys.length - first.keys.length);
+  if (terms.length === 0) return text;
+  const words = [...text.matchAll(WORD)].map((match) => ({ text: match[0], start: match.index ?? 0, key: soundKey(match[0]) }));
+  const replacements: { start: number; end: number; term: string }[] = [];
+  for (let index = 0; index < words.length;) {
+    const found = terms.find(({ keys }) => keys.every((key, offset) => words[index + offset]?.key === key));
+    if (!found) { index += 1; continue; }
+    const first = words[index];
+    const last = words[index + found.keys.length - 1];
+    const spoken = text.slice(first.start, last.start + last.text.length);
+    if (spoken.toLocaleLowerCase('pt-BR') !== found.term.toLocaleLowerCase('pt-BR')) replacements.push({ start: first.start, end: last.start + last.text.length, term: found.term });
+    index += found.keys.length;
+  }
+  return replacements.reduceRight((result, { start, end, term }) => result.slice(0, start) + term + result.slice(end), text);
+}

@@ -68,6 +68,16 @@ test('a escuta leva ao reconhecedor os nomes que já estão no Hibi', async ({ p
   expect(termos.length).toBeLessThanOrEqual(100);
 });
 
+test('o que soa como um nome do Hibi chega escrito como no Hibi', async ({ page }) => {
+  await installVoice(page);
+  await openTaby(page);
+  await page.getByRole('button', { name: 'Falar' }).click();
+
+  // O reconhecedor às vezes escreve "cabrito"; os dados de exemplo têm "Kabrito Post 01".
+  await voice(page).say('revisar o post da cabrito');
+  await expect(campo(page)).toHaveValue('revisar o post da Kabrito');
+});
+
 test('parar pelo botão deixa o texto no campo para editar, sem enviar', async ({ page }) => {
   await installVoice(page);
   await openTaby(page);
