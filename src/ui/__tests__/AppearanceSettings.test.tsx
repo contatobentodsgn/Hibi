@@ -29,5 +29,7 @@ describe('Aparência (U04)', () => {
     const markup = render(storage, 'en')
     expect(markup).toMatch(/value="bottom"[^>]*checked=""|checked=""[^>]*value="bottom"/)
     for (const text of ['Appearance', 'A touch of colour', 'Navigation menu', 'Reduce motion', 'More contrast']) expect(markup).toContain(`>${text}<`)
+    // Sem aviso a dar, as duas regiões de aviso continuam na página, vazias, esperando o texto.
+    expect(markup.match(/<p role="status"[^>]*><\/p>/g)).toHaveLength(2)
   })
 })

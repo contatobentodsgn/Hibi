@@ -39,6 +39,8 @@ const optionLabel = 'mt-[15px] flex items-center gap-1.5 text-[11px] leading-[1.
 const optionContent = 'flex w-full min-w-0 flex-col items-stretch gap-0';
 // As linhas de ajuste do preview (`.setting-row`): 22 px em cima e embaixo, fio entre elas.
 const toggleRow = 'flex items-center justify-between gap-5 py-[22px]';
+// Um aviso sob as opções; vazio, não ocupa espaço.
+const notice = 'mt-4 text-[12px] text-(--hibi-ink-muted) empty:mt-0';
 
 function ThemeThumbnail({ kind }: Readonly<{ kind: ThemePreference }>) {
   return (
@@ -160,8 +162,10 @@ export function AppearanceSettings({ onEvent, framed = false }: Props) {
                 </Radio>
               ))}
             </RadioGroup>
-            {navigation === 'auto' && <p role="status" className="mt-4 text-[12px] text-(--hibi-ink-muted)">{t(mascotSharesDisplay ? 'redesign.appearance.autoNowBottom' : 'redesign.appearance.autoNowTop')}</p>}
-            {saveFailed && <p role="status" className="mt-4 text-[12px] text-(--hibi-ink-muted)">{t('redesign.appearance.positionNotSaved')}</p>}
+            {/* Os avisos ficam sempre na página, vazios quando não há o que dizer: o leitor de tela anuncia a
+                mudança de texto de uma região que já existia, e costuma calar uma que nasce com o texto dentro. */}
+            <p role="status" className={notice}>{navigation === 'auto' ? t(mascotSharesDisplay ? 'redesign.appearance.autoNowBottom' : 'redesign.appearance.autoNowTop') : null}</p>
+            <p role="status" className={notice}>{saveFailed ? t('redesign.appearance.positionNotSaved') : null}</p>
           </Card>
 
           <Card className={`${panel} px-6 py-0`}>

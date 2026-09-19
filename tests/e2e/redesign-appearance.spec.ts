@@ -253,3 +253,15 @@ test('quando a barra troca de borda, a pílula do destino atual vai junto, e ent
   expect(offset).toBeGreaterThan(1);
 });
 
+test('o aviso da automática aparece numa região que já estava na página', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('hibi.ui.navigation-position.v1', 'top'));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await openSettings(page);
+  const region = group(page, 'Menu de navegação').locator('xpath=..').getByRole('status').first();
+  await expect(region).toBeEmpty();
+  await region.evaluate((element) => { (element as HTMLElement & { hibiMarker?: string }).hibiMarker = 'a mesma região'; });
+  await choose(page, 'Menu de navegação', 'Automática');
+  await expect(region).toHaveText('Agora em cima: o mascote não está nesta tela.');
+  expect(await region.evaluate((element) => (element as HTMLElement & { hibiMarker?: string }).hibiMarker)).toBe('a mesma região');
+});
