@@ -64,3 +64,14 @@ A U02 fechou a outra direção do isolamento e deu à nova UI os tokens do previ
   - contraste de 4,5:1 ou mais para texto normal nos dois temas e nos cinco tons.
 - **Tema antes do primeiro desenho:** o `ThemeProvider` aplica o tema num `useLayoutEffect`. Com `useEffect`, quem usa o escuro via um quadro claro ao abrir o app.
 - **Galeria:** `?overlay=ui-gallery`, só no desenvolvimento, com todos os controles, estados, temas, tons, pt/en e textos longos.
+
+## O que a U02b corrigiu (fidelidade ao preview)
+
+A seção 0 do plano tem as decisões completas. Em resumo:
+- a ação principal é o botão escuro do preview (`#242428`), e o acento fica nos detalhes;
+- os tons são os quatro do preview (Lavanda, Azul, Menta e Pêssego), com a escolha antiga convertida;
+- as etiquetas pastéis são o `HibiTag` (`src/ui/redesign/components/HibiTag.tsx`);
+- "Mais contraste" e "Reduzir movimento" viraram preferências (`data-contrast`, `data-motion`);
+- a nova UI declara `--default-font-family` para usar a fonte do sistema, e não a Inter das telas atuais;
+- o cartão tem o respiro de 24 px do painel do preview;
+- toda unidade visual anexa uma comparação lado a lado com as capturas do preview (regra 6 do plano).
