@@ -1,0 +1,65 @@
+/*
+ * HeroUI e Tailwind v4 na nova UI (U01 do plano de 18/09/2026).
+ *
+ * O `@import "@heroui/styles"` que a documentação sugere traz o Tailwind inteiro — com o reset global
+ * (preflight) e a detecção automática de classes — e isso alcançaria as telas atuais e as janelas do
+ * notch e da barra, que usam este mesmo CSS. Por isso as peças entram uma a uma:
+ *
+ * - Tudo fica em camadas. O CSS atual não está em camada nenhuma, então vence qualquer regra daqui onde
+ *   as duas disputarem a mesma propriedade: nada das telas atuais muda de aparência até ser migrado.
+ * - Sem o preflight: ele reescreveria botões, títulos e listas das telas atuais. Uma tela nova que
+ *   precise de reset o aplica dentro do próprio contêiner.
+ * - Sem detecção automática de classes (`source(none)`): as telas atuais usam `outline`, `filter` e
+ *   `block` como nomes de classe, e o Tailwind os transformaria em utilitários — os botões `.outline`
+ *   ganhariam contorno sólido. Só as pastas da UI nova são lidas; o que o HeroUI usa por `@apply` já
+ *   vem compilado nos arquivos dele.
+ * - Variáveis que os dois definem (`--accent`, `--accent-soft`, `--muted`) ficam com o valor do Hibi,
+ *   porque o dele vence: o acento escolhido em Ajustes pinta também os componentes do HeroUI. O tema
+ *   escuro dos dois segue o mesmo `data-theme` da raiz.
+ * - A base do HeroUI (`base/base.css`) fica de fora: ela troca a cor de borda de todo elemento da página
+ *   (`* { border-color: var(--border) }`), e o `⌘K` do dock mudou de aparência por isso. A mesma regra vale
+ *   aqui só dentro de `.hibi-ui`, o contêiner de toda superfície nova — e os popovers e diálogos do HeroUI
+ *   precisam ser desenhados dentro dele (`UNSAFE_PortalProvider`, do react-aria), senão saem sem ela.
+ */
+@layer theme, base, components, utilities, legacy-guard;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@source "../ui/redesign";
+@source "../ui/shell";
+@import "tw-animate-css";
+
+@import "@heroui/styles/components/index.css" layer(components);
+@import "@heroui/styles/themes/default" layer(theme);
+@import "@heroui/styles/utilities";
+@import "@heroui/styles/variants";
+
+@layer base {
+  /*
+   * O HeroUI conta que o contêiner dê a cor do texto e o esquema de cores; sem isso, a UI nova herdava a
+   * cor escura da raiz das telas atuais, e no tema escuro o texto do popover sumia no fundo escuro.
+   */
+  .hibi-ui { color: var(--foreground); color-scheme: light; }
+  [data-theme="dark"] .hibi-ui { color-scheme: dark; }
+  .hibi-ui :is(*, ::after, ::before, ::backdrop, ::file-selector-button) { border-color: var(--border, currentColor); }
+  /* O HeroUI empilha popovers (100000, fixo no React Aria) e diálogos no mesmo nível. */
+  :root { --z-index-overlay: 100000; --z-index-toast: calc(var(--z-index-overlay) + 1); }
+}
+
+/*
+ * As telas atuais usam `var(--surface, #fff)` contando que `--surface` não exista; o HeroUI a define, e no
+ * tema escuro o resumo de Tarefas ficava com fundo escuro e texto escuro. Dentro de `.legacy-surface` ela
+ * volta ao que era. Uma tela migrada sai desse contêiner e passa a usar a do HeroUI.
+ */
+.legacy-surface { --surface: #fff; }
+
+/*
+ * Duas classes do HeroUI têm o mesmo nome de classes das telas atuais: `tag` (o chip de pasta, "Bento") e
+ * `empty-state`. Fora de `.hibi-ui`, elas voltam ao padrão do navegador nesta camada — acima da do HeroUI e
+ * abaixo do CSS atual, que reaplica o que sempre definiu. Sem isso, o chip "Bento" mudava de desenho.
+ */
+@layer legacy-guard {
+  :is(.tag, .empty-state):not(.hibi-ui *),
+  :is(.tag, .empty-state):not(.hibi-ui *)::before,
+  :is(.tag, .empty-state):not(.hibi-ui *)::after { all: revert; }
+}
