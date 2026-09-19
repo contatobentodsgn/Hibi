@@ -1,4 +1,4 @@
-# Fundação da nova UI: HeroUI e Tailwind no Hibi (U01 e U02)
+# Fundação da nova UI: HeroUI e Tailwind no Hibi (U01 a U03)
 
 Data: 19/09/2026. Responsável: Claude. Base: `origin/main` depois do #165.
 
@@ -75,3 +75,17 @@ A seção 0 do plano tem as decisões completas. Em resumo:
 - a nova UI declara `--default-font-family` para usar a fonte do sistema, e não a Inter das telas atuais;
 - o cartão tem o respiro de 24 px do painel do preview;
 - toda unidade visual anexa uma comparação lado a lado com as capturas do preview (regra 6 do plano).
+
+## O que a U03 acrescentou (a navegação oficial)
+
+A barra do preview (`src/ui/shell/AdaptiveNotchNavigation.tsx`) substituiu o dock. A seção 0 do plano tem as decisões e o `u03-assets/` tem as comparações. Regras que nasceram dela e valem para as próximas unidades:
+
+- **Ordem das camadas.** `heroui.css` é o primeiro import de `src/main.tsx`. A primeira menção a uma camada fixa a ordem dela, e o CSS de um componente entra quando o módulo dele é avaliado: com o `App` importado antes, o `notch.css` declarava `components` e `utilities` antes de `base`, e o reset passava por cima dos utilitários (a barra e os botões da galeria perdiam o respiro lateral). Um e2e mede o respiro dos itens da barra.
+- **`dark:` segue só o `data-theme` da raiz.** A variante do HeroUI tinha uma reserva pela preferência do macOS e um seletor (`&:not(...) &`) que casava com qualquer elemento dentro de outro com a mesma classe. Com o macOS no escuro e o Hibi no claro, o notch ficava cinza sobre a moldura preta. `heroui.css` redefine a variante.
+- **Primitivas na raiz.** Os `--hibi-*` agora ficam em `:root` (com as variações de tema, tom, contraste e movimento), porque a moldura e a superfície da barra envolvem as telas atuais e ficam fora de `.hibi-ui`. As variáveis que o HeroUI lê continuam só dentro de `.hibi-ui`.
+- **Reduzir movimento também no Motion.** `HibiUiRoot` envolve a nova UI num `MotionConfig`: as animações do Motion rodam em JavaScript e o CSS não as alcança.
+- **Arrastar a janela (macOS).** O Chromium monta as regiões de arrastar na ordem da árvore, uma por caixa marcada, e a mais recente vence; o valor é herdado, e até `none` vira `no-drag`. Por isso nada acima da barra declara `-webkit-app-region`, a barra vem depois do conteúdo na árvore e os notches marcam `no-drag`. Um e2e reproduz o algoritmo, e o app real foi arrastado de verdade (pela faixa move; pelo conteúdo e pelos botões, não).
+- **Telas atuais fora de `.hibi-ui`.** O conteúdo das telas atuais continua fora de `.hibi-ui` (lá dentro, ele perderia o próprio CSS). A moldura e a área de rolagem também; só a barra e a trilha do topo são `HibiUiRoot`. Uma tela nova, ao ser reconstruída, monta a própria `HibiUiRoot`.
+- **Prévia da navegação.** `?overlay=ui-navigation` (com `&position=bottom`), só no desenvolvimento: o shell oficial sem as telas, para comparar com o preview e testar a posição inferior até a U04 criar a preferência.
+- **Capturas escuras do preview.** As `notch-dark-*.png` congeladas foram tiradas no meio da transição de 200 ms de cor: o texto e os ícones ainda iam do claro para o escuro. As comparações escuras usam o preview servido de novo e assentado (o preview congelado, com os mesmos hashes), que confere pixel a pixel com as capturas claras e com a móvel.
+
