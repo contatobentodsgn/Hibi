@@ -222,3 +222,30 @@ for (const [system, hibi, expected] of [['dark', 'light', ZINC_950], ['light', '
     });
   });
 }
+
+// U04c: no escuro o notch é claro, e as telas atuais são uma ilha clara. Rolando por baixo dele, o branco o
+// apagava; agora, com as telas atuais, o conteúdo para antes da faixa da barra. Um ponto da faixa, ao lado do
+// notch, mostra o que está ali.
+const bandPointOwner = async (page: Page, position: 'top' | 'bottom') => {
+  const notch = (await page.locator('.notch-center').boundingBox())!;
+  const y = position === 'top' ? notch.y + 20 : notch.y + notch.height - 20;
+  return page.evaluate(([x, py]) => (document.elementFromPoint(x, py)?.closest('.legacy-surface') ? 'tela atual' : 'superfície'), [notch.x - 60, y]);
+};
+for (const position of ['top', 'bottom'] as const) {
+  test(`no tema escuro, as telas atuais param antes do notch claro (barra ${position === 'top' ? 'em cima' : 'embaixo'})`, async ({ page }) => {
+    await page.addInitScript((p) => { localStorage.setItem('hibi-theme', 'dark'); localStorage.setItem('hibi.ui.navigation-position.v1', p); }, position);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    // Em cima, o conteúdo só chega à faixa rolando; embaixo, já está sob a barra desde o começo da tela (no fim
+    // da rolagem, o próprio respiro da área cobre a faixa).
+    if (position === 'top') await page.locator('.notch-viewport').evaluate((element) => { element.scrollTop = 400; });
+    expect(await bandPointOwner(page, position)).toBe('superfície');
+  });
+}
+
+test('no tema claro, o conteúdo continua passando por baixo da barra, como no preview', async ({ page }) => {
+  await page.addInitScript(() => { localStorage.setItem('hibi-theme', 'light'); localStorage.setItem('hibi.ui.navigation-position.v1', 'bottom'); });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  expect(await bandPointOwner(page, 'bottom')).toBe('tela atual');
+});
