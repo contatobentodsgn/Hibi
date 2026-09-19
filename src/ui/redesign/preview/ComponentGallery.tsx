@@ -3,9 +3,14 @@ import {
   Alert, AlertDialog, Button, Card, Checkbox, Chip, Description, Dropdown, FieldError, Input, Label, ListBox, Modal,
   Popover, ProgressBar, Radio, RadioGroup, Select, Skeleton, Spinner, Switch, Tabs, TextArea, TextField, Tooltip,
 } from '@heroui/react';
-import { MoreHorizontal, Play, Plus, Settings2, Trash2, Zap } from 'lucide-react';
+import { CheckCheck, MoreHorizontal, Play, Plus, Settings2, Trash2, Zap } from 'lucide-react';
+import { ActionDialog, ActionDialogOption, ActionDialogOptions } from '../components/ActionDialog';
+import { EntityDetailsPanel } from '../components/EntityDetailsPanel';
+import { HibiEmptyState } from '../components/HibiEmptyState';
 import { HibiTag } from '../components/HibiTag';
 import { HibiUiRoot } from '../components/HibiUiRoot';
+import { RoundLink } from '../components/RoundLink';
+import { SectionHeader } from '../components/SectionHeader';
 import { useThemePreference } from '../../theme-context';
 import type { ThemePreference, TintPreference } from '../../theme';
 
@@ -38,6 +43,12 @@ const COPY = {
     reference: 'Peças do preview', createSomething: 'Criar algo', moment: 'Seu momento', momentTitle: 'Menos abas.\nMais presença.',
     momentText: 'Reserve um pouco de tempo para uma coisa importante.', enterFocus: 'Entrar em foco', next: 'A seguir · 10:00',
     design: 'Design', personal: 'Pessoal', work: 'Trabalho', tags: 'Etiquetas',
+    common: 'Diálogos, detalhes e estados (U05)', dayTitle: 'Um dia de cada vez.', daySubtitle: 'Quinta-feira, 17 de setembro. Vamos com calma.',
+    ideaTitle: 'O começo de uma ideia.', ideaText: 'Escolha por onde começar.', ideaOptions: 'O que criar', aTask: 'Uma tarefa', aNote: 'Uma nota', aBlock: 'Um tempo na agenda',
+    weekLink: 'Ver tarefas da semana', emptyTitle: 'Nada pendente por aqui.', emptyText: 'Quando surgir algo, aparece aqui.', createTask: 'Criar tarefa',
+    taskDetails: 'Detalhes da tarefa', taskTitle: 'Refinar a identidade do Hibi', dueToday: 'Vence hoje', folderLabel: 'Pasta', deadline: 'Prazo', today: 'Hoje',
+    durationLabel: 'Duração', minutes60: '60 min', category: 'Categoria', taskText: 'Rever cores, tipografia e o tom dos estados vazios.',
+    complete: 'Concluir', openInTasks: 'Abrir em Tarefas', chosen: 'Escolhido', shortcut: 'Atalho', completed: 'Concluída', nothingYet: 'Nada escolhido ainda.',
   },
   en: {
     title: 'Component gallery', subtitle: 'New UI controls with Hibi tokens.',
@@ -60,6 +71,12 @@ const COPY = {
     reference: 'Preview pieces', createSomething: 'Create something', moment: 'Your moment', momentTitle: 'Fewer tabs.\nMore presence.',
     momentText: 'Set aside a little time for one important thing.', enterFocus: 'Start focus', next: 'Next · 10:00',
     design: 'Design', personal: 'Personal', work: 'Work', tags: 'Tags',
+    common: 'Dialogs, details and states (U05)', dayTitle: 'One day at a time.', daySubtitle: 'Thursday, 17 September. One thing at a time.',
+    ideaTitle: 'The start of an idea.', ideaText: 'Choose where to begin.', ideaOptions: 'What to create', aTask: 'A task', aNote: 'A note', aBlock: 'Some time on the agenda',
+    weekLink: 'See the week\'s tasks', emptyTitle: 'Nothing pending here.', emptyText: 'When something comes up, it shows up here.', createTask: 'Create task',
+    taskDetails: 'Task details', taskTitle: 'Refine the Hibi identity', dueToday: 'Due today', folderLabel: 'Folder', deadline: 'Deadline', today: 'Today',
+    durationLabel: 'Duration', minutes60: '60 min', category: 'Category', taskText: 'Revisit colours, type and the tone of the empty states.',
+    complete: 'Complete', openInTasks: 'Open in Tasks', chosen: 'Chosen', shortcut: 'Shortcut', completed: 'Completed', nothingYet: 'Nothing chosen yet.',
   },
 } as const;
 
@@ -83,7 +100,12 @@ export function ComponentGallery() {
   const [presses, setPresses] = useState(0);
   const [name, setName] = useState('');
   const [remind, setRemind] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [details, setDetails] = useState(false);
+  const [lastAction, setLastAction] = useState('');
   const t = COPY[language];
+  // O que a pessoa escolheu num diálogo da U05: fecha e diz o que foi, para conferir que cada escolha tem efeito.
+  const choose = (text: string) => { setCreating(false); setDetails(false); setLastAction(text); };
   const extra = long ? LONG[language] : '';
 
   return (
@@ -131,6 +153,43 @@ export function ComponentGallery() {
             <Button variant="primary" fullWidth style={{ fontSize: 11, paddingInline: 12, justifyContent: 'flex-start' }}><Play size={14} fill="currentColor" aria-hidden="true" />{t.enterFocus}<span style={{ marginLeft: 'auto', fontSize: 10, color: '#c2c2cb' }}>25 min</span></Button>
           </Card.Footer>
         </Card>
+      </Section>
+
+      <Section title={t.common}>
+        {/* A Hoje (U06) usa estas peças; aqui elas aparecem soltas, com as frases do preview. */}
+        <div style={{ width: '100%' }}>
+          <SectionHeader
+            title={t.dayTitle}
+            subtitle={t.daySubtitle + extra}
+            actions={
+              <ActionDialog trigger={<Button variant="secondary"><Plus size={17} aria-hidden="true" />{t.createSomething}</Button>} isOpen={creating} onOpenChange={setCreating} title={t.ideaTitle} description={t.ideaText + extra}>
+                <ActionDialogOptions label={t.ideaOptions}>
+                  <ActionDialogOption onPress={() => choose(`${t.chosen}: ${t.aTask}`)}>{t.aTask}</ActionDialogOption>
+                  <ActionDialogOption onPress={() => choose(`${t.chosen}: ${t.aNote}`)}>{t.aNote}</ActionDialogOption>
+                  <ActionDialogOption onPress={() => choose(`${t.chosen}: ${t.aBlock}`)}>{t.aBlock}</ActionDialogOption>
+                </ActionDialogOptions>
+              </ActionDialog>
+            }
+          />
+        </div>
+        <Card style={{ width: 'min(414px, 100%)' }}>
+          <HibiEmptyState icon={CheckCheck} tone="mint" title={t.emptyTitle} description={t.emptyText + extra} action={<Button variant="tertiary" size="sm" onPress={() => setLastAction(t.createTask)}><Plus size={15} aria-hidden="true" />{t.createTask}</Button>} />
+        </Card>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <RoundLink label={t.weekLink} onPress={() => setLastAction(`${t.shortcut}: ${t.weekLink}`)} />
+          <EntityDetailsPanel
+            trigger={<Button variant="ghost"><MoreHorizontal size={17} aria-hidden="true" />{t.taskDetails}</Button>}
+            isOpen={details}
+            onOpenChange={setDetails}
+            title={t.taskTitle + extra}
+            tag={<HibiTag tone="lavender" dot>{t.dueToday}</HibiTag>}
+            facts={[{ label: t.folderLabel, value: t.design }, { label: t.deadline, value: t.today }, { label: t.durationLabel, value: t.minutes60 }, { label: t.category, value: t.work }]}
+            actions={<><Button variant="primary" onPress={() => choose(`${t.completed}: ${t.taskTitle}`)}>{t.complete}</Button><Button variant="tertiary" onPress={() => choose(`${t.shortcut}: ${t.openInTasks}`)}>{t.openInTasks}</Button></>}
+          >
+            {t.taskText}
+          </EntityDetailsPanel>
+        </div>
+        <p role="status" data-gallery-status="" style={{ color: 'var(--muted)', margin: 0, width: '100%' }}>{lastAction || t.nothingYet}</p>
       </Section>
 
       <Section title={t.tags}>
