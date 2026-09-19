@@ -1,7 +1,11 @@
+// Primeiro de tudo: `heroui.css` declara a ordem das camadas da nova UI (theme, base, components, utilities).
+// O CSS de um componente entra quando o módulo dele é avaliado, e o `App` vem logo abaixo; se um arquivo
+// em camada dele chegasse antes, a primeira menção fixaria outra ordem, e o reset (`base`) passaria por
+// cima dos utilitários (foi assim que a barra da U03 perdeu o espaçamento interno).
+import './styles/heroui.css';
 import React, { Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import './styles/heroui.css';
 import './ui/redesign/theme.css';
 import './theme.css';
 import './ui/refined-ui.css';
