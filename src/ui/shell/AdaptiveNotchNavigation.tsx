@@ -300,6 +300,10 @@ const barButtons = (nav: HTMLElement) =>
     (button) => !button.closest('[data-notch-drawer]') && button.getClientRects().length > 0 && !(button as HTMLButtonElement).disabled
   );
 
+// As ações da direita, no layout em uso (o outro não as monta).
+const actionButtons = (nav: HTMLElement | null) =>
+  Array.from(nav?.querySelector('[data-notch-actions]')?.querySelectorAll<HTMLElement>('button') ?? []);
+
 // O passo de uma seta e o de uma página, os do Chromium.
 const LINE_STEP = 40;
 const PAGE_FRACTION = 0.875;
@@ -330,11 +334,37 @@ export function AdaptiveNotchNavigation({
   const layoutGroupId = useId();
   const drawerId = useId();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const wide = useWideLayout();
   const { motion: motionPreference } = useThemePreference();
   const isBottom = position === 'bottom';
   const activeItem = items.find((item) => item.id === activeId);
   const ActiveIcon = activeItem?.icon;
+
+  // Ao cruzar 1280 px, as ações trocam de lugar (da barra larga para a ilha, e de volta) e remontam; antes
+  // disso, o CSS já as escondeu, e o foco que estava numa delas caiu no corpo da página. A barra lembra em qual
+  // ação o foco estava (até ele ir para outro lugar ou a pessoa clicar fora delas) e o devolve à mesma ação no
+  // lugar novo.
+  const actionFocus = useRef(-1);
+  useEffect(() => {
+    const inActions = (target: EventTarget | null) => target instanceof HTMLElement && !!target.closest('[data-notch-actions]');
+    const remember = (event: FocusEvent) => {
+      actionFocus.current = inActions(event.target) ? actionButtons(navRef.current).indexOf(event.target as HTMLElement) : -1;
+    };
+    const forget = (event: PointerEvent) => {
+      if (!inActions(event.target)) actionFocus.current = -1;
+    };
+    document.addEventListener('focusin', remember);
+    document.addEventListener('pointerdown', forget, true);
+    return () => {
+      document.removeEventListener('focusin', remember);
+      document.removeEventListener('pointerdown', forget, true);
+    };
+  }, []);
+  const wide = useWideLayout();
+  useLayoutEffect(() => {
+    const active = document.activeElement;
+    if (actionFocus.current < 0 || (active && active !== document.body)) return;
+    actionButtons(navRef.current)[actionFocus.current]?.focus();
+  }, [wide]);
 
   // Qualquer navegação fecha o menu compacto: pelos destinos dele, pelo Mais, por Ajustes, pela paleta ou pelo
   // atalho do Taby (o dock antigo fazia o mesmo). Fecha no mesmo render da tela nova, sem um quadro com o menu
@@ -550,7 +580,7 @@ export function AdaptiveNotchNavigation({
               >
                 <NotchLeftWing position={position} />
                 <NotchCornerRightWing position={position} />
-                <div className="flex items-center text-zinc-50 dark:text-zinc-950">{rightContent}</div>
+                <div data-notch-actions="" className="flex items-center text-zinc-50 dark:text-zinc-950">{rightContent}</div>
               </div>
             )}
 
@@ -593,7 +623,7 @@ export function AdaptiveNotchNavigation({
                 </button>
 
                 {showRightContent && rightContent && wide !== true && (
-                  <div className="flex shrink-0 items-center justify-end text-zinc-50 dark:text-zinc-950 w-max">{rightContent}</div>
+                  <div data-notch-actions="" className="flex shrink-0 items-center justify-end text-zinc-50 dark:text-zinc-950 w-max">{rightContent}</div>
                 )}
               </div>
 

@@ -400,3 +400,15 @@ test('qualquer navegação fecha o menu compacto: Ajustes, o Mais, a paleta e o 
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
 });
 
+test('ao cruzar 1280 px, o foco numa ação vai junto para a mesma ação no lugar novo', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const settings = nav(page).getByRole('button', { name: 'Ajustes', exact: true });
+  await settings.focus();
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await expect(page.locator('.notch-center')).toBeHidden();
+  await expect(settings).toBeFocused();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator('.notch-center')).toBeVisible();
+  await expect(settings).toBeFocused();
+});
