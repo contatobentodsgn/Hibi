@@ -82,6 +82,22 @@ test('uma confirmação fica na barra com os botões dela, e Esc cancela em vez 
   expect(await calls(page)).toEqual(['action:c-1:cancel', 'action:c-1:confirm']);
 });
 
+test('um Esc no instante em que a confirmação aparece cancela, não fecha', async ({ page }) => {
+  // O observador dispara o Esc assim que a confirmação entra na página: depois do desenho e antes dos efeitos
+  // que o React roda em seguida. Foi nessa janela que a CI pegou a barra fechando em vez de cancelar.
+  await page.addInitScript(() => {
+    new MutationObserver((_, observer) => {
+      if (!document.querySelector('[role="dialog"]')) return;
+      observer.disconnect();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    }).observe(document, { childList: true, subtree: true });
+  });
+  const confirmacao: Content = { requestId: 'c-2', mode: 'confirmation', kind: 'confirmation', text: 'Apagar o lembrete?', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] };
+  await openBar(page, confirmacao);
+  await expect(page.getByRole('dialog', { name: 'Barra do Taby' })).toContainText('Apagar o lembrete?');
+  await expect.poll(() => calls(page)).toEqual(['action:c-2:cancel']);
+});
+
 test('sem conteúdo, a barra não mostra nada', async ({ page }) => {
   await openBar(page, null);
   await expect(bar(page)).toBeHidden();

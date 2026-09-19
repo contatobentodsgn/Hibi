@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useT } from '../i18n/LocaleProvider';
 import type { TabyBarContent } from './taby-bar-content';
 import './taby-bar.css';
@@ -50,16 +50,22 @@ export function TabyBar({ bridge = typeof window === 'undefined' ? undefined : w
     void bridge.submit(text);
   };
   const close = () => { void bridge?.close(); };
+  // O conteúdo já desenhado, para o Esc. Trocado num efeito comum, o ouvinte só mudava depois da pintura: uma
+  // tecla nesse intervalo lia o conteúdo anterior e fechava a barra em vez de cancelar a confirmação (a CI
+  // pegou isso uma vez). O efeito de layout roda junto com o desenho, antes de qualquer tecla.
+  const shownContent = useRef(content);
+  useLayoutEffect(() => { shownContent.current = content; }, [content]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       // Com confirmação no ar, Esc é "Cancelar", nunca uma confirmação sem resposta.
-      const cancel = content?.actions.find((action) => action.id === 'cancel');
-      if (cancel && content) void bridge?.action(content.requestId, cancel.id); else close();
+      const current = shownContent.current;
+      const cancel = current?.actions.find((action) => action.id === 'cancel');
+      if (cancel && current) void bridge?.action(current.requestId, cancel.id); else void bridge?.close();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [content, bridge]);
+  }, [bridge]);
 
   if (!content) return <main className="taby-bar" data-mode="hidden" aria-label={t('bar.label')} />;
   const button = (label: string, icon: Parameters<typeof Icon>[0]['name'], onClick: () => void) => <button type="button" className="taby-bar-icon" aria-label={label} title={label} onClick={onClick}><Icon name={icon} /></button>;
