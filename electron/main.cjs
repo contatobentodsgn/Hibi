@@ -23,6 +23,7 @@ const { createNotchWindowManager, validPresentation } = require("./notch-window.
 const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('./notch-settings.cjs');
 const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
 const { showStartupNotch, idleCompanionPresentation } = require('./notch-startup.cjs');
+const { createMascotPlacement } = require('./mascot-placement.cjs');
 const { createIdleEscalation, createMascot } = require('./mascot.cjs');
 const { cleanInput, createTabyBar } = require('./taby-bar.cjs');
 const { createLocalVoiceService } = require('./local-voice.cjs');
@@ -98,6 +99,9 @@ const prunePendingLocalApiWrites = (nowMs = Date.now()) => {
   while (pendingLocalApiWrites.size > MAX_PENDING_LOCAL_API_WRITES) pendingLocalApiWrites.delete(pendingLocalApiWrites.keys().next().value);
 };
 let notchWindow;
+// Se o mascote do notch está na mesma tela que a janela principal: a barra de navegação desce para ele não
+// cobrir o meio dela (U04b).
+let mascotPlacement = null;
 let tabyBar;
 let idleEscalation;
 // O pedido que está no notch agora; `null` quando o mascote está em repouso.
@@ -325,6 +329,8 @@ function createWindow() {
     titleBarStyle: "hiddenInset", trafficLightPosition: { x: 20, y: 19 },
     webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
+  mascotPlacement?.dispose();
+  mascotPlacement = createMascotPlacement({ window: mainWindow, screen, notch: () => notchWindow, send: (state) => sendToMainWindow('hibi:notch:window-placement-changed', state) });
   mainWindow.webContents.on("will-navigate", (event, url) => {
     if (!isAllowedNavigation(url)) event.preventDefault();
   });
@@ -570,7 +576,13 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('hibi:notch:capabilities', () => notchCapabilities(notchAdapter, notchWindow));
   ipcMain.handle('hibi:notch:displays', () => notchDisplayState(notchSettings, notchWindow));
-  ipcMain.handle('hibi:notch:set-display', (_event, displayId) => applyNotchDisplay(notchSettings, notchWindow, displayId));
+  ipcMain.handle('hibi:notch:set-display', (_event, displayId) => {
+    const state = applyNotchDisplay(notchSettings, notchWindow, displayId);
+    // O mascote pode ter ido para a tela da janela, ou saído dela.
+    mascotPlacement?.refresh();
+    return state;
+  });
+  ipcMain.handle('hibi:notch:window-placement', () => mascotPlacement?.current() ?? { sharesDisplay: false });
   ipcMain.handle('hibi:notch:test', (_event, locale) => notchTest.run(locale === 'en' ? 'en' : 'pt'));
   // O tamanho do companion é ajuste da pessoa e vale entre aberturas: fica no mesmo arquivo do monitor
   // preferido, e a superfície — painel nativo ou janela — é reposicionada na hora.
@@ -632,10 +644,11 @@ app.whenReady().then(async () => {
   appTray = createAppTray({ Tray, Menu, nativeImage, onOpen: summonWindow, onTaby: openTaby, onHide: () => mainWindow?.hide(), onQuit: () => { quitting = true; app.quit(); } });
   tabyShortcut.apply();
   showStartupNotch(notchWindow, startupNotchAnimationPath());
+  mascotPlacement?.refresh();
   idleEscalation.reset();
   app.on("activate", () => summonWindow());
 });
-app.on("before-quit", () => { quitting = true; localVoiceService?.stop(); appTray?.destroy(); tabyShortcut?.dispose(); detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
+app.on("before-quit", () => { quitting = true; mascotPlacement?.dispose(); localVoiceService?.stop(); appTray?.destroy(); tabyShortcut?.dispose(); detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
 // O helper de voz é outro processo: sem este `stop`, uma escuta aberta sobrevivia ao app, com o
 // microfone ligado e ninguém para desligá-lo. Ver o `localVoiceService?.stop()` no before-quit.
 //

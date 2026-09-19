@@ -36,13 +36,64 @@ test('a posição vale na hora, sem remontar o conteúdo, e continua depois de r
   await expect(group(page, 'Menu de navegação').getByRole('radio', { name: 'Inferior' })).toBeChecked();
 });
 
-test('um valor guardado que não é uma posição válida vale como em cima', async ({ page }) => {
+test('um valor guardado que não é uma escolha vale como a automática, que sem o mascote fica em cima', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('hibi.ui.navigation-position.v1', 'sideways'));
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   expect(await notchBottom(page)).toBe(8 + 44);
   await openSettings(page);
-  await expect(group(page, 'Menu de navegação').getByRole('radio', { name: 'Superior' })).toBeChecked();
+  await expect(group(page, 'Menu de navegação').getByRole('radio', { name: 'Automática' })).toBeChecked();
+  await expect(page.getByRole('status').filter({ hasText: 'Agora em cima: o mascote não está nesta tela.' })).toBeVisible();
+});
+
+// U04b: a ponte do desktop diz se o mascote do notch está na mesma tela que a janela; o teste simula a janela
+// indo e voltando entre monitores.
+const installMascotPlacement = (page: Page, sharesDisplay: boolean) => page.addInitScript((initial) => {
+  let current = initial;
+  let listener: ((state: { sharesDisplay: boolean }) => void) | null = null;
+  (window as unknown as { hibiE2E: unknown }).hibiE2E = { move(shares: boolean) { current = shares; listener?.({ sharesDisplay: shares }); } };
+  (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
+    getNotchWindowPlacement: async () => ({ sharesDisplay: current }),
+    onNotchWindowPlacementChanged: (callback: (state: { sharesDisplay: boolean }) => void) => { listener = callback; return () => { listener = null; }; },
+  };
+}, sharesDisplay);
+const moveWindow = (page: Page, sharesDisplay: boolean) => page.evaluate((shares) => (window as unknown as { hibiE2E: { move: (shares: boolean) => void } }).hibiE2E.move(shares), sharesDisplay);
+
+test('na automática, a barra desce com o mascote na tela da janela e sobe quando a janela vai para outra tela', async ({ page }) => {
+  await installMascotPlacement(page, true);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await expect.poll(() => notchBottom(page)).toBe(900 - 8);
+  await openSettings(page);
+  await expect(group(page, 'Menu de navegação').getByRole('radio', { name: 'Automática' })).toBeChecked();
+  await expect(page.getByRole('status').filter({ hasText: 'Agora embaixo: o mascote está nesta tela.' })).toBeVisible();
+
+  await moveWindow(page, false);
+  await expect.poll(() => notchBottom(page)).toBe(8 + 44);
+  await expect(page.getByRole('status').filter({ hasText: 'Agora em cima: o mascote não está nesta tela.' })).toBeVisible();
+  await moveWindow(page, true);
+  await expect.poll(() => notchBottom(page)).toBe(900 - 8);
+});
+
+test('Superior e Inferior valem mesmo com o mascote, e voltar à automática devolve a regra', async ({ page }) => {
+  await installMascotPlacement(page, true);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await openSettings(page);
+  await choose(page, 'Menu de navegação', 'Superior');
+  await expect.poll(() => notchBottom(page)).toBe(8 + 44);
+  await moveWindow(page, false);
+  await moveWindow(page, true);
+  expect(await notchBottom(page)).toBe(8 + 44);
+
+  await moveWindow(page, false);
+  await choose(page, 'Menu de navegação', 'Inferior');
+  await expect.poll(() => notchBottom(page)).toBe(900 - 8);
+
+  await choose(page, 'Menu de navegação', 'Automática');
+  await expect.poll(() => notchBottom(page)).toBe(8 + 44);
+  expect(await page.evaluate(() => localStorage.getItem('hibi.ui.navigation-position.v1'))).toBe('auto');
 });
 
 test('com o armazenamento recusado, a posição vale na sessão e o aviso diz que não foi guardada', async ({ page }) => {

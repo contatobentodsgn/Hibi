@@ -87,6 +87,7 @@ const EXPECTED_CHANNELS = [
   "hibi:notch:capabilities",
   "hibi:notch:displays",
   "hibi:notch:set-display",
+  "hibi:notch:window-placement",
   "hibi:updates:state",
   "hibi:updates:check",
   "hibi:updates:download",
@@ -185,6 +186,8 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
   // não há polling sem sessão.
   let systemIdleSeconds = 0;
   let idleQueries = 0;
+  // O monitor onde a janela principal está, para a posição da barra perto do mascote (U04b).
+  let windowDisplayId = 1;
 
   class BrowserWindowFake {
     constructor(options) {
@@ -211,6 +214,7 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
       windows.push(this);
     }
     isDestroyed() { return this.destroyed; }
+    getBounds() { return this.bounds ?? { x: 0, y: 0, width: this.options?.width ?? 0, height: this.options?.height ?? 0 }; }
     // A barra do Taby é outra janela: posição, camada e exibição sem foco.
     setBounds(bounds) { this.bounds = bounds; }
     setAlwaysOnTop(...args) { this.alwaysOnTop = args; }
@@ -279,6 +283,7 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
     screen: {
       getAllDisplays: () => DISPLAYS.map((display) => ({ id: display.id, label: display.label, internal: display.internal, bounds: { x: 0, y: 0, width: display.width, height: display.height } })),
       getPrimaryDisplay: () => ({ id: 1, label: "Built-in", internal: true, bounds: { x: 0, y: 0, width: 1512, height: 982 } }),
+      getDisplayMatching: () => ({ id: windowDisplayId }),
       on: (event, listener) => { screenEvents.push([event, listener]); },
       removeListener: (event, listener) => { removedEvents.push([event, listener]); },
     },
@@ -307,7 +312,9 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
     setPreferredDisplay(displayId) { this.calls.push(["setPreferredDisplay", displayId]); this.preferredDisplay = displayId; },
     setSize(size) { this.calls.push(["setSize", size]); this.size = size; return size; },
     reposition() { this.calls.push(["reposition"]); return true; },
-    currentDisplay() { return { id: 1, bounds: { x: 0, y: 0, width: 1512, height: 982 } }; },
+    currentDisplay() { return { id: this.preferredDisplay ?? 1, bounds: { x: 0, y: 0, width: 1512, height: 982 } }; },
+    // Como o gerenciador real: o que está no ar, nativo ou não (o mascote de abertura inclusive).
+    get activeRequestId() { return this.shown?.requestId ?? null; },
     currentSize() { return this.size ?? "normal"; },
     describeDisplays() { return { resolvedDisplayId: 1, reason: "primary", displays: DISPLAYS.map((display) => ({ ...display })) }; },
     destroy() { this.calls.push(["destroy"]); },
@@ -448,6 +455,7 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
     mainWindow: () => windows[0],
     setNotificationSupported: (value) => { notificationSupported = value; },
     setSystemIdleSeconds: (value) => { systemIdleSeconds = value; },
+    setWindowDisplay: (id) => { windowDisplayId = id; },
     idleQueries: () => idleQueries,
     // Dispara um evento de energia em todos os ouvintes vivos, como o Electron faria.
     firePower: (name) => {
@@ -1209,6 +1217,39 @@ test("uma mudança de monitores reposiciona a companion e avisa a janela princip
   assert.deepEqual(harness.mainWindow().sent.at(-1), ["hibi:notch:displays-changed"]);
 });
 
+// U04b: a barra de navegação desce quando o mascote do notch está na mesma tela que a janela principal.
+const PLACEMENT_CHANGED = "hibi:notch:window-placement-changed";
+const placementSent = (window) => window.sent.filter(([channel]) => channel === PLACEMENT_CHANGED).map(([, state]) => state);
+
+test("diz à janela se o mascote está na mesma tela que ela, e avisa quando isso muda", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  const janela = harness.mainWindow();
+
+  // O mascote de abertura está no ar, no monitor 1, e a janela também.
+  assert.deepEqual(await harness.invoke("hibi:notch:window-placement"), { sharesDisplay: true });
+
+  // A janela vai para outro monitor: a barra pode voltar para cima.
+  harness.setWindowDisplay(7);
+  for (const [name, listener] of harness.screenEvents) if (name === "display-metrics-changed") listener();
+  assert.deepEqual(placementSent(janela).at(-1), { sharesDisplay: false });
+
+  // O mascote passa para o monitor da janela: a barra desce de novo.
+  await harness.invoke("hibi:notch:set-display", 7);
+  assert.deepEqual(placementSent(janela).at(-1), { sharesDisplay: true });
+  const avisos = placementSent(janela).length;
+  // Nada mudou: nenhum aviso a mais.
+  for (const [name, listener] of harness.screenEvents) if (name === "display-added") listener();
+  assert.equal(placementSent(janela).length, avisos);
+});
+
+test("sem o mascote no ar, a janela ouve que ele não está na tela dela", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  harness.notchManager.shown = null;
+  assert.deepEqual(await harness.invoke("hibi:notch:window-placement"), { sharesDisplay: false });
+});
+
 test("before-quit encerra serviços, solta os listeners e destrói a companion", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
@@ -1220,7 +1261,8 @@ test("before-quit encerra serviços, solta os listeners e destrói a companion",
   assert.deepEqual(harness.webhookService.calls, [["stop"]]);
   assert.deepEqual(harness.oauthService.calls, [["cancel"]]);
   assert.deepEqual(harness.notchManager.calls.at(-1), ["destroy"]);
-  assert.deepEqual(harness.removedEvents.map(([event]) => event), ["display-added", "display-removed", "display-metrics-changed", "resume"]);
+  // Primeiro os três da posição do mascote (U04b), depois os três do notch e o `resume`.
+  assert.deepEqual(harness.removedEvents.map(([event]) => event), ["display-added", "display-removed", "display-metrics-changed", "display-added", "display-removed", "display-metrics-changed", "resume"]);
 });
 
 // A tela de Foco so cumpre "lembretes ficam quietos durante o foco" se os ajustes e a janela da sessao
@@ -1261,6 +1303,21 @@ function loadPreload() {
   const deliver = (channel, ...args) => { for (const listener of listeners.get(channel) ?? []) listener({ sender: null }, ...args); };
   return { api: exposed.hibiDesktop, invoked, listeners, deliver };
 }
+
+test("preload pergunta e ouve se o mascote divide a tela com a janela, só com sim ou não", () => {
+  const { api, invoked, listeners, deliver } = loadPreload();
+  void api.getNotchWindowPlacement();
+  assert.deepEqual(invoked.at(-1), ["hibi:notch:window-placement"]);
+  const received = [];
+  const stop = api.onNotchWindowPlacementChanged((state) => received.push(state));
+  deliver("hibi:notch:window-placement-changed", { sharesDisplay: true, extra: "ignorado" });
+  deliver("hibi:notch:window-placement-changed", { sharesDisplay: "sim" });
+  deliver("hibi:notch:window-placement-changed", null);
+  assert.deepEqual(received, [{ sharesDisplay: true }, { sharesDisplay: false }, { sharesDisplay: false }]);
+  stop();
+  assert.equal(listeners.get("hibi:notch:window-placement-changed").length, 0);
+  assert.throws(() => api.onNotchWindowPlacementChanged("não é função"), TypeError);
+});
 
 test("preload repassa os ajustes e a janela de foco junto das entradas", () => {
   const { api, invoked } = loadPreload();

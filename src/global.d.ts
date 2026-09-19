@@ -96,6 +96,9 @@ declare global {
       setNotchSize?: (size: 'normal' | 'compact') => Promise<{ size: 'normal' | 'compact' }>;
       testNotch?: (locale: 'pt' | 'en') => Promise<NotchTestResult>;
       onNotchDisplaysChanged?: (callback: () => void) => () => void;
+      // U04b: se o mascote do notch está na mesma tela que a janela principal (a barra de navegação desce).
+      getNotchWindowPlacement?: () => Promise<{ sharesDisplay: boolean }>;
+      onNotchWindowPlacementChanged?: (callback: (state: { sharesDisplay: boolean }) => void) => () => void;
       getUpdateState?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
       checkForUpdate?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
       downloadUpdate?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;

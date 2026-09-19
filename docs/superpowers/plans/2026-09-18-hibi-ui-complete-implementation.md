@@ -21,7 +21,8 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 | U02 | Concluída (Claude) | #168 | Tokens do preview em `src/ui/redesign/theme.css`, `HibiUiRoot`, galeria só em desenvolvimento (`?overlay=ui-gallery`), reset do Tailwind restrito à nova UI e tema aplicado antes do primeiro desenho. |
 | U02b | Concluída (Claude) | #169 | Correção de fidelidade ao preview, pedida pelo usuário depois de uma auditoria contra o código e as capturas dele: ação principal escura, os quatro tons do preview, etiquetas pastéis, "Mais contraste", "Reduzir movimento", fonte do sistema, respiro do cartão e Ajustes conciliados com o preview. Comparação lado a lado em `docs/redesign/u02b-assets/`. |
 | U03 | Concluída (Claude) | #170 | A Adaptive Notch Navigation substituiu o dock: Hoje · Agenda · Tarefas · Notas · Taby na barra, e Comandos, "Mais" (provisório) e Ajustes no notch da direita. O notch confere pixel a pixel com o preview (claro em cima e embaixo, escuro contra o preview assentado, em 1x e Retina), sem emendas em larguras ímpares. Achou e corrigiu dois defeitos da base (ordem das camadas e variante `dark` do HeroUI). Comparações, capturas da janela real e da UI antiga em `docs/redesign/u03-assets/`. Duas pendências para a U04, abaixo. |
-| U04 | Em revisão (Claude) | este PR | A seção Aparência da nova UI (`src/ui/redesign/settings/AppearanceSettings.tsx`) nos Ajustes atuais: os três painéis do preview (Tema, "Um toque de cor", Reduzir movimento e Mais contraste), que conferem 0 px com o preview em 1x, e o painel novo "Menu de navegação" (Superior/Inferior, com miniaturas). A posição fica guardada, vale na hora e não remonta telas, rascunhos nem a sessão de foco. Comparações em `docs/redesign/u04-assets/`. |
+| U04 | Concluída (Claude) | #171 | A seção Aparência da nova UI (`src/ui/redesign/settings/AppearanceSettings.tsx`) nos Ajustes atuais: os três painéis do preview (Tema, "Um toque de cor", Reduzir movimento e Mais contraste), que conferem 0 px com o preview em 1x, e o painel novo "Menu de navegação" (Superior/Inferior, com miniaturas). A posição fica guardada, vale na hora e não remonta telas, rascunhos nem a sessão de foco. Comparações em `docs/redesign/u04-assets/`. |
+| U04b | Em revisão (Claude) | este PR | Posição automática, decidida pelo usuário: a barra desce só quando o mascote do notch e a janela do Hibi estão no mesmo monitor; em monitores diferentes, fica em cima. "Automática" vira o padrão; Superior e Inferior fixam a posição. O processo principal diz à tela se os dois dividem o monitor e avisa quando isso muda (canal `hibi:notch:window-placement`). |
 | U05–U28 | Pendentes | — | A U05 é a próxima. |
 
 **Decisões registradas durante a execução:**
@@ -58,8 +59,13 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 - **Nada remonta ao trocar tema, tom ou posição:** um e2e prova com um rascunho (o mesmo elemento continua lá) e com uma sessão de foco em andamento. O rascunho do Taby já se perde ao sair da tela hoje, então esse fluxo não o preserva e não entrou na prova.
 - **O monitor do mascote não muda:** a Aparência nunca chama `setNotchDisplay` (e2e).
 
-**Pendências (decisão de produto):**
-- **Mascote do notch × barra no topo.** A janela nativa do mascote fica no centro do topo da tela e cobre o meio da barra quando a janela do Hibi encosta no topo (em tela cheia, sempre): Agenda e Tarefas somem atrás do gato (`docs/redesign/u03-assets/app-real-tela-cheia-mascote.png`). Desde a U04, quem escolhe a barra embaixo não tem o conflito. Falta decidir se o Hibi deve agir sozinho: (a) com o mascote ligado, a barra começa embaixo; (b) o mascote se recolhe enquanto a janela do Hibi o cobre; (c) a barra deixa um vão sob o mascote. Digitar e enviar no Taby continua movendo o mascote (`mascote-ao-digitar-no-taby.png`).
+**Decisão da U04b (do usuário, 19/09): a barra desce quando o mascote divide a tela com a janela.**
+- O problema: a janela nativa do mascote fica no centro do topo da tela e cobria o meio da barra quando a janela do Hibi encostava no topo (em tela cheia, sempre), com Agenda e Tarefas atrás do gato (`docs/redesign/u03-assets/app-real-tela-cheia-mascote.png`).
+- A escolha, entre três caminhos: com o mascote na tela, a barra fica embaixo. **Só quando os dois estão no mesmo monitor**: com o mascote num monitor e a janela em outro, a barra continua em cima.
+- Como ficou: "Automática" é o padrão da posição e segue essa regra na hora, quando a janela troca de monitor, quando os monitores mudam e quando o mascote muda de tela. "Superior" e "Inferior" continuam como escolhas fixas. O processo principal decide (`electron/mascot-placement.cjs`: a tela da janela é a que contém a maior parte dela) e só avisa quando a resposta muda.
+- Digitar e enviar no Taby continua movendo o mascote (`mascote-ao-digitar-no-taby.png`).
+
+**Pendência:**
 - **Tema escuro com a barra embaixo:** até as telas migrarem, o notch claro fica sobre a ilha clara das telas atuais e quase some.
 
 **Regras que valem para todas as próximas unidades** (nascidas na U01 e na U02 e seguradas por `tests/e2e/heroui-foundation.spec.ts`):
@@ -191,7 +197,7 @@ Fonte: `preview-web/src/components/ui/adaptive-notch-navigation-bar.tsx`. Destin
 - Reutilizar a geometria SVG de `NotchLeftWing`, `NotchRightWing`, `NotchCornerLeftWing` e `NotchCornerRightWing`. Não substituir os encontros entre moldura e notch por retângulos com `border-radius`.
 - Moldura contínua, conteúdo interno arredondado e barra conectada visualmente à borda escolhida, conforme referência.
 - Claro: moldura/menu escuros; escuro: moldura/menu claros, seguindo a inversão aprovada. Adaptar cores por tokens sem alterar a silhueta.
-- Topo é o padrão para preferências ausentes. Inferior é opção equivalente, persistente, disponível em Ajustes.
+- ~~Topo é o padrão para preferências ausentes.~~ Desde a U04b (decisão do usuário), o padrão é "Automática": em cima, e embaixo só quando o mascote do notch está no mesmo monitor que a janela. Superior e Inferior são escolhas fixas, persistentes, disponíveis em Ajustes.
 - Manter indicação animada do destino ativo, foco visível, tooltip dos ícones e estados pressionado/desabilitado.
 - Em larguras insuficientes, usar o modo compacto do componente aprovado. Não trocar silenciosamente para a variante híbrida/sidebar, que permanece apenas como comparativo histórico.
 - Os cinco destinos e Ajustes continuam acessíveis no modo compacto; fechar menu após selecionar e devolver foco corretamente ao fechar sem seleção.
@@ -278,9 +284,11 @@ Contrato proposto para a preferência nova:
 
 ```ts
 export type NavigationPosition = 'top' | 'bottom';
+// Desde a U04b: a automática é o padrão (embaixo só com o mascote no mesmo monitor da janela).
+export type NavigationPreference = NavigationPosition | 'auto';
 export const NAVIGATION_POSITION_KEY = 'hibi.ui.navigation-position.v1';
-export function parseNavigationPosition(value: unknown): NavigationPosition {
-  return value === 'bottom' ? 'bottom' : 'top';
+export function parseNavigationPreference(value: unknown): NavigationPreference {
+  return value === 'top' || value === 'bottom' ? value : 'auto';
 }
 ```
 
