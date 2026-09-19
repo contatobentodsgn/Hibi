@@ -4,6 +4,9 @@ const SILENCE_MS = 1_300;
 const NO_SPEECH_MS = 8_000;
 // Depois da primeira palavra, a escuta dura no máximo isto, mesmo com ruído de fundo.
 const MAX_SPEECH_MS = 20_000;
+// Com o nível do microfone: 0,9 s depois de a voz parar (o helper já espera 0,3 s de silêncio antes de
+// avisar, 1,2 s no total) encerra a frase. Menos que isso cortava quem pensa no meio da frase.
+const VOICE_HANGOVER_MS = 900;
 // O reconhecedor da Apple aceita até 100 termos a favorecer; cada um é um nome ou um título curto.
 const VOCABULARY_LIMIT = 100;
 const VOCABULARY_TERM_LENGTH = 40;
@@ -40,7 +43,7 @@ function createLocalVoiceService({ adapter } = {}) {
       if (!adapter?.listen) return publish({ status: 'unavailable', error: 'Local voice adapter is unavailable.' });
       if (active) return publish({ status: 'listening', error: null });
       // `autoStop` encerra a escuta quando a fala para (e quando ninguém fala), e a tela envia sozinha.
-      const timing = request.autoStop ? { silenceMs: SILENCE_MS, noSpeechMs: NO_SPEECH_MS, maxSpeechMs: MAX_SPEECH_MS } : {};
+      const timing = request.autoStop ? { silenceMs: SILENCE_MS, noSpeechMs: NO_SPEECH_MS, maxSpeechMs: MAX_SPEECH_MS, voiceHangoverMs: VOICE_HANGOVER_MS } : {};
       active = adapter.listen({ locale: locale(request.locale || state.locale), onText: request.onText, vocabulary: normalizeVocabulary(request.vocabulary), ...timing });
       publish({ status: 'listening', error: null, reason: null, ended: null });
       try { const result = await active; return publish({ status: 'ready', reason: null, ended: result?.ended ?? 'done' }); } catch (error) { return publish({ status: 'error', error: error?.message || 'Local voice failed.', reason: error?.reason ?? 'failed' }); } finally { active = null; }
