@@ -1,3 +1,5 @@
+import { normalizePortuguese } from './ptbr-normalizer';
+
 /**
  * Comandos como a ditação do macOS os escreve.
  *
@@ -20,7 +22,7 @@ const SPOKEN_REMINDER = /^(?:me\s+lembr(?:a|e|ar)|lembr(?:a|e)-me|lembre\s+me|le
  * depois é um verbo de comando — "Hibi Study é um app" continua intacto.
  */
 export function normalizeSpokenCommand(message: string): string {
-  let text = message.trim().replace(/[.!?…]+$/u, '').trim();
+  let text = normalizePortuguese(message.trim().replace(/[.!?…]+$/u, '').trim());
   const vocative = new RegExp(`^(?:(?:ei|oi|olá|ola|hey)[,\\s]+)?(?:(?!me\\s)[\\p{L}]+[,:]?\\s+)?(?:por\\s+favor[,\\s]+)?(?=(?:${COMMAND_VERBS})\\b)`, 'iu');
   text = text.replace(vocative, '').replace(/^(?:por\s+favor[,\s]+)/iu, '');
   const reminder = text.match(SPOKEN_REMINDER);
@@ -37,7 +39,7 @@ const pad = (value: number) => String(value).padStart(2, '0');
 /**
  * Um horário dito, em `HH:MM`, ou `null` quando não dá para ter certeza. Aceita o que a ditação
  * costuma escrever: "15:00", "15h", "15h30", "15 horas", "3 da tarde", "três e meia da tarde",
- * "meio-dia" e "meia-noite". Na dúvida, devolve `null`: criar um lembrete para a hora errada é pior
+ * "meio-dia" e "meia-noite". Sem período, de 1 a 6 é à tarde ("às 4" é 16:00). Na dúvida, devolve `null`: criar um lembrete para a hora errada é pior
  * do que perguntar.
  */
 export function parseSpokenTime(input: string): string | null {
@@ -67,7 +69,9 @@ export function parseSpokenTime(input: string): string | null {
   }
   else return null;
   if (hour === undefined) return null;
-  if (!period) return valid(hour, minutes);
+  // Sem período, de 1 a 6 é à tarde: ninguém marca reunião às 4 da madrugada, e "adia para as quatro e
+  // meia" virava 04:30. Quem quer a madrugada diz "da madrugada" ou escreve com zero, "04:30".
+  if (!period) return valid(hour >= 1 && hour <= 6 && !/^0\d/u.test(text) ? hour + 12 : hour, minutes);
   // Com período, a hora é a do relógio de 12 horas: "13 da tarde" não existe.
   if (hour < 1 || hour > 12) return null;
   // "12 da tarde" é meio-dia; "12 da noite" e "12 da madrugada" são meia-noite.

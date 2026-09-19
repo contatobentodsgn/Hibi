@@ -88,8 +88,9 @@ const MAX_TERM_WORDS = 3;
  * nomes, e ainda erra às vezes; o novo, do macOS 26, nem aceita vocabulário. Corrigir aqui, depois, vale
  * para os dois.
  *
- * Só entram nomes com maiúscula e de até 3 palavras. Siglas curtas ficam de fora: "DAS" soa como "das", e
- * trocar toda preposição por sigla estragaria o texto. Diferença só de maiúscula também fica como está —
+ * Só entram nomes com maiúscula e de até 3 palavras. Siglas curtas só entram depois de um artigo
+ * masculino: "DAS" soa como "das", e trocar toda preposição por sigla estragaria o texto. Diferença só de
+ * maiúscula também fica como está —
  * "post" não vira "Post" no meio da frase.
  */
 export function correctToVocabulary(text: string, vocabulary: readonly string[]): string {
@@ -97,7 +98,7 @@ export function correctToVocabulary(text: string, vocabulary: readonly string[])
     .map((term) => ({ term, keys: term.match(WORD)?.map(soundKey) ?? [] }))
     .filter(({ term, keys }) => /\p{Lu}/u.test(term) && keys.length > 0 && keys.length <= MAX_TERM_WORDS && !(term === term.toUpperCase() && term.replace(/\s/g, '').length <= 3))
     .sort((first, second) => second.keys.length - first.keys.length);
-  if (terms.length === 0) return text;
+  if (terms.length === 0 && !vocabulary.some((term) => /^\p{Lu}{2,3}$/u.test(term))) return text;
   const words = [...text.matchAll(WORD)].map((match) => ({ text: match[0], start: match.index ?? 0, key: soundKey(match[0]) }));
   const replacements: { start: number; end: number; term: string }[] = [];
   for (let index = 0; index < words.length;) {
@@ -109,5 +110,17 @@ export function correctToVocabulary(text: string, vocabulary: readonly string[])
     if (spoken.toLocaleLowerCase('pt-BR') !== found.term.toLocaleLowerCase('pt-BR')) replacements.push({ start: first.start, end: last.start + last.text.length, term: found.term });
     index += found.keys.length;
   }
+  // Uma sigla curta que soa como palavra comum ("DAS" e "das") só é trocada depois de um artigo masculino:
+  // "pagar o das" não é português, "pagar o DAS" é. "Revisar o post das clientes" fica como está.
+  for (const acronym of vocabulary.filter((term) => /^\p{Lu}{2,3}$/u.test(term))) {
+    const key = soundKey(acronym);
+    words.forEach((word, index) => {
+      if (index === 0 || word.key !== key || word.text === acronym) return;
+      if (!/^(?:o|do|no|ao|pelo|um|meu|seu)$/iu.test(words[index - 1]!.text)) return;
+      if (replacements.some((item) => word.start >= item.start && word.start < item.end)) return;
+      replacements.push({ start: word.start, end: word.start + word.text.length, term: acronym });
+    });
+  }
+  replacements.sort((first, second) => first.start - second.start);
   return replacements.reduceRight((result, { start, end, term }) => result.slice(0, start) + term + result.slice(end), text);
 }

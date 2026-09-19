@@ -74,8 +74,14 @@ describe('correctToVocabulary', () => {
   });
 
   it('não troca sigla curta que soa como palavra comum, nem só a maiúscula', () => {
-    expect(correctToVocabulary('pagar o das amanhã e revisar o post', vocabulary)).toBe('pagar o das amanhã e revisar o post');
+    expect(correctToVocabulary('revisar o post das clientes', vocabulary)).toBe('revisar o post das clientes');
     expect(correctToVocabulary('o que me dás em troca', vocabulary)).toBe('o que me dás em troca');
+  });
+
+  it('a sigla curta volta depois de um artigo masculino, onde "das" não caberia', () => {
+    expect(correctToVocabulary('Me lembra de pagar o das amanhã', vocabulary)).toBe('Me lembra de pagar o DAS amanhã');
+    expect(correctToVocabulary('o valor do das subiu', ['DAS'])).toBe('o valor do DAS subiu');
+    expect(correctToVocabulary('a casa das primas', ['DAS'])).toBe('a casa das primas');
   });
 
   it('não mexe no que não soa como nenhum nome', () => {
