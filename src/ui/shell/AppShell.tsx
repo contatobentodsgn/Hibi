@@ -29,6 +29,7 @@ export function AppShell({ active, onNavigate, onOpenCommands, position, childre
     <AdaptiveNotchNavigation
       items={items}
       activeId={place === null || place === 'settings' ? null : place}
+      pageKey={active}
       position={position ?? preferredPosition}
       label={t('shell.navigation')}
       currentLabel={t(sectionLabelKey(active))}

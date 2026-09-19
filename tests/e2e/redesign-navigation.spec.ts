@@ -365,3 +365,35 @@ test('as teclas de rolar rolam a tela com o foco na barra ou em nada, e uma vez 
   expect(await top()).toBeLessThan(step * 1.2);
 });
 
+test('qualquer navegação fecha o menu compacto: Ajustes, o Mais, a paleta e o foco que sai da ilha', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 620 });
+  await page.goto('/');
+  const trigger = nav(page).getByRole('button', { name: /mudar de seção/ });
+
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await nav(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
+  await expect(trail(page)).toHaveText('Meu espaço / Ajustes');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+  await trigger.click();
+  await openMore(page);
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await page.getByRole('menuitem', { name: 'Hábitos', exact: true }).click();
+  await expect(trail(page)).toHaveText('Meu espaço / Hoje / Hábitos');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Meta+k');
+  await expect(page.getByRole('dialog', { name: 'Paleta de comandos' })).toBeVisible();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('Escape');
+
+  await trigger.click();
+  await expect(page.locator('[data-notch-drawer] ul').getByRole('button', { name: 'Hoje', exact: true })).toBeFocused();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Tab');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+});
+

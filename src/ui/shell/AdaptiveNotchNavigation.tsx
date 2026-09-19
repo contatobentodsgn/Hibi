@@ -15,7 +15,7 @@ import { nextFocusIndex } from './routes';
  * O que mudou, e por quê:
  * - Semântica de navegação: `nav` com `aria-current="page"` no lugar de `tablist`/`tab`, porque cada destino
  *   troca a tela inteira (seção 4.2 do plano). O menu compacto é uma lista que abre e fecha; fechada, sai da
- *   ordem do Tab (`inert`).
+ *   ordem do Tab (`inert`), e qualquer navegação o fecha.
  * - Setas, Home e End movem o foco entre os botões da barra, como no dock antigo; Escape fecha o menu
  *   compacto e devolve o foco ao botão que o abriu.
  * - Camadas: a moldura e a superfície ficam fora de `.hibi-ui`, porque o conteúdo das telas atuais mora
@@ -246,6 +246,8 @@ export interface AdaptiveNotchNavigationProps {
   items: readonly NotchItemData[];
   /** O destino atual, ou `null` quando a rota não pertence a nenhum (a sessão de foco, por exemplo). */
   activeId: string | null;
+  /** A tela aberta. Quando ela muda, o menu compacto fecha, por onde quer que a pessoa tenha navegado. */
+  pageKey?: string;
   position?: NotchPosition;
   /** Nome da região de navegação para leitores de tela. */
   label: string;
@@ -294,6 +296,7 @@ const PAGE_FRACTION = 0.875;
 export function AdaptiveNotchNavigation({
   items,
   activeId,
+  pageKey,
   position = 'top',
   label,
   currentLabel,
@@ -320,6 +323,15 @@ export function AdaptiveNotchNavigation({
   const isBottom = position === 'bottom';
   const activeItem = items.find((item) => item.id === activeId);
   const ActiveIcon = activeItem?.icon;
+
+  // Qualquer navegação fecha o menu compacto: pelos destinos dele, pelo Mais, por Ajustes, pela paleta ou pelo
+  // atalho do Taby (o dock antigo fazia o mesmo). Fecha no mesmo render da tela nova, sem um quadro com o menu
+  // aberto por cima dela.
+  const [menuPage, setMenuPage] = useState(pageKey);
+  if (menuPage !== pageKey) {
+    setMenuPage(pageKey);
+    setIsDropdownOpen(false);
+  }
 
   // A largura da barra de rolagem da área de trabalho (0 com as barras que só aparecem ao rolar): a borda sob a
   // faixa de arrastar para antes dela, sem cobrir o polegar.
@@ -414,13 +426,20 @@ export function AdaptiveNotchNavigation({
     (drawerRef.current?.querySelector<HTMLButtonElement>('button[aria-current="page"]') ?? options?.[0])?.focus();
   }, [isDropdownOpen]);
 
+  // Clicar fora da ilha fecha o menu. O foco que sai dela também (o Tab para a tela, o menu Mais, a paleta): o
+  // fundo escurecido não pode ficar sobre a tela com o foco nela.
   useEffect(() => {
     if (!isDropdownOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (islandRef.current && !islandRef.current.contains(event.target as Node)) closeDropdown(false);
+    const outside = (target: EventTarget | null) => !!islandRef.current && !islandRef.current.contains(target as Node);
+    const handleOutside = (event: Event) => {
+      if (outside(event.target)) closeDropdown(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('focusin', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('focusin', handleOutside);
+    };
   }, [isDropdownOpen, closeDropdown]);
 
   const handleNavKeyDown = (event: KeyboardEvent<HTMLElement>) => {
