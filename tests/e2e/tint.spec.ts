@@ -9,14 +9,16 @@ async function openSettings(page: Page) {
 
 test('os quatro tons do preview aparecem, e o escolhido é aplicado e guardado', async ({ page }) => {
   await openSettings(page);
-  const options = page.getByRole('radiogroup', { name: 'Cor de destaque' });
-  await expect(options.getByRole('radio')).toHaveText(['Lavanda', 'Azul', 'Menta', 'Pêssego']);
+  // "Um toque de cor", na Aparência da nova UI (U04): uma amostra por tom, com o nome para o leitor de tela.
+  const options = page.getByRole('radiogroup', { name: 'Um toque de cor' });
+  const names = await options.getByRole('radio').evaluateAll((inputs) => inputs.map((input) => input.getAttribute('aria-label') ?? input.closest('[aria-label]')?.getAttribute('aria-label')));
+  expect(names).toEqual(['Lavanda', 'Azul', 'Menta', 'Pêssego']);
   // Sem escolha feita, o tom é Lavanda, o padrão do preview.
-  await expect(options.getByRole('radio', { name: 'Lavanda' })).toHaveAttribute('aria-checked', 'true');
+  await expect(options.getByRole('radio', { name: 'Lavanda' })).toBeChecked();
 
   const blue = options.getByRole('radio', { name: 'Azul' });
-  await blue.click();
-  await expect(blue).toHaveAttribute('aria-checked', 'true');
+  await blue.check({ force: true });
+  await expect(blue).toBeChecked();
   await expect(page.locator('html')).toHaveAttribute('data-tint', 'blue');
 
   await page.reload();
@@ -27,7 +29,7 @@ test('um tom escolhido antes vira o mais próximo do preview', async ({ page }) 
   await page.addInitScript(() => { if (!sessionStorage.getItem('migrou')) { localStorage.setItem('hibi-tint', 'ocean'); sessionStorage.setItem('migrou', '1'); } });
   await openSettings(page);
   await expect(page.locator('html')).toHaveAttribute('data-tint', 'blue');
-  await expect(page.getByRole('radiogroup', { name: 'Cor de destaque' }).getByRole('radio', { name: 'Azul' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('radiogroup', { name: 'Um toque de cor' }).getByRole('radio', { name: 'Azul' })).toBeChecked();
   expect(await page.evaluate(() => localStorage.getItem('hibi-tint'))).toBe('blue');
 });
 
@@ -35,11 +37,11 @@ test('"Mais contraste" e "Reduzir movimento" valem na hora e ficam guardados', a
   await openSettings(page);
   const contrast = page.getByRole('switch', { name: /Mais contraste/ });
   const motion = page.getByRole('switch', { name: /Reduzir movimento/ });
-  await expect(contrast).toHaveAttribute('aria-checked', 'false');
+  await expect(contrast).not.toBeChecked();
   const before = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim());
 
-  await contrast.click();
-  await motion.click();
+  await contrast.check({ force: true });
+  await motion.check({ force: true });
   await expect(page.locator('html')).toHaveAttribute('data-contrast', 'more');
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
   // Nas telas atuais também: o texto secundário fica mais forte, e as animações param.

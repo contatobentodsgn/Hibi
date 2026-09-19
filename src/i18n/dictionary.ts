@@ -395,6 +395,18 @@ const pt = {
   'redesign.nav.current': 'atual',
   'redesign.shell.workspace': 'Meu espaço',
   'redesign.shell.breadcrumb': 'Onde você está',
+  // Aparência, com as preferências da nova UI (U04): textos do preview aprovado e a posição da barra.
+  'redesign.appearance.title': 'Aparência',
+  'redesign.appearance.detail': 'A mesma companhia. A sua atmosfera.',
+  'redesign.appearance.theme': 'Tema',
+  'redesign.appearance.themeDetail': 'Escolha a luz do seu espaço.',
+  'redesign.appearance.tint': 'Um toque de cor',
+  'redesign.appearance.tintDetail': 'Nos detalhes, sem chamar mais atenção que você.',
+  'redesign.appearance.navigation': 'Menu de navegação',
+  'redesign.appearance.navigationDetail': 'Na borda de cima ou na de baixo da janela.',
+  'redesign.appearance.top': 'Superior',
+  'redesign.appearance.bottom': 'Inferior',
+  'redesign.appearance.positionNotSaved': 'Não deu para guardar a posição: ela vale até você fechar o Hibi.',
 } as const
 
 export type DictionaryKey = keyof typeof pt
@@ -789,6 +801,18 @@ const en: Record<DictionaryKey, string> = {
   'redesign.nav.current': 'current',
   'redesign.shell.workspace': 'My space',
   'redesign.shell.breadcrumb': 'Where you are',
+  // Appearance, with the new UI's preferences (U04): the approved preview's copy and the bar position.
+  'redesign.appearance.title': 'Appearance',
+  'redesign.appearance.detail': 'The same company. Your atmosphere.',
+  'redesign.appearance.theme': 'Theme',
+  'redesign.appearance.themeDetail': 'Choose the light of your space.',
+  'redesign.appearance.tint': 'A touch of colour',
+  'redesign.appearance.tintDetail': 'In the details, never louder than you.',
+  'redesign.appearance.navigation': 'Navigation menu',
+  'redesign.appearance.navigationDetail': 'On the top or the bottom edge of the window.',
+  'redesign.appearance.top': 'Top',
+  'redesign.appearance.bottom': 'Bottom',
+  'redesign.appearance.positionNotSaved': "Couldn't save the position: it lasts until you close Hibi.",
 }
 
 export const dictionary: Record<Locale, Record<DictionaryKey, string>> = { pt, en }

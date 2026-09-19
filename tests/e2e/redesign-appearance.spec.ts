@@ -1,0 +1,136 @@
+import { expect, test, type Page } from '@playwright/test';
+
+// A Aparência da nova UI (U04): tema, tom, contraste, movimento e a posição da barra de navegação.
+const nav = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
+const group = (page: Page, name: string) => page.getByRole('radiogroup', { name });
+// O rádio do React Aria fica escondido dentro do rótulo; clica-se no texto, como a pessoa faria.
+const choose = (page: Page, groupName: string, option: string) => group(page, groupName).getByText(option, { exact: true }).click();
+const openSettings = async (page: Page) => { await nav(page).getByRole('button', { name: 'Ajustes', exact: true }).click(); };
+const notchBottom = async (page: Page) => { const box = (await page.locator('.notch-center').boundingBox())!; return box.y + box.height; };
+const ZINC_950 = 'oklch(0.141 0.005 285.823)';
+const ZINC_200 = 'oklch(0.92 0.004 286.32)';
+
+test('a posição vale na hora, sem remontar o conteúdo, e continua depois de reabrir', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/?overlay=ui-navigation');
+  expect(await notchBottom(page)).toBe(8 + 44);
+  const draft = page.getByRole('textbox', { name: 'Rascunho' });
+  await draft.fill('Meu rascunho, pela metade');
+  await draft.evaluate((element) => { (element as HTMLTextAreaElement & { hibiMarker?: string }).hibiMarker = 'o mesmo elemento'; });
+
+  await choose(page, 'Menu de navegação', 'Inferior');
+  await expect(group(page, 'Menu de navegação').getByRole('radio', { name: 'Inferior' })).toBeChecked();
+  expect(await notchBottom(page)).toBe(900 - 8);
+  // O rascunho continua lá, no mesmo elemento: a troca não remontou a área de conteúdo.
+  await expect(draft).toHaveValue('Meu rascunho, pela metade');
+  expect(await draft.evaluate((element) => (element as HTMLTextAreaElement & { hibiMarker?: string }).hibiMarker)).toBe('o mesmo elemento');
+  expect(await page.evaluate(() => localStorage.getItem('hibi.ui.navigation-position.v1'))).toBe('bottom');
+
+  // Trocar o tema também não remonta.
+  await choose(page, 'Tema', 'Escuro');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  expect(await draft.evaluate((element) => (element as HTMLTextAreaElement & { hibiMarker?: string }).hibiMarker)).toBe('o mesmo elemento');
+
+  await page.reload();
+  expect(await notchBottom(page)).toBe(900 - 8);
+  await expect(group(page, 'Menu de navegação').getByRole('radio', { name: 'Inferior' })).toBeChecked();
+});
+
+test('um valor guardado que não é uma posição válida vale como em cima', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('hibi.ui.navigation-position.v1', 'sideways'));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  expect(await notchBottom(page)).toBe(8 + 44);
+  await openSettings(page);
+  await expect(group(page, 'Menu de navegação').getByRole('radio', { name: 'Superior' })).toBeChecked();
+});
+
+test('com o armazenamento recusado, a posição vale na sessão e o aviso diz que não foi guardada', async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function setItem(key: string, value: string) {
+      if (key === 'hibi.ui.navigation-position.v1') throw new DOMException('cota', 'QuotaExceededError');
+      return original.call(this, key, value);
+    };
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await openSettings(page);
+  await expect(page.getByRole('status').filter({ hasText: 'Não deu para guardar' })).toHaveCount(0);
+  await choose(page, 'Menu de navegação', 'Inferior');
+  expect(await notchBottom(page)).toBe(900 - 8);
+  await expect(page.getByRole('status').filter({ hasText: 'Não deu para guardar a posição: ela vale até você fechar o Hibi.' })).toBeVisible();
+});
+
+test('as quatro combinações de tema e posição funcionam', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await openSettings(page);
+  for (const [theme, label, frame] of [['light', 'Claro', ZINC_950], ['dark', 'Escuro', ZINC_200]] as const) {
+    await choose(page, 'Tema', label);
+    for (const [position, option, bottom] of [['top', 'Superior', 8 + 44], ['bottom', 'Inferior', 900 - 8]] as const) {
+      await choose(page, 'Menu de navegação', option);
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await expect(page.locator('.notch-frame')).toHaveAttribute('data-position', position);
+      await expect(page.locator('.notch-center')).toHaveCSS('background-color', frame);
+      expect(await notchBottom(page), `${theme} ${position}`).toBe(bottom);
+    }
+  }
+});
+
+test('"Sistema" acompanha o macOS; um tema escolhido, não', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  await openSettings(page);
+  await choose(page, 'Tema', 'Sistema');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  await choose(page, 'Tema', 'Claro');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});
+
+test('a sessão de foco continua depois de trocar tema, tom e posição', async ({ page }) => {
+  await page.goto('/');
+  await nav(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
+  await page.getByRole('button', { name: 'Start focus' }).click();
+  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+
+  await openSettings(page);
+  await choose(page, 'Tema', 'Escuro');
+  await group(page, 'Um toque de cor').getByRole('radio', { name: 'Menta' }).check({ force: true });
+  await expect(page.locator('html')).toHaveAttribute('data-tint', 'mint');
+  await choose(page, 'Menu de navegação', 'Inferior');
+
+  await nav(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+});
+
+test('a Aparência não mexe no monitor do mascote do notch', async ({ page }) => {
+  await page.addInitScript(() => {
+    const display = { id: 7, label: 'Monitor do mascote', primary: false, internal: true, hasCameraHousing: true, width: 1512, height: 982 };
+    const calls: (number | null)[] = [];
+    (window as unknown as { hibiE2E: { calls: (number | null)[] } }).hibiE2E = { calls };
+    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+      info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
+      listNotchDisplays: async () => ({ preference: { displayId: 7, displayLabel: display.label }, resolvedDisplayId: 7, reason: 'preferred', displays: [display] }),
+      setNotchDisplay: async (displayId: number | null) => { calls.push(displayId); return { preference: { displayId, displayLabel: display.label }, resolvedDisplayId: 7, reason: 'preferred', displays: [display] }; },
+      onNotchDisplaysChanged: () => () => undefined,
+    };
+  });
+  await page.goto('/');
+  await openSettings(page);
+  await choose(page, 'Tema', 'Escuro');
+  await group(page, 'Um toque de cor').getByRole('radio', { name: 'Azul' }).check({ force: true });
+  await choose(page, 'Menu de navegação', 'Inferior');
+  await page.getByRole('switch', { name: 'Mais contraste' }).check({ force: true });
+  await page.getByRole('switch', { name: 'Reduzir movimento' }).check({ force: true });
+  await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
+  expect(await page.evaluate(() => (window as unknown as { hibiE2E: { calls: (number | null)[] } }).hibiE2E.calls)).toEqual([]);
+});

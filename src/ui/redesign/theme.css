@@ -47,6 +47,8 @@
     --hibi-radius-card: 24px;
     /* A barra de rolagem fina do preview, com o mesmo cinza nos dois temas. */
     --hibi-scrollbar: #c6c6cf;
+    /* A trilha do interruptor desligado, como no preview, que usa o mesmo cinza nos dois temas. */
+    --hibi-switch-off: #d6d6dd;
   }
 
   .hibi-ui {
@@ -195,6 +197,9 @@
   .hibi-ui .button--secondary:hover, .hibi-ui .button--secondary[data-hovered="true"] { background: var(--surface-hover); }
   /* A trilha das abas é cinza sobre o papel no preview; o `--default` do HeroUI quase some no fundo claro. */
   .hibi-ui .tabs__list-container { background: var(--hibi-side); }
+
+  /* Interruptor desligado na trilha do preview; ligado, o acento do HeroUI (U04). */
+  .hibi-ui .switch { --switch-control-bg: var(--hibi-switch-off); }
 }
 
 /* Etiquetas pastéis do preview (`.tag` e os tons lavender, blue, peach, mint), com o pontinho de status. */
