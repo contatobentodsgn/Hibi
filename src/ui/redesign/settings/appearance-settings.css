@@ -1,0 +1,57 @@
+/*
+ * Aparência (U04): miniaturas de tema e de posição e amostras de tom, com as medidas do preview aprovado
+ * (`styles.css`: `.theme-thumbnail`, `.mini-side`, `.mini-content`, `.swatch`). Cada miniatura de tema desenha um
+ * tema, então tem as cores fixas do preview em qualquer tema; a de posição desenha a barra no tema atual.
+ */
+@layer components {
+  .hibi-ui .appearance-thumb {
+    height: 103px;
+    border-radius: 12px;
+    display: flex;
+    padding: 9px;
+    gap: 8px;
+    background: #f2f2f5;
+    outline: 1px solid #e5e5eb;
+    transition: outline-color var(--hibi-duration-control) var(--hibi-ease), box-shadow var(--hibi-duration-control) var(--hibi-ease);
+  }
+  .hibi-ui .appearance-thumb__side { width: 25%; background: #e7e7eb; border-radius: 5px; padding: 15px 5px; }
+  .hibi-ui .appearance-thumb__side > i { display: block; background: #b9b9c3; height: 3px; width: 70%; margin-bottom: 7px; border-radius: 2px; }
+  .hibi-ui .appearance-thumb__content { flex: 1; padding-top: 4px; }
+  .hibi-ui .appearance-thumb__content > i { display: block; background: #fff; border-radius: 4px; height: 14px; margin-bottom: 7px; }
+  .hibi-ui .appearance-thumb__content > div { display: flex; gap: 6px; margin-bottom: 7px; }
+  .hibi-ui .appearance-thumb__content > div > i { display: block; width: 50%; background: #fff; height: 35px; border-radius: 5px; }
+  .hibi-ui .appearance-thumb__content > div > i:first-child { background: #e1d9f0; }
+
+  .hibi-ui .appearance-thumb--dark { background: #242429; outline-color: #33333a; }
+  .hibi-ui .appearance-thumb--dark .appearance-thumb__side { background: #323239; }
+  .hibi-ui .appearance-thumb--dark .appearance-thumb__content > i,
+  .hibi-ui .appearance-thumb--dark .appearance-thumb__content > div > i { background: #42424c; }
+  .hibi-ui .appearance-thumb--dark .appearance-thumb__content > div > i:first-child { background: #655878; }
+  .hibi-ui .appearance-thumb--system { background: linear-gradient(90deg, #f2f2f5 50%, #242429 50%); }
+  .hibi-ui .appearance-thumb--system .appearance-thumb__content > i { background: linear-gradient(90deg, #fff 30%, #42424c 30%); }
+  .hibi-ui .appearance-thumb--system .appearance-thumb__content > div > i:last-child { background: #42424c; }
+
+  /* A barra na borda escolhida, com as cores do tema atual: moldura e notch escuros no claro, claros no escuro. */
+  .hibi-ui .appearance-position { --appearance-frame: var(--color-zinc-950); padding: 3px; background: var(--appearance-frame); outline-color: transparent; }
+  [data-theme="dark"] .hibi-ui .appearance-position { --appearance-frame: var(--color-zinc-200); }
+  .hibi-ui .appearance-position__surface { position: relative; flex: 1; border-radius: 10px; background: var(--hibi-canvas); padding: 20px 12px 10px; }
+  .hibi-ui .appearance-position[data-position="bottom"] .appearance-position__surface { padding: 10px 12px 20px; }
+  .hibi-ui .appearance-position__notch { position: absolute; left: 50%; top: 0; width: 44%; height: 9px; transform: translateX(-50%); border-radius: 0 0 6px 6px; background: var(--appearance-frame); }
+  .hibi-ui .appearance-position[data-position="bottom"] .appearance-position__notch { top: auto; bottom: 0; border-radius: 6px 6px 0 0; }
+  .hibi-ui .appearance-position__surface > i { display: block; height: 12px; border-radius: 4px; margin-bottom: 6px; background: var(--hibi-paper); }
+  .hibi-ui .appearance-position__surface > div { display: flex; gap: 6px; }
+  .hibi-ui .appearance-position__surface > div > i { display: block; width: 50%; height: 30px; border-radius: 5px; background: var(--hibi-paper); }
+  .hibi-ui .appearance-position__surface > div > i:first-child { background: var(--hibi-lavender); }
+
+  /* Escolhida: o contorno do acento, como no preview. Foco pelo teclado: um anel a mais, sem confundir com a escolha. */
+  .hibi-ui .radio__content[data-selected="true"] .appearance-thumb { outline: 2px solid var(--hibi-accent); outline-offset: 3px; }
+  .hibi-ui .radio__content[data-focus-visible="true"] .appearance-thumb { box-shadow: 0 0 0 6px color-mix(in oklab, var(--hibi-accent) 35%, transparent); }
+
+  .hibi-ui .appearance-swatch { width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; gap: 0; }
+  .hibi-ui .appearance-swatch--lavender { background: var(--hibi-lavender); color: var(--hibi-lavender-ink); }
+  .hibi-ui .appearance-swatch--blue { background: var(--hibi-blue); color: var(--hibi-blue-ink); }
+  .hibi-ui .appearance-swatch--mint { background: var(--hibi-mint); color: var(--hibi-mint-ink); }
+  .hibi-ui .appearance-swatch--peach { background: var(--hibi-peach); color: var(--hibi-peach-ink); }
+  .hibi-ui .appearance-swatch[data-selected="true"] { outline: 1.5px solid currentColor; outline-offset: 3px; }
+  .hibi-ui .appearance-swatch[data-focus-visible="true"] { box-shadow: 0 0 0 6px color-mix(in oklab, currentColor 30%, transparent); }
+}

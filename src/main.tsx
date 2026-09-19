@@ -14,6 +14,7 @@ import { NotchOverlay } from './ui/NotchOverlay';
 import { TabyBar } from './ui/TabyBar';
 import { ThemeProvider } from './ui/theme-context';
 import { LocaleProvider } from './i18n/LocaleProvider';
+import { NavigationPreferencesProvider } from './ui/shell/NavigationPreferencesProvider';
 
 const root = document.getElementById('root');
 
@@ -26,6 +27,6 @@ const ComponentGallery = import.meta.env.DEV ? lazy(() => import('./ui/redesign/
 const NavigationPreview = import.meta.env.DEV ? lazy(() => import('./ui/redesign/preview/NavigationPreview').then((module) => ({ default: module.NavigationPreview }))) : null;
 createRoot(root).render(
   <React.StrictMode>
-    <ThemeProvider><LocaleProvider>{overlay === 'notch' ? <NotchOverlay /> : overlay === 'bar' ? <TabyBar /> : overlay === 'ui-gallery' && ComponentGallery ? <Suspense fallback={null}><ComponentGallery /></Suspense> : overlay === 'ui-navigation' && NavigationPreview ? <Suspense fallback={null}><NavigationPreview /></Suspense> : <App />}</LocaleProvider></ThemeProvider>
+    <ThemeProvider><LocaleProvider><NavigationPreferencesProvider>{overlay === 'notch' ? <NotchOverlay /> : overlay === 'bar' ? <TabyBar /> : overlay === 'ui-gallery' && ComponentGallery ? <Suspense fallback={null}><ComponentGallery /></Suspense> : overlay === 'ui-navigation' && NavigationPreview ? <Suspense fallback={null}><NavigationPreview /></Suspense> : <App />}</NavigationPreferencesProvider></LocaleProvider></ThemeProvider>
   </React.StrictMode>,
 );

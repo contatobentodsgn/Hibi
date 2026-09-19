@@ -88,12 +88,13 @@ test('⌘K responde consultas sem sair da tela', async ({ page }) => {
 test('tema manual sobrevive ao reload e o sistema volta a mandar em "Sistema"', async ({ page }) => {
   await page.goto('/');
   await openSettings(page);
-  await page.getByRole('combobox', { name: 'Tema' }).selectOption('dark');
+  // A Aparência da nova UI (U04): os temas são rádios com miniatura; clica-se no nome, como a pessoa faria.
+  await page.getByRole('radiogroup', { name: 'Tema' }).getByText('Escuro', { exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await openSettings(page);
-  await page.getByRole('combobox', { name: 'Tema' }).selectOption('system');
+  await page.getByRole('radiogroup', { name: 'Tema' }).getByText('Sistema', { exact: true }).click();
   const expectedSystemTheme = await page.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   await expect(page.locator('html')).toHaveAttribute('data-theme', expectedSystemTheme);
 });
