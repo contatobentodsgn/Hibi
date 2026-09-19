@@ -48,7 +48,7 @@ describe('tokens.css', () => {
     expect(aliases['--amber']).toBe('var(--cat-important-soft)')
   })
 
-  it.each(['ocean', 'moss', 'iris', 'rose'])('mantém categoria estável e texto legível no tint %s', (tint) => {
+  it.each(['blue', 'mint', 'lavender'])('mantém categoria estável e texto legível no tint %s', (tint) => {
     for (const themeName of ['light', 'dark'] as const) {
       const tinted = block(css, `:root[data-theme="${themeName}"][data-tint="${tint}"]`)
       const base = themeName === 'light' ? light : dark

@@ -3,7 +3,8 @@ import {
   Alert, AlertDialog, Button, Card, Checkbox, Chip, Description, Dropdown, FieldError, Input, Label, ListBox, Modal,
   Popover, ProgressBar, Radio, RadioGroup, Select, Skeleton, Spinner, Switch, Tabs, TextArea, TextField, Tooltip,
 } from '@heroui/react';
-import { MoreHorizontal, Plus, Settings2, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Play, Plus, Settings2, Trash2, Zap } from 'lucide-react';
+import { HibiTag } from '../components/HibiTag';
 import { HibiUiRoot } from '../components/HibiUiRoot';
 import { useThemePreference } from '../../theme-context';
 import type { ThemePreference, TintPreference } from '../../theme';
@@ -33,6 +34,10 @@ const COPY = {
     warningText: 'Conecte de novo em Ajustes.', failure: 'Não deu para salvar', failureText: 'Tente de novo em instantes.',
     progress: 'Progresso da meta', loading: 'Carregando', tabs: 'Visões', day: 'Dia', week: 'Semana', dayPanel: 'A visão do dia.', weekPanel: 'A visão da semana.',
     utilities: 'Utilitários da UI nova', utilitiesText: 'Classes do Tailwind valem aqui dentro, e não nas telas atuais.',
+    lavender: 'Lavanda', blue: 'Azul', mint: 'Menta', peach: 'Pêssego', contrast: 'Mais contraste', motion: 'Reduzir movimento',
+    reference: 'Peças do preview', createSomething: 'Criar algo', moment: 'Seu momento', momentTitle: 'Menos abas.\nMais presença.',
+    momentText: 'Reserve um pouco de tempo para uma coisa importante.', enterFocus: 'Entrar em foco', next: 'A seguir · 10:00',
+    design: 'Design', personal: 'Pessoal', work: 'Trabalho', tags: 'Etiquetas',
   },
   en: {
     title: 'Component gallery', subtitle: 'New UI controls with Hibi tokens.',
@@ -51,11 +56,15 @@ const COPY = {
     warningText: 'Reconnect it in Settings.', failure: 'Could not save', failureText: 'Try again in a moment.',
     progress: 'Goal progress', loading: 'Loading', tabs: 'Views', day: 'Day', week: 'Week', dayPanel: 'The day view.', weekPanel: 'The week view.',
     utilities: 'New UI utilities', utilitiesText: 'Tailwind classes apply in here, not in the current screens.',
+    lavender: 'Lavender', blue: 'Blue', mint: 'Mint', peach: 'Peach', contrast: 'More contrast', motion: 'Reduce motion',
+    reference: 'Preview pieces', createSomething: 'Create something', moment: 'Your moment', momentTitle: 'Fewer tabs.\nMore presence.',
+    momentText: 'Set aside a little time for one important thing.', enterFocus: 'Start focus', next: 'Next · 10:00',
+    design: 'Design', personal: 'Personal', work: 'Work', tags: 'Tags',
   },
 } as const;
 
 const LONG = { pt: ' — com um texto bem mais comprido que o normal, para ver quebra de linha e alinhamento sem cortar nada', en: ' — with a much longer text than usual, to check line wrapping and alignment without clipping anything' } as const;
-const TINTS: readonly TintPreference[] = ['aurora', 'ocean', 'moss', 'iris', 'rose'];
+const TINTS: readonly TintPreference[] = ['lavender', 'blue', 'mint', 'peach'];
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
 
 function Section({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
@@ -68,7 +77,7 @@ function Section({ title, children }: Readonly<{ title: string; children: React.
 }
 
 export function ComponentGallery() {
-  const { preference, setPreference, tint, setTint } = useThemePreference();
+  const { preference, setPreference, tint, setTint, contrast, setContrast, motion, setMotion } = useThemePreference();
   const [language, setLanguage] = useState<'pt' | 'en'>('pt');
   const [long, setLong] = useState(false);
   const [presses, setPresses] = useState(0);
@@ -91,7 +100,7 @@ export function ComponentGallery() {
           </RadioGroup>
           <RadioGroup value={tint} onChange={(value) => setTint(value as TintPreference)} orientation="horizontal">
             <Label>{t.tint}</Label>
-            {TINTS.map((value) => <Radio key={value} value={value}><Radio.Content><Radio.Control><Radio.Indicator /></Radio.Control><Label>{value}</Label></Radio.Content></Radio>)}
+            {TINTS.map((value) => <Radio key={value} value={value}><Radio.Content><Radio.Control><Radio.Indicator /></Radio.Control><Label>{t[value]}</Label></Radio.Content></Radio>)}
           </RadioGroup>
           <RadioGroup value={language} onChange={(value) => setLanguage(value as 'pt' | 'en')} orientation="horizontal">
             <Label>{t.language}</Label>
@@ -99,8 +108,39 @@ export function ComponentGallery() {
             <Radio value="en"><Radio.Content><Radio.Control><Radio.Indicator /></Radio.Control><Label>en</Label></Radio.Content></Radio>
           </RadioGroup>
           <Switch isSelected={long} onChange={setLong}><Switch.Content><Switch.Control><Switch.Thumb /></Switch.Control><Label>{t.long}</Label></Switch.Content></Switch>
+          <Switch isSelected={contrast === 'more'} onChange={(on) => setContrast(on ? 'more' : 'normal')}><Switch.Content><Switch.Control><Switch.Thumb /></Switch.Control><Label>{t.contrast}</Label></Switch.Content></Switch>
+          <Switch isSelected={motion === 'reduce'} onChange={(on) => setMotion(on ? 'reduce' : 'system')}><Switch.Content><Switch.Control><Switch.Thumb /></Switch.Control><Label>{t.motion}</Label></Switch.Content></Switch>
         </div>
       </header>
+
+      <Section title={t.reference}>
+        {/* O mesmo desenho das capturas do preview (`.impeccable/review/notch-*.png`), para comparar lado a lado. */}
+        <Button variant="secondary"><Plus size={16} aria-hidden="true" />{t.createSomething}</Button>
+        {/* A composição deste cartão (título em duas linhas, botão no pé, 11 px no botão) é a do `.focus-card`
+            do preview; a tela Hoje (U06) a transforma em componente. */}
+        <Card data-reference="moment" style={{ width: 'min(414px, 100%)', minHeight: 304 }}>
+          <Card.Header>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ display: 'inline-flex', width: 43, height: 43, borderRadius: '50%', alignItems: 'center', justifyContent: 'center', background: 'var(--hibi-lavender)', color: 'var(--hibi-lavender-ink)' }}><Zap size={19} aria-hidden="true" /></span>
+              <span style={{ color: 'var(--muted)', fontSize: 12 }}>{t.moment}</span>
+            </div>
+            <Card.Title style={{ fontSize: 23, lineHeight: 1.27, letterSpacing: '-0.035em', fontWeight: 550, margin: '29px 0 0', whiteSpace: 'pre-line' }}>{t.momentTitle}</Card.Title>
+            <Card.Description style={{ maxWidth: 200, marginTop: 4 }}>{t.momentText}</Card.Description>
+          </Card.Header>
+          <Card.Footer style={{ marginTop: 'auto' }}>
+            <Button variant="primary" fullWidth style={{ fontSize: 11, paddingInline: 12, justifyContent: 'flex-start' }}><Play size={14} fill="currentColor" aria-hidden="true" />{t.enterFocus}<span style={{ marginLeft: 'auto', fontSize: 10, color: '#c2c2cb' }}>25 min</span></Button>
+          </Card.Footer>
+        </Card>
+      </Section>
+
+      <Section title={t.tags}>
+        <HibiTag tone="lavender" dot>{t.next}</HibiTag>
+        <HibiTag tone="lavender" dot>{t.design}</HibiTag>
+        <HibiTag tone="peach" dot>{t.personal}</HibiTag>
+        <HibiTag tone="blue" dot>{t.work}</HibiTag>
+        <HibiTag tone="mint">+12%</HibiTag>
+        <HibiTag>{t.moment}{extra}</HibiTag>
+      </Section>
 
       <Section title={t.actions}>
         <Button variant="primary" onPress={() => setPresses((value) => value + 1)}>{t.primary} {presses}</Button>

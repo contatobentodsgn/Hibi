@@ -18,13 +18,24 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 | --- | --- | --- | --- |
 | U00 | Concluída (Codex) | #165, #166 | Faltou medir o desempenho da UI atual; o Claude mediu no #166 (`docs/redesign/performance-baseline.md`). Capturas do app atual e matriz por ação ainda são lacunas: a primeira fica para a U03, a segunda para cada tela. |
 | U01 | Concluída (Claude) | #167 | HeroUI 3.2.6, Tailwind 4.3.3, Motion 12.43.0, Lucide 0.577.0. Integração isolada das telas atuais; guia em `docs/redesign/u01-foundation.md`. |
-| U02 | Em revisão (Claude) | este PR | Tokens do preview em `src/ui/redesign/theme.css`, `HibiUiRoot`, galeria só em desenvolvimento (`?overlay=ui-gallery`), reset do Tailwind restrito à nova UI e tema aplicado antes do primeiro desenho. |
+| U02 | Concluída (Claude) | #168 | Tokens do preview em `src/ui/redesign/theme.css`, `HibiUiRoot`, galeria só em desenvolvimento (`?overlay=ui-gallery`), reset do Tailwind restrito à nova UI e tema aplicado antes do primeiro desenho. |
+| U02b | Em revisão (Claude) | este PR | Correção de fidelidade ao preview, pedida pelo usuário depois de uma auditoria contra o código e as capturas dele: ação principal escura, os quatro tons do preview, etiquetas pastéis, "Mais contraste", "Reduzir movimento", fonte do sistema, respiro do cartão e Ajustes conciliados com o preview. Comparação lado a lado em `docs/redesign/u02b-assets/`. |
 | U03–U28 | Pendentes | — | A U03 é a próxima. |
 
 **Decisões registradas durante a execução:**
 - **Licença do componente da navegação** (`adaptive-notch-navigation-bar.tsx`): o usuário o desenvolveu no Codex, a partir de um prompt. É obra do projeto, sem licença de terceiros a conferir, e está liberado para a U03.
-- **Contraste acima do preview:** o texto branco sobre os acentos do preview e o texto secundário sobre o fundo claro ficavam entre 4,0:1 e 4,3:1. Os tokens foram escurecidos o mínimo para passar de 4,5:1 (o roxo padrão foi de `#8071a7` para `#7c6da1`), e um e2e mede os dois temas nos cinco tons.
-- **Um tom de acento para cada preferência atual:** `aurora` (o padrão) é o roxo do preview; `ocean`, `moss`, `iris` e `rose` viram tons no mesmo estilo. Não há segunda preferência de cor.
+- **Contraste acima do preview:** o texto branco sobre os acentos do preview e o texto secundário sobre o fundo claro ficavam entre 4,0:1 e 4,3:1. Os tokens foram escurecidos o mínimo para passar de 4,5:1: Lavanda `#8071a7` → `#7c6da1`, Azul `#5882ac` → `#5279a0`, Menta `#4d8765` → `#498060`, Pêssego `#a56e50` → `#9d684c`, texto secundário `#74747d` → `#6e6e76`. Um e2e mede os dois temas nos quatro tons.
+- **Os quatro tons do preview (U02b), no lugar dos cinco do Hibi.**
+  - O preview oferece Lavanda (o padrão), Azul, Menta e Pêssego, "nos detalhes, sem chamar mais atenção que você".
+  - A escolha salva é convertida: aurora e iris → Lavanda, ocean → Azul, moss → Menta, rose → Pêssego.
+  - As telas atuais usam o tom antigo mais próximo (Lavanda o de Íris, Azul o de Oceano, Menta o de Musgo, Pêssego o laranja padrão). **Consequência visível:** para quem nunca escolheu tom, os detalhes das telas atuais passam de laranja a lavanda.
+  - As chaves antigas `tint.aurora/ocean/moss/iris/rose` ficaram no dicionário, porque o protocolo só permite acrescentar; a U28 as remove.
+- **Ação principal é o botão escuro do preview (U02b).** No preview, "Entrar em foco" e as demais ações principais são `#242428` com texto branco nos dois temas (`.dark-button`), e ele nunca usa o botão de acento do HeroUI. O botão secundário é papel com sombra (`.soft-button`). O acento fica nos detalhes: etiquetas, dia atual, gráficos, foco e seleção.
+- **Etiquetas pastéis do preview** (`HibiTag`: neutra, lavanda, azul, pêssego e menta, com o pontinho opcional), distintas do `Chip` do HeroUI, que fica para estados (sucesso, aviso, erro).
+- **"Mais contraste" e "Reduzir movimento"** existem no preview (Aparência) e não estavam no plano. Agora:
+  - são preferências do `ThemePreference` (`data-contrast`, `data-motion`), com interruptores provisórios em Ajustes › Aparência das telas atuais, até a U04;
+  - valem na nova UI (os valores do preview) e nas telas atuais.
+- **Fonte:** a nova UI usa a fonte do sistema, como o preview. A Inter das telas atuais vazava pelo `--default-font-family` do reset do Tailwind, e só a comparação lado a lado mostrou isso.
 
 **Regras que valem para todas as próximas unidades** (nascidas na U01 e na U02 e seguradas por `tests/e2e/heroui-foundation.spec.ts`):
 1. Toda superfície nova é montada dentro de `HibiUiRoot` (`src/ui/redesign/components/HibiUiRoot.tsx`), que cria o contêiner `.hibi-ui` e desenha popovers, menus e diálogos dentro dele.
@@ -32,6 +43,9 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 3. O Tailwind só lê `src/ui/redesign` e `src/ui/shell`. O reset dele vale só dentro de `.hibi-ui`, e a cópia é gerada por `scripts/scoped-preflight.mjs`.
 4. As classes `tag`, `empty-state`, `block`, `filter` e `outline` existem nas telas atuais e no HeroUI ou no Tailwind; uma camada de proteção as isola fora de `.hibi-ui`. Classe nova nas telas atuais não pode repetir nome de componente do HeroUI nem de utilitário do Tailwind.
 5. Cores só pelos tokens `--hibi-*` e pelas variáveis do HeroUI já mapeadas em `theme.css`; nada de hexadecimal solto numa tela.
+6. **Toda unidade visual compara lado a lado com as capturas do preview antes do PR** (`preview-web/.impeccable/review/*.png`, com os hashes do `reference-manifest.md`) e anexa a comparação em `docs/redesign/<unidade>-assets/`. Conferir valores de CSS não basta: foi a comparação que achou a ação principal roxa, as etiquetas erradas e a fonte trocada.
+7. A ação principal é o botão escuro (`variant="primary"`); o acento não pinta botões. Etiqueta do preview é `HibiTag`; `Chip` é só para estado.
+8. Com "Reduzir movimento" (do Hibi ou do sistema), nenhuma animação da nova UI dura mais que um instante. Hoje a regra global das telas atuais (`motion.css`) também cobre a nova UI; na U28, ao remover `motion.css`, a regra de `theme.css` passa a ser a única, e o e2e continua valendo.
 
 ## 1. Estado deste documento e evidências
 
@@ -107,22 +121,26 @@ Hábitos, metas, estatísticas e revisão são ferramentas de uso, não configur
 
 ### 3.2 Ajustes
 
-| Grupo | Conteúdo |
-| --- | --- |
-| Aparência | Claro/Escuro/Sistema, cor de destaque, posição superior/inferior do menu, preferência de movimento |
-| Geral | Idioma, formato de horário, iniciar ao entrar, atalho global |
-| Foco e rotina | Duração, ausência, pausa, lembretes e preferências de foco existentes |
-| Taby e voz | Motor, política de fallback, voz, permissões, modelo local e informações de uso disponíveis |
-| Notch e mascote | Monitor, tamanho e controles existentes; teste do notch; não confundir com posição do menu da janela |
-| Integrações | Google Calendar, Calendários do Mac/iCloud via EventKit, Notion e demais conectores existentes |
-| Notificações | Estado real de permissão, teste e preferências disponíveis |
-| Dados e recuperação | Exportar, importar, pontos de restauração e ações destrutivas |
-| Dispositivos | Estado e capacidades do Taby físico e outros adaptadores existentes |
-| Ajuda | Orientações, atalhos, feedback e suporte |
-| Sobre e atualizações | Versão real, verificar, baixar e instalar conforme serviço |
-| Avançado | Diagnósticos, exportação de suporte e recursos avançados já existentes |
+**Conciliada com o preview em 19/09 (U02b).** A estrutura é a do preview: cinco grupos e dez seções, com os nomes dele. As funções do app que o preview não mostra entram na seção que as acolhe; só duas seções novas foram necessárias, marcadas como acréscimo.
 
-Grupos curtos podem compartilhar página. Não criar doze páginas vazias. Busca deve abrir a seção e destacar o controle encontrado; textos pesquisáveis têm pt/en. Em janela estreita a lista de grupos vira um seletor acessível, mantendo título, busca e retorno.
+| Grupo (preview) | Seção | Conteúdo |
+| --- | --- | --- |
+| Experiência | Aparência (preview) | Claro/Escuro/Sistema, os quatro tons ("Um toque de cor"), Mais contraste, Reduzir movimento; posição superior/inferior do menu; idioma e formato de horário |
+| Experiência | Notch e personagem (preview) | Monitor, tamanho, teste do notch, mostrar o Taby ao abrir, reações do personagem; o Taby físico (dispositivo) quando existir |
+| Experiência | Notificações (preview) | Estado real de permissão, teste e preferências disponíveis |
+| Experiência | **Foco** (acréscimo) | Duração, ausência, pausa, timeout e alertas de foco existentes: o preview não tem lugar para eles |
+| Experiência | **Geral** (acréscimo) | Iniciar ao entrar no Mac e comportamento da janela: o preview não tem lugar para eles |
+| Assistente | IA e modelo local (preview) | Provedor, fallback, uso e modelo local (baixar, verificar, cancelar, remover) |
+| Assistente | Voz (preview) | Voz pelo atalho, respostas faladas, permissões de microfone e reconhecimento |
+| Conexões | Integrações (preview) | Google Calendar, Calendários do Mac/iCloud via EventKit, Notion e demais conectores existentes |
+| Dados e sistema | Dados e recuperação (preview) | Exportar, importar, pontos de restauração e ações destrutivas |
+| Dados e sistema | Privacidade (preview) | O que fica neste Mac, conversas fora do backup, API local e webhooks (tokens e segredos), diagnósticos e exportação de suporte |
+| Suporte | Atalhos (preview) | Atalho global do Taby e a lista de atalhos do app |
+| Suporte | Sobre o Hibi (preview) | Versão real, atualizações (verificar, baixar e instalar), ajuda e feedback |
+
+As unidades U21 a U25 seguem esta tabela. Onde o título de uma unidade citar um grupo antigo ("Geral", "Taby e voz", "Dispositivos", "Avançado"), vale a seção correspondente acima.
+
+Seções curtas podem compartilhar página, e não se criam páginas vazias. A busca abre a seção e destaca o controle encontrado; os textos pesquisáveis têm pt/en. Em janela estreita, a lista de seções vira um seletor acessível, mantendo título, busca e retorno.
 
 ## 4. Contrato visual e interativo
 
@@ -176,7 +194,7 @@ A grade semanal, o timer, as mensagens do Taby, os gráficos e a geometria do no
 
 ### 4.4 Movimento e acessibilidade
 
-- Feedback de controles: 100–160 ms; menus: 160–220 ms; expansão de painel: 220–320 ms como valores iniciais.
+- Feedback de controles: 100–160 ms; menus: 160–220 ms; expansão de painel: 220–320 ms como valores iniciais. **Tokens desde a U02b:** `--hibi-duration-control` 140 ms, `--hibi-duration-menu` 200 ms, `--hibi-duration-panel` 280 ms e `--hibi-ease`, zerados com "Reduzir movimento" do Hibi ou do sistema.
 - Animar preferencialmente opacidade e transform; não animar altura de toda uma conversa a cada token.
 - Respeitar redução de movimento do sistema; uma preferência explícita no app pode reduzir ainda mais, nunca impor movimento a quem o sistema protege.
 - Estados não dependem só de cor. Texto normal com contraste mínimo 4,5:1; controles/foco com contraste suficiente contra adjacentes.

@@ -6,8 +6,10 @@
  * secundário sobre o fundo claro em 4,25:1, abaixo de 4,5:1 para texto normal. Os tons abaixo foram
  * escurecidos o mínimo para passar (o roxo padrão foi de #8071a7 para #7c6da1).
  *
- * Uma preferência só: o tema (`data-theme`) e o tom (`data-tint`) continuam os da raiz, gravados pelo
- * `ThemeProvider`. Cada tom do Hibi vira um acento no estilo do preview; `aurora`, o padrão, é o roxo dele.
+ * Uma preferência só: o tema (`data-theme`), o tom (`data-tint`), o contraste (`data-contrast`) e o
+ * movimento (`data-motion`) são os da raiz, gravados pelo `ThemeProvider`. Os tons são os quatro do preview
+ * ("Um toque de cor"): Lavanda, o padrão, Azul, Menta e Pêssego. O acento fica nos detalhes (etiquetas,
+ * dia atual, gráficos, foco e seleção); a ação principal é o botão escuro do preview, não o acento.
  */
 @layer theme {
   .hibi-ui {
@@ -26,12 +28,23 @@
     --hibi-shadow: 0 3px 4px -3px #16162712, 0 10px 26px -18px #16162720;
     --hibi-accent: #7c6da1;
     --hibi-accent-ink: #ffffff;
+    /* A ação principal do preview ("Entrar em foco"): quase preta nos dois temas. */
+    --hibi-action: #242428;
+    --hibi-action-hover: #3a3a40;
+    --hibi-action-ink: #ffffff;
+    /* Movimento (seção 4.4 do plano): retorno de controle, menus e painéis. */
+    --hibi-duration-control: 140ms;
+    --hibi-duration-menu: 200ms;
+    --hibi-duration-panel: 280ms;
+    --hibi-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
     --hibi-font: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --hibi-radius-control: 12px;
     --hibi-radius-card: 24px;
 
-    /* O HeroUI lê estas variáveis. */
+    /* O HeroUI lê estas variáveis. A fonte também entra por `--default-font-family`, que o reset do Tailwind
+       usa: resolvida na raiz, ela trazia a Inter das telas atuais em vez da fonte do sistema do preview. */
     --font-sans: var(--hibi-font);
+    --default-font-family: var(--hibi-font);
     --background: var(--hibi-canvas);
     --foreground: var(--hibi-ink);
     --surface: var(--hibi-paper);
@@ -137,11 +150,20 @@
     --warning-soft-hover: color-mix(in oklab, var(--warning) 16%, transparent);
   }
 
-  /* O tom escolhido em Ajustes, no estilo do preview; todos com 4,5:1 ou mais sob texto branco. */
-  [data-tint="ocean"] .hibi-ui { --hibi-accent: #4f79a3; }
-  [data-tint="moss"] .hibi-ui { --hibi-accent: #437a5b; }
-  [data-tint="iris"] .hibi-ui { --hibi-accent: #6a67b0; }
-  [data-tint="rose"] .hibi-ui { --hibi-accent: #a3577a; }
+  /* Os tons do preview (Azul #5882ac, Menta #4d8765, Pêssego #a56e50), escurecidos o mínimo para 4,5:1. */
+  [data-tint="blue"] .hibi-ui { --hibi-accent: #5279a0; }
+  [data-tint="mint"] .hibi-ui { --hibi-accent: #498060; }
+  [data-tint="peach"] .hibi-ui { --hibi-accent: #9d684c; }
+
+  /* "Mais contraste", com os valores do preview. */
+  [data-contrast="more"] .hibi-ui { --hibi-ink-muted: #51515b; --hibi-line: #aaaab3; }
+  [data-theme="dark"][data-contrast="more"] .hibi-ui { --hibi-ink-muted: #d3d3dd; --hibi-line: #777782; }
+
+  /* "Reduzir movimento", no Hibi ou no sistema. */
+  [data-motion="reduce"] .hibi-ui { --hibi-duration-control: 0.01ms; --hibi-duration-menu: 0.01ms; --hibi-duration-panel: 0.01ms; }
+  @media (prefers-reduced-motion: reduce) {
+    .hibi-ui { --hibi-duration-control: 0.01ms; --hibi-duration-menu: 0.01ms; --hibi-duration-panel: 0.01ms; }
+  }
 }
 
 /* Acabamento do preview sobre os componentes do HeroUI. */
@@ -150,10 +172,33 @@
   .hibi-ui .button { border-radius: var(--hibi-radius-control); font-size: 13px; font-weight: 500; min-height: 37px; height: auto; max-width: 100%; white-space: normal; text-align: center; box-shadow: none; }
   .hibi-ui .button--sm { min-height: 30px; font-size: 12px; }
   .hibi-ui .button--lg { min-height: 44px; font-size: 14px; }
-  .hibi-ui .card { border-radius: var(--hibi-radius-card); box-shadow: var(--hibi-shadow); border: 0; }
+  /* O cartão é o `.panel` do preview: 24 px de respiro, raio de 24 px, sombra suave e texto de apoio em 12 px. */
+  .hibi-ui .card { border-radius: var(--hibi-radius-card); box-shadow: var(--hibi-shadow); border: 0; padding: 24px; }
+  .hibi-ui .card__description { font-size: 12px; line-height: 1.55; color: var(--muted); }
+  /* A ação principal é o botão escuro do preview (`.dark-button`), nos dois temas. */
+  .hibi-ui .button--primary { background: var(--hibi-action); color: var(--hibi-action-ink); border: 1px solid var(--hibi-action); padding-inline: 16px; }
+  .hibi-ui .button--primary:hover, .hibi-ui .button--primary[data-hovered="true"] { background: var(--hibi-action-hover); border-color: var(--hibi-action-hover); }
   /* No preview, o botão secundário é papel com sombra; o cinza do HeroUI some sobre o fundo claro. */
   .hibi-ui .button--secondary { background: var(--hibi-paper); color: var(--hibi-ink); box-shadow: var(--hibi-shadow); }
   .hibi-ui .button--secondary:hover, .hibi-ui .button--secondary[data-hovered="true"] { background: var(--surface-hover); }
   /* A trilha das abas é cinza sobre o papel no preview; o `--default` do HeroUI quase some no fundo claro. */
   .hibi-ui .tabs__list-container { background: var(--hibi-side); }
+}
+
+/* Etiquetas pastéis do preview (`.tag` e os tons lavender, blue, peach, mint), com o pontinho de status. */
+@layer components {
+  .hibi-ui .hibi-tag { display: inline-flex; align-items: center; gap: 6px; border-radius: 7px; background: var(--hibi-soft); color: var(--hibi-ink-muted); padding: 5px 8px; font-size: 10px; font-weight: 500; white-space: nowrap; line-height: 1.3; }
+  .hibi-ui .hibi-tag--lavender { background: var(--hibi-lavender); color: var(--hibi-lavender-ink); }
+  .hibi-ui .hibi-tag--blue { background: var(--hibi-blue); color: var(--hibi-blue-ink); }
+  .hibi-ui .hibi-tag--peach { background: var(--hibi-peach); color: var(--hibi-peach-ink); }
+  .hibi-ui .hibi-tag--mint { background: var(--hibi-mint); color: var(--hibi-mint-ink); }
+  .hibi-ui .hibi-tag__dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+}
+
+/* Com "Reduzir movimento", nenhuma animação da nova UI dura mais que um instante, nem as do HeroUI. */
+@layer utilities {
+  [data-motion="reduce"] .hibi-ui :is(*, ::before, ::after) { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  @media (prefers-reduced-motion: reduce) {
+    .hibi-ui :is(*, ::before, ::after) { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
 }

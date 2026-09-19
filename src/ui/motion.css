@@ -19,3 +19,11 @@
     transition-duration: .01ms !important;
   }
 }
+
+/* "Reduzir movimento" escolhido no Hibi vale como a preferência do sistema. */
+:root[data-motion="reduce"] *, :root[data-motion="reduce"] *::before, :root[data-motion="reduce"] *::after {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: .01ms !important;
+}

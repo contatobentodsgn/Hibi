@@ -5,7 +5,7 @@ import { test, expect, type Page } from '@playwright/test';
 // `src/styles/heroui.css` ou de `src/ui/redesign/theme.css`. A galeria (`?overlay=ui-gallery`) só existe
 // no desenvolvimento, que é onde o e2e roda.
 
-const gallery = async (page: Page, theme: 'light' | 'dark' = 'light', tint = 'aurora') => {
+const gallery = async (page: Page, theme: 'light' | 'dark' = 'light', tint = 'lavender') => {
   await page.addInitScript(({ value, tone }) => { localStorage.setItem('hibi-theme', value); localStorage.setItem('hibi-tint', tone); }, { value: theme, tone: tint });
   await page.goto('/?overlay=ui-gallery');
   await expect(page.locator('[data-gallery]')).toBeVisible();
@@ -80,27 +80,87 @@ test('no tema escuro, o texto da nova UI é claro sobre o fundo escuro', async (
 
 // O preview aprovado ficava entre 4,0:1 e 4,3:1 no texto branco sobre o acento e no texto secundário.
 for (const theme of ['light', 'dark'] as const) {
-  for (const tint of ['aurora', 'ocean', 'moss', 'iris', 'rose']) {
+  for (const tint of ['lavender', 'blue', 'mint', 'peach']) {
     test(`contraste de texto normal (4,5:1) no tema ${theme}, tom ${tint}`, async ({ page }) => {
       await gallery(page, theme, tint);
       const read = (selector: string) => page.locator(selector).first().evaluate((node) => ({ text: getComputedStyle(node).color, background: getComputedStyle(node).backgroundColor }));
       const primary = await read('.button--primary');
-      const root = await page.locator('[data-gallery]').evaluate((node) => { const style = getComputedStyle(node); return { ink: style.color, canvas: style.getPropertyValue('--hibi-canvas'), paper: style.getPropertyValue('--hibi-paper'), muted: style.getPropertyValue('--hibi-ink-muted') }; });
-      const ratios = await contrastOf(page, [[primary.text, primary.background], [root.ink, root.canvas], [root.ink, root.paper], [root.muted, root.canvas], [root.muted, root.paper]]);
+      const root = await page.locator('[data-gallery]').evaluate((node) => { const style = getComputedStyle(node); return { ink: style.color, canvas: style.getPropertyValue('--hibi-canvas'), paper: style.getPropertyValue('--hibi-paper'), muted: style.getPropertyValue('--hibi-ink-muted'), accent: style.getPropertyValue('--hibi-accent') }; });
+      // O acento aparece como preenchimento com texto branco (chip, seleção) e como texto sobre o papel claro.
+      const ratios = await contrastOf(page, [[primary.text, primary.background], [root.ink, root.canvas], [root.ink, root.paper], [root.muted, root.canvas], [root.muted, root.paper], ['#ffffff', root.accent]]);
       for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5);
     });
   }
 }
 
-test('cada tom de Ajustes vira um acento diferente na nova UI', async ({ page }) => {
+test('cada um dos quatro tons do preview vira um acento diferente na nova UI', async ({ page }) => {
   const accents = new Set<string>();
-  for (const tint of ['aurora', 'ocean', 'moss', 'iris', 'rose']) {
+  for (const tint of ['lavender', 'blue', 'mint', 'peach']) {
     const tab = await page.context().newPage();
     await gallery(tab, 'light', tint);
-    accents.add(await tab.locator('.button--primary').first().evaluate((node) => getComputedStyle(node).backgroundColor));
+    accents.add(await tab.locator('[data-gallery] .switch__control').first().evaluate((node) => getComputedStyle(node.closest('.hibi-ui')!).getPropertyValue('--hibi-accent').trim()));
     await tab.close();
   }
-  expect(accents.size).toBe(5);
+  expect(accents.size).toBe(4);
+});
+
+// No preview, a ação principal ("Entrar em foco") é o botão quase preto, e o acento fica nos detalhes.
+test('a ação principal é o botão escuro do preview, nos dois temas', async ({ page }) => {
+  for (const theme of ['light', 'dark'] as const) {
+    const tab = await page.context().newPage();
+    await gallery(tab, theme);
+    const colors = await tab.locator('.button--primary').first().evaluate((node) => ({ background: getComputedStyle(node).backgroundColor, text: getComputedStyle(node).color }));
+    expect(colors, theme).toEqual({ background: 'rgb(36, 36, 40)', text: 'rgb(255, 255, 255)' });
+    await tab.close();
+  }
+});
+
+test('as etiquetas pastéis do preview têm texto legível nos dois temas e com mais contraste', async ({ page }) => {
+  for (const theme of ['light', 'dark'] as const) {
+    const tab = await page.context().newPage();
+    await tab.addInitScript(() => localStorage.setItem('hibi-contrast', 'more'));
+    await gallery(tab, theme);
+    const pairs = await tab.locator('.hibi-tag').evaluateAll((nodes) => nodes.map((node) => [getComputedStyle(node).color, getComputedStyle(node).backgroundColor] as [string, string]));
+    expect(pairs.length).toBeGreaterThanOrEqual(5);
+    // Neutra, lavanda, pêssego, azul e menta: cada tom com o seu fundo pastel.
+    expect(new Set(pairs.map(([, background]) => background)).size, theme).toBe(5);
+    for (const ratio of await contrastOf(tab, pairs)) expect(ratio, theme).toBeGreaterThanOrEqual(4.5);
+    await tab.close();
+  }
+});
+
+test('"Mais contraste" reforça o texto secundário e os contornos da nova UI', async ({ page }) => {
+  await gallery(page);
+  const read = () => page.locator('[data-gallery]').evaluate((node) => { const style = getComputedStyle(node); return [style.getPropertyValue('--hibi-ink-muted').trim(), style.getPropertyValue('--hibi-line').trim()]; });
+  const normal = await read();
+  await page.getByText('Mais contraste').click();
+  await expect(page.locator('html')).toHaveAttribute('data-contrast', 'more');
+  expect(await read()).toEqual(['#51515b', '#aaaab3']);
+  expect(normal).toEqual(['#6e6e76', '#e9e9ed']);
+});
+
+for (const how of ['no Hibi', 'no sistema'] as const) {
+  test(`"Reduzir movimento" ${how} deixa as transições da nova UI instantâneas`, async ({ page }) => {
+    if (how === 'no sistema') await page.emulateMedia({ reducedMotion: 'reduce' });
+    else await page.addInitScript(() => localStorage.setItem('hibi-motion', 'reduce'));
+    await gallery(page);
+    const durations = await page.locator('.button--secondary').first().evaluate((node) => getComputedStyle(node).transitionDuration.split(', '));
+    for (const duration of durations) expect(parseFloat(duration)).toBeLessThan(0.001);
+  });
+}
+
+test('o cartão tem o respiro e o raio do painel do preview', async ({ page }) => {
+  await gallery(page);
+  const card = await page.locator('[data-reference="moment"]').evaluate((node) => { const style = getComputedStyle(node); return { padding: style.padding, radius: style.borderTopLeftRadius }; });
+  expect(card).toEqual({ padding: '24px', radius: '24px' });
+});
+
+// A fonte da nova UI é a do sistema (a do preview); a Inter das telas atuais vazava pelo reset do Tailwind.
+test('a nova UI usa a fonte do sistema, como o preview', async ({ page }) => {
+  await gallery(page);
+  const families = await page.locator('[data-gallery] :is(.card__title, .button, .card__description, .label)').evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).fontFamily));
+  expect(families.length).toBeGreaterThan(3);
+  for (const family of families) expect(family).toMatch(/^-apple-system/);
 });
 
 // O HeroUI calcula o hover e as versões suaves na raiz, a partir do acento da raiz — o laranja das telas atuais.

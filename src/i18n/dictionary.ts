@@ -380,6 +380,15 @@ const pt = {
   'tint.moss': 'Musgo',
   'tint.iris': 'Íris',
   'tint.rose': 'Rosa',
+  // Os quatro tons do preview aprovado e os ajustes de Aparência dele (U02b).
+  'tint.lavender': 'Lavanda',
+  'tint.blue': 'Azul',
+  'tint.mint': 'Menta',
+  'tint.peach': 'Pêssego',
+  'tint.contrast': 'Mais contraste',
+  'tint.contrastDetail': 'Destaque os contornos e os textos secundários.',
+  'tint.motion': 'Reduzir movimento',
+  'tint.motionDetail': 'Transições mais discretas, no seu ritmo.',
 } as const
 
 export type DictionaryKey = keyof typeof pt
@@ -759,6 +768,15 @@ const en: Record<DictionaryKey, string> = {
   'tint.moss': 'Moss',
   'tint.iris': 'Iris',
   'tint.rose': 'Rose',
+  // The four tones of the approved preview and its Appearance settings (U02b).
+  'tint.lavender': 'Lavender',
+  'tint.blue': 'Blue',
+  'tint.mint': 'Mint',
+  'tint.peach': 'Peach',
+  'tint.contrast': 'More contrast',
+  'tint.contrastDetail': 'Stronger outlines and secondary text.',
+  'tint.motion': 'Reduce motion',
+  'tint.motionDetail': 'Quieter transitions, at your pace.',
 }
 
 export const dictionary: Record<Locale, Record<DictionaryKey, string>> = { pt, en }
