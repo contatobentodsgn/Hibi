@@ -38,6 +38,10 @@
   .hibi-ui .appearance-position[data-position="bottom"] .appearance-position__surface { padding: 10px 12px 20px; }
   .hibi-ui .appearance-position__notch { position: absolute; left: 50%; top: 0; width: 44%; height: 9px; transform: translateX(-50%); border-radius: 0 0 6px 6px; background: var(--appearance-frame); }
   .hibi-ui .appearance-position[data-position="bottom"] .appearance-position__notch { top: auto; bottom: 0; border-radius: 6px 6px 0 0; }
+  /* Automática: a barra em cima numa metade e embaixo na outra, com o fio do meio, como o "Sistema" do tema. */
+  .hibi-ui .appearance-position[data-position="auto"] .appearance-position__surface { padding: 20px 12px; background: linear-gradient(90deg, var(--hibi-canvas) calc(50% - 0.5px), var(--hibi-line) calc(50% - 0.5px), var(--hibi-line) calc(50% + 0.5px), var(--hibi-canvas) calc(50% + 0.5px)); }
+  .hibi-ui .appearance-position[data-position="auto"] .appearance-position__notch { left: 25%; width: 32%; }
+  .hibi-ui .appearance-position[data-position="auto"] .appearance-position__notch--bottom { top: auto; bottom: 0; left: 75%; border-radius: 6px 6px 0 0; }
   .hibi-ui .appearance-position__surface > i { display: block; height: 12px; border-radius: 4px; margin-bottom: 6px; background: var(--hibi-paper); }
   .hibi-ui .appearance-position__surface > div { display: flex; gap: 6px; }
   .hibi-ui .appearance-position__surface > div > i { display: block; width: 50%; height: 30px; border-radius: 5px; background: var(--hibi-paper); }

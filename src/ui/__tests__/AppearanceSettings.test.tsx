@@ -12,15 +12,16 @@ describe('Aparência (U04)', () => {
     const markup = render()
     for (const text of ['Aparência', 'A mesma companhia. A sua atmosfera.', 'Tema', 'Escolha a luz do seu espaço.', 'Um toque de cor', 'Nos detalhes, sem chamar mais atenção que você.', 'Menu de navegação', 'Reduzir movimento', 'Mais contraste']) expect(markup).toContain(`>${text}<`)
     // O rótulo vem depois do ícone de cada opção (e antes do visto, na escolhida).
-    for (const label of ['Claro', 'Escuro', 'Sistema', 'Superior', 'Inferior']) expect(markup).toMatch(new RegExp(`</svg>${label}<`))
+    for (const label of ['Claro', 'Escuro', 'Sistema', 'Superior', 'Inferior', 'Automática']) expect(markup).toMatch(new RegExp(`</svg>${label}<`))
     // O tom atual aparece na etiqueta, e cada amostra tem nome para o leitor de tela.
     expect(markup).toMatch(/class="hibi-tag">Lavanda</)
     for (const tint of ['Lavanda', 'Azul', 'Menta', 'Pêssego']) expect(markup).toContain(`aria-label="${tint}"`)
-    expect(markup.match(/type="radio"/g)).toHaveLength(3 + 4 + 2)
+    expect(markup.match(/type="radio"/g)).toHaveLength(3 + 4 + 3)
     expect(markup.match(/role="switch"/g)).toHaveLength(2)
-    // Sem preferência, o tema segue o sistema e a barra fica em cima.
+    // Sem preferência, o tema segue o sistema e a posição é a automática, que sem o mascote na tela fica em cima.
     expect(markup).toMatch(/value="system"[^>]*checked=""|checked=""[^>]*value="system"/)
-    expect(markup).toMatch(/value="top"[^>]*checked=""|checked=""[^>]*value="top"/)
+    expect(markup).toMatch(/value="auto"[^>]*checked=""|checked=""[^>]*value="auto"/)
+    expect(markup).toMatch(/role="status"[^>]*>Agora em cima: o mascote não está nesta tela\.</)
   })
 
   it('mostra a posição guardada, e o inglês vem do dicionário', () => {

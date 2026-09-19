@@ -1,13 +1,13 @@
 import { useId } from 'react';
 import { Card, Radio, RadioGroup, Switch } from '@heroui/react';
-import { Check, Monitor, Moon, PanelBottom, PanelTop, Sun } from 'lucide-react';
+import { Cat, Check, Monitor, Moon, PanelBottom, PanelTop, Sun } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useT } from '../../../i18n/LocaleProvider';
 import type { DictionaryKey } from '../../../i18n/dictionary';
 import { useThemePreference } from '../../theme-context';
 import { isThemePreference, isTintPreference, type ThemePreference, type TintPreference } from '../../theme';
 import { useNavigationPreferences } from '../../shell/NavigationPreferencesProvider';
-import { parseNavigationPosition, type NavigationPosition } from '../../shell/navigation-preferences';
+import { parseNavigationPreference, type NavigationPreference } from '../../shell/navigation-preferences';
 import { HibiTag } from '../components/HibiTag';
 import { HibiUiRoot } from '../components/HibiUiRoot';
 import './appearance-settings.css';
@@ -23,9 +23,11 @@ const THEMES: readonly Readonly<{ key: ThemePreference; label: DictionaryKey; ic
   { key: 'system', label: 'settings.theme.system', icon: Monitor },
 ];
 const TINTS: readonly TintPreference[] = ['lavender', 'blue', 'mint', 'peach'];
-const POSITIONS: readonly Readonly<{ key: NavigationPosition; label: DictionaryKey; icon: LucideIcon }>[] = [
+// Como Claro, Escuro e Sistema: as duas escolhas fixas e a que se ajusta sozinha (U04b), que segue o mascote.
+const POSITIONS: readonly Readonly<{ key: NavigationPreference; label: DictionaryKey; icon: LucideIcon }>[] = [
   { key: 'top', label: 'redesign.appearance.top', icon: PanelTop },
   { key: 'bottom', label: 'redesign.appearance.bottom', icon: PanelBottom },
+  { key: 'auto', label: 'redesign.appearance.auto', icon: Cat },
 ];
 
 // O cartão e os textos do painel do preview (`.panel`, `h3` de 14 px, descrição de 12 px no cinza do tema).
@@ -47,11 +49,13 @@ function ThemeThumbnail({ kind }: Readonly<{ kind: ThemePreference }>) {
   );
 }
 
-function PositionThumbnail({ position }: Readonly<{ position: NavigationPosition }>) {
+function PositionThumbnail({ position }: Readonly<{ position: NavigationPreference }>) {
   return (
     <div aria-hidden="true" data-position={position} className="appearance-thumb appearance-position">
       <div className="appearance-position__surface">
         <span className="appearance-position__notch" />
+        {/* Na automática, metade com a barra em cima e metade com ela embaixo, como o "Sistema" do tema. */}
+        {position === 'auto' && <span className="appearance-position__notch appearance-position__notch--bottom" />}
         <i /><div><i /><i /></div>
       </div>
     </div>
@@ -67,7 +71,7 @@ function PositionThumbnail({ position }: Readonly<{ position: NavigationPosition
 export function AppearanceSettings({ onEvent, framed = false }: Props) {
   const t = useT();
   const { preference, setPreference, tint, setTint, contrast, setContrast, motion, setMotion } = useThemePreference();
-  const { position, setPosition, saveFailed } = useNavigationPreferences();
+  const { preference: navigation, setPreference: setNavigation, mascotSharesDisplay, saveFailed } = useNavigationPreferences();
   const ids = { title: useId(), theme: useId(), tint: useId(), navigation: useId() };
   const toggles = [
     { key: 'motion', title: t('tint.motion'), detail: t('tint.motionDetail'), on: motion === 'reduce', change: (on: boolean) => { setMotion(on ? 'reduce' : 'system'); onEvent('edit', 'Motion', on ? 'reduce' : 'system'); } },
@@ -135,12 +139,12 @@ export function AppearanceSettings({ onEvent, framed = false }: Props) {
 
           <Card className={panel}>
             <h3 id={ids.navigation} className={heading}>{t('redesign.appearance.navigation')}</h3>
-            <p className={detail}>{t('redesign.appearance.navigationDetail')}</p>
+            <p className={detail}>{t('redesign.appearance.navigationDetail')} {t('redesign.appearance.autoDetail')}</p>
             <RadioGroup
               aria-labelledby={ids.navigation}
               orientation="horizontal"
-              value={position}
-              onChange={(value) => { const next = parseNavigationPosition(value); setPosition(next); onEvent('edit', 'Navigation position', next); }}
+              value={navigation}
+              onChange={(value) => { const next = parseNavigationPreference(value); setNavigation(next); onEvent('edit', 'Navigation position', next); }}
               className="mt-[22px] grid grid-cols-3 gap-[14px]"
             >
               {POSITIONS.map(({ key, label, icon: Icon }) => (
@@ -150,12 +154,13 @@ export function AppearanceSettings({ onEvent, framed = false }: Props) {
                     <span className={optionLabel}>
                       <Icon aria-hidden="true" size={15} />
                       {t(label)}
-                      {position === key && <Check aria-hidden="true" size={15} className="ml-auto text-(--hibi-accent)" />}
+                      {navigation === key && <Check aria-hidden="true" size={15} className="ml-auto text-(--hibi-accent)" />}
                     </span>
                   </Radio.Content>
                 </Radio>
               ))}
             </RadioGroup>
+            {navigation === 'auto' && <p role="status" className="mt-4 text-[12px] text-(--hibi-ink-muted)">{t(mascotSharesDisplay ? 'redesign.appearance.autoNowBottom' : 'redesign.appearance.autoNowTop')}</p>}
             {saveFailed && <p role="status" className="mt-4 text-[12px] text-(--hibi-ink-muted)">{t('redesign.appearance.positionNotSaved')}</p>}
           </Card>
 
