@@ -91,15 +91,19 @@
 }
 
 /* Tint troca somente a assinatura visual e o foco. Categorias continuam estáveis para que
-   trabalho, pausa, aprendizado e prioridade não mudem de significado com a preferência. */
-:root[data-theme="light"][data-tint="ocean"] { --accent: #5fc4df; --accent-soft: #d8f5fb; --stroke-focus: #5fc4df; --text-hero: #19677d; }
-:root[data-theme="dark"][data-tint="ocean"] { --accent: #5fc4df; --accent-soft: #183842; --stroke-focus: #8fdef0; --text-hero: #8fdef0; }
-:root[data-theme="light"][data-tint="moss"] { --accent: #9bd55d; --accent-soft: #e6f6cf; --stroke-focus: #7daf3e; --text-hero: #4b7220; }
-:root[data-theme="dark"][data-tint="moss"] { --accent: #9bd55d; --accent-soft: #2c421b; --stroke-focus: #b9e786; --text-hero: #b9e786; }
-:root[data-theme="light"][data-tint="iris"] { --accent: #b7a4ff; --accent-soft: #ebe7ff; --stroke-focus: #8c78d9; --text-hero: #5e4bb0; }
-:root[data-theme="dark"][data-tint="iris"] { --accent: #b7a4ff; --accent-soft: #342d56; --stroke-focus: #d2c8ff; --text-hero: #d2c8ff; }
-:root[data-theme="light"][data-tint="rose"] { --accent: #ff99b5; --accent-soft: #ffe2eb; --stroke-focus: #d86989; --text-hero: #a74161; }
-:root[data-theme="dark"][data-tint="rose"] { --accent: #ff99b5; --accent-soft: #512837; --stroke-focus: #ffc2d2; --text-hero: #ffc2d2; }
+   trabalho, pausa, aprendizado e prioridade não mudem de significado com a preferência.
+   Os tons agora são os quatro do preview aprovado. Nestas telas, cada um usa o tom antigo mais próximo:
+   Lavanda o de Íris, Azul o de Oceano, Menta o de Musgo, e Pêssego fica no laranja padrão. */
+:root[data-theme="light"][data-tint="blue"] { --accent: #5fc4df; --accent-soft: #d8f5fb; --stroke-focus: #5fc4df; --text-hero: #19677d; }
+:root[data-theme="dark"][data-tint="blue"] { --accent: #5fc4df; --accent-soft: #183842; --stroke-focus: #8fdef0; --text-hero: #8fdef0; }
+:root[data-theme="light"][data-tint="mint"] { --accent: #9bd55d; --accent-soft: #e6f6cf; --stroke-focus: #7daf3e; --text-hero: #4b7220; }
+:root[data-theme="dark"][data-tint="mint"] { --accent: #9bd55d; --accent-soft: #2c421b; --stroke-focus: #b9e786; --text-hero: #b9e786; }
+:root[data-theme="light"][data-tint="lavender"] { --accent: #b7a4ff; --accent-soft: #ebe7ff; --stroke-focus: #8c78d9; --text-hero: #5e4bb0; }
+:root[data-theme="dark"][data-tint="lavender"] { --accent: #b7a4ff; --accent-soft: #342d56; --stroke-focus: #d2c8ff; --text-hero: #d2c8ff; }
+
+/* "Mais contraste" (preview aprovado): textos secundários e contornos mais fortes. */
+:root[data-contrast="more"] { --text-secondary: #45433e; --text-tertiary: #4f4d47; --stroke-default: #a9a59c; --stroke-subtle: #c9c5bc; }
+:root[data-theme="dark"][data-contrast="more"] { --text-secondary: #d9d4ca; --text-tertiary: #cbc6bc; --stroke-default: #6d6a62; --stroke-subtle: #55524b; }
 
 /* Ponte com theme.css: as 8 variáveis antigas seguem os tokens. Este arquivo é importado
    depois de theme.css, então estas definições vencem as de lá. Some quando a última tela migrar. */
