@@ -3,6 +3,7 @@ import type { AssistantTurnState } from '../ai/assistant-turn';
 import type { CompanionEvent } from '../companion/contracts';
 import { useT } from '../i18n/LocaleProvider';
 import { voiceNotice } from './voice-notice';
+import { correctToVocabulary } from '../ai/voice-vocabulary';
 
 export type VoiceStart = Readonly<{ notch?: boolean }>;
 export type VoiceTurnControls = Readonly<{
@@ -40,6 +41,7 @@ export function useVoiceTurn({ ask, turnState, onCompanionEvent, vocabulary }: O
   const [transcript, setTranscript] = useState('');
   const [notice, setNotice] = useState('');
   const transcriptRef = useRef('');
+  const vocabularyRef = useRef<readonly string[]>([]);
   const listeningRef = useRef(false);
   const notchRequest = useRef<string | null>(null);
   const awaitingReply = useRef(false);
@@ -51,7 +53,10 @@ export function useVoiceTurn({ ask, turnState, onCompanionEvent, vocabulary }: O
     if (requestId) latest.current.onCompanionEvent({ type: 'ai.stage', stage: 'listening', requestId, text, nowMs: Date.now(), expiresInMs: LISTENING_EXPIRES_MS });
   };
 
-  useEffect(() => window.hibiDesktop?.onLocalVoiceText?.((text) => {
+  // Os nomes do Hibi são corrigidos aqui, no que aparece na barra e no que vai para o Taby: o reconhecedor
+  // ainda escreve "cabrito" às vezes, mesmo com o vocabulário.
+  useEffect(() => window.hibiDesktop?.onLocalVoiceText?.((heard) => {
+    const text = correctToVocabulary(heard, vocabularyRef.current);
     transcriptRef.current = text;
     setTranscript(text);
     showInNotch(text);
@@ -69,7 +74,8 @@ export function useVoiceTurn({ ask, turnState, onCompanionEvent, vocabulary }: O
     notchRequest.current = notch ? `voice-${crypto.randomUUID()}` : null;
     // Sem texto ainda: a barra mostra "Ouvindo…" como dica, e o que chega do ditado toma o lugar dela.
     showInNotch('');
-    const result = await listen({ autoStop: true, vocabulary: latest.current.vocabulary?.() ?? [] }).catch(() => null);
+    vocabularyRef.current = latest.current.vocabulary?.() ?? [];
+    const result = await listen({ autoStop: true, vocabulary: vocabularyRef.current }).catch(() => null);
     listeningRef.current = false;
     setListening(false);
     const requestId = notchRequest.current;
