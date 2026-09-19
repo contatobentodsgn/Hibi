@@ -75,14 +75,15 @@ export function honestOfflineBrainReply(reply: string, language: 'pt' | 'en'): s
 
 // Parece um pedido de ação? Só então o modelo é consultado para extrair a intenção: uma conversa comum não
 // paga uma segunda rodada do modelo.
-const REQUEST_HINT = /\b(?:marc|agend|reserv|cri[ae]|adicion|anot|lembr|avis|coloc|bot[ae]|p[õo]e|ponha|preciso|tenho que|quero|inici|comec|começ)|reuni|tarefa|compromisso|consulta|evento|lembrete|amanh[ãa]|hoje|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|\b\d{1,2}\s*(?:h\b|:\d{2}|horas?)/iu
+const REQUEST_HINT = /\b(?:marc|agend|reserv|cri[ae]|adicion|anot|lembr|avis|coloc|bot[ae]|p[õo]e|ponha|preciso|tenho que|quero|inici|comec|começ|adi[ae]|mov|mud|remarc|empurr|pass[ae]|deix|termin|fiz|acabei|conclu|apag|exclu|cancel|tir[ae]|remov)|reuni|tarefa|compromisso|consulta|evento|lembrete|amanh[ãa]|hoje|segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|\b\d{1,2}\s*(?:h\b|:\d{2}|horas?)/iu
 
 export const looksLikeRequest = (message: string): boolean => REQUEST_HINT.test(message)
 
 export function buildIntentPrompt(message: string): string {
   return [
     'Leia o pedido e responda só com JSON.',
-    'action: "meeting" (reunião, compromisso, consulta ou evento com horário), "task" (algo a fazer), "reminder" (lembrar ou avisar de algo), "note" (anotar), "focus" (começar foco), "agenda" (perguntar o que tem na agenda), "none" (conversa, pergunta ou outra coisa).',
+    'action: "meeting" (reunião, compromisso, consulta ou evento com horário), "task" (algo a fazer), "reminder" (lembrar ou avisar de algo), "note" (anotar), "focus" (começar foco), "agenda" (perguntar o que tem na agenda), "move" (mudar de dia ou horário algo que já existe: adiar, mover, remarcar, passar), "complete" (dizer que já fez algo), "delete" (apagar ou cancelar algo que já existe), "none" (conversa, pergunta ou outra coisa).',
+    'Adiar, mover ou remarcar é sempre "move", nunca "meeting": a coisa já existe. Em "move", day e time são o novo dia e horário.',
     'Pedir para lembrar ou avisar ("me lembra", "lembra eu", "me avisa") é sempre "reminder", mesmo com horário.',
     'title: o assunto, curto, sem o dia, sem o horário e sem "tenho" ou "preciso".',
     'day: o dia exatamente como foi dito (hoje, amanhã, sexta, dia 25) ou "".',
@@ -98,6 +99,12 @@ export function buildIntentPrompt(message: string): string {
     '{"action":"reminder","title":"pagar o aluguel","day":"amanhã","time":"9h","endTime":""}',
     'Pedido: tenho consulta no médico na terça às 16h',
     '{"action":"meeting","title":"consulta no médico","day":"terça","time":"16h","endTime":""}',
+    'Pedido: empurra a reunião com o João pra sexta às 10h',
+    '{"action":"move","title":"reunião com o João","day":"sexta","time":"10h","endTime":""}',
+    'Pedido: já terminei o relatório',
+    '{"action":"complete","title":"relatório","day":"","time":"","endTime":""}',
+    'Pedido: pode tirar o dentista da agenda',
+    '{"action":"delete","title":"dentista","day":"","time":"","endTime":""}',
     'Pedido: tudo bem com você?',
     '{"action":"none","title":"","day":"","time":"","endTime":""}',
     `Pedido: ${clip(message, 600)}`,
@@ -105,7 +112,7 @@ export function buildIntentPrompt(message: string): string {
   ].join('\n')
 }
 
-const INTENT_ACTIONS = new Set(['meeting', 'task', 'reminder', 'note', 'focus', 'agenda', 'none'])
+const INTENT_ACTIONS = new Set(['meeting', 'task', 'reminder', 'note', 'focus', 'agenda', 'move', 'complete', 'delete', 'none'])
 /** O JSON do modo intenção, conferido campo a campo; qualquer coisa fora do formato é `null`. */
 export function parseIntent(text: string): SpokenIntent | null {
   try {
