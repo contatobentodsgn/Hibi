@@ -39,8 +39,7 @@ async function openIntegrations(page: Page) {
     window.localStorage.setItem('hibi-study-data', JSON.stringify(data));
   });
   await page.reload();
-  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
-  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Integrations', exact: true }).click();
 }
 const changesBox = (page: Page) => page.getByLabel('Alterações entre o Hibi e o calendário');
@@ -91,8 +90,7 @@ test('trazer um horário que cai sobre uma demanda move o bloco normalmente: div
     window.localStorage.setItem('hibi-study-data', JSON.stringify(data));
   });
   await page.reload();
-  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
-  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Integrations', exact: true }).click();
 
   await changesBox(page).getByRole('button', { name: 'Trazer para o Hibi' }).click();

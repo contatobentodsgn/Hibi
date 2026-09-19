@@ -50,7 +50,7 @@ test('a tarefa rápida nasce na pasta filtrada, qualquer que seja, e em "Sem pas
   await expect(page.getByRole('button', { name: 'Complete Contrato do cliente' })).toBeVisible();
 
   // O formulário rápido abre com a tela; "+ New task" abre o modal completo.
-  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  await page.getByRole('button', { name: 'Hoje', exact: true }).click();
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
   await page.getByRole('button', { name: /^Pasta · Sem pasta/ }).click();
   await page.getByRole('textbox', { name: 'New task title' }).fill('Ideia sem pasta');

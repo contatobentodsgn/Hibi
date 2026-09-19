@@ -100,8 +100,7 @@ const workspace = (page: Page) => page.evaluate(() => window.localStorage.getIte
 async function openReview(page: Page) {
   await installNotionConfirmationBridge(page);
   await page.goto('/');
-  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
-  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Integrations', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Notion task synchronization' })).toBeVisible();
   await page.getByRole('button', { name: 'Sync now' }).click();

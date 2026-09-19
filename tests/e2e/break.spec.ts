@@ -14,13 +14,18 @@ async function openBreak(page: Page) {
   await page.keyboard.press('Enter');
 }
 
-test('/break abre o Foco em modo pausa com 5 minutos e o dock marca Foco', async ({ page }) => {
+test('/break abre o Foco em modo pausa com 5 minutos, e a navegação marca Foco', async ({ page }) => {
   await page.goto('/');
   await openBreak(page);
   await expect(page.getByText('PAUSA · SESSÃO LOCAL')).toBeVisible();
   await expect(page.getByText('05:00')).toBeVisible();
   await expect(page.getByRole('button', { name: '5m', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(dock(page).getByRole('button', { name: 'Foco', exact: true })).toHaveAttribute('aria-current', 'page');
+  // A sessão de foco não mora em nenhum destino: a barra não marca nenhum, e o "Mais" mostra Foco como atual.
+  await expect(dock(page).locator('[aria-current="page"]')).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Onde você está' })).toContainText('Meu espaço / Foco');
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Foco', exact: true })).toHaveAccessibleDescription('atual');
+  await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: 'Voltar ao foco' }).click();
   await expect(page.getByText('25:00')).toBeVisible();
@@ -53,7 +58,8 @@ test('terminar uma sessão de foco registra exatamente um focus-complete', async
   await page.clock.install();
   await page.goto('/');
   await expect(dock(page)).toBeVisible();
-  await dock(page).getByRole('button', { name: 'Foco', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
   await page.getByRole('button', { name: 'Start focus' }).click();
 
   await page.clock.runFor(25 * 60 * 1000 + 1000);
@@ -69,13 +75,14 @@ test('terminar uma sessão de foco registra exatamente um focus-complete', async
   expect(actions).not.toContain('break-complete');
 });
 
-test('clicar em Foco no dock durante a pausa não descarta a pausa', async ({ page }) => {
+test('escolher Foco no menu durante a pausa não descarta a pausa', async ({ page }) => {
   await page.goto('/');
   await openBreak(page);
   await page.getByRole('button', { name: 'Começar pausa' }).click();
   await expect(page.getByRole('button', { name: 'Encerrar pausa' })).toBeVisible();
 
-  await dock(page).getByRole('button', { name: 'Foco', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
 
   await expect(page.getByRole('button', { name: 'Encerrar pausa' })).toBeVisible();
   await expect(page.getByText('PAUSA · SESSÃO LOCAL')).toBeVisible();

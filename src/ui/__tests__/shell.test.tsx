@@ -3,62 +3,93 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { LocaleProvider } from '../../i18n/LocaleProvider'
 import { AppShell } from '../shell/AppShell'
-import { Dock, DockMoreMenu } from '../shell/Dock'
-import { dockKeyFor, DOCK_ITEMS, MORE_ITEMS, nextFocusIndex, sectionLabelKey } from '../shell/routes'
+import { breadcrumbFor, DESTINATIONS, destinationFor, MORE_ITEMS, nextFocusIndex, sectionLabelKey, type NavKey } from '../shell/routes'
 import { cssBlock } from './css-block'
 
 const noop = () => undefined
+const shell = (active: NavKey) => renderToStaticMarkup(<AppShell active={active} onNavigate={noop} onOpenCommands={noop}><p>conteúdo</p></AppShell>)
+// Os botões marcados como a página atual, pelo texto de cada um.
+const current = (markup: string) => [...markup.matchAll(/<button[^>]*aria-current="page"[^>]*>(.*?)<\/button>/g)].map((match) => match[1]!.replace(/<[^>]+>/g, ''))
 
 describe('shell', () => {
-  it('mostra os cinco itens do dock, o botão de mais e o atalho de comandos', () => {
-    const markup = renderToStaticMarkup(<Dock active="home" onNavigate={noop} onOpenCommands={noop} />)
-    for (const label of ['Home', 'Tarefas', 'Agenda', 'Foco', 'Taby']) expect(markup).toContain(`>${label}</button>`)
-    expect(markup).toContain('aria-label="Mais seções"')
+  it('mostra os cinco destinos na ordem do plano, a busca de comandos, o Mais e Ajustes', () => {
+    const markup = shell('home')
+    const labels = [...markup.matchAll(/<li><button[^>]*>.*?<span class="leading-none">([^<]+)<\/span>/g)].map((match) => match[1])
+    // A barra larga e o menu compacto listam os mesmos destinos.
+    expect(labels).toEqual(['Hoje', 'Agenda', 'Tarefas', 'Notas', 'Taby'])
+    expect(markup).toContain('aria-label="Navegação principal"')
     expect(markup).toContain('aria-label="Comandos"')
-    expect(markup).toContain('aria-current="page"')
+    expect(markup).toContain('aria-label="Mais seções"')
+    expect(markup).toMatch(/<button[^>]*>.*?Ajustes<\/button>/)
+    expect(current(markup)).toEqual(['Hoje', 'Hoje'])
   })
 
-  it('lista o restante das seções no menu de mais', () => {
-    const markup = renderToStaticMarkup(<DockMoreMenu active="settings" onSelect={noop} />)
-    for (const label of ['Lembretes', 'Notas', 'Hábitos', 'Metas', 'Revisão', 'Estatísticas', 'Ajustes', 'Ajuda', 'Eventos', 'Feedback', 'Atualizações', 'Hardware']) expect(markup).toContain(label)
-    expect(markup).toContain('role="menuitem"')
-    expect(markup).toMatch(/aria-current="page"[^>]*>Ajustes</)
-  })
-
-  it('traduz o dock ao vivo pelo provedor de locale', () => {
-    const markup = renderToStaticMarkup(<LocaleProvider initialLanguage="en"><Dock active="tasks" onNavigate={noop} onOpenCommands={noop} /></LocaleProvider>)
-    expect(markup).toContain('>Tasks</button>')
+  it('traduz a barra ao vivo pelo provedor de locale', () => {
+    const markup = renderToStaticMarkup(<LocaleProvider initialLanguage="en"><AppShell active="tasks" onNavigate={noop} onOpenCommands={noop}><p /></AppShell></LocaleProvider>)
+    expect(markup).toContain('>Today</span>')
     expect(markup).toContain('aria-label="More sections"')
+    expect(markup).toMatch(/Settings<\/button>/)
+    expect(current(markup)).toEqual(['Tasks', 'Tasks'])
   })
 
-  it('agrupa dia, semana e agenda no mesmo item do dock', () => {
-    expect(dockKeyFor('day')).toBe('agenda')
-    expect(dockKeyFor('week')).toBe('agenda')
-    expect(dockKeyFor('agenda')).toBe('agenda')
-    expect(dockKeyFor('settings')).toBe('settings')
+  it('marca o destino onde a rota mora e mostra a trilha até ela', () => {
+    const reminders = shell('reminders')
+    expect(current(reminders)).toEqual(['Tarefas', 'Tarefas'])
+    expect(reminders).toMatch(/Meu espaço<\/li>.*Tarefas<\/li>.*<strong aria-current="page"[^>]*>Lembretes<\/strong>/)
+
+    const help = shell('help')
+    expect(current(help)).toEqual(['Ajustes', 'Ajustes'])
+    expect(help).toMatch(/Ajustes<\/li>.*>Ajuda<\/strong>/)
+  })
+
+  it('não marca destino nenhum na sessão de foco, e o menu compacto diz onde a pessoa está', () => {
+    for (const route of ['focus', 'break'] as const) {
+      const markup = shell(route)
+      expect(current(markup)).toEqual([])
+      expect(markup).toContain('aria-label="Foco, mudar de seção"')
+    }
+  })
+
+  it('embrulha o conteúdo com a faixa do topo e deixa o menu compacto fora do Tab enquanto fechado', () => {
+    const markup = shell('week')
+    expect(markup).toContain('<main class="shell-content"><p>conteúdo</p></main>')
+    expect(markup).toMatch(/<strong aria-current="page"[^>]*>Agenda<\/strong>/)
+    expect(markup).toMatch(/<div data-notch-drawer="" inert=""/)
+    // A moldura e o conteúdo das telas atuais ficam fora de `.hibi-ui`; a barra vem depois do conteúdo na
+    // árvore, porque o Chromium monta as regiões de arrastar a janela nessa ordem (ver notch.css).
+    expect(markup.indexOf('notch-frame')).toBeLessThan(markup.indexOf('hibi-ui'))
+    expect(markup.indexOf('class="hibi-ui notch-layer')).toBeGreaterThan(markup.indexOf('</main>'))
+  })
+
+  it('resolve cada rota antiga para o lugar dela na nova arquitetura (seção 3.1 do plano)', () => {
+    const places: Record<NavKey, ReturnType<typeof destinationFor>> = {
+      home: 'home', habits: 'home', goals: 'home', stats: 'home', review: 'home',
+      agenda: 'agenda', day: 'agenda', week: 'agenda',
+      tasks: 'tasks', reminders: 'tasks',
+      notes: 'notes', taby: 'taby',
+      focus: null, break: null,
+      settings: 'settings', help: 'settings', feedback: 'settings', instrumentation: 'settings', updates: 'settings', hardware: 'settings',
+    }
+    for (const [route, place] of Object.entries(places)) expect(destinationFor(route as NavKey), route).toBe(place)
+  })
+
+  it('deixa toda rota alcançável: pela barra, pelo Mais ou pelo botão de Ajustes', () => {
+    expect(DESTINATIONS.map((item) => item.key)).toEqual(['home', 'agenda', 'tasks', 'notes', 'taby'])
+    expect(MORE_ITEMS.map((item) => item.key)).toEqual(['focus', 'reminders', 'habits', 'goals', 'review', 'stats', 'help', 'instrumentation', 'feedback', 'updates', 'hardware'])
+    const reachable = new Set<NavKey>([...DESTINATIONS.map((item) => item.key), ...MORE_ITEMS.map((item) => item.key), 'settings'])
+    // Dia e Semana são modos da Agenda; a pausa é um modo do Foco.
+    for (const route of Object.keys({ home: 0, tasks: 0, agenda: 0, focus: 0, taby: 0, notes: 0, reminders: 0, habits: 0, goals: 0, review: 0, stats: 0, settings: 0, help: 0, feedback: 0, instrumentation: 0, updates: 0, hardware: 0 }) as NavKey[]) expect(reachable.has(route), route).toBe(true)
+  })
+
+  it('dá a cada rota a trilha e o nome de seção certos', () => {
+    expect(breadcrumbFor('home')).toEqual(['redesign.nav.today'])
+    expect(breadcrumbFor('habits')).toEqual(['redesign.nav.today', 'nav.habits'])
+    expect(breadcrumbFor('day')).toEqual(['nav.agenda'])
+    expect(breadcrumbFor('settings')).toEqual(['nav.settings'])
+    expect(breadcrumbFor('updates')).toEqual(['nav.settings', 'nav.updates'])
+    expect(breadcrumbFor('break')).toEqual(['nav.focus'])
     expect(sectionLabelKey('week')).toBe('nav.agenda')
     expect(sectionLabelKey('instrumentation')).toBe('nav.instrumentation')
-    expect(sectionLabelKey('stats')).toBe('nav.stats')
-    expect(DOCK_ITEMS.map((item) => item.key)).toEqual(['home', 'tasks', 'agenda', 'focus', 'taby'])
-    expect(MORE_ITEMS).toHaveLength(12)
-    expect(MORE_ITEMS.map((item) => item.key)).toContain('stats')
-    // /stats abre uma página dedicada, logo em seguida de Revisão no menu.
-    const reviewIndex = MORE_ITEMS.findIndex((item) => item.key === 'review')
-    expect(MORE_ITEMS[reviewIndex + 1]).toEqual({ key: 'stats', label: 'nav.stats' })
-  })
-
-  it('agrupa a pausa no item Foco do dock', () => {
-    expect(dockKeyFor('break')).toBe('focus')
-    expect(sectionLabelKey('break')).toBe('nav.focus')
-    const markup = renderToStaticMarkup(<Dock active="break" onNavigate={noop} onOpenCommands={noop} />)
-    expect(markup).toMatch(/aria-current="page"[^>]*>Foco</)
-  })
-
-  it('envolve o conteúdo com a faixa do topo e a seção atual', () => {
-    const markup = renderToStaticMarkup(<AppShell active="week" onNavigate={noop} onOpenCommands={noop}><p>conteúdo</p></AppShell>)
-    expect(markup).toContain('HIBI')
-    expect(markup).toContain('>Agenda</span>')
-    expect(markup).toContain('<main class="shell-content"><p>conteúdo</p></main>')
   })
 
   it('mantém a ilha clara legada (.legacy-surface) honesta com os tokens claros reais', () => {

@@ -1,11 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const dock = (page: Page) => page.locator('.dock');
+const nav = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
 
 async function openSettings(page: Page) {
   await page.goto('/');
-  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
-  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
+  await nav(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
 }
 
 test('os quatro tons do preview aparecem, e o escolhido é aplicado e guardado', async ({ page }) => {

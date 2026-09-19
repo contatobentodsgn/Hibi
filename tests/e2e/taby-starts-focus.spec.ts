@@ -33,7 +33,8 @@ test('abrir a tela de Foco depois, sem pedido, não inicia nada sozinho', async 
   await page.getByRole('button', { name: 'Pause session' }).click();
 
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
-  await page.getByRole('button', { name: 'Foco', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
 
   // O pedido já foi atendido: voltar à tela não pode reiniciar a sessão. A espera dá tempo a um
   // início automático aparecer, se ele fosse acontecer.

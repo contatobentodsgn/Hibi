@@ -1,0 +1,36 @@
+/*
+ * O que a barra de navegação (U03) precisa além das classes do Tailwind. Em camada, como toda regra da nova
+ * UI (regra 2 do plano): dentro de `.hibi-ui`, uma regra sem camada seria descartada.
+ */
+@layer components {
+  /* A camada da barra cobre a superfície inteira sem tirar o ponteiro do conteúdo por baixo: só os notches
+     e o que o HeroUI desenha a partir deles (o menu "Mais" e as dicas) recebem clique. */
+  .notch-layer .notch-part,
+  .notch-layer > [data-hibi-portal] { pointer-events: auto; }
+
+  /*
+   * macOS: a janela se arrasta pela faixa do topo (a banda da barra e a borda de cima da moldura), nunca
+   * pelos botões nem pelo conteúdo. O Chromium monta as regiões na ordem da árvore, uma por caixa marcada,
+   * e a mais recente vence; o valor é herdado, e qualquer valor explícito (até `none`) vira `no-drag`
+   * (`LocalFrameView::CollectDraggableRegions` e `WindowDrag::ApplyValue`). Então:
+   * - nada acima da barra declara região: a moldura, a superfície e o conteúdo não emitem nenhuma;
+   * - a faixa vem depois do conteúdo na árvore, e os notches e os menus deles vêm depois da faixa;
+   * - o fundo do menu compacto só marca `no-drag` aberto, para o clique fora fechar o menu.
+   * Um modal das telas atuais que alcance a faixa continua arrastando a janela ali, como no shell antigo.
+   */
+  .notch-drag-region { -webkit-app-region: drag; }
+  .notch-layer .notch-part,
+  .notch-backdrop[data-open="true"],
+  .notch-layer > [data-hibi-portal] { -webkit-app-region: no-drag; }
+
+  /* A área de trabalho ocupa a altura visível inteira: a faixa do topo em cima e o conteúdo embaixo. A
+     barra de rolagem é a fina do preview (`* { scrollbar-width: thin }`), sem trilho. */
+  .notch-viewport { scrollbar-width: thin; scrollbar-color: var(--hibi-scrollbar) transparent; }
+  .notch-viewport > .shell-page { display: flex; flex-direction: column; min-height: 100%; }
+}
+
+/* Com a barra embaixo, a faixa do topo deixa espaço para os botões de fechar, minimizar e ampliar do macOS,
+   que ficam no canto de cima. Na camada dos utilitários, porque vence o `px-[42px]` da faixa. */
+@layer utilities {
+  .notch-frame[data-position="bottom"] .hibi-topbar { padding-left: 84px; }
+}

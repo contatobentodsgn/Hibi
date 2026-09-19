@@ -142,8 +142,7 @@ test('pelo atalho no modo janela, o Taby abre já ouvindo', async ({ page }) => 
 test('os ajustes de voz ficam em Configurações, junto do atalho', async ({ page }) => {
   await installVoice(page, { shortcutVoice: 'off', spokenReplies: false });
   await page.goto('/');
-  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
-  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
 
   await page.getByLabel('Voz pelo atalho').selectOption('notch');
   await page.getByLabel('Ler em voz alta as respostas de pedidos feitos por voz').check();

@@ -320,7 +320,9 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 820, minWidth: 960, minHeight: 620,
     title: "Hibi", backgroundColor: "#f3f2ef",
-    titleBarStyle: "hiddenInset", trafficLightPosition: { x: 14, y: 12 },
+    // Os botões do macOS (14 px) ficam dentro da superfície arredondada, a 12 px da moldura de 8 px, e no
+    // eixo dos itens da barra de navegação do topo (8 px de moldura + metade dos 36 px do item = 26).
+    titleBarStyle: "hiddenInset", trafficLightPosition: { x: 20, y: 19 },
     webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   mainWindow.webContents.on("will-navigate", (event, url) => {

@@ -36,6 +36,25 @@
 @import "@heroui/styles/utilities";
 @import "@heroui/styles/variants";
 
+/*
+ * O tema do Hibi é um só e mora na raiz: o `ThemeProvider` grava `data-theme` já resolvido, inclusive quando a
+ * preferência é "Sistema". A variante `dark` do HeroUI tem ainda uma reserva pela preferência do macOS
+ * (`@media (prefers-color-scheme: dark)`), que no Hibi contradiz a escolha da pessoa; e o seletor dela
+ * (`&:not(...) &`) casa com qualquer elemento dentro de outro com a mesma classe. Com o macOS no escuro e o Hibi
+ * no claro, o notch da barra (U03) ficava cinza sobre a moldura preta. Aqui, `dark:` segue só o `data-theme`,
+ * com o mesmo seletor explícito do HeroUI.
+ */
+@custom-variant dark {
+  &:is(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+
+    &::before,
+    &::after {
+      @slot;
+    }
+  }
+}
+
 @layer base {
   /*
    * O HeroUI conta que o contêiner dê a cor do texto e o esquema de cores; sem isso, a UI nova herdava a

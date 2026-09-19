@@ -16,11 +16,12 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 
 | Unidade | Estado | PR | Observações para a revisão |
 | --- | --- | --- | --- |
-| U00 | Concluída (Codex) | #165, #166 | Faltou medir o desempenho da UI atual; o Claude mediu no #166 (`docs/redesign/performance-baseline.md`). Capturas do app atual e matriz por ação ainda são lacunas: a primeira fica para a U03, a segunda para cada tela. |
+| U00 | Concluída (Codex) | #165, #166 | Faltou medir o desempenho da UI atual; o Claude mediu no #166 (`docs/redesign/performance-baseline.md`). As capturas do app atual foram feitas na U03 (`docs/redesign/u03-assets/antes/`, as 17 telas nos dois temas); a matriz por ação fica para cada tela. |
 | U01 | Concluída (Claude) | #167 | HeroUI 3.2.6, Tailwind 4.3.3, Motion 12.43.0, Lucide 0.577.0. Integração isolada das telas atuais; guia em `docs/redesign/u01-foundation.md`. |
 | U02 | Concluída (Claude) | #168 | Tokens do preview em `src/ui/redesign/theme.css`, `HibiUiRoot`, galeria só em desenvolvimento (`?overlay=ui-gallery`), reset do Tailwind restrito à nova UI e tema aplicado antes do primeiro desenho. |
-| U02b | Em revisão (Claude) | este PR | Correção de fidelidade ao preview, pedida pelo usuário depois de uma auditoria contra o código e as capturas dele: ação principal escura, os quatro tons do preview, etiquetas pastéis, "Mais contraste", "Reduzir movimento", fonte do sistema, respiro do cartão e Ajustes conciliados com o preview. Comparação lado a lado em `docs/redesign/u02b-assets/`. |
-| U03–U28 | Pendentes | — | A U03 é a próxima. |
+| U02b | Concluída (Claude) | #169 | Correção de fidelidade ao preview, pedida pelo usuário depois de uma auditoria contra o código e as capturas dele: ação principal escura, os quatro tons do preview, etiquetas pastéis, "Mais contraste", "Reduzir movimento", fonte do sistema, respiro do cartão e Ajustes conciliados com o preview. Comparação lado a lado em `docs/redesign/u02b-assets/`. |
+| U03 | Em revisão (Claude) | este PR | A Adaptive Notch Navigation substituiu o dock: Hoje · Agenda · Tarefas · Notas · Taby na barra, e Comandos, "Mais" (provisório) e Ajustes no notch da direita. O notch confere pixel a pixel com o preview (claro em cima e embaixo, escuro contra o preview assentado, em 1x e Retina), sem emendas em larguras ímpares. Achou e corrigiu dois defeitos da base (ordem das camadas e variante `dark` do HeroUI). Comparações, capturas da janela real e da UI antiga em `docs/redesign/u03-assets/`. Duas pendências para a U04, abaixo. |
+| U04–U28 | Pendentes | — | A U04 é a próxima. |
 
 **Decisões registradas durante a execução:**
 - **Licença do componente da navegação** (`adaptive-notch-navigation-bar.tsx`): o usuário o desenvolveu no Codex, a partir de um prompt. É obra do projeto, sem licença de terceiros a conferir, e está liberado para a U03.
@@ -37,6 +38,21 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
   - valem na nova UI (os valores do preview) e nas telas atuais.
 - **Fonte:** a nova UI usa a fonte do sistema, como o preview. A Inter das telas atuais vazava pelo `--default-font-family` do reset do Tailwind, e só a comparação lado a lado mostrou isso.
 
+**Decisões da U03 (navegação oficial):**
+- **Semântica de navegação, não de abas:** `nav` com `aria-current="page"` no destino atual; setas, Home e End percorrem a barra; no modo compacto, a lista fechada sai do Tab (`inert`), abrir leva o foco ao destino atual, escolher ou Escape devolvem o foco ao botão.
+- **O texto da barra é o que o preview mostra, não o que o código dele declara.** O CSS global do preview (`button { font: inherit; color: inherit }`, sem camada) vence os utilitários do componente: nas capturas aprovadas, todos os itens ficam no branco da barra, com peso normal. A pílula e o ícone marcam o destino atual. O Hibi reproduz esse resultado.
+- **Ajustes, Comandos e "Mais" no notch da direita**, o espaço de ações do componente (`rightContent`, com o `.notch-action` do preview). O "Mais" é provisório: guarda Foco, Lembretes, Hábitos, Metas, Revisão, Estatísticas, Ajuda, Eventos, Feedback, Atualizações e Hardware até a U19 dar os acessos pelo contexto. Foco saiu da barra, porque na nova arquitetura é uma sessão aberta a partir de Hoje e das tarefas.
+- **Um lugar marcado por vez:** o destino onde a rota mora (Lembretes marca Tarefas; Hábitos, Metas, Revisão e Estatísticas marcam Hoje), Ajustes para Ajuda, Feedback, Eventos, Atualizações e Hardware, e o "Mais" durante a sessão de foco. A trilha do topo do preview mostra o caminho: "Meu espaço / Tarefas / Lembretes". `routes.ts` resolve toda rota antiga (`destinationFor`), e o tipo obriga cada uma a ter lugar.
+- **"Hoje" em vez de "Home":** chave nova `redesign.nav.today`; `nav.home` continua até a U28.
+- **Modo compacto abaixo de 1280 px**, o ponto do preview. Na janela do app (mínimo de 960 px), ele aparece entre 960 e 1279 px, com as ações na própria ilha.
+- **Botões do macOS dentro da moldura:** fechar, minimizar e ampliar passaram de (14, 12) para (20, 19): antes cortavam a quina da moldura; agora ficam na superfície, no eixo dos itens da barra.
+- **Barra de rolagem fina e sem trilho**, como a do preview (`--hibi-scrollbar`).
+- **Capturas escuras do preview:** `notch-dark-top.png` foi tirada no meio da transição de cor de 200 ms. A comparação escura usa o preview congelado servido de novo, que confere pixel a pixel com as capturas claras e a móvel.
+
+**Pendências para a U04 (decisão de produto):**
+- **Mascote do notch × barra no topo.** A janela nativa do mascote fica no centro do topo da tela e cobre o meio da barra quando a janela do Hibi encosta no topo (em tela cheia, sempre): Agenda e Tarefas somem atrás do gato (`docs/redesign/u03-assets/app-real-tela-cheia-mascote.png`). Caminhos: (a) com o mascote ligado, a barra vai para baixo; (b) o mascote se recolhe enquanto a janela do Hibi o cobre; (c) a barra deixa um vão sob o mascote. Digitar e enviar no Taby continua movendo o mascote (`mascote-ao-digitar-no-taby.png`).
+- **Tema escuro com a barra embaixo:** até as telas migrarem, o notch claro fica sobre a ilha clara das telas atuais e quase some.
+
 **Regras que valem para todas as próximas unidades** (nascidas na U01 e na U02 e seguradas por `tests/e2e/heroui-foundation.spec.ts`):
 1. Toda superfície nova é montada dentro de `HibiUiRoot` (`src/ui/redesign/components/HibiUiRoot.tsx`), que cria o contêiner `.hibi-ui` e desenha popovers, menus e diálogos dentro dele.
 2. **Todo CSS da nova UI vai em camada** (`@layer theme`, `components` ou `utilities`). Dentro de `.hibi-ui`, cada elemento descarta o CSS sem camada (`all: revert-layer`), porque é assim que o CSS das telas atuais fica de fora. Uma regra nova sem camada seria descartada do mesmo jeito. Estilo em linha continua valendo.
@@ -45,7 +61,12 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 5. Cores só pelos tokens `--hibi-*` e pelas variáveis do HeroUI já mapeadas em `theme.css`; nada de hexadecimal solto numa tela.
 6. **Toda unidade visual compara lado a lado com as capturas do preview antes do PR** (`preview-web/.impeccable/review/*.png`, com os hashes do `reference-manifest.md`) e anexa a comparação em `docs/redesign/<unidade>-assets/`. Conferir valores de CSS não basta: foi a comparação que achou a ação principal roxa, as etiquetas erradas e a fonte trocada.
 7. A ação principal é o botão escuro (`variant="primary"`); o acento não pinta botões. Etiqueta do preview é `HibiTag`; `Chip` é só para estado.
-8. Com "Reduzir movimento" (do Hibi ou do sistema), nenhuma animação da nova UI dura mais que um instante. Hoje a regra global das telas atuais (`motion.css`) também cobre a nova UI; na U28, ao remover `motion.css`, a regra de `theme.css` passa a ser a única, e o e2e continua valendo.
+8. Com "Reduzir movimento" (do Hibi ou do sistema), nenhuma animação da nova UI dura mais que um instante. Hoje a regra global das telas atuais (`motion.css`) também cobre a nova UI; na U28, ao remover `motion.css`, a regra de `theme.css` passa a ser a única, e o e2e continua valendo. Desde a U03, `HibiUiRoot` leva a preferência também ao Motion (`MotionConfig`), cujas animações rodam em JavaScript.
+9. **`heroui.css` é o primeiro import de `src/main.tsx`** (U03). A primeira menção a uma camada fixa a ordem, e o CSS de um componente entra quando o módulo dele é avaliado; com outro CSS em camada antes, o reset passa por cima dos utilitários.
+10. **`dark:` segue só o `data-theme` da raiz** (U03). A variante do HeroUI caía na preferência do macOS e casava com elementos aninhados na mesma classe; `heroui.css` a redefine.
+11. **As primitivas `--hibi-*` ficam na raiz** (U03); as variáveis que o HeroUI lê, só dentro de `.hibi-ui`.
+12. **Janela do macOS:** nada acima da barra declara `-webkit-app-region`. O Chromium monta as regiões na ordem da árvore e herda o valor, e até `none` vira `no-drag`. A faixa do topo arrasta; botões, conteúdo e menus, não.
+13. **As telas atuais ficam fora de `.hibi-ui`** dentro do shell; cada tela reconstruída monta a própria `HibiUiRoot`. A prévia do shell sem as telas é `?overlay=ui-navigation`, só no desenvolvimento.
 
 ## 1. Estado deste documento e evidências
 
@@ -347,13 +368,13 @@ Paralelismo útil depois de U05: Tarefas/Lembretes, Agenda, Notas e Taby podem s
 **Modificar:** `AppShell.tsx`, `routes.ts`, `shell.css`; montagem no App apenas se exigida.
 **Verificar:** `tests/e2e/redesign-navigation.spec.ts` e teste de resolução de rotas.
 
-- [ ] Portar componente e SVG aprovados, preservando proporção entre borda, asas e raios.
-- [ ] Conectar ids do componente aos `NavKey` existentes; não copiar hashes/dados demonstrativos do preview para a lógica de produção.
-- [ ] Manter comandos e Ajustes acessíveis; providenciar acessos contextuais antes de retirar entradas antigas.
-- [ ] Tratar geometria superior e inferior desde o componente, com superior como padrão inicial.
-- [ ] Implementar modo compacto, teclado, item ativo e retorno de foco.
-- [ ] Conferir regiões de arraste, controles do macOS, tela cheia, rolagem e ausência de sobreposição com conteúdo.
-- [ ] Comparar capturas ampliadas das quinas nos quatro modos. Observar emendas de 1 px em escala Retina e durante resize.
+- [x] Portar componente e SVG aprovados, preservando proporção entre borda, asas e raios.
+- [x] Conectar ids do componente aos `NavKey` existentes; não copiar hashes/dados demonstrativos do preview para a lógica de produção.
+- [x] Manter comandos e Ajustes acessíveis; providenciar acessos contextuais antes de retirar entradas antigas.
+- [x] Tratar geometria superior e inferior desde o componente, com superior como padrão inicial.
+- [x] Implementar modo compacto, teclado, item ativo e retorno de foco.
+- [x] Conferir regiões de arraste, controles do macOS, tela cheia, rolagem e ausência de sobreposição com conteúdo.
+- [x] Comparar capturas ampliadas das quinas nos quatro modos. Observar emendas de 1 px em escala Retina e durante resize.
 
 **Aceite:** todos os destinos abrem a tela real; nenhuma rota fica órfã; moldura e quinas correspondem à referência. Digitar/enviar no Taby mantém o mascote funcionando.
 

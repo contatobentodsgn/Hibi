@@ -1,5 +1,7 @@
 import { useState, type HTMLAttributes, type ReactNode } from 'react';
+import { MotionConfig } from 'motion/react';
 import { UNSAFE_PortalProvider } from 'react-aria';
+import { useThemePreference } from '../../theme-context';
 
 type HibiUiRootProps = Readonly<{ children: ReactNode }> & Omit<HTMLAttributes<HTMLDivElement>, 'children'>;
 
@@ -10,12 +12,18 @@ type HibiUiRootProps = Readonly<{ children: ReactNode }> & Omit<HTMLAttributes<H
  *
  * A raiz não pode cortar nem transformar o que tem dentro (`overflow: hidden`, `transform`): os diálogos
  * usam posição fixa em relação à janela e seriam recortados.
+ *
+ * O CSS zera as transições com "Reduzir movimento" (regra 8 do plano), mas as animações do Motion rodam em
+ * JavaScript: o `MotionConfig` as desliga pela preferência do Hibi e segue a do sistema no resto do tempo.
  */
 export function HibiUiRoot({ children, className, ...rest }: HibiUiRootProps) {
   const [portal, setPortal] = useState<HTMLElement | null>(null);
+  const { motion } = useThemePreference();
   return (
     <div {...rest} className={className ? `hibi-ui ${className}` : 'hibi-ui'}>
-      <UNSAFE_PortalProvider getContainer={() => portal ?? document.body}>{children}</UNSAFE_PortalProvider>
+      <MotionConfig reducedMotion={motion === 'reduce' ? 'always' : 'user'}>
+        <UNSAFE_PortalProvider getContainer={() => portal ?? document.body}>{children}</UNSAFE_PortalProvider>
+      </MotionConfig>
       <div ref={setPortal} data-hibi-portal="" />
     </div>
   );
