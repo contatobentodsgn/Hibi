@@ -3,13 +3,13 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { LocaleProvider } from '../../i18n/LocaleProvider'
 import { AppShell } from '../shell/AppShell'
-import { breadcrumbFor, DESTINATIONS, destinationFor, MORE_ITEMS, nextFocusIndex, sectionLabelKey, type NavKey } from '../shell/routes'
+import { ariaCurrentFor, breadcrumbFor, DESTINATIONS, destinationFor, MORE_ITEMS, nextFocusIndex, sectionLabelKey, type NavKey } from '../shell/routes'
 import { cssBlock } from './css-block'
 
 const noop = () => undefined
 const shell = (active: NavKey) => renderToStaticMarkup(<AppShell active={active} onNavigate={noop} onOpenCommands={noop}><p>conteúdo</p></AppShell>)
-// Os botões marcados como a página atual, pelo texto de cada um.
-const current = (markup: string) => [...markup.matchAll(/<button[^>]*aria-current="page"[^>]*>(.*?)<\/button>/g)].map((match) => match[1]!.replace(/<[^>]+>/g, ''))
+// Os botões marcados como a página atual (ou, com `true`, como a seção onde ela mora), pelo texto de cada um.
+const current = (markup: string, value: 'page' | 'true' = 'page') => [...markup.matchAll(new RegExp(`<button[^>]*aria-current="${value}"[^>]*>(.*?)</button>`, 'g'))].map((match) => match[1]!.replace(/<[^>]+>/g, ''))
 
 describe('shell', () => {
   it('mostra os cinco destinos na ordem do plano, a busca de comandos, o Mais e Ajustes', () => {
@@ -32,14 +32,21 @@ describe('shell', () => {
     expect(current(markup)).toEqual(['Tasks', 'Tasks'])
   })
 
-  it('marca o destino onde a rota mora e mostra a trilha até ela', () => {
+  it('marca o destino onde a rota mora como a seção, e a trilha marca a página', () => {
     const reminders = shell('reminders')
-    expect(current(reminders)).toEqual(['Tarefas', 'Tarefas'])
+    expect(current(reminders, 'true')).toEqual(['Tarefas', 'Tarefas'])
+    expect(current(reminders)).toEqual([])
     expect(reminders).toMatch(/Meu espaço<\/li>.*Tarefas<\/li>.*<strong aria-current="page"[^>]*>Lembretes<\/strong>/)
 
     const help = shell('help')
-    expect(current(help)).toEqual(['Ajustes', 'Ajustes'])
+    expect(current(help, 'true')).toEqual(['Ajustes', 'Ajustes'])
+    expect(current(help)).toEqual([])
     expect(help).toMatch(/Ajustes<\/li>.*>Ajuda<\/strong>/)
+
+    // Na própria página do destino (ou de Ajustes), a barra marca a página.
+    expect(current(shell('settings'))).toEqual(['Ajustes', 'Ajustes'])
+    expect(current(shell('week'))).toEqual(['Agenda', 'Agenda'])
+    expect(current(shell('week'), 'true')).toEqual([])
   })
 
   it('não marca destino nenhum na sessão de foco, e o menu compacto diz onde a pessoa está', () => {
@@ -55,10 +62,11 @@ describe('shell', () => {
     expect(markup).toContain('<main class="shell-content"><p>conteúdo</p></main>')
     expect(markup).toMatch(/<strong aria-current="page"[^>]*>Agenda<\/strong>/)
     expect(markup).toMatch(/<div data-notch-drawer="" inert=""/)
-    // A moldura e o conteúdo das telas atuais ficam fora de `.hibi-ui`; a barra vem depois do conteúdo na
-    // árvore, porque o Chromium monta as regiões de arrastar a janela nessa ordem (ver notch.css).
+    // A moldura e o conteúdo das telas atuais ficam fora de `.hibi-ui`; a barra vem antes do conteúdo na
+    // árvore, como no preview, e o Tab chega aos destinos antes da tela.
     expect(markup.indexOf('notch-frame')).toBeLessThan(markup.indexOf('hibi-ui'))
-    expect(markup.indexOf('class="hibi-ui notch-layer')).toBeGreaterThan(markup.indexOf('</main>'))
+    expect(markup.indexOf('class="hibi-ui notch-layer')).toBeLessThan(markup.indexOf('<main'))
+    expect(markup.indexOf('class="hibi-ui notch-layer')).toBeLessThan(markup.indexOf('class="notch-viewport'))
   })
 
   it('resolve cada rota antiga para o lugar dela na nova arquitetura (seção 3.1 do plano)', () => {
@@ -79,6 +87,11 @@ describe('shell', () => {
     const reachable = new Set<NavKey>([...DESTINATIONS.map((item) => item.key), ...MORE_ITEMS.map((item) => item.key), 'settings'])
     // Dia e Semana são modos da Agenda; a pausa é um modo do Foco.
     for (const route of Object.keys({ home: 0, tasks: 0, agenda: 0, focus: 0, taby: 0, notes: 0, reminders: 0, habits: 0, goals: 0, review: 0, stats: 0, settings: 0, help: 0, feedback: 0, instrumentation: 0, updates: 0, hardware: 0 }) as NavKey[]) expect(reachable.has(route), route).toBe(true)
+  })
+
+  it('marca a própria página do lugar como página, e uma tela dentro dele como a seção', () => {
+    for (const route of ['home', 'agenda', 'day', 'week', 'tasks', 'notes', 'taby', 'settings'] as const) expect(ariaCurrentFor(route), route).toBe('page')
+    for (const route of ['habits', 'goals', 'stats', 'review', 'reminders', 'help', 'feedback', 'instrumentation', 'updates', 'hardware'] as const) expect(ariaCurrentFor(route), route).toBe('true')
   })
 
   it('dá a cada rota a trilha e o nome de seção certos', () => {

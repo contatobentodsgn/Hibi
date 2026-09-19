@@ -74,6 +74,12 @@ export function breadcrumbFor(route: NavKey): DictionaryKey[] {
   return parent && parent !== section ? [parent, section] : [section]
 }
 
+/**
+ * Como a barra marca o lugar da rota (`aria-current`): `page` quando a rota é a própria página do destino (ou
+ * de Ajustes), `true` quando é uma tela dentro dele. Em Hábitos, "Hoje" é a seção; a página é a da trilha.
+ */
+export const ariaCurrentFor = (route: NavKey): 'page' | 'true' => (breadcrumbFor(route).length === 1 ? 'page' : 'true')
+
 export type FocusMoveKey = 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown' | 'Home' | 'End'
 
 // Aritmética pura de foco em lista circular, usada pela barra (setas esquerda/direita) e pelo menu compacto

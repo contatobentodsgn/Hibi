@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ComponentType, KeyboardEvent, ReactNode } from 'react';
 import { LayoutGroup, motion } from 'motion/react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { HibiUiRoot } from '../redesign/components/HibiUiRoot';
+import { useThemePreference } from '../theme-context';
 import { nextFocusIndex } from './routes';
 
 /*
@@ -12,17 +13,22 @@ import { nextFocusIndex } from './routes';
  * desenvolvida pelo usuário no Codex. As asas SVG, as classes e as medidas são as do arquivo original.
  *
  * O que mudou, e por quê:
- * - Semântica de navegação: `nav` com `aria-current="page"` no lugar de `tablist`/`tab`, porque cada destino
- *   troca a tela inteira (seção 4.2 do plano). O menu compacto é uma lista que abre e fecha; fechada, sai da
- *   ordem do Tab (`inert`).
+ * - Semântica de navegação: `nav` com `aria-current` no lugar de `tablist`/`tab`, porque cada destino troca a
+ *   tela inteira (seção 4.2 do plano): `page` quando o destino é a tela aberta, `true` quando é a seção onde
+ *   ela mora. O menu compacto é uma lista que abre e fecha; fechada, sai da ordem do Tab (`inert`), e qualquer
+ *   navegação o fecha.
  * - Setas, Home e End movem o foco entre os botões da barra, como no dock antigo; Escape fecha o menu
  *   compacto e devolve o foco ao botão que o abriu.
  * - Camadas: a moldura e a superfície ficam fora de `.hibi-ui`, porque o conteúdo das telas atuais mora
  *   dentro delas e perderia o próprio CSS lá dentro. Só a barra fica em `HibiUiRoot`, numa camada com
  *   `z-index: 4` (o dock antigo usava 4 e os modais das telas atuais usam 5): um modal continua cobrindo a
  *   navegação.
- * - A faixa do topo (e a borda de cima da moldura) é a região de arrastar a janela no macOS; os botões da
- *   barra não arrastam. Por isso a barra vem depois do conteúdo na árvore (ver notch.css).
+ * - A barra vem antes do conteúdo na árvore, como no preview: o Tab e o leitor de tela chegam aos destinos
+ *   antes da tela. A faixa do topo (e a borda de cima da moldura) é a região de arrastar a janela no macOS; os
+ *   botões da barra não arrastam, e o conteúdo, que vem depois, não declara região (ver notch.css).
+ * - O que rola por baixo da faixa de arrastar some sob uma borda da cor da superfície: ali o clique é da
+ *   janela, então o conteúdo não pode parecer clicável (seção 4.5 do plano). A borda só aparece com a área de
+ *   trabalho rolada; parada, a janela é pixel a pixel a do preview.
  * - A área de rolagem herda o raio da superfície, porque o conteúdo das telas atuais tem fundo próprio e,
  *   sem isso, cobriria as quinas arredondadas de baixo.
  * - As ações da direita existem uma vez só: o preview as repete na barra larga e na ilha e esconde uma delas
@@ -152,19 +158,23 @@ export function NotchCornerRightWing({ position = 'top', className }: NotchWingP
   );
 }
 
+/** O que o destino marcado é da tela aberta: a própria página, ou a seção onde ela mora. */
+export type NotchCurrent = 'page' | 'true';
+
 interface NotchItemProps {
   item: NotchItemData;
   isActive: boolean;
+  current: NotchCurrent;
   onSelect: (id: string) => void;
 }
 
-function NotchItem({ item, isActive, onSelect }: NotchItemProps) {
+function NotchItem({ item, isActive, current, onSelect }: NotchItemProps) {
   const { id, label, icon: Icon, badge, disabled } = item;
 
   return (
     <button
       type="button"
-      aria-current={isActive ? 'page' : undefined}
+      aria-current={isActive ? current : undefined}
       disabled={disabled}
       onClick={() => onSelect(id)}
       className={cn(
@@ -174,8 +184,12 @@ function NotchItem({ item, isActive, onSelect }: NotchItemProps) {
       )}
     >
       {isActive && (
+        // A pílula desliza de um destino ao outro (uma pílula sai, outra entra com o mesmo `layoutId`). Parada
+        // num destino, ela não mede de novo a cada render (`layoutDependency` fixa): sem isso, ao a barra
+        // trocar de borda, ela atravessava a janela inteira atrás do botão.
         <motion.span
           layoutId="notch-active-pill"
+          layoutDependency={id}
           className="absolute inset-0 rounded-full bg-zinc-800 dark:bg-zinc-300"
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         />
@@ -206,16 +220,17 @@ function NotchItem({ item, isActive, onSelect }: NotchItemProps) {
 interface NotchDropdownItemProps {
   item: NotchItemData;
   isSelected: boolean;
+  current: NotchCurrent;
   onSelect: (id: string) => void;
 }
 
-function NotchDropdownItem({ item, isSelected, onSelect }: NotchDropdownItemProps) {
+function NotchDropdownItem({ item, isSelected, current, onSelect }: NotchDropdownItemProps) {
   const Icon = item.icon;
 
   return (
     <button
       type="button"
-      aria-current={isSelected ? 'page' : undefined}
+      aria-current={isSelected ? current : undefined}
       disabled={item.disabled}
       onClick={() => onSelect(item.id)}
       className={cn(
@@ -239,8 +254,15 @@ function NotchDropdownItem({ item, isSelected, onSelect }: NotchDropdownItemProp
 
 export interface AdaptiveNotchNavigationProps {
   items: readonly NotchItemData[];
-  /** O destino atual, ou `null` quando a rota não pertence a nenhum (a sessão de foco, por exemplo). */
+  /** O destino marcado, ou `null` quando a rota não pertence a nenhum (a sessão de foco, por exemplo). */
   activeId: string | null;
+  /**
+   * O que o destino marcado é da tela aberta: a própria página (`page`) ou a seção onde ela mora (`true`). Em
+   * Hábitos, "Hoje" é a seção, e quem marca a página é a trilha do topo.
+   */
+  activeCurrent?: NotchCurrent;
+  /** A tela aberta. Quando ela muda, o menu compacto fecha, por onde quer que a pessoa tenha navegado. */
+  pageKey?: string;
   position?: NotchPosition;
   /** Nome da região de navegação para leitores de tela. */
   label: string;
@@ -282,9 +304,19 @@ const barButtons = (nav: HTMLElement) =>
     (button) => !button.closest('[data-notch-drawer]') && button.getClientRects().length > 0 && !(button as HTMLButtonElement).disabled
   );
 
+// As ações da direita, no layout em uso (o outro não as monta).
+const actionButtons = (nav: HTMLElement | null) =>
+  Array.from(nav?.querySelector('[data-notch-actions]')?.querySelectorAll<HTMLElement>('button') ?? []);
+
+// O passo de uma seta e o de uma página, os do Chromium.
+const LINE_STEP = 40;
+const PAGE_FRACTION = 0.875;
+
 export function AdaptiveNotchNavigation({
   items,
   activeId,
+  activeCurrent = 'page',
+  pageKey,
   position = 'top',
   label,
   currentLabel,
@@ -297,17 +329,122 @@ export function AdaptiveNotchNavigation({
   onActiveChange,
   className,
 }: AdaptiveNotchNavigationProps) {
+  const frameRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLUListElement>(null);
   const layoutGroupId = useId();
   const drawerId = useId();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const wide = useWideLayout();
+  const { motion: motionPreference } = useThemePreference();
   const isBottom = position === 'bottom';
   const activeItem = items.find((item) => item.id === activeId);
   const ActiveIcon = activeItem?.icon;
+
+  // Ao cruzar 1280 px, as ações trocam de lugar (da barra larga para a ilha, e de volta) e remontam; antes
+  // disso, o CSS já as escondeu, e o foco que estava numa delas caiu no corpo da página. A barra lembra em qual
+  // ação o foco estava (até ele ir para outro lugar ou a pessoa clicar fora delas) e o devolve à mesma ação no
+  // lugar novo.
+  const actionFocus = useRef(-1);
+  useEffect(() => {
+    const inActions = (target: EventTarget | null) => target instanceof HTMLElement && !!target.closest('[data-notch-actions]');
+    const remember = (event: FocusEvent) => {
+      actionFocus.current = inActions(event.target) ? actionButtons(navRef.current).indexOf(event.target as HTMLElement) : -1;
+    };
+    const forget = (event: PointerEvent) => {
+      if (!inActions(event.target)) actionFocus.current = -1;
+    };
+    document.addEventListener('focusin', remember);
+    document.addEventListener('pointerdown', forget, true);
+    return () => {
+      document.removeEventListener('focusin', remember);
+      document.removeEventListener('pointerdown', forget, true);
+    };
+  }, []);
+  const wide = useWideLayout();
+  useLayoutEffect(() => {
+    const active = document.activeElement;
+    if (actionFocus.current < 0 || (active && active !== document.body)) return;
+    actionButtons(navRef.current)[actionFocus.current]?.focus();
+  }, [wide]);
+
+  // Qualquer navegação fecha o menu compacto: pelos destinos dele, pelo Mais, por Ajustes, pela paleta ou pelo
+  // atalho do Taby (o dock antigo fazia o mesmo). Fecha no mesmo render da tela nova, sem um quadro com o menu
+  // aberto por cima dela.
+  const [menuPage, setMenuPage] = useState(pageKey);
+  if (menuPage !== pageKey) {
+    setMenuPage(pageKey);
+    setIsDropdownOpen(false);
+  }
+
+  // A largura da barra de rolagem da área de trabalho (0 com as barras que só aparecem ao rolar): a borda sob a
+  // faixa de arrastar para antes dela, sem cobrir o polegar.
+  const [gutter, setGutter] = useState(0);
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setGutter(viewport.offsetWidth - viewport.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
+
+  // A borda só aparece com a área de trabalho rolada (`data-scrolled` na moldura, lido por notch.css). O atributo
+  // muda direto no elemento, sem render, e só quando a rolagem sai do topo ou volta a ele.
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const frame = frameRef.current;
+    if (!viewport || !frame) return;
+    const update = () => {
+      const scrolled = String(viewport.scrollTop > 0);
+      if (frame.dataset.scrolled !== scrolled) frame.dataset.scrolled = scrolled;
+    };
+    update();
+    viewport.addEventListener('scroll', update, { passive: true });
+    return () => viewport.removeEventListener('scroll', update);
+  }, []);
+
+  // Rolagem pelo teclado. O Chromium rola a partir do elemento em foco (sem foco, do último clicado), subindo
+  // pelos ancestrais até achar o que role; a área de trabalho é irmã da barra, e a janela em si não rola. Com o
+  // foco num botão da barra, ou em nada (ao abrir o app), as teclas não rolavam nada: nesses casos, a barra rola
+  // a área de trabalho. Com o foco ou o clique dentro dela, o próprio Chromium rola, e aqui nada acontece.
+  useEffect(() => {
+    let pressed: EventTarget | null = null;
+    const remember = (event: PointerEvent) => {
+      pressed = event.target;
+    };
+    const scroll = (event: globalThis.KeyboardEvent) => {
+      const viewport = viewportRef.current;
+      if (!viewport || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      const active = document.activeElement;
+      const idle = !active || active === document.body || active === document.documentElement;
+      const start = idle ? pressed : active;
+      if (start instanceof Node && start.isConnected && viewport.contains(start)) return;
+      const onBar = !idle && !!navRef.current?.contains(active) && !active.closest('[data-notch-drawer]');
+      // Espaço, Home e End só sem foco: num botão, o espaço o aperta, e Home e End já andam pela barra.
+      const keys = idle ? ['PageDown', 'PageUp', 'ArrowDown', 'ArrowUp', ' ', 'Home', 'End'] : onBar ? ['PageDown', 'PageUp', 'ArrowDown', 'ArrowUp'] : [];
+      if (!keys.includes(event.key)) return;
+      event.preventDefault();
+      const reduce = motionPreference === 'reduce' || !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      const behavior: ScrollBehavior = reduce ? 'instant' : 'smooth';
+      if (event.key === 'Home' || event.key === 'End') {
+        viewport.scrollTo({ top: event.key === 'Home' ? 0 : viewport.scrollHeight, behavior });
+        return;
+      }
+      const down = event.key === 'PageDown' || event.key === 'ArrowDown' || (event.key === ' ' && !event.shiftKey);
+      const step = event.key.startsWith('Arrow') ? LINE_STEP : viewport.clientHeight * PAGE_FRACTION;
+      viewport.scrollBy({ top: down ? step : -step, behavior });
+    };
+    document.addEventListener('pointerdown', remember, true);
+    window.addEventListener('keydown', scroll);
+    return () => {
+      document.removeEventListener('pointerdown', remember, true);
+      window.removeEventListener('keydown', scroll);
+    };
+  }, [motionPreference]);
 
   // Fechar sem escolher devolve o foco ao botão, se ele estava no menu. Clicar fora não rouba o foco de
   // onde a pessoa clicou.
@@ -332,16 +469,23 @@ export function AdaptiveNotchNavigation({
   useEffect(() => {
     if (!isDropdownOpen) return;
     const options = drawerRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
-    (drawerRef.current?.querySelector<HTMLButtonElement>('button[aria-current="page"]') ?? options?.[0])?.focus();
+    (drawerRef.current?.querySelector<HTMLButtonElement>('button[aria-current]') ?? options?.[0])?.focus();
   }, [isDropdownOpen]);
 
+  // Clicar fora da ilha fecha o menu. O foco que sai dela também (o Tab para a tela, o menu Mais, a paleta): o
+  // fundo escurecido não pode ficar sobre a tela com o foco nela.
   useEffect(() => {
     if (!isDropdownOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      if (islandRef.current && !islandRef.current.contains(event.target as Node)) closeDropdown(false);
+    const outside = (target: EventTarget | null) => !!islandRef.current && !islandRef.current.contains(target as Node);
+    const handleOutside = (event: Event) => {
+      if (outside(event.target)) closeDropdown(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('focusin', handleOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('focusin', handleOutside);
+    };
   }, [isDropdownOpen, closeDropdown]);
 
   const handleNavKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -364,6 +508,7 @@ export function AdaptiveNotchNavigation({
 
   return (
     <div
+      ref={frameRef}
       data-position={position}
       className={cn(
         'notch-frame fixed inset-0 h-screen w-screen overflow-hidden bg-zinc-950 p-0 md:p-2 transition-colors duration-200 dark:bg-zinc-200',
@@ -371,13 +516,14 @@ export function AdaptiveNotchNavigation({
       )}
     >
       <div className="notch-surface relative flex h-full w-full flex-col rounded-none md:rounded-2xl bg-(--hibi-canvas) text-(--hibi-ink) antialiased transition-colors duration-200">
-        {/* A área de rolagem vem antes da barra na árvore (ver o comentário em notch.css); o `z-index` da
-            camada põe a barra por cima dela. */}
-        <div className={cn('notch-viewport relative w-full h-full overflow-y-auto overflow-x-hidden rounded-[inherit]', isBottom ? 'pt-3 pb-17.5' : 'pt-17.5 pb-3')}>
-          {children}
-        </div>
-
+        {/* A barra vem antes da área de rolagem na árvore, como no preview (ver o comentário em notch.css); o
+            `z-index` da camada a põe por cima dela. */}
         <HibiUiRoot className="notch-layer pointer-events-none absolute inset-0 z-[4] rounded-[inherit]">
+          {/* O que rola por baixo da faixa de arrastar some sob a cor da superfície (ver o comentário do topo). */}
+          <div aria-hidden="true" className="notch-scroll-edge absolute inset-0 overflow-hidden rounded-[inherit]">
+            <div className="absolute top-0 left-0 h-11 bg-linear-to-b from-(--hibi-canvas) from-70% to-transparent" style={{ right: gutter }} />
+          </div>
+
           <div aria-hidden="true" className="notch-drag-region absolute inset-x-0 top-0 h-11 md:-inset-x-2 md:-top-2 md:h-13" />
 
           <div
@@ -421,7 +567,7 @@ export function AdaptiveNotchNavigation({
                 <ul className="flex items-center gap-1">
                   {items.map((item) => (
                     <li key={item.id}>
-                      <NotchItem item={item} isActive={item.id === activeId} onSelect={handleSelect} />
+                      <NotchItem item={item} isActive={item.id === activeId} current={activeCurrent} onSelect={handleSelect} />
                     </li>
                   ))}
                 </ul>
@@ -438,7 +584,7 @@ export function AdaptiveNotchNavigation({
               >
                 <NotchLeftWing position={position} />
                 <NotchCornerRightWing position={position} />
-                <div className="flex items-center text-zinc-50 dark:text-zinc-950">{rightContent}</div>
+                <div data-notch-actions="" className="flex items-center text-zinc-50 dark:text-zinc-950">{rightContent}</div>
               </div>
             )}
 
@@ -481,7 +627,7 @@ export function AdaptiveNotchNavigation({
                 </button>
 
                 {showRightContent && rightContent && wide !== true && (
-                  <div className="flex shrink-0 items-center justify-end text-zinc-50 dark:text-zinc-950 w-max">{rightContent}</div>
+                  <div data-notch-actions="" className="flex shrink-0 items-center justify-end text-zinc-50 dark:text-zinc-950 w-max">{rightContent}</div>
                 )}
               </div>
 
@@ -501,7 +647,7 @@ export function AdaptiveNotchNavigation({
                   >
                     {items.map((item) => (
                       <li key={item.id}>
-                        <NotchDropdownItem item={item} isSelected={item.id === activeId} onSelect={handleSelect} />
+                        <NotchDropdownItem item={item} isSelected={item.id === activeId} current={activeCurrent} onSelect={handleSelect} />
                       </li>
                     ))}
                   </ul>
@@ -511,6 +657,9 @@ export function AdaptiveNotchNavigation({
           </nav>
         </HibiUiRoot>
 
+        <div ref={viewportRef} className={cn('notch-viewport relative w-full h-full overflow-y-auto overflow-x-hidden rounded-[inherit]', isBottom ? 'pt-3 pb-17.5' : 'pt-17.5 pb-3')}>
+          {children}
+        </div>
       </div>
     </div>
   );

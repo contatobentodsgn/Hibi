@@ -28,3 +28,17 @@ export function writeNavigationPreference(storage: Pick<Storage, 'setItem'> | nu
   if (!storage) return false
   try { storage.setItem(NAVIGATION_POSITION_KEY, preference); return true } catch { return false }
 }
+
+// A última resposta do processo principal sobre o mascote, para o primeiro quadro. A resposta chega por uma
+// ponte assíncrona, depois do primeiro desenho: sem guardar a anterior, a automática abria o Hibi com a barra em
+// cima e a descia logo em seguida, empurrando o conteúdo.
+export const MASCOT_PLACEMENT_KEY = 'hibi.ui.mascot-shares-display.v1'
+
+/** O mascote dividia a tela com a janela na última vez? Sem resposta guardada, ou sem armazenamento, não. */
+export function readMascotPlacement(storage: Pick<Storage, 'getItem'> | null): boolean {
+  try { return storage?.getItem(MASCOT_PLACEMENT_KEY) === 'true' } catch { return false }
+}
+
+export function writeMascotPlacement(storage: Pick<Storage, 'setItem'> | null, sharesDisplay: boolean): void {
+  try { storage?.setItem(MASCOT_PLACEMENT_KEY, String(sharesDisplay)) } catch { /* sem armazenamento, só o primeiro quadro perde */ }
+}

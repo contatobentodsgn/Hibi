@@ -21,7 +21,7 @@ test('/break abre o Foco em modo pausa com 5 minutos, e a navegação marca Foco
   await expect(page.getByText('05:00')).toBeVisible();
   await expect(page.getByRole('button', { name: '5m', exact: true })).toHaveAttribute('aria-pressed', 'true');
   // A sessão de foco não mora em nenhum destino: a barra não marca nenhum, e o "Mais" mostra Foco como atual.
-  await expect(dock(page).locator('[aria-current="page"]')).toHaveCount(0);
+  await expect(dock(page).locator('[aria-current]')).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Onde você está' })).toContainText('Meu espaço / Foco');
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await expect(page.getByRole('menuitem', { name: 'Foco', exact: true })).toHaveAccessibleDescription('atual');

@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 // A navegação oficial da nova UI (U03): a Adaptive Notch Navigation Bar do preview aprovado no shell real.
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
 const trail = (page: Page) => page.getByRole('navigation', { name: 'Onde você está' });
-const current = (page: Page) => nav(page).locator('[aria-current="page"]:visible');
+const current = (page: Page) => nav(page).locator('[aria-current]:visible');
 const openMore = async (page: Page) => { await nav(page).getByRole('button', { name: 'Mais seções' }).click(); };
 
 // As asas do preview (`adaptive-notch-navigation-bar.tsx`), em cima e embaixo.
@@ -52,9 +52,12 @@ test('cada destino, Ajustes e cada item do Mais abrem a tela real, e a trilha di
     else { await openMore(page); await page.getByRole('menuitem', { name: place.name, exact: true }).click(); }
     await expect(place.screen(page), place.name).toBeVisible();
     await expect(trail(page), place.name).toHaveText(`Meu espaço / ${place.path}`);
-    // Um lugar só marcado na barra: o destino onde a rota mora, ou nenhum na sessão de foco.
-    if (place.marked) await expect(current(page), place.name).toHaveText([place.marked]);
-    else await expect(current(page), place.name).toHaveCount(0);
+    // Um lugar só marcado na barra: o destino onde a rota mora, ou nenhum na sessão de foco. Ele é a página
+    // quando a trilha termina nele, e a seção (`true`) quando a página é outra, dentro dele.
+    if (place.marked) {
+      await expect(current(page), place.name).toHaveText([place.marked]);
+      await expect(current(page), place.name).toHaveAttribute('aria-current', place.path.includes(' / ') ? 'true' : 'page');
+    } else await expect(current(page), place.name).toHaveCount(0);
   }
 });
 
@@ -248,4 +251,173 @@ test('no tema claro, o conteúdo continua passando por baixo da barra, como no p
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   expect(await bandPointOwner(page, 'bottom')).toBe('tela atual');
+});
+
+// Revisão da U03 e da U04.
+
+for (const position of ['top', 'bottom'] as const) {
+  test(`o Tab chega aos destinos antes da tela (barra ${position === 'top' ? 'em cima' : 'embaixo'})`, async ({ page }) => {
+    await page.addInitScript((p) => localStorage.setItem('hibi.ui.navigation-position.v1', p), position);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await page.keyboard.press('Tab');
+    await expect(nav(page).getByRole('button', { name: 'Hoje', exact: true })).toBeFocused();
+  });
+}
+
+// A cor de um ponto da janela, lida da captura: o que a pessoa vê, não o que a árvore diz.
+const pixelAt = async (page: Page, x: number, y: number) => {
+  const shot = await page.screenshot({ clip: { x, y, width: 1, height: 1 } });
+  return page.evaluate(async (data) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${data}`;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(image, 0, 0);
+    return Array.from(context.getImageData(0, 0, 1, 1).data.slice(0, 3));
+  }, shot.toString('base64'));
+};
+// Um bloco preto e alto no começo da tela, com botões, para ver o que passa por baixo da faixa do topo.
+const fillWorkArea = (page: Page) => page.locator('main.shell-content').evaluate((main) => {
+  const block = document.createElement('div');
+  block.id = 'e2e-block';
+  block.style.cssText = 'background: #000; height: 3000px;';
+  for (let index = 0; index < 40; index += 1) {
+    const button = document.createElement('button');
+    button.textContent = `Linha ${index}`;
+    button.style.cssText = 'display: block; height: 60px; color: #fff;';
+    block.append(button);
+  }
+  main.prepend(block);
+});
+
+test('o que rola por baixo da faixa de arrastar some sob a superfície, e a barra de rolagem fica à vista', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('hibi-theme', 'light'));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await fillWorkArea(page);
+  const viewport = page.locator('.notch-viewport');
+  // Parada, a área de trabalho não tem nada sob a faixa, e a borda não desenha nada.
+  await expect(page.locator('.notch-scroll-edge')).toHaveCSS('opacity', '0');
+  await viewport.evaluate((element) => { element.scrollTop = 600; });
+  const notch = (await page.locator('.notch-center').boundingBox())!;
+  // Sob a faixa (8 px de moldura + 12), ao lado do notch: a cor da superfície, não o bloco preto.
+  await expect.poll(() => pixelAt(page, notch.x - 60, 20)).toEqual([245, 245, 247]);
+  // Logo abaixo da faixa, onde o clique já é do conteúdo, o bloco aparece.
+  expect(await pixelAt(page, notch.x - 60, 8 + 60)).toEqual([0, 0, 0]);
+  // A borda para antes da barra de rolagem. O Chromium do e2e esconde as barras de rolagem; uma borda de 11 px,
+  // a largura da barra fina no app, ocupa o lugar dela.
+  await viewport.evaluate((element) => { element.style.borderRight = '11px solid transparent'; });
+  await expect.poll(() => page.locator('.notch-scroll-edge > div').evaluate((element) => element.getBoundingClientRect().right))
+    .toBe(await viewport.evaluate((element) => element.getBoundingClientRect().left + element.clientWidth));
+});
+
+test('o foco que entra na tela pelo teclado para abaixo da faixa da barra, não embaixo dela', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await fillWorkArea(page);
+  const viewport = page.locator('.notch-viewport');
+  const rows = page.locator('#e2e-block button');
+  // A linha 10 fica sob a faixa do topo; o foco vem da linha 11 com Shift+Tab.
+  await viewport.evaluate((element, target) => { element.scrollTop += target.getBoundingClientRect().top - 20; }, await rows.nth(10).elementHandle());
+  await rows.nth(11).focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(rows.nth(10)).toBeFocused();
+  const top = await rows.nth(10).evaluate((element) => element.getBoundingClientRect().top);
+  expect(top).toBeGreaterThanOrEqual(8 + 70 - 1);
+});
+
+test('as teclas de rolar rolam a tela com o foco na barra ou em nada, e uma vez só com o foco na tela', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('hibi-motion', 'reduce'));
+  await page.setViewportSize({ width: 1440, height: 700 });
+  await page.goto('/');
+  await fillWorkArea(page);
+  const viewport = page.locator('.notch-viewport');
+  const top = () => viewport.evaluate((element) => element.scrollTop);
+  const step = await viewport.evaluate((element) => element.clientHeight * 0.875);
+  // A rolagem anda em pixels inteiros.
+  const near = (target: number) => async () => Math.abs((await top()) - target);
+
+  // Ao abrir, sem foco em nada.
+  await page.keyboard.press('PageDown');
+  await expect.poll(near(step)).toBeLessThanOrEqual(1);
+  await page.keyboard.press('Home');
+  await expect.poll(top).toBe(0);
+  await page.keyboard.press('End');
+  await expect.poll(top).toBe(await viewport.evaluate((element) => element.scrollHeight - element.clientHeight));
+  await page.keyboard.press('Home');
+  await expect.poll(top).toBe(0);
+
+  // Com o foco num destino da barra, que as setas para os lados percorrem.
+  await nav(page).getByRole('button', { name: 'Hoje', exact: true }).click();
+  await page.keyboard.press('PageDown');
+  await expect.poll(near(step)).toBeLessThanOrEqual(1);
+  await page.keyboard.press('ArrowUp');
+  await expect.poll(near(step - 40)).toBeLessThanOrEqual(1);
+  await expect(nav(page).getByRole('button', { name: 'Hoje', exact: true })).toBeFocused();
+
+  // Com o clique dentro da tela, quem rola é o próprio Chromium, a partir do ponto clicado: uma lista com rolagem
+  // própria rola ela mesma, e a área de trabalho fica onde estava.
+  await viewport.evaluate((element) => { element.scrollTop = 0; });
+  await page.locator('main.shell-content').evaluate((main) => {
+    const list = document.createElement('div');
+    list.id = 'e2e-list';
+    list.style.cssText = 'height: 200px; overflow: auto; background: #fff;';
+    list.innerHTML = '<button type="button">Item</button><div style="height: 2000px"></div>';
+    main.prepend(list);
+  });
+  const list = page.locator('#e2e-list');
+  const box = (await list.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + 150);
+  await page.keyboard.press('PageDown');
+  await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  expect(await top()).toBe(0);
+});
+
+test('qualquer navegação fecha o menu compacto: Ajustes, o Mais, a paleta e o foco que sai da ilha', async ({ page }) => {
+  await page.setViewportSize({ width: 960, height: 620 });
+  await page.goto('/');
+  const trigger = nav(page).getByRole('button', { name: /mudar de seção/ });
+
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await nav(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
+  await expect(trail(page)).toHaveText('Meu espaço / Ajustes');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+  await trigger.click();
+  await openMore(page);
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await page.getByRole('menuitem', { name: 'Hábitos', exact: true }).click();
+  await expect(trail(page)).toHaveText('Meu espaço / Hoje / Hábitos');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+  await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Meta+k');
+  await expect(page.getByRole('dialog', { name: 'Paleta de comandos' })).toBeVisible();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('Escape');
+
+  await trigger.click();
+  await expect(page.locator('[data-notch-drawer] ul').getByRole('button', { name: 'Hoje', exact: true })).toBeFocused();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Tab');
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('ao cruzar 1280 px, o foco numa ação vai junto para a mesma ação no lugar novo', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const settings = nav(page).getByRole('button', { name: 'Ajustes', exact: true });
+  await settings.focus();
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await expect(page.locator('.notch-center')).toBeHidden();
+  await expect(settings).toBeFocused();
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator('.notch-center')).toBeVisible();
+  await expect(settings).toBeFocused();
 });
