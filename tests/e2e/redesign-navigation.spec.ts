@@ -262,3 +262,68 @@ for (const position of ['top', 'bottom'] as const) {
   });
 }
 
+// A cor de um ponto da janela, lida da captura: o que a pessoa vê, não o que a árvore diz.
+const pixelAt = async (page: Page, x: number, y: number) => {
+  const shot = await page.screenshot({ clip: { x, y, width: 1, height: 1 } });
+  return page.evaluate(async (data) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${data}`;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(image, 0, 0);
+    return Array.from(context.getImageData(0, 0, 1, 1).data.slice(0, 3));
+  }, shot.toString('base64'));
+};
+// Um bloco preto e alto no começo da tela, com botões, para ver o que passa por baixo da faixa do topo.
+const fillWorkArea = (page: Page) => page.locator('main.shell-content').evaluate((main) => {
+  const block = document.createElement('div');
+  block.id = 'e2e-block';
+  block.style.cssText = 'background: #000; height: 3000px;';
+  for (let index = 0; index < 40; index += 1) {
+    const button = document.createElement('button');
+    button.textContent = `Linha ${index}`;
+    button.style.cssText = 'display: block; height: 60px; color: #fff;';
+    block.append(button);
+  }
+  main.prepend(block);
+});
+
+test('o que rola por baixo da faixa de arrastar some sob a superfície, e a barra de rolagem fica à vista', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('hibi-theme', 'light'));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await fillWorkArea(page);
+  const viewport = page.locator('.notch-viewport');
+  // Parada, a área de trabalho não tem nada sob a faixa, e a borda não desenha nada.
+  await expect(page.locator('.notch-scroll-edge')).toHaveCSS('opacity', '0');
+  await viewport.evaluate((element) => { element.scrollTop = 600; });
+  const notch = (await page.locator('.notch-center').boundingBox())!;
+  // Sob a faixa (8 px de moldura + 12), ao lado do notch: a cor da superfície, não o bloco preto.
+  await expect.poll(() => pixelAt(page, notch.x - 60, 20)).toEqual([245, 245, 247]);
+  // Logo abaixo da faixa, onde o clique já é do conteúdo, o bloco aparece.
+  expect(await pixelAt(page, notch.x - 60, 8 + 60)).toEqual([0, 0, 0]);
+  // A borda para antes da barra de rolagem. O Chromium do e2e esconde as barras de rolagem; uma borda de 11 px,
+  // a largura da barra fina no app, ocupa o lugar dela.
+  await viewport.evaluate((element) => { element.style.borderRight = '11px solid transparent'; });
+  await expect.poll(() => page.locator('.notch-scroll-edge > div').evaluate((element) => element.getBoundingClientRect().right))
+    .toBe(await viewport.evaluate((element) => element.getBoundingClientRect().left + element.clientWidth));
+});
+
+test('o foco que entra na tela pelo teclado para abaixo da faixa da barra, não embaixo dela', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await fillWorkArea(page);
+  const viewport = page.locator('.notch-viewport');
+  const rows = page.locator('#e2e-block button');
+  // A linha 10 fica sob a faixa do topo; o foco vem da linha 11 com Shift+Tab.
+  await viewport.evaluate((element, target) => { element.scrollTop += target.getBoundingClientRect().top - 20; }, await rows.nth(10).elementHandle());
+  await rows.nth(11).focus();
+  await page.keyboard.press('Shift+Tab');
+  await expect(rows.nth(10)).toBeFocused();
+  const top = await rows.nth(10).evaluate((element) => element.getBoundingClientRect().top);
+  expect(top).toBeGreaterThanOrEqual(8 + 70 - 1);
+});
+

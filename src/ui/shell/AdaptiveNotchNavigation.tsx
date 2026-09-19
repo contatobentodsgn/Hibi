@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ComponentType, KeyboardEvent, ReactNode } from 'react';
 import { LayoutGroup, motion } from 'motion/react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
@@ -24,6 +24,9 @@ import { nextFocusIndex } from './routes';
  * - A barra vem antes do conteúdo na árvore, como no preview: o Tab e o leitor de tela chegam aos destinos
  *   antes da tela. A faixa do topo (e a borda de cima da moldura) é a região de arrastar a janela no macOS; os
  *   botões da barra não arrastam, e o conteúdo, que vem depois, não declara região (ver notch.css).
+ * - O que rola por baixo da faixa de arrastar some sob uma borda da cor da superfície: ali o clique é da
+ *   janela, então o conteúdo não pode parecer clicável (seção 4.5 do plano). A borda só aparece com a área de
+ *   trabalho rolada; parada, a janela é pixel a pixel a do preview.
  * - A área de rolagem herda o raio da superfície, porque o conteúdo das telas atuais tem fundo próprio e,
  *   sem isso, cobriria as quinas arredondadas de baixo.
  * - As ações da direita existem uma vez só: o preview as repete na barra larga e na ilha e esconde uma delas
@@ -298,7 +301,9 @@ export function AdaptiveNotchNavigation({
   onActiveChange,
   className,
 }: AdaptiveNotchNavigationProps) {
+  const frameRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLUListElement>(null);
@@ -309,6 +314,34 @@ export function AdaptiveNotchNavigation({
   const isBottom = position === 'bottom';
   const activeItem = items.find((item) => item.id === activeId);
   const ActiveIcon = activeItem?.icon;
+
+  // A largura da barra de rolagem da área de trabalho (0 com as barras que só aparecem ao rolar): a borda sob a
+  // faixa de arrastar para antes dela, sem cobrir o polegar.
+  const [gutter, setGutter] = useState(0);
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || typeof ResizeObserver === 'undefined') return;
+    const measure = () => setGutter(viewport.offsetWidth - viewport.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
+
+  // A borda só aparece com a área de trabalho rolada (`data-scrolled` na moldura, lido por notch.css). O atributo
+  // muda direto no elemento, sem render, e só quando a rolagem sai do topo ou volta a ele.
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    const frame = frameRef.current;
+    if (!viewport || !frame) return;
+    const update = () => {
+      const scrolled = String(viewport.scrollTop > 0);
+      if (frame.dataset.scrolled !== scrolled) frame.dataset.scrolled = scrolled;
+    };
+    update();
+    viewport.addEventListener('scroll', update, { passive: true });
+    return () => viewport.removeEventListener('scroll', update);
+  }, []);
 
   // Fechar sem escolher devolve o foco ao botão, se ele estava no menu. Clicar fora não rouba o foco de
   // onde a pessoa clicou.
@@ -365,6 +398,7 @@ export function AdaptiveNotchNavigation({
 
   return (
     <div
+      ref={frameRef}
       data-position={position}
       className={cn(
         'notch-frame fixed inset-0 h-screen w-screen overflow-hidden bg-zinc-950 p-0 md:p-2 transition-colors duration-200 dark:bg-zinc-200',
@@ -375,6 +409,11 @@ export function AdaptiveNotchNavigation({
         {/* A barra vem antes da área de rolagem na árvore, como no preview (ver o comentário em notch.css); o
             `z-index` da camada a põe por cima dela. */}
         <HibiUiRoot className="notch-layer pointer-events-none absolute inset-0 z-[4] rounded-[inherit]">
+          {/* O que rola por baixo da faixa de arrastar some sob a cor da superfície (ver o comentário do topo). */}
+          <div aria-hidden="true" className="notch-scroll-edge absolute inset-0 overflow-hidden rounded-[inherit]">
+            <div className="absolute top-0 left-0 h-11 bg-linear-to-b from-(--hibi-canvas) from-70% to-transparent" style={{ right: gutter }} />
+          </div>
+
           <div aria-hidden="true" className="notch-drag-region absolute inset-x-0 top-0 h-11 md:-inset-x-2 md:-top-2 md:h-13" />
 
           <div
@@ -508,7 +547,7 @@ export function AdaptiveNotchNavigation({
           </nav>
         </HibiUiRoot>
 
-        <div className={cn('notch-viewport relative w-full h-full overflow-y-auto overflow-x-hidden rounded-[inherit]', isBottom ? 'pt-3 pb-17.5' : 'pt-17.5 pb-3')}>
+        <div ref={viewportRef} className={cn('notch-viewport relative w-full h-full overflow-y-auto overflow-x-hidden rounded-[inherit]', isBottom ? 'pt-3 pb-17.5' : 'pt-17.5 pb-3')}>
           {children}
         </div>
       </div>

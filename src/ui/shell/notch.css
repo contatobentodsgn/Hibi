@@ -17,7 +17,9 @@
    * - na árvore, a faixa vem primeiro, depois os notches e os menus deles, e por último o conteúdo, que não
    *   declara região (se declarasse `drag`, venceria os botões da barra);
    * - o fundo do menu compacto só marca `no-drag` aberto, para o clique fora fechar o menu.
-   * Um modal das telas atuais que alcance a faixa continua arrastando a janela ali, como no shell antigo.
+   * O que rola por baixo da faixa fica escondido sob a borda da superfície (`.notch-scroll-edge`): ali o clique
+   * arrasta a janela. Um modal das telas atuais que alcance a faixa continua arrastando a janela ali, como no
+   * shell antigo.
    */
   .notch-drag-region { -webkit-app-region: drag; }
   .notch-layer .notch-part,
@@ -27,6 +29,16 @@
   /* A área de trabalho ocupa a altura visível inteira: a faixa do topo em cima e o conteúdo embaixo. A
      barra de rolagem é a fina do preview (`* { scrollbar-width: thin }`), sem trilho. */
   .notch-viewport { scrollbar-width: thin; scrollbar-color: var(--hibi-scrollbar) transparent; }
+
+  /* A borda sob a faixa de arrastar só aparece com a área de trabalho rolada: parada, o topo dela é respiro, e a
+     janela fica igual ao preview (a borda somaria o próprio arredondamento ao das quinas da superfície). */
+  .notch-scroll-edge { opacity: 0; transition: opacity var(--hibi-duration-control) ease-out; }
+  .notch-frame[data-scrolled="true"] .notch-scroll-edge { opacity: 1; }
+
+  /* O foco que rola a área de trabalho (Tab, Shift+Tab) para o elemento onde ele fica à vista: abaixo da faixa da
+     barra em cima e da faixa de arrastar, e acima da barra embaixo. */
+  .notch-frame[data-position="top"] .notch-viewport { scroll-padding-block: calc(var(--spacing) * 17.5) calc(var(--spacing) * 3); }
+  .notch-frame[data-position="bottom"] .notch-viewport { scroll-padding-block: calc(var(--spacing) * 11) calc(var(--spacing) * 17.5); }
   .notch-viewport > .shell-page { display: flex; flex-direction: column; min-height: 100%; }
 }
 
@@ -43,6 +55,6 @@
    * preview. As telas novas são escuras e não usam a ilha: para elas a regra some sozinha e o conteúdo
    * volta a passar por baixo da barra, como no desenho aprovado.
    */
-  [data-theme="dark"] .notch-frame[data-position="top"] .notch-viewport:has(.legacy-surface) { padding-top: 0; margin-top: calc(var(--spacing) * 17.5); height: calc(100% - var(--spacing) * 17.5); }
-  [data-theme="dark"] .notch-frame[data-position="bottom"] .notch-viewport:has(.legacy-surface) { padding-bottom: 0; margin-bottom: calc(var(--spacing) * 17.5); height: calc(100% - var(--spacing) * 17.5); }
+  [data-theme="dark"] .notch-frame[data-position="top"] .notch-viewport:has(.legacy-surface) { padding-top: 0; scroll-padding-top: 0; margin-top: calc(var(--spacing) * 17.5); height: calc(100% - var(--spacing) * 17.5); }
+  [data-theme="dark"] .notch-frame[data-position="bottom"] .notch-viewport:has(.legacy-surface) { padding-bottom: 0; scroll-padding-bottom: 0; margin-bottom: calc(var(--spacing) * 17.5); height: calc(100% - var(--spacing) * 17.5); }
 }
