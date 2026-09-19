@@ -76,4 +76,4 @@ Essas versões descrevem a referência. A aplicação principal só deve adotá-
 4. Registrar qualquer alteração deliberada de geometria no PR e mostrar comparação ampliada.
 5. Manter o ZIP fora do bundle de produção.
 
-O manifesto não transfere automaticamente licença de terceiros. Antes de levar o componente ao app distribuído, U01 precisa registrar origem e licença do prompt/componente anexado.
+O manifesto não transfere automaticamente licença de terceiros. **Origem do componente, registrada em 19/09/2026:** o usuário desenvolveu `adaptive-notch-navigation-bar.tsx` no Codex, a partir de um prompt. É obra do próprio projeto, sem licença de terceiros, e pode ir para o app distribuído (U03).

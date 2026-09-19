@@ -1,4 +1,4 @@
-# U01: HeroUI e Tailwind no Hibi
+# Fundação da nova UI: HeroUI e Tailwind no Hibi (U01 e U02)
 
 Data: 19/09/2026. Responsável: Claude. Base: `origin/main` depois do #165.
 
@@ -46,3 +46,21 @@ Tudo está em `src/styles/heroui.css`, importado primeiro em `src/main.tsx`. As 
   - A comparação achou três problemas antes do merge: o resumo de Tarefas ilegível no escuro (`--surface`), o chip "Bento" com outro desenho (`tag`) e o `⌘K` do dock (a base global do HeroUI).
 - **Barra no app instalado:** o fundo continua transparente (`rgba(0, 0, 0, 0)`).
 - **Desempenho no app instalado, antes e depois** (ver `performance-baseline.md`): abertura ~1,1 s, troca de tela de 10 a 33 ms e ~3% de CPU parado, sem regressão. O CSS cresceu de 54 KB para 479 KB (51 KB comprimido), porque todos os componentes do HeroUI entram. Se isso pesar, a U02 pode importar só o CSS dos componentes usados.
+
+## O que a U02 mudou
+
+A U02 fechou a outra direção do isolamento e deu à nova UI os tokens do preview. As regras abaixo substituem as da U01 onde elas divergem.
+
+- **O CSS das telas atuais não entra na nova UI.**
+  - O CSS atual não tem camada e vencia as camadas do HeroUI dentro de `.hibi-ui`: os botões do HeroUI ganhavam a borda das regras globais de `button`, e `.outline { color: #222 }` apagava o texto no escuro.
+  - Agora, dentro de `.hibi-ui`, cada elemento descarta o CSS sem camada (`all: revert-layer`, numa regra com peso de id).
+  - **Consequência:** todo CSS da nova UI vai em camada, senão é descartado também. Estilo em linha continua valendo.
+- **Reset do Tailwind só na nova UI:** `src/styles/hibi-ui-preflight.css`, gerado por `scripts/scoped-preflight.mjs` dentro de `@scope (.hibi-ui)`. O teste `scripts/scoped-preflight.test.mjs` falha se a cópia divergir do Tailwind instalado. Depois de atualizar o Tailwind, rode `node scripts/scoped-preflight.mjs`.
+- **Camada de proteção com cinco classes:** `tag`, `empty-state`, `block`, `filter` e `outline`. As três últimas são utilitários do Tailwind que a nova UI pode usar; a lista vem do próprio Tailwind, que as reconhece entre as classes das telas atuais.
+- **`HibiUiRoot`** (`src/ui/redesign/components/HibiUiRoot.tsx): raiz de toda superfície nova. Cria `.hibi-ui` e desenha popovers, menus e diálogos dentro dela. Ela não pode ter `overflow: hidden` nem `transform`, senão os diálogos são recortados.
+- **Tokens** (`src/ui/redesign/theme.css`):
+  - `--hibi-*` com os valores do preview, ligados às variáveis do HeroUI;
+  - as variáveis calculadas do HeroUI (hover e versões suaves) são redeclaradas dentro de `.hibi-ui`, senão seguiriam o acento laranja da raiz;
+  - contraste de 4,5:1 ou mais para texto normal nos dois temas e nos cinco tons.
+- **Tema antes do primeiro desenho:** o `ThemeProvider` aplica o tema num `useLayoutEffect`. Com `useEffect`, quem usa o escuro via um quadro claro ao abrir o app.
+- **Galeria:** `?overlay=ui-gallery`, só no desenvolvimento, com todos os controles, estados, temas, tons, pt/en e textos longos.
