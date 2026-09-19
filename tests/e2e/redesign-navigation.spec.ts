@@ -359,13 +359,22 @@ test('as teclas de rolar rolam a tela com o foco na barra ou em nada, e uma vez 
   await expect.poll(near(step - 40)).toBeLessThanOrEqual(1);
   await expect(nav(page).getByRole('button', { name: 'Hoje', exact: true })).toBeFocused();
 
-  // Com o clique na tela, quem rola é o próprio Chromium: uma página, não duas.
+  // Com o clique dentro da tela, quem rola é o próprio Chromium, a partir do ponto clicado: uma lista com rolagem
+  // própria rola ela mesma, e a área de trabalho fica onde estava.
   await viewport.evaluate((element) => { element.scrollTop = 0; });
-  await page.mouse.click(700, 300);
+  await page.locator('main.shell-content').evaluate((main) => {
+    const list = document.createElement('div');
+    list.id = 'e2e-list';
+    list.style.cssText = 'height: 200px; overflow: auto; background: #fff;';
+    list.innerHTML = '<button type="button">Item</button><div style="height: 2000px"></div>';
+    main.prepend(list);
+  });
+  const list = page.locator('#e2e-list');
+  const box = (await list.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + 150);
   await page.keyboard.press('PageDown');
-  await expect.poll(top).toBeGreaterThan(0);
-  await page.waitForTimeout(600);
-  expect(await top()).toBeLessThan(step * 1.2);
+  await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  expect(await top()).toBe(0);
 });
 
 test('qualquer navegação fecha o menu compacto: Ajustes, o Mais, a paleta e o foco que sai da ilha', async ({ page }) => {
