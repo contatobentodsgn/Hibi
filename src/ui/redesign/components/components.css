@@ -1,0 +1,82 @@
+/*
+ * Os componentes comuns da nova UI (U05), com as medidas do preview aprovado (`src/styles.css` do
+ * `Hibi-preview-adaptive-notch-validado-2026-09-18.zip`). Em camada, como todo CSS da nova UI (regra 2 do
+ * plano): dentro de `.hibi-ui`, uma regra sem camada seria descartada.
+ */
+@layer components {
+  /* O cabeçalho de página (`.page-heading`): título grande, uma linha de apoio e as ações à direita. */
+  .hibi-ui .hibi-section-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 33px; }
+  .hibi-ui .hibi-section-header__title { font-size: clamp(26px, 2.3vw, 34px); font-weight: 550; letter-spacing: -0.04em; line-height: 1.2; color: var(--hibi-ink); }
+  .hibi-ui .hibi-section-header__subtitle { margin-top: 10px; font-size: 13px; line-height: 1.55; color: var(--hibi-ink-muted); }
+  .hibi-ui .hibi-section-header__actions { display: flex; flex-shrink: 0; gap: 10px; }
+
+  /* O atalho redondo dos cartões (`.round-link`): leva a outra tela, com a seta que sobe um pixel no hover. */
+  .hibi-ui .hibi-round-link {
+    display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 32px; height: 32px;
+    border-radius: 50%; background: var(--hibi-soft); color: var(--hibi-ink); cursor: pointer;
+    transition: background var(--hibi-duration-control) var(--hibi-ease), transform var(--hibi-duration-control) var(--hibi-ease);
+  }
+  .hibi-ui .hibi-round-link:hover { background: var(--hibi-lavender); transform: translate(1px, -1px); }
+  .hibi-ui .hibi-round-link:focus-visible { outline: 2px solid var(--hibi-accent); outline-offset: 4px; }
+
+  /* O estado vazio: o círculo de ícone dos cartões do preview (`.icon-circle`), um título e o que fazer. */
+  .hibi-ui .hibi-empty-state { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .hibi-ui .hibi-empty-state__icon { display: inline-flex; align-items: center; justify-content: center; width: 43px; height: 43px; border-radius: 50%; background: var(--hibi-soft); color: var(--hibi-ink-muted); }
+  .hibi-ui .hibi-empty-state__icon[data-tone="lavender"] { background: var(--hibi-lavender); color: var(--hibi-lavender-ink); }
+  .hibi-ui .hibi-empty-state__icon[data-tone="mint"] { background: var(--hibi-mint); color: var(--hibi-mint-ink); }
+  .hibi-ui .hibi-empty-state__icon[data-tone="peach"] { background: var(--hibi-peach); color: var(--hibi-peach-ink); }
+  .hibi-ui .hibi-empty-state__icon[data-tone="blue"] { background: var(--hibi-blue); color: var(--hibi-blue-ink); }
+  .hibi-ui .hibi-empty-state__title { font-size: 15px; font-weight: 560; letter-spacing: -0.025em; color: var(--hibi-ink); }
+  .hibi-ui .hibi-empty-state__description { margin-top: 7px; max-width: 34ch; font-size: 12px; line-height: 1.55; color: var(--hibi-ink-muted); }
+
+  /* O fundo das sobreposições (`.preview-dialog::backdrop`): o mesmo véu azulado e o desfoque leve do preview. */
+  .hibi-ui .hibi-overlay-backdrop { background: #20202b38; backdrop-filter: blur(5px); }
+
+  /* Diálogo de ação curta (`.preview-dialog`): papel, raio de 26 px e a sombra longa do preview. */
+  .hibi-ui .modal__dialog.hibi-action-dialog {
+    width: min(460px, calc(100vw - 36px)); max-width: none; max-height: calc(100dvh - 60px); overflow-y: auto;
+    border-radius: 26px; padding: 27px; background: var(--hibi-paper); color: var(--hibi-ink); box-shadow: 0 24px 90px #14142030;
+  }
+  .hibi-ui .hibi-action-dialog__top { display: flex; align-items: center; justify-content: space-between; min-height: 37px; margin: -5px -5px 19px 0; }
+  .hibi-ui .hibi-action-dialog__title { font-size: 25px; font-weight: 550; line-height: 1.25; letter-spacing: -0.025em; color: var(--hibi-ink); }
+  .hibi-ui .hibi-action-dialog__body { margin-top: 18px; font-size: 13px; line-height: 1.55; color: var(--hibi-ink-muted); }
+  /* As escolhas do diálogo (`.create-options`): linhas de papel suave, com a seta no fim. */
+  .hibi-ui .hibi-action-dialog__options { display: grid; gap: 8px; margin-top: 24px; }
+  .hibi-ui .hibi-action-dialog__option {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 15px; border-radius: 13px;
+    background: var(--hibi-soft); color: var(--hibi-ink); font-size: 13px; text-align: left; cursor: pointer;
+    transition: background var(--hibi-duration-control) var(--hibi-ease);
+  }
+  .hibi-ui .hibi-action-dialog__option:hover { background: var(--hibi-lavender); }
+  .hibi-ui .hibi-action-dialog__option:focus-visible { outline: 2px solid var(--hibi-accent); outline-offset: 2px; }
+  .hibi-ui .hibi-action-dialog__option > svg:last-child { margin-left: auto; }
+
+  /*
+   * Painel de detalhes: a folha do preview (papel, raio e sombra do diálogo) presa à direita, dentro da moldura
+   * de 8 px da janela. Em janela estreita, sobe de baixo, na largura toda.
+   */
+  .hibi-ui .drawer__dialog.hibi-details-panel {
+    width: min(400px, calc(100vw - 16px)); max-width: none; height: calc(100% - 16px); margin: 8px;
+    border-radius: 24px; padding: 27px; background: var(--hibi-paper); color: var(--hibi-ink); box-shadow: 0 24px 90px #14142030;
+  }
+  .hibi-ui .drawer__dialog.hibi-details-panel[data-placement="bottom"] { width: calc(100% - 16px); height: auto; max-height: 85vh; }
+  .hibi-ui .hibi-details-panel__top { display: flex; align-items: center; justify-content: space-between; min-height: 37px; margin: -5px -5px 17px 0; }
+  .hibi-ui .hibi-details-panel__title { font-size: 22px; font-weight: 550; line-height: 1.25; letter-spacing: -0.03em; color: var(--hibi-ink); overflow-wrap: anywhere; }
+  .hibi-ui .hibi-details-panel__body { margin-top: 20px; font-size: 13px; line-height: 1.55; color: var(--hibi-ink-muted); }
+  .hibi-ui .hibi-details-panel__facts { display: grid; margin-top: 20px; border-top: 1px solid var(--hibi-line); }
+  .hibi-ui .hibi-details-panel__fact { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--hibi-line); }
+  .hibi-ui .hibi-details-panel__fact dt { font-size: 11px; color: var(--hibi-ink-muted); }
+  .hibi-ui .hibi-details-panel__fact dd { font-size: 13px; color: var(--hibi-ink); text-align: right; overflow-wrap: anywhere; }
+  .hibi-ui .hibi-details-panel__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .hibi-ui .hibi-details-panel__actions > .button { flex: 1 1 auto; }
+
+  @media (max-width: 820px) {
+    .hibi-ui .hibi-section-header { align-items: flex-start; gap: 13px; }
+    .hibi-ui .hibi-section-header__actions .button { padding-inline: 12px; font-size: 11px; }
+  }
+  @media (max-width: 600px) {
+    .hibi-ui .hibi-section-header { flex-wrap: wrap; margin-bottom: 26px; }
+    .hibi-ui .hibi-section-header__title { font-size: 27px; }
+    .hibi-ui .hibi-section-header__subtitle { max-width: 34ch; font-size: 12px; }
+  }
+}
