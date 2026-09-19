@@ -71,14 +71,14 @@ async function startFocusSession(page: Page, settings?: Record<string, unknown>)
   await page.goto('/');
   await expect(dock(page)).toBeVisible();
   await page.clock.pauseAt(new Date(2026, 8, 10, 10, 5, 0));
-  await dock(page).getByRole('button', { name: 'Foco', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
   await page.getByRole('button', { name: 'Start focus' }).click();
   await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
 }
 
 async function openFocusSettings(page: Page) {
-  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
-  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Focus', exact: true }).click();
 }
 
@@ -287,7 +287,8 @@ test('na pausa de descanso a ausência não muda nada', async ({ page }) => {
   await installPresenceBridge(page, { awayBehavior: 'pause' });
   await page.goto('/');
   await page.clock.pauseAt(new Date(2026, 8, 10, 10, 5, 0));
-  await dock(page).getByRole('button', { name: 'Foco', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
   await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
   await page.getByRole('button', { name: 'Começar pausa' }).click();
   await page.clock.runFor(2 * 60_000);
@@ -323,7 +324,8 @@ test('os ajustes de presença sobrevivem a recarregar, e o loop escolhido toca d
   await expect(page.getByLabel('Tempo de inatividade')).toBeDisabled();
   await page.getByLabel('Quando você se afastar').selectOption('pause');
 
-  await dock(page).getByRole('button', { name: 'Foco', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
   await page.getByRole('button', { name: 'Start focus' }).click();
   await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', /listening_music_loop\.mp4$/);
   await expect.poll(() => calls(page)).toContain('watch:true:10');

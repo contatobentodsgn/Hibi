@@ -99,11 +99,10 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
 
 const readRecorded = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: { recorded: Recorded } }).hibiE2E.recorded);
 
-// Mesma rota do dock que os outros specs de integrações usam: Ajustes vive atrás do "···".
+// Mesma rota que os outros specs de integrações usam: Ajustes tem botão próprio na barra.
 async function openIntegrations(page: Page) {
   await page.goto('/');
-  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
-  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Integrations', exact: true }).click();
 }
 

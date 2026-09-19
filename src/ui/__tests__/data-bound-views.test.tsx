@@ -10,7 +10,8 @@ import { TasksView } from '../TasksView';
 import { WeekView } from '../WeekView';
 import { HabitsView } from '../HabitsView';
 import { GoalsView } from '../GoalsView';
-import { DockMoreMenu } from '../shell/Dock';
+import { MORE_ITEMS } from '../shell/routes';
+import { translate } from '../../i18n/dictionary';
 import { CommandPalette } from '../palette/CommandPalette';
 import type { AssistantTurnControls } from '../useAssistantTurn';
 import { FocusView } from '../FocusView';
@@ -275,8 +276,8 @@ describe('study views', () => {
     expect(markup).not.toContain('window.prompt');
   });
 
-  it('exposes habits and goals through the dock menu and commands', () => {
-    const menu = renderToStaticMarkup(<DockMoreMenu active="home" onSelect={onEvent} />);
+  it('exposes habits and goals through the Mais menu and commands', () => {
+    const menu = MORE_ITEMS.map((item) => translate('pt', item.label)).join(' ');
     const palette = renderToStaticMarkup(<CommandPalette data={data} onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} conversations={{ conversations: [], activeId: null, query: '', saveFailed: false, record: onEvent, select: onEvent, create: onEvent, remove: onEvent, removeAll: onEvent, search: onEvent }} />);
 
     expect(menu).toContain('Hábitos');

@@ -389,6 +389,12 @@ const pt = {
   'tint.contrastDetail': 'Destaque os contornos e os textos secundários.',
   'tint.motion': 'Reduzir movimento',
   'tint.motionDetail': 'Transições mais discretas, no seu ritmo.',
+  // A navegação oficial da nova UI (U03): o notch do preview aprovado e a trilha do topo.
+  'redesign.nav.today': 'Hoje',
+  'redesign.nav.switch': 'mudar de seção',
+  'redesign.nav.current': 'atual',
+  'redesign.shell.workspace': 'Meu espaço',
+  'redesign.shell.breadcrumb': 'Onde você está',
 } as const
 
 export type DictionaryKey = keyof typeof pt
@@ -777,6 +783,12 @@ const en: Record<DictionaryKey, string> = {
   'tint.contrastDetail': 'Stronger outlines and secondary text.',
   'tint.motion': 'Reduce motion',
   'tint.motionDetail': 'Quieter transitions, at your pace.',
+  // The official navigation of the new UI (U03): the approved preview's notch and the top trail.
+  'redesign.nav.today': 'Today',
+  'redesign.nav.switch': 'switch section',
+  'redesign.nav.current': 'current',
+  'redesign.shell.workspace': 'My space',
+  'redesign.shell.breadcrumb': 'Where you are',
 }
 
 export const dictionary: Record<Locale, Record<DictionaryKey, string>> = { pt, en }

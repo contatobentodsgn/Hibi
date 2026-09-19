@@ -11,9 +11,8 @@
 
 body:has(.shell) { min-width: 0; background: #fff; color: var(--ui-ink); }
 .shell { background: #fff; color: var(--ui-ink); }
-.shell-topbar { background: rgba(255, 255, 255, .92); color: var(--ui-smoke); }
-.shell-content { background: #fff; padding: 0 24px 116px; }
-.legacy-surface { background: #fff; color: var(--ui-ink); min-height: calc(100vh - 62px); }
+.shell-content { background: #fff; padding: 0 24px 24px; }
+.legacy-surface { background: #fff; color: var(--ui-ink); }
 .legacy-surface .view { width: min(100%, 1200px); margin: 0 auto; }
 .legacy-surface .view-heading { padding-top: 28px; }
 .legacy-surface .view-heading > div:first-child { max-width: 70ch; }
@@ -68,7 +67,6 @@ body:has(.shell) { min-width: 0; background: #fff; color: var(--ui-ink); }
 .legacy-surface .reminder-row { padding: 18px 24px; border-color: #f0f0f0; }
 .legacy-surface .quick-input { border-radius: 16px; box-shadow: var(--ui-ambient-shadow); }
 .legacy-surface .hero h1 em { background: linear-gradient(0deg, rgb(240, 100, 19) -29.375%, rgb(254, 171, 48) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.legacy-surface .dock { box-shadow: var(--ui-ambient-shadow); }
 @media (max-width: 760px) {
   .shell-content { padding-inline: 12px; }
   .legacy-surface .view-heading { padding-top: 18px; }

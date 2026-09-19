@@ -2,8 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 const dock = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
 const openDataTab = async (page: Page) => {
-  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
-  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Data', exact: true }).click();
 };
 

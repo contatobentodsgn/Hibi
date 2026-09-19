@@ -20,11 +20,12 @@ const root = document.getElementById('root');
 if (!root) throw new Error('Hibi renderer root was not found');
 
 const overlay = new URLSearchParams(window.location.search).get('overlay');
-// A galeria da nova UI (U02) existe só no desenvolvimento: no build de produção esta condição é falsa e o
-// código dela nem entra no pacote.
+// A galeria da nova UI (U02) e a prévia da navegação (U03) existem só no desenvolvimento: no build de
+// produção estas condições são falsas e o código delas nem entra no pacote.
 const ComponentGallery = import.meta.env.DEV ? lazy(() => import('./ui/redesign/preview/ComponentGallery').then((module) => ({ default: module.ComponentGallery }))) : null;
+const NavigationPreview = import.meta.env.DEV ? lazy(() => import('./ui/redesign/preview/NavigationPreview').then((module) => ({ default: module.NavigationPreview }))) : null;
 createRoot(root).render(
   <React.StrictMode>
-    <ThemeProvider><LocaleProvider>{overlay === 'notch' ? <NotchOverlay /> : overlay === 'bar' ? <TabyBar /> : overlay === 'ui-gallery' && ComponentGallery ? <Suspense fallback={null}><ComponentGallery /></Suspense> : <App />}</LocaleProvider></ThemeProvider>
+    <ThemeProvider><LocaleProvider>{overlay === 'notch' ? <NotchOverlay /> : overlay === 'bar' ? <TabyBar /> : overlay === 'ui-gallery' && ComponentGallery ? <Suspense fallback={null}><ComponentGallery /></Suspense> : overlay === 'ui-navigation' && NavigationPreview ? <Suspense fallback={null}><NavigationPreview /></Suspense> : <App />}</LocaleProvider></ThemeProvider>
   </React.StrictMode>,
 );
