@@ -20,8 +20,9 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 | U01 | Concluída (Claude) | #167 | HeroUI 3.2.6, Tailwind 4.3.3, Motion 12.43.0, Lucide 0.577.0. Integração isolada das telas atuais; guia em `docs/redesign/u01-foundation.md`. |
 | U02 | Concluída (Claude) | #168 | Tokens do preview em `src/ui/redesign/theme.css`, `HibiUiRoot`, galeria só em desenvolvimento (`?overlay=ui-gallery`), reset do Tailwind restrito à nova UI e tema aplicado antes do primeiro desenho. |
 | U02b | Concluída (Claude) | #169 | Correção de fidelidade ao preview, pedida pelo usuário depois de uma auditoria contra o código e as capturas dele: ação principal escura, os quatro tons do preview, etiquetas pastéis, "Mais contraste", "Reduzir movimento", fonte do sistema, respiro do cartão e Ajustes conciliados com o preview. Comparação lado a lado em `docs/redesign/u02b-assets/`. |
-| U03 | Em revisão (Claude) | este PR | A Adaptive Notch Navigation substituiu o dock: Hoje · Agenda · Tarefas · Notas · Taby na barra, e Comandos, "Mais" (provisório) e Ajustes no notch da direita. O notch confere pixel a pixel com o preview (claro em cima e embaixo, escuro contra o preview assentado, em 1x e Retina), sem emendas em larguras ímpares. Achou e corrigiu dois defeitos da base (ordem das camadas e variante `dark` do HeroUI). Comparações, capturas da janela real e da UI antiga em `docs/redesign/u03-assets/`. Duas pendências para a U04, abaixo. |
-| U04–U28 | Pendentes | — | A U04 é a próxima. |
+| U03 | Concluída (Claude) | #170 | A Adaptive Notch Navigation substituiu o dock: Hoje · Agenda · Tarefas · Notas · Taby na barra, e Comandos, "Mais" (provisório) e Ajustes no notch da direita. O notch confere pixel a pixel com o preview (claro em cima e embaixo, escuro contra o preview assentado, em 1x e Retina), sem emendas em larguras ímpares. Achou e corrigiu dois defeitos da base (ordem das camadas e variante `dark` do HeroUI). Comparações, capturas da janela real e da UI antiga em `docs/redesign/u03-assets/`. Duas pendências para a U04, abaixo. |
+| U04 | Em revisão (Claude) | este PR | A seção Aparência da nova UI (`src/ui/redesign/settings/AppearanceSettings.tsx`) nos Ajustes atuais: os três painéis do preview (Tema, "Um toque de cor", Reduzir movimento e Mais contraste), que conferem 0 px com o preview em 1x, e o painel novo "Menu de navegação" (Superior/Inferior, com miniaturas). A posição fica guardada, vale na hora e não remonta telas, rascunhos nem a sessão de foco. Comparações em `docs/redesign/u04-assets/`. |
+| U05–U28 | Pendentes | — | A U05 é a próxima. |
 
 **Decisões registradas durante a execução:**
 - **Licença do componente da navegação** (`adaptive-notch-navigation-bar.tsx`): o usuário o desenvolveu no Codex, a partir de um prompt. É obra do projeto, sem licença de terceiros a conferir, e está liberado para a U03.
@@ -49,8 +50,16 @@ Atualizado a cada unidade por quem a implementa. **Desde 19/09/2026, por decisã
 - **Barra de rolagem fina e sem trilho**, como a do preview (`--hibi-scrollbar`).
 - **Capturas escuras do preview:** `notch-dark-top.png` foi tirada no meio da transição de cor de 200 ms. A comparação escura usa o preview congelado servido de novo, que confere pixel a pixel com as capturas claras e a móvel.
 
-**Pendências para a U04 (decisão de produto):**
-- **Mascote do notch × barra no topo.** A janela nativa do mascote fica no centro do topo da tela e cobre o meio da barra quando a janela do Hibi encosta no topo (em tela cheia, sempre): Agenda e Tarefas somem atrás do gato (`docs/redesign/u03-assets/app-real-tela-cheia-mascote.png`). Caminhos: (a) com o mascote ligado, a barra vai para baixo; (b) o mascote se recolhe enquanto a janela do Hibi o cobre; (c) a barra deixa um vão sob o mascote. Digitar e enviar no Taby continua movendo o mascote (`mascote-ao-digitar-no-taby.png`).
+**Decisões da U04 (preferências de aparência):**
+- **A Aparência do preview, na nova UI, dentro dos Ajustes atuais.** Ela substitui o seletor de tema e os controles provisórios da U02b (`TintSettings` saiu). Os três painéis do preview conferem 0 px em 1x com o preview servido no modo notch, nos dois temas; o painel "Menu de navegação" é novo e segue o desenho das miniaturas de tema. Dentro das telas atuais, a seção leva o canvas da nova UI (`framed`): sem ele, o título claro do tema escuro sumia sobre a ilha clara.
+- **Rádios do React Aria** (`RadioGroup`/`Radio` do HeroUI) no lugar dos botões com `aria-pressed` do preview: as setas trocam a opção e o leitor de tela diz qual está marcada.
+- **Interruptor desligado em #d6d6dd nos dois temas**, como no preview (`--hibi-switch-off`); ligado, o acento.
+- **Posição da barra:** chave `hibi.ui.navigation-position.v1` (seção 6); qualquer valor diferente de `bottom` vale como em cima. Se o armazenamento recusar, a posição vale até fechar o Hibi, e a seção diz isso. O `NavigationPreferencesProvider` (em `main.tsx`) é compartilhado entre o shell e os Ajustes; a prévia de desenvolvimento pode fixar a posição com `&position=`.
+- **Nada remonta ao trocar tema, tom ou posição:** um e2e prova com um rascunho (o mesmo elemento continua lá) e com uma sessão de foco em andamento. O rascunho do Taby já se perde ao sair da tela hoje, então esse fluxo não o preserva e não entrou na prova.
+- **O monitor do mascote não muda:** a Aparência nunca chama `setNotchDisplay` (e2e).
+
+**Pendências (decisão de produto):**
+- **Mascote do notch × barra no topo.** A janela nativa do mascote fica no centro do topo da tela e cobre o meio da barra quando a janela do Hibi encosta no topo (em tela cheia, sempre): Agenda e Tarefas somem atrás do gato (`docs/redesign/u03-assets/app-real-tela-cheia-mascote.png`). Desde a U04, quem escolhe a barra embaixo não tem o conflito. Falta decidir se o Hibi deve agir sozinho: (a) com o mascote ligado, a barra começa embaixo; (b) o mascote se recolhe enquanto a janela do Hibi o cobre; (c) a barra deixa um vão sob o mascote. Digitar e enviar no Taby continua movendo o mascote (`mascote-ao-digitar-no-taby.png`).
 - **Tema escuro com a barra embaixo:** até as telas migrarem, o notch claro fica sobre a ilha clara das telas atuais e quase some.
 
 **Regras que valem para todas as próximas unidades** (nascidas na U01 e na U02 e seguradas por `tests/e2e/heroui-foundation.spec.ts`):
@@ -383,11 +392,11 @@ Paralelismo útil depois de U05: Tarefas/Lembretes, Agenda, Notas e Taby podem s
 **Criar:** arquivos de preferência da seção 5 e `src/ui/redesign/settings/AppearanceSettings.tsx`.
 **Modificar:** shell e montagem mínima em `SettingsView.tsx`.
 
-- [ ] Ler posição com fallback seguro; aplicar sem remontar conteúdo.
-- [ ] Expor Claro/Escuro/Sistema usando provider existente, tint e posição Superior/Inferior com pequenas prévias.
-- [ ] Persistir posição ao reabrir; tratar valor antigo/inválido e storage recusado.
-- [ ] Responder à mudança do tema do sistema somente quando preferência for Sistema.
-- [ ] Testar alternância durante conversa com rascunho e durante sessão ativa.
+- [x] Ler posição com fallback seguro; aplicar sem remontar conteúdo.
+- [x] Expor Claro/Escuro/Sistema usando provider existente, tint e posição Superior/Inferior com pequenas prévias.
+- [x] Persistir posição ao reabrir; tratar valor antigo/inválido e storage recusado.
+- [x] Responder à mudança do tema do sistema somente quando preferência for Sistema.
+- [x] Testar alternância durante conversa com rascunho e durante sessão ativa.
 
 **Aceite:** quatro combinações manuais funcionam; Sistema acompanha macOS; nenhuma preferência de monitor do mascote é alterada.
 
