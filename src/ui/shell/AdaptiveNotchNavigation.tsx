@@ -21,8 +21,9 @@ import { nextFocusIndex } from './routes';
  *   dentro delas e perderia o próprio CSS lá dentro. Só a barra fica em `HibiUiRoot`, numa camada com
  *   `z-index: 4` (o dock antigo usava 4 e os modais das telas atuais usam 5): um modal continua cobrindo a
  *   navegação.
- * - A faixa do topo (e a borda de cima da moldura) é a região de arrastar a janela no macOS; os botões da
- *   barra não arrastam. Por isso a barra vem depois do conteúdo na árvore (ver notch.css).
+ * - A barra vem antes do conteúdo na árvore, como no preview: o Tab e o leitor de tela chegam aos destinos
+ *   antes da tela. A faixa do topo (e a borda de cima da moldura) é a região de arrastar a janela no macOS; os
+ *   botões da barra não arrastam, e o conteúdo, que vem depois, não declara região (ver notch.css).
  * - A área de rolagem herda o raio da superfície, porque o conteúdo das telas atuais tem fundo próprio e,
  *   sem isso, cobriria as quinas arredondadas de baixo.
  * - As ações da direita existem uma vez só: o preview as repete na barra larga e na ilha e esconde uma delas
@@ -371,12 +372,8 @@ export function AdaptiveNotchNavigation({
       )}
     >
       <div className="notch-surface relative flex h-full w-full flex-col rounded-none md:rounded-2xl bg-(--hibi-canvas) text-(--hibi-ink) antialiased transition-colors duration-200">
-        {/* A área de rolagem vem antes da barra na árvore (ver o comentário em notch.css); o `z-index` da
-            camada põe a barra por cima dela. */}
-        <div className={cn('notch-viewport relative w-full h-full overflow-y-auto overflow-x-hidden rounded-[inherit]', isBottom ? 'pt-3 pb-17.5' : 'pt-17.5 pb-3')}>
-          {children}
-        </div>
-
+        {/* A barra vem antes da área de rolagem na árvore, como no preview (ver o comentário em notch.css); o
+            `z-index` da camada a põe por cima dela. */}
         <HibiUiRoot className="notch-layer pointer-events-none absolute inset-0 z-[4] rounded-[inherit]">
           <div aria-hidden="true" className="notch-drag-region absolute inset-x-0 top-0 h-11 md:-inset-x-2 md:-top-2 md:h-13" />
 
@@ -511,6 +508,9 @@ export function AdaptiveNotchNavigation({
           </nav>
         </HibiUiRoot>
 
+        <div className={cn('notch-viewport relative w-full h-full overflow-y-auto overflow-x-hidden rounded-[inherit]', isBottom ? 'pt-3 pb-17.5' : 'pt-17.5 pb-3')}>
+          {children}
+        </div>
       </div>
     </div>
   );

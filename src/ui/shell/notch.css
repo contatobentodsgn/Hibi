@@ -13,8 +13,9 @@
    * pelos botões nem pelo conteúdo. O Chromium monta as regiões na ordem da árvore, uma por caixa marcada,
    * e a mais recente vence; o valor é herdado, e qualquer valor explícito (até `none`) vira `no-drag`
    * (`LocalFrameView::CollectDraggableRegions` e `WindowDrag::ApplyValue`). Então:
-   * - nada acima da barra declara região: a moldura, a superfície e o conteúdo não emitem nenhuma;
-   * - a faixa vem depois do conteúdo na árvore, e os notches e os menus deles vêm depois da faixa;
+   * - nada acima da barra declara região: a moldura e a superfície não emitem nenhuma;
+   * - na árvore, a faixa vem primeiro, depois os notches e os menus deles, e por último o conteúdo, que não
+   *   declara região (se declarasse `drag`, venceria os botões da barra);
    * - o fundo do menu compacto só marca `no-drag` aberto, para o clique fora fechar o menu.
    * Um modal das telas atuais que alcance a faixa continua arrastando a janela ali, como no shell antigo.
    */

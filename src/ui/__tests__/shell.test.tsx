@@ -55,10 +55,11 @@ describe('shell', () => {
     expect(markup).toContain('<main class="shell-content"><p>conteúdo</p></main>')
     expect(markup).toMatch(/<strong aria-current="page"[^>]*>Agenda<\/strong>/)
     expect(markup).toMatch(/<div data-notch-drawer="" inert=""/)
-    // A moldura e o conteúdo das telas atuais ficam fora de `.hibi-ui`; a barra vem depois do conteúdo na
-    // árvore, porque o Chromium monta as regiões de arrastar a janela nessa ordem (ver notch.css).
+    // A moldura e o conteúdo das telas atuais ficam fora de `.hibi-ui`; a barra vem antes do conteúdo na
+    // árvore, como no preview, e o Tab chega aos destinos antes da tela.
     expect(markup.indexOf('notch-frame')).toBeLessThan(markup.indexOf('hibi-ui'))
-    expect(markup.indexOf('class="hibi-ui notch-layer')).toBeGreaterThan(markup.indexOf('</main>'))
+    expect(markup.indexOf('class="hibi-ui notch-layer')).toBeLessThan(markup.indexOf('<main'))
+    expect(markup.indexOf('class="hibi-ui notch-layer')).toBeLessThan(markup.indexOf('class="notch-viewport'))
   })
 
   it('resolve cada rota antiga para o lugar dela na nova arquitetura (seção 3.1 do plano)', () => {

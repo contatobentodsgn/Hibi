@@ -249,3 +249,16 @@ test('no tema claro, o conteúdo continua passando por baixo da barra, como no p
   await page.goto('/');
   expect(await bandPointOwner(page, 'bottom')).toBe('tela atual');
 });
+
+// Revisão da U03 e da U04.
+
+for (const position of ['top', 'bottom'] as const) {
+  test(`o Tab chega aos destinos antes da tela (barra ${position === 'top' ? 'em cima' : 'embaixo'})`, async ({ page }) => {
+    await page.addInitScript((p) => localStorage.setItem('hibi.ui.navigation-position.v1', p), position);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await page.keyboard.press('Tab');
+    await expect(nav(page).getByRole('button', { name: 'Hoje', exact: true })).toBeFocused();
+  });
+}
+
