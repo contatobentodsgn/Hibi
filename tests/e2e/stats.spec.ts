@@ -54,9 +54,9 @@ test('a barra marca Hoje nas Estatísticas, e o menu "Mais" diz qual seção est
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Estatísticas', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Estatísticas', level: 1 })).toBeVisible();
-  // Na nova arquitetura, as Estatísticas moram em Hoje (Progresso → Tendências): é Hoje que a barra marca,
-  // e a trilha do topo mostra o caminho.
-  await expect(dock(page).getByRole('button', { name: 'Hoje', exact: true })).toHaveAttribute('aria-current', 'page');
+  // Na nova arquitetura, as Estatísticas moram em Hoje (Progresso → Tendências): é Hoje que a barra marca, como
+  // a seção onde a página mora, e a trilha do topo mostra o caminho.
+  await expect(dock(page).getByRole('button', { name: 'Hoje', exact: true })).toHaveAttribute('aria-current', 'true');
   await expect(page.getByRole('navigation', { name: 'Onde você está' })).toContainText('Meu espaço / Hoje / Estatísticas');
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await expect(page.getByRole('menuitem', { name: 'Estatísticas', exact: true })).toHaveAccessibleDescription('atual');

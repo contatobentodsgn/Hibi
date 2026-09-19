@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 // A navegação oficial da nova UI (U03): a Adaptive Notch Navigation Bar do preview aprovado no shell real.
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
 const trail = (page: Page) => page.getByRole('navigation', { name: 'Onde você está' });
-const current = (page: Page) => nav(page).locator('[aria-current="page"]:visible');
+const current = (page: Page) => nav(page).locator('[aria-current]:visible');
 const openMore = async (page: Page) => { await nav(page).getByRole('button', { name: 'Mais seções' }).click(); };
 
 // As asas do preview (`adaptive-notch-navigation-bar.tsx`), em cima e embaixo.
@@ -52,9 +52,12 @@ test('cada destino, Ajustes e cada item do Mais abrem a tela real, e a trilha di
     else { await openMore(page); await page.getByRole('menuitem', { name: place.name, exact: true }).click(); }
     await expect(place.screen(page), place.name).toBeVisible();
     await expect(trail(page), place.name).toHaveText(`Meu espaço / ${place.path}`);
-    // Um lugar só marcado na barra: o destino onde a rota mora, ou nenhum na sessão de foco.
-    if (place.marked) await expect(current(page), place.name).toHaveText([place.marked]);
-    else await expect(current(page), place.name).toHaveCount(0);
+    // Um lugar só marcado na barra: o destino onde a rota mora, ou nenhum na sessão de foco. Ele é a página
+    // quando a trilha termina nele, e a seção (`true`) quando a página é outra, dentro dele.
+    if (place.marked) {
+      await expect(current(page), place.name).toHaveText([place.marked]);
+      await expect(current(page), place.name).toHaveAttribute('aria-current', place.path.includes(' / ') ? 'true' : 'page');
+    } else await expect(current(page), place.name).toHaveCount(0);
   }
 });
 

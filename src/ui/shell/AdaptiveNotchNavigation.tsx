@@ -13,9 +13,10 @@ import { nextFocusIndex } from './routes';
  * desenvolvida pelo usuário no Codex. As asas SVG, as classes e as medidas são as do arquivo original.
  *
  * O que mudou, e por quê:
- * - Semântica de navegação: `nav` com `aria-current="page"` no lugar de `tablist`/`tab`, porque cada destino
- *   troca a tela inteira (seção 4.2 do plano). O menu compacto é uma lista que abre e fecha; fechada, sai da
- *   ordem do Tab (`inert`), e qualquer navegação o fecha.
+ * - Semântica de navegação: `nav` com `aria-current` no lugar de `tablist`/`tab`, porque cada destino troca a
+ *   tela inteira (seção 4.2 do plano): `page` quando o destino é a tela aberta, `true` quando é a seção onde
+ *   ela mora. O menu compacto é uma lista que abre e fecha; fechada, sai da ordem do Tab (`inert`), e qualquer
+ *   navegação o fecha.
  * - Setas, Home e End movem o foco entre os botões da barra, como no dock antigo; Escape fecha o menu
  *   compacto e devolve o foco ao botão que o abriu.
  * - Camadas: a moldura e a superfície ficam fora de `.hibi-ui`, porque o conteúdo das telas atuais mora
@@ -157,19 +158,23 @@ export function NotchCornerRightWing({ position = 'top', className }: NotchWingP
   );
 }
 
+/** O que o destino marcado é da tela aberta: a própria página, ou a seção onde ela mora. */
+export type NotchCurrent = 'page' | 'true';
+
 interface NotchItemProps {
   item: NotchItemData;
   isActive: boolean;
+  current: NotchCurrent;
   onSelect: (id: string) => void;
 }
 
-function NotchItem({ item, isActive, onSelect }: NotchItemProps) {
+function NotchItem({ item, isActive, current, onSelect }: NotchItemProps) {
   const { id, label, icon: Icon, badge, disabled } = item;
 
   return (
     <button
       type="button"
-      aria-current={isActive ? 'page' : undefined}
+      aria-current={isActive ? current : undefined}
       disabled={disabled}
       onClick={() => onSelect(id)}
       className={cn(
@@ -211,16 +216,17 @@ function NotchItem({ item, isActive, onSelect }: NotchItemProps) {
 interface NotchDropdownItemProps {
   item: NotchItemData;
   isSelected: boolean;
+  current: NotchCurrent;
   onSelect: (id: string) => void;
 }
 
-function NotchDropdownItem({ item, isSelected, onSelect }: NotchDropdownItemProps) {
+function NotchDropdownItem({ item, isSelected, current, onSelect }: NotchDropdownItemProps) {
   const Icon = item.icon;
 
   return (
     <button
       type="button"
-      aria-current={isSelected ? 'page' : undefined}
+      aria-current={isSelected ? current : undefined}
       disabled={item.disabled}
       onClick={() => onSelect(item.id)}
       className={cn(
@@ -244,8 +250,13 @@ function NotchDropdownItem({ item, isSelected, onSelect }: NotchDropdownItemProp
 
 export interface AdaptiveNotchNavigationProps {
   items: readonly NotchItemData[];
-  /** O destino atual, ou `null` quando a rota não pertence a nenhum (a sessão de foco, por exemplo). */
+  /** O destino marcado, ou `null` quando a rota não pertence a nenhum (a sessão de foco, por exemplo). */
   activeId: string | null;
+  /**
+   * O que o destino marcado é da tela aberta: a própria página (`page`) ou a seção onde ela mora (`true`). Em
+   * Hábitos, "Hoje" é a seção, e quem marca a página é a trilha do topo.
+   */
+  activeCurrent?: NotchCurrent;
   /** A tela aberta. Quando ela muda, o menu compacto fecha, por onde quer que a pessoa tenha navegado. */
   pageKey?: string;
   position?: NotchPosition;
@@ -296,6 +307,7 @@ const PAGE_FRACTION = 0.875;
 export function AdaptiveNotchNavigation({
   items,
   activeId,
+  activeCurrent = 'page',
   pageKey,
   position = 'top',
   label,
@@ -423,7 +435,7 @@ export function AdaptiveNotchNavigation({
   useEffect(() => {
     if (!isDropdownOpen) return;
     const options = drawerRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
-    (drawerRef.current?.querySelector<HTMLButtonElement>('button[aria-current="page"]') ?? options?.[0])?.focus();
+    (drawerRef.current?.querySelector<HTMLButtonElement>('button[aria-current]') ?? options?.[0])?.focus();
   }, [isDropdownOpen]);
 
   // Clicar fora da ilha fecha o menu. O foco que sai dela também (o Tab para a tela, o menu Mais, a paleta): o
@@ -521,7 +533,7 @@ export function AdaptiveNotchNavigation({
                 <ul className="flex items-center gap-1">
                   {items.map((item) => (
                     <li key={item.id}>
-                      <NotchItem item={item} isActive={item.id === activeId} onSelect={handleSelect} />
+                      <NotchItem item={item} isActive={item.id === activeId} current={activeCurrent} onSelect={handleSelect} />
                     </li>
                   ))}
                 </ul>
@@ -601,7 +613,7 @@ export function AdaptiveNotchNavigation({
                   >
                     {items.map((item) => (
                       <li key={item.id}>
-                        <NotchDropdownItem item={item} isSelected={item.id === activeId} onSelect={handleSelect} />
+                        <NotchDropdownItem item={item} isSelected={item.id === activeId} current={activeCurrent} onSelect={handleSelect} />
                       </li>
                     ))}
                   </ul>

@@ -5,7 +5,7 @@ import { AdaptiveNotchNavigation, type NotchPosition } from './AdaptiveNotchNavi
 import { NotchActions } from './NotchActions'
 import { useNavigationPreferences } from './NavigationPreferencesProvider'
 import { ShellTopbar } from './ShellTopbar'
-import { DESTINATIONS, destinationFor, sectionLabelKey, type DestinationKey, type NavKey } from './routes'
+import { ariaCurrentFor, DESTINATIONS, destinationFor, sectionLabelKey, type DestinationKey, type NavKey } from './routes'
 import './notch.css'
 import './shell.css'
 
@@ -29,6 +29,7 @@ export function AppShell({ active, onNavigate, onOpenCommands, position, childre
     <AdaptiveNotchNavigation
       items={items}
       activeId={place === null || place === 'settings' ? null : place}
+      activeCurrent={ariaCurrentFor(active)}
       pageKey={active}
       position={position ?? preferredPosition}
       label={t('shell.navigation')}

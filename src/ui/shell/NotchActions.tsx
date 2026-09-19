@@ -1,7 +1,7 @@
 import { Description, Dropdown, Focusable, Tooltip } from '@heroui/react';
 import { Check, MoreHorizontal, Search, Settings2 } from 'lucide-react';
 import { useT } from '../../i18n/LocaleProvider';
-import { destinationFor, MORE_ITEMS, type NavKey } from './routes';
+import { ariaCurrentFor, destinationFor, MORE_ITEMS, type NavKey } from './routes';
 
 type Props = Readonly<{ active: NavKey; onNavigate: (key: NavKey) => void; onOpenCommands: () => void }>;
 
@@ -73,7 +73,7 @@ export function NotchActions({ active, onNavigate, onOpenCommands }: Props) {
         </Dropdown.Popover>
       </Dropdown>
 
-      <button type="button" className={`${action} ${settingsActive ? current : ''}`} aria-current={settingsActive ? 'page' : undefined} onClick={() => onNavigate('settings')}>
+      <button type="button" className={`${action} ${settingsActive ? current : ''}`} aria-current={settingsActive ? ariaCurrentFor(active) : undefined} onClick={() => onNavigate('settings')}>
         <Settings2 aria-hidden="true" className="size-4 shrink-0" />
         {t('nav.settings')}
       </button>
