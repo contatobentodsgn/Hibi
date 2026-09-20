@@ -8,6 +8,10 @@ body:has(.shell) { background: var(--bg-canvas); }
    também cresce, com `flex`). */
 .shell-content { flex: 1 0 auto; display: flex; flex-direction: column; }
 
+/* As telas migradas para `.hibi-ui` usam os tokens reais, inclusive no tema escuro. Não podem herdar
+   a ilha clara que mantém as telas legadas temporariamente legíveis. */
+.redesign-surface { flex: 1 0 auto; width: 100%; min-width: 0; background: var(--hibi-canvas); }
+
 /* Ilha clara temporária: theme.css (o CSS legado das telas ainda não reconstruídas) fixa
    146 cores literais que não seguem tema — ex. `background:#fff` em .list-card/.panel/
    .settings-card. As 8 variáveis antigas (--paper/--ink/--muted/--line/--orange/--green/

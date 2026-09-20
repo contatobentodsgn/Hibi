@@ -1,0 +1,44 @@
+@layer components {
+  .hibi-ui.today-screen { width: min(1180px, 100%); margin: 0 auto; padding: 48px clamp(20px, 4vw, 52px) 72px; color: var(--hibi-ink); }
+  .today-screen :is(h2, p) { margin: 0; }
+  .today-screen .card { min-width: 0; background: var(--hibi-paper); }
+  .today-screen__top-grid { display: grid; grid-template-columns: 1.05fr .92fr .92fr; gap: 22px; }
+  .today-screen__bottom-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, .9fr); gap: 22px; margin-top: 22px; }
+  .today-screen__commitment, .today-screen__focus-card, .today-screen__rhythm-card { min-height: 292px; display: flex; flex-direction: column; }
+  .today-screen__card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--hibi-ink-muted); font-size: 12px; }
+  .today-screen__card-top > div { display: flex; align-items: center; gap: 9px; }
+  .today-screen__card-top h2, .today-screen__tasks-card h2, .today-screen__progress-card h2 { color: var(--hibi-ink); font-size: 16px; font-weight: 600; letter-spacing: -.03em; }
+  .today-screen__commitment h2 { margin-top: 30px; max-width: 12ch; font-size: clamp(22px, 2.4vw, 29px); line-height: 1.03; letter-spacing: -.055em; }
+  .today-screen__commitment p, .today-screen__focus-card p, .today-screen__rhythm-card > p { margin-top: 12px; color: var(--hibi-ink-muted); font-size: 12px; line-height: 1.5; }
+  .today-screen__commitment-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--hibi-line); color: var(--hibi-ink-muted); font-size: 11px; }
+  .today-screen__icon { display: inline-flex; width: 43px; height: 43px; align-items: center; justify-content: center; border-radius: 50%; background: var(--hibi-lavender); color: var(--hibi-lavender-ink); }
+  .today-screen__focus-card h2 { margin-top: 29px; font-size: 25px; line-height: 1.22; letter-spacing: -.05em; }
+  .today-screen__focus-card p { max-width: 24ch; }
+  .today-screen__focus-card .button { margin-top: auto; justify-content: flex-start; font-size: 11px; }
+  .today-screen__focus-duration { margin-left: auto; color: #c2c2cb; font-size: 10px; }
+  .today-screen__week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 38px; }
+  .today-screen__week span { display: grid; place-items: center; gap: 6px; min-height: 71px; border-radius: 17px; background: var(--hibi-soft); color: var(--hibi-ink-muted); font-size: 9px; text-transform: lowercase; }
+  .today-screen__week span[data-current="true"] { background: var(--hibi-lavender); color: var(--hibi-lavender-ink); }
+  .today-screen__week strong { color: var(--hibi-ink); font-size: 12px; font-weight: 500; }
+  .today-screen__rhythm-footer { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--hibi-line); }
+  .today-screen__rhythm-footer strong, .today-screen__rhythm-footer small { display: block; font-size: 11px; }
+  .today-screen__rhythm-footer small { margin-top: 3px; color: var(--hibi-ink-muted); font-size: 10px; }
+  .today-screen__leaf { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--hibi-mint); color: var(--hibi-mint-ink); }
+  .today-screen__tasks-card, .today-screen__progress-card { min-height: 284px; }
+  .today-screen__task-list { display: grid; padding: 16px 0 0; margin: 13px 0 0; list-style: none; border-top: 1px solid var(--hibi-line); }
+  .today-screen__task-list li { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--hibi-line); }
+  .today-screen__task-list li > div { display: grid; gap: 6px; min-width: 0; }
+  .today-screen__task-list strong { overflow-wrap: anywhere; font-size: 13px; font-weight: 500; }
+  .today-screen__checkbox { width: 18px; height: 18px; margin-top: 1px; border: 1px solid var(--hibi-edge); border-radius: 6px; }
+  .today-screen__progress-tabs { display: grid; grid-template-columns: 1fr 1fr; margin-top: 19px; padding: 3px; border-radius: 10px; background: var(--hibi-side); font-size: 10px; text-align: center; }
+  .today-screen__progress-tabs span:first-child { padding: 5px; border-radius: 7px; background: var(--hibi-paper); }
+  .today-screen__progress-tabs span:last-child { padding: 5px; color: var(--hibi-ink-muted); }
+  .today-screen__progress-time { display: block; margin-top: 27px; font-size: 29px; letter-spacing: -.05em; }
+  .today-screen__progress-card small { display: block; margin-top: 5px; color: var(--hibi-ink-muted); font-size: 10px; }
+  .today-screen__bars { display: flex; align-items: end; gap: 10px; height: 78px; margin-top: 17px; }
+  .today-screen__bars span { flex: 1; min-height: 8px; border-radius: 4px; background: var(--hibi-lavender); }
+  .today-screen__bars span[data-active="true"] { background: var(--hibi-accent); }
+  .today-screen__shortcuts { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 22px; }
+  @media (max-width: 980px) { .today-screen__top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .today-screen__rhythm-card { grid-column: span 2; min-height: auto; } .today-screen__week { margin-top: 22px; } }
+  @media (max-width: 680px) { .hibi-ui.today-screen { padding: 28px 16px 50px; } .today-screen__top-grid, .today-screen__bottom-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; } .today-screen__rhythm-card { grid-column: auto; } .today-screen__commitment, .today-screen__focus-card { min-height: 246px; } .today-screen__shortcuts .button { flex: 1 1 calc(50% - 5px); } }
+}

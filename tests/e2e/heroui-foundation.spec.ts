@@ -192,7 +192,7 @@ test('o tema é aplicado antes de a tela aparecer', async ({ page }) => {
     requestAnimationFrame(tick);
   });
   await page.goto('/');
-  await expect(page.locator('.legacy-surface')).toBeVisible();
+  await expect(page.locator('.redesign-surface')).toBeVisible();
   await page.waitForTimeout(500);
   const frames = await page.evaluate(() => (window as unknown as { __frames: Array<{ content: boolean; theme: string | null }> }).__frames);
   expect(frames.some((frame) => frame.content)).toBe(true);
@@ -225,6 +225,7 @@ const legacyStyle = (page: Page, markup: string, properties: string[]) =>
 
 test('as telas atuais não ganham os utilitários do Tailwind que a nova UI usa', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
   await expect(page.locator('.legacy-surface')).toBeVisible();
   // A galeria usa `outline` e `block` como utilitários; nas telas atuais eles são classes de botão.
   expect(await legacyStyle(page, '<button class="outline">Cancelar</button>', ['outline-style'])).toEqual({ 'outline-style': 'none' });
@@ -233,6 +234,7 @@ test('as telas atuais não ganham os utilitários do Tailwind que a nova UI usa'
 
 test('as classes que o HeroUI e as telas atuais compartilham ficam com o desenho de antes', async ({ page }) => {
   await page.goto('/');
+  await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
   await expect(page.locator('.legacy-surface')).toBeVisible();
   // O Tag do HeroUI trava a seleção do texto; o chip de pasta das telas atuais nunca travou.
   expect(await legacyStyle(page, '<span class="tag">Bento</span>', ['user-select', 'position'])).toEqual({ 'user-select': 'auto', position: 'static' });
