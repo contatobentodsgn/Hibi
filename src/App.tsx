@@ -13,7 +13,7 @@ import type { NavKey } from './ui/shell/routes';
 import { AgendaView } from './ui/AgendaView';
 import { CommandPalette } from './ui/palette/CommandPalette';
 import { TodayScreen } from './ui/redesign/screens/TodayScreen';
-import { TasksView } from './ui/TasksView';
+import { TasksScreen } from './ui/redesign/screens/TasksScreen';
 import { RemindersView, type EditedReminderSchedule } from './ui/RemindersView';
 import { FocusView } from './ui/FocusView';
 import { appendEventRecord, loadEventLog } from './ui/event-log';
@@ -451,7 +451,7 @@ export default function App() {
     const keepFocus = route === 'focus' || (focusActive && route !== 'break');
     const focusHost = keepFocus ? <div className="focus-host" style={{ display: route === 'focus' ? 'contents' : 'none' }}>{focusView('focus')}</div> : null;
     const screen = (() => { switch (route) {
-      case 'tasks': return <TasksView key={`tasks-${folderFilter.nonce}`} {...props} data={data} initialFolder={folderFilter.folder} onTaskStatusChange={changeTaskStatus} onCreateTask={(title, folder) => createTask({ title, durationMinutes: 60, folder: folder ?? 'Bento' })} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
+      case 'tasks': return <TasksScreen key={`tasks-${folderFilter.nonce}`} {...props} data={data} initialFolder={folderFilter.folder} onTaskStatusChange={changeTaskStatus} onCreateTask={(title, folder) => createTask({ title, durationMinutes: 60, folder: folder ?? 'Bento' })} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
       case 'notes': return <NotesView key={`notes-${folderFilter.nonce}`} data={data} initialFolder={folderFilter.folder} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
       case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={() => setReminderCreateOpen(true)} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
