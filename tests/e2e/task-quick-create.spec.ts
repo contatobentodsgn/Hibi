@@ -1,18 +1,21 @@
 import { expect, test } from '@playwright/test';
 
-// O formulário rápido da tela de Tarefas abre junto com a tela. Ele ficou ligado a um callback vazio,
-// então aceitava o título e não criava nada — e a pessoa só descobria ao não ver a tarefa na lista.
-test('o formulário rápido de Tarefas cria a tarefa, e ela sobrevive a recarregar', async ({ page }) => {
+const openTaskCreateDialog = async (page: import('@playwright/test').Page) => {
+  await page.getByRole('button', { name: 'Nova tarefa', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+};
+
+test('a criação rápida de Tarefas cria a tarefa, e ela sobrevive a recarregar', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
 
-  const campo = page.getByRole('textbox', { name: 'New task title' });
+  await openTaskCreateDialog(page);
+  const campo = page.getByRole('textbox', { name: 'Título da tarefa' });
   await campo.fill('Tarefa criada pelo formulário rápido');
-  await page.getByRole('button', { name: 'Add task', exact: true }).click();
+  await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();
 
   await expect(page.getByText('Tarefa criada pelo formulário rápido')).toBeVisible();
-  // O formulário se fecha e esvazia: deixar o título lá convida a criar a mesma tarefa duas vezes.
-  await expect(page.getByRole('textbox', { name: 'New task title' })).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await page.reload();
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
@@ -23,17 +26,16 @@ test('o formulário rápido de Tarefas cria a tarefa, e ela sobrevive a recarreg
 test('uma tarefa criada com a pasta filtrada nasce nessa pasta e aparece na lista', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
-  await page.getByRole('button', { name: /^Pasta · Bento/ }).click();
+  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Bento \d+$/ }).click();
 
-  await page.getByRole('textbox', { name: 'New task title' }).fill('Tarefa da pasta filtrada');
-  await page.getByRole('button', { name: 'Add task', exact: true }).click();
+  await openTaskCreateDialog(page);
+  await page.getByRole('textbox', { name: 'Título da tarefa' }).fill('Tarefa da pasta filtrada');
+  await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();
 
   await expect(page.getByText('Tarefa da pasta filtrada')).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Pasta · Bento/, pressed: true })).toBeVisible();
+  await expect(page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Bento \d+$/ })).toBeVisible();
 });
 
-// "Bento" era a pasta fixa de toda tarefa rápida, então o teste acima passava por coincidência. Com outra
-// pasta filtrada, a tarefa ia para "Bento" e sumia da lista que a pessoa estava vendo.
 test('a tarefa rápida nasce na pasta filtrada, qualquer que seja, e em "Sem pasta" nasce sem pasta', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => {
@@ -44,18 +46,19 @@ test('a tarefa rápida nasce na pasta filtrada, qualquer que seja, e em "Sem pas
   await page.reload();
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
 
-  await page.getByRole('button', { name: /^Pasta · Clientes/ }).click();
-  await page.getByRole('textbox', { name: 'New task title' }).fill('Contrato do cliente');
-  await page.getByRole('button', { name: 'Add task', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Complete Contrato do cliente' })).toBeVisible();
+  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Clientes \d+$/ }).click();
+  await openTaskCreateDialog(page);
+  await page.getByRole('textbox', { name: 'Título da tarefa' }).fill('Contrato do cliente');
+  await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Concluir Contrato do cliente' })).toBeVisible();
 
-  // O formulário rápido abre com a tela; "+ New task" abre o modal completo.
   await page.getByRole('button', { name: 'Hoje', exact: true }).click();
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
-  await page.getByRole('button', { name: /^Pasta · Sem pasta/ }).click();
-  await page.getByRole('textbox', { name: 'New task title' }).fill('Ideia sem pasta');
-  await page.getByRole('button', { name: 'Add task', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Complete Ideia sem pasta' })).toBeVisible();
+  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Sem pasta \d+$/ }).click();
+  await openTaskCreateDialog(page);
+  await page.getByRole('textbox', { name: 'Título da tarefa' }).fill('Ideia sem pasta');
+  await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Concluir Ideia sem pasta' })).toBeVisible();
 
   const pastas = await page.evaluate(() => {
     const data = JSON.parse(window.localStorage.getItem('hibi-study-data') ?? '{}') as { tasks: { title: string; folder?: string }[] };

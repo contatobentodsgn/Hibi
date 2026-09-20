@@ -1,0 +1,47 @@
+@layer components {
+  .hibi-ui.tasks-screen { width: min(1240px, 100%); margin: 0 auto; padding: 48px clamp(20px, 4vw, 52px) 72px; color: var(--hibi-ink); }
+  .tasks-screen :is(h2, p) { margin: 0; }
+  .tasks-screen .card { min-width: 0; background: var(--hibi-paper); }
+  .tasks-screen__layout { display: grid; grid-template-columns: 185px minmax(0, 1fr) 232px; align-items: start; gap: 22px; }
+  .tasks-screen__sidebar { display: grid; gap: 24px; padding: 8px 0; }
+  .tasks-screen__filter-group { display: grid; gap: 4px; }
+  .tasks-screen__filter-heading { display: flex; align-items: center; gap: 7px; margin: 0 0 7px 10px; color: var(--hibi-ink-muted); font-size: 11px; font-weight: 600; }
+  .tasks-screen__filter-group button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border-radius: 10px; color: var(--hibi-ink-muted); font-size: 12px; text-align: left; transition: background var(--hibi-duration-control) var(--hibi-ease), color var(--hibi-duration-control) var(--hibi-ease); }
+  .tasks-screen__filter-group button:hover, .tasks-screen__filter-group button[data-active="true"] { background: var(--hibi-soft); color: var(--hibi-ink); }
+  .tasks-screen__filter-group button[data-active="true"] { font-weight: 600; }
+  .tasks-screen__filter-group button span { margin-left: auto; color: var(--hibi-ink-muted); font-size: 10px; }
+  .tasks-screen__main { min-width: 0; }
+  .tasks-screen__list-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 4px 0 14px; }
+  .tasks-screen__list-header h2 { font-size: 17px; font-weight: 620; letter-spacing: -.035em; }
+  .tasks-screen__list-header p { margin-top: 5px; color: var(--hibi-ink-muted); font-size: 11px; }
+  .tasks-screen__list-card { min-height: 440px; padding: 8px 25px; }
+  .tasks-screen__list { padding: 0; margin: 0; list-style: none; }
+  .tasks-screen__list li { display: flex; align-items: center; gap: 10px; min-height: 79px; border-bottom: 1px solid var(--hibi-line); }
+  .tasks-screen__list li:last-child { border-bottom: 0; }
+  .tasks-screen__check { display: grid; flex: 0 0 auto; place-items: center; width: 21px; height: 21px; border: 1px solid var(--hibi-edge); border-radius: 7px; color: transparent; cursor: pointer; transition: background var(--hibi-duration-control) var(--hibi-ease), border-color var(--hibi-duration-control) var(--hibi-ease); }
+  .tasks-screen__check:hover { border-color: var(--hibi-accent); }
+  .tasks-screen__check[data-completed="true"] { border-color: var(--hibi-accent); background: var(--hibi-accent); color: white; }
+  .tasks-screen__task-trigger.button { display: flex; flex: 1; align-items: center; justify-content: space-between; min-width: 0; min-height: 58px; padding: 8px 0; border-radius: 0; color: var(--hibi-ink); text-align: left; }
+  .tasks-screen__task-trigger.button:hover { background: transparent; }
+  .tasks-screen__task-copy { display: grid; gap: 6px; min-width: 0; padding-right: 15px; }
+  .tasks-screen__task-copy strong { overflow-wrap: anywhere; font-size: 13px; font-weight: 560; letter-spacing: -.015em; }
+  .tasks-screen__task-copy span { color: var(--hibi-ink-muted); font-size: 11px; }
+  .tasks-screen__empty { display: grid; min-height: 320px; place-items: center; padding: 28px; }
+  .tasks-screen__summary { padding: 25px; }
+  .tasks-screen__summary h2 { font-size: 17px; font-weight: 600; letter-spacing: -.04em; }
+  .tasks-screen__summary > p { margin-top: 8px; color: var(--hibi-ink-muted); font-size: 11px; line-height: 1.5; }
+  .tasks-screen__summary > div { display: grid; gap: 10px; margin-top: 28px; }
+  .tasks-screen__summary > div span { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--hibi-line); color: var(--hibi-ink-muted); font-size: 11px; }
+  .tasks-screen__summary > div strong { color: var(--hibi-ink); font-size: 23px; font-weight: 550; letter-spacing: -.05em; }
+  .tasks-screen__next { display: flex; align-items: flex-start; gap: 8px; padding-top: 17px; }
+  .tasks-screen__next strong { color: var(--hibi-ink); font-weight: 600; }
+  .tasks-screen__create-form, .tasks-screen__edit-form { display: grid; gap: 10px; margin-top: 24px; }
+  .tasks-screen__create-form label, .tasks-screen__edit-form label { color: var(--hibi-ink-muted); font-size: 11px; font-weight: 600; }
+  .tasks-screen__create-form input, .tasks-screen__edit-form input { width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid var(--hibi-edge); border-radius: 12px; background: var(--hibi-soft); color: var(--hibi-ink); font: inherit; font-size: 13px; outline: none; }
+  .tasks-screen__create-form input:focus, .tasks-screen__edit-form input:focus { border-color: var(--hibi-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hibi-accent) 18%, transparent); }
+  .tasks-screen__create-form > div, .tasks-screen__edit-form > div, .tasks-screen__confirm-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 8px; }
+  .tasks-screen__edit-form { width: 100%; }
+  @media (max-width: 980px) { .tasks-screen__layout { grid-template-columns: 175px minmax(0, 1fr); } .tasks-screen__summary { grid-column: 2; } }
+  @media (max-width: 700px) { .hibi-ui.tasks-screen { padding: 28px 16px 50px; } .tasks-screen__layout { grid-template-columns: minmax(0, 1fr); gap: 16px; } .tasks-screen__sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; overflow-x: auto; padding: 0; } .tasks-screen__filter-group { min-width: 150px; } .tasks-screen__summary { grid-column: auto; } .tasks-screen__list-card { min-height: 360px; padding: 6px 17px; } .tasks-screen__task-trigger.button { align-items: flex-start; gap: 9px; } .tasks-screen__task-trigger .hibi-tag { white-space: nowrap; font-size: 9px; } }
+  @media (max-width: 430px) { .tasks-screen__list-header { align-items: flex-start; } .tasks-screen__list-header .button { flex: 0 0 auto; } .tasks-screen__list li { align-items: flex-start; padding: 12px 0; } .tasks-screen__check { margin-top: 11px; } .tasks-screen__task-trigger.button { min-height: 62px; } .tasks-screen__task-copy strong { font-size: 12px; } .tasks-screen__task-trigger .hibi-tag { max-width: 76px; overflow: hidden; text-overflow: ellipsis; } }
+}
