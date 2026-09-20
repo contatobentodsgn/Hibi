@@ -97,10 +97,10 @@ test('"Review spacing" abre a edição do lembrete que pode ser afastado', async
   })()`);
   await openMore(page, 'Lembretes');
 
-  await page.getByRole('button', { name: 'Review spacing' }).click();
+  await page.getByRole('button', { name: 'Rever espaçamento' }).click();
 
-  await expect(page.getByRole('form', { name: 'Edit Beber água' })).toBeVisible();
-  await expect(page.getByRole('form', { name: 'Edit Remédio' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Editar lembrete' })).toBeVisible();
+  await expect(page.getByLabel('Nome')).toHaveValue('Beber água');
 });
 
 test('um lembrete semanal sozinho, no mesmo horário em vários dias, não é "próximo de outro"', async ({ page }) => {
@@ -110,6 +110,6 @@ test('um lembrete semanal sozinho, no mesmo horário em vários dias, não é "p
     window.localStorage.setItem('hibi-study-data', JSON.stringify(data));
   })()`);
   await openMore(page, 'Lembretes');
-  await expect(page.getByRole('button', { name: 'Edit Aula' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Review spacing' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Editar Aula' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Rever espaçamento' })).toHaveCount(0);
 });

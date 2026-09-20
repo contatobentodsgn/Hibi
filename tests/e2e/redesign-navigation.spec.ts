@@ -30,13 +30,13 @@ test('cada destino, Ajustes e cada item do Mais abrem a tela real, e a trilha di
   await page.goto('/');
   const places: { name: string; via: 'bar' | 'more'; marked: string | null; path: string; screen: (page: Page) => ReturnType<Page['locator']> }[] = [
     { name: 'Agenda', via: 'bar', marked: 'Agenda', path: 'Agenda', screen: (p) => p.locator('.agenda-view') },
-    { name: 'Tarefas', via: 'bar', marked: 'Tarefas', path: 'Tarefas', screen: (p) => p.getByLabel('New task title') },
+    { name: 'Tarefas', via: 'bar', marked: 'Tarefas', path: 'Tarefas', screen: (p) => p.locator('.tasks-screen') },
     { name: 'Notas', via: 'bar', marked: 'Notas', path: 'Notas', screen: (p) => p.getByRole('heading', { level: 1, name: 'Notes' }) },
     { name: 'Taby', via: 'bar', marked: 'Taby', path: 'Taby', screen: (p) => p.getByRole('heading', { level: 1, name: 'Local assistant' }) },
     { name: 'Hoje', via: 'bar', marked: 'Hoje', path: 'Hoje', screen: (p) => p.locator('.today-screen') },
     { name: 'Ajustes', via: 'bar', marked: 'Ajustes', path: 'Ajustes', screen: (p) => p.getByRole('heading', { level: 1, name: 'Settings' }) },
     { name: 'Foco', via: 'more', marked: null, path: 'Foco', screen: (p) => p.locator('.focus-view') },
-    { name: 'Lembretes', via: 'more', marked: 'Tarefas', path: 'Tarefas / Lembretes', screen: (p) => p.getByRole('heading', { level: 1, name: 'Reminders' }) },
+    { name: 'Lembretes', via: 'more', marked: 'Tarefas', path: 'Tarefas / Lembretes', screen: (p) => p.locator('.reminders-screen') },
     { name: 'Hábitos', via: 'more', marked: 'Hoje', path: 'Hoje / Hábitos', screen: (p) => p.getByRole('heading', { level: 1, name: 'Habits' }) },
     { name: 'Metas', via: 'more', marked: 'Hoje', path: 'Hoje / Metas', screen: (p) => p.getByRole('heading', { level: 1, name: 'Goals' }) },
     { name: 'Revisão', via: 'more', marked: 'Hoje', path: 'Hoje / Revisão', screen: (p) => p.getByRole('heading', { level: 1, name: 'Review' }) },
