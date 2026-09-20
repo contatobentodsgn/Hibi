@@ -14,7 +14,7 @@ const seedToday = () => new Date(2026, 8, 7, 10, 0, 0);
 test('navega pelo calendário e abre comandos', async ({ page }) => {
   await page.clock.install({ time: seedToday() });
   await page.goto('/');
-  await expect(page.getByText('Make room for')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Um dia de cada vez.' })).toBeVisible();
   await goWeek(page);
   await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
   await page.keyboard.press('Meta+K');

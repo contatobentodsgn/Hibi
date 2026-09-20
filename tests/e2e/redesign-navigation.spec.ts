@@ -33,7 +33,7 @@ test('cada destino, Ajustes e cada item do Mais abrem a tela real, e a trilha di
     { name: 'Tarefas', via: 'bar', marked: 'Tarefas', path: 'Tarefas', screen: (p) => p.getByLabel('New task title') },
     { name: 'Notas', via: 'bar', marked: 'Notas', path: 'Notas', screen: (p) => p.getByRole('heading', { level: 1, name: 'Notes' }) },
     { name: 'Taby', via: 'bar', marked: 'Taby', path: 'Taby', screen: (p) => p.getByRole('heading', { level: 1, name: 'Local assistant' }) },
-    { name: 'Hoje', via: 'bar', marked: 'Hoje', path: 'Hoje', screen: (p) => p.locator('.home-view') },
+    { name: 'Hoje', via: 'bar', marked: 'Hoje', path: 'Hoje', screen: (p) => p.locator('.today-screen') },
     { name: 'Ajustes', via: 'bar', marked: 'Ajustes', path: 'Ajustes', screen: (p) => p.getByRole('heading', { level: 1, name: 'Settings' }) },
     { name: 'Foco', via: 'more', marked: null, path: 'Foco', screen: (p) => p.locator('.focus-view') },
     { name: 'Lembretes', via: 'more', marked: 'Tarefas', path: 'Tarefas / Lembretes', screen: (p) => p.getByRole('heading', { level: 1, name: 'Reminders' }) },
@@ -232,13 +232,14 @@ for (const [system, hibi, expected] of [['dark', 'light', ZINC_950], ['light', '
 const bandPointOwner = async (page: Page, position: 'top' | 'bottom') => {
   const notch = (await page.locator('.notch-center').boundingBox())!;
   const y = position === 'top' ? notch.y + 20 : notch.y + notch.height - 20;
-  return page.evaluate(([x, py]) => (document.elementFromPoint(x, py)?.closest('.legacy-surface') ? 'tela atual' : 'superfície'), [notch.x - 60, y]);
+  return page.evaluate(([x, py]) => (document.elementFromPoint(x, py)?.closest('.legacy-surface, .redesign-surface') ? 'tela atual' : 'superfície'), [notch.x - 60, y]);
 };
 for (const position of ['top', 'bottom'] as const) {
   test(`no tema escuro, as telas atuais param antes do notch claro (barra ${position === 'top' ? 'em cima' : 'embaixo'})`, async ({ page }) => {
     await page.addInitScript((p) => { localStorage.setItem('hibi-theme', 'dark'); localStorage.setItem('hibi.ui.navigation-position.v1', p); }, position);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
+    await nav(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
     // Em cima, o conteúdo só chega à faixa rolando; embaixo, já está sob a barra desde o começo da tela (no fim
     // da rolagem, o próprio respiro da área cobre a faixa).
     if (position === 'top') await page.locator('.notch-viewport').evaluate((element) => { element.scrollTop = 400; });

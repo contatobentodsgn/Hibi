@@ -82,7 +82,7 @@ test('confirmação levantada na página Taby não é descartada ao abrir e fech
 test('⌘K responde consultas sem sair da tela', async ({ page }) => {
   await askTaby(page, 'qual a agenda de hoje?');
   await expect(palette(page).getByText(/\d+ blocos na agenda/)).toBeVisible();
-  await expect(page.getByText('Make room for')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Um dia de cada vez.' })).toBeVisible();
 });
 
 test('tema manual sobrevive ao reload e o sistema volta a mandar em "Sistema"', async ({ page }) => {
