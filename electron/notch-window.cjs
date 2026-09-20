@@ -6,7 +6,7 @@ const validPresentation = (value) => value && typeof value === 'object'
   && (value.text === null || typeof value.text === 'string')
   && Array.isArray(value.actions) && value.actions.length <= 4;
 
-function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, onAction, platform = process.platform, preferredDisplayId: initialPreferredDisplayId = null, idlePresentation = null, size: initialSize = 'normal' }) {
+function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, load, nativeBridge, onAction, platform = process.platform, preferredDisplayId: initialPreferredDisplayId = null, idlePresentation = null, size: initialSize = 'normal', preferElectronForAnimated = false }) {
   let window = null;
   let activeRequestId = null;
   let activeActions = new Set();
@@ -51,6 +51,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
   const useNativeHost = (presentation) => {
     try {
       return platform === 'darwin'
+        && !(preferElectronForAnimated && presentation?.kind === 'result')
         && presentation?.host !== 'electron'
         && activeActions.size === 0
         && nativeBridge?.nativeHostAvailable?.() === true
