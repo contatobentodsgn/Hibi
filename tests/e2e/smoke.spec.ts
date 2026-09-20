@@ -192,14 +192,14 @@ test('filtros de lembretes alteram a lista', async ({ page }) => {
 test('criação de lembrete diário preserva a recorrência', async ({ page }) => {
   await page.goto('/');
   await goMore(page, 'Lembretes');
-  await page.getByRole('button', { name: '+ New reminder' }).click();
+  await page.getByRole('button', { name: 'Novo lembrete' }).click();
   const form = page.getByRole('dialog', { name: 'Create reminder' });
   await form.getByRole('textbox', { name: 'Title' }).fill('Revisar agenda');
   await form.getByRole('combobox', { name: 'Schedule type' }).selectOption('daily');
   await form.getByRole('textbox', { name: 'Time' }).fill('08:30');
   await form.getByRole('button', { name: 'Create reminder' }).click();
-  await expect(page.locator('.list-card').getByText('Revisar agenda')).toBeVisible();
-  await expect(page.getByText('Every day · 08:30')).toBeVisible();
+  await expect(page.locator('.reminders-screen__list').getByText('Revisar agenda')).toBeVisible();
+  await expect(page.getByText('Todos os dias · 08:30')).toBeVisible();
 });
 
 // O dia pré-marcado é o do início do plano (`planStartDate`, o primeiro dia com bloco), e o seed é
@@ -209,7 +209,7 @@ test('criação semanal preseleciona o dia do início e permite escolher categor
   await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await goMore(page, 'Lembretes');
-  await page.getByRole('button', { name: '+ New reminder' }).click();
+  await page.getByRole('button', { name: 'Novo lembrete' }).click();
   const form = page.getByRole('dialog', { name: 'Create reminder' });
   await form.getByRole('textbox', { name: 'Title' }).fill('Caminhar');
   await form.getByRole('radio', { name: 'Wellbeing' }).check();
@@ -217,30 +217,30 @@ test('criação semanal preseleciona o dia do início e permite escolher categor
   await expect(form.getByRole('checkbox', { name: 'Mon' })).toBeChecked();
   await form.getByRole('textbox', { name: 'Time' }).fill('19:00');
   await form.getByRole('button', { name: 'Create reminder' }).click();
-  await expect(page.locator('.list-card').getByText('Caminhar')).toBeVisible();
-  await expect(page.getByText('Mon 19:00')).toBeVisible();
+  await expect(page.locator('.reminders-screen__list').getByText('Caminhar')).toBeVisible();
+  await expect(page.getByText('Toda semana · 19:00')).toBeVisible();
 });
 
 test('edição de lembrete semanal mantém dias e horários configurados', async ({ page }) => {
   await page.goto('/');
   await goMore(page, 'Lembretes');
-  await page.getByRole('button', { name: 'Edit vaga/inglês - Horizontes' }).click();
-  const form = page.getByRole('form', { name: 'Edit vaga/inglês - Horizontes' });
-  await form.getByRole('combobox', { name: 'Type' }).selectOption('weekly');
-  await form.getByRole('textbox', { name: 'Time' }).fill('20:00');
-  await form.getByRole('checkbox', { name: 'Tue' }).uncheck();
-  await form.getByRole('checkbox', { name: 'Wed' }).check();
-  await form.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Wed 20:00')).toBeVisible();
+  await page.getByRole('button', { name: 'Editar vaga/inglês - Horizontes' }).click();
+  const form = page.getByRole('dialog', { name: 'Editar lembrete' });
+  await form.getByRole('combobox', { name: 'Repetição' }).selectOption('weekly');
+  await form.getByLabel('Horário').fill('20:00');
+  await form.getByRole('checkbox', { name: 'Ter' }).uncheck();
+  await form.getByRole('checkbox', { name: 'Qua' }).check();
+  await form.getByRole('button', { name: 'Salvar alterações' }).click();
+  await expect(page.getByText('Toda semana · 20:00')).toBeVisible();
 });
 
 test('edição de lembrete pelo formulário persiste o novo horário', async ({ page }) => {
   await page.goto('/');
   await goMore(page, 'Lembretes');
-  await page.getByRole('button', { name: 'Edit vaga/inglês - Horizontes' }).click();
-  const form = page.getByRole('form', { name: 'Edit vaga/inglês - Horizontes' });
-  await form.getByRole('textbox', { name: 'Time' }).fill('10:30');
-  await form.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Editar vaga/inglês - Horizontes' }).click();
+  const form = page.getByRole('dialog', { name: 'Editar lembrete' });
+  await form.getByLabel('Horário').fill('10:30');
+  await form.getByRole('button', { name: 'Salvar alterações' }).click();
   await expect(page.getByText(/10:30/)).toBeVisible();
 });
 

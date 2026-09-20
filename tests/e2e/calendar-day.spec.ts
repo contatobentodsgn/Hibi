@@ -23,7 +23,7 @@ test('depois da meia-noite, sem recarregar, o hábito é marcado no dia novo', a
 
 const newReminder = async (page: Page) => {
   await openMore(page, 'Lembretes');
-  await page.getByRole('button', { name: '+ New reminder' }).click();
+  await page.getByRole('button', { name: 'Novo lembrete' }).click();
   return page.getByRole('dialog', { name: 'Create reminder' });
 };
 
@@ -53,5 +53,5 @@ test('um lembrete único no passado é recusado, e o da lista mostra o dia', asy
   await form.getByRole('textbox', { name: 'Time' }).fill('11:00');
   await expect(form.getByRole('alert')).toHaveCount(0);
   await form.getByRole('button', { name: 'Create reminder' }).click();
-  await expect(page.locator('.list-card').getByText('20/09 11:00 · one-time')).toBeVisible();
+  await expect(page.locator('.reminders-screen__list').getByText('20/09 · 11:00')).toBeVisible();
 });
