@@ -24,7 +24,7 @@ test('exposes a secret-free connection status and retains credentials only by Ke
 
   const status = await manager.connect('fixture', { credential: 'token-super-secret' });
 
-  assert.deepEqual(status, { id: 'fixture', label: 'Fixture', state: 'connected', capabilities: ['import', 'write'], hasCredential: true });
+  assert.deepEqual(status, { id: 'fixture', label: 'Fixture', state: 'connected', capabilities: ['import', 'write'], hasCredential: true, needsReconnect: false });
   assert.equal(JSON.stringify(await manager.listStatus()).includes('super-secret'), false);
   assert.equal(JSON.stringify(await manager.audit()).includes('super-secret'), false);
 });
@@ -457,4 +457,51 @@ test('uma expiração que persiste depois da renovação não é tentada de novo
   );
 
   assert.equal(calls.length, 2);
+});
+
+test('uma credencial que não vale mais aparece como expirada, e não como conectada', async () => {
+  const store = keychain();
+  await store.set('integration:calendar', 'token');
+  const pedidos = [];
+  const manager = createIntegrationManager({
+    keychain: store,
+    reconnectRequired: (id) => { pedidos.push(id); return id === 'calendar'; },
+    connectors: [
+      { id: 'calendar', label: 'Calendar', allowedHosts: ['calendar.example.test'], capabilities: ['import'] },
+      { id: 'outro', label: 'Outro', allowedHosts: ['outro.example.test'], capabilities: ['import'] },
+    ],
+  });
+
+  const status = await manager.listStatus();
+
+  // A credencial continua guardada; o que mudou é que ela já não abre nada.
+  assert.deepEqual(status.find((entry) => entry.id === 'calendar'), { id: 'calendar', label: 'Calendar', state: 'expired', capabilities: ['import'], hasCredential: true, needsReconnect: true });
+  // Sem credencial não há o que reconectar, e o estado persistido nem é consultado.
+  assert.deepEqual(status.find((entry) => entry.id === 'outro'), { id: 'outro', label: 'Outro', state: 'disconnected', capabilities: ['import'], hasCredential: false, needsReconnect: false });
+  assert.deepEqual(pedidos, ['calendar']);
+});
+
+test('trocar os conectores preserva a renovação automática e o estado de reconexão', async () => {
+  const store = keychain();
+  await store.set('integration:calendar', 'token-velho');
+  let renovacoes = 0;
+  const conector = (fetchImpl) => ({
+    id: 'calendar', label: 'Calendar', allowedHosts: ['calendar.example.test'], capabilities: ['import'],
+    async fetchCalendarEvents(input) { return fetchImpl(input); },
+  });
+  let expirar = true;
+  const manager = createIntegrationManager({
+    keychain: store,
+    refreshCredential: async () => { renovacoes += 1; expirar = false; await store.set('integration:calendar', 'token-novo'); return true; },
+    reconnectRequired: () => renovacoes === 0,
+    connectors: [conector(() => { if (expirar) { const error = new Error('authorization expired'); error.code = 'expired-authorization'; throw error; } return []; })],
+  });
+
+  // Trocar o endpoint reconstrói o gerenciador. Sem repassar as duas opções, a renovação automática
+  // sumia até reiniciar o app, e a tela voltava a dizer "conectado".
+  const trocado = manager.withConnectors([conector(() => { if (expirar) { const error = new Error('authorization expired'); error.code = 'expired-authorization'; throw error; } return []; })]);
+
+  assert.deepEqual(await trocado.readCalendarEvents('calendar', { calendarId: 'primary', timeMin: '2026-09-16T00:00:00.000Z', timeMax: '2026-09-17T00:00:00.000Z' }), []);
+  assert.equal(renovacoes, 1);
+  assert.equal((await trocado.listStatus())[0].state, 'connected');
 });

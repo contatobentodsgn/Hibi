@@ -13,7 +13,7 @@ const captureConsoleErrors = (page: Page): string[] => {
   return errors;
 };
 
-test('o menu "Mais seções" do dock abre Estatísticas', async ({ page }) => {
+test('o menu "Mais seções" da barra abre Estatísticas', async ({ page }) => {
   const errors = captureConsoleErrors(page);
   await page.goto('/');
   await expect(dock(page)).toBeVisible();
@@ -48,17 +48,19 @@ test('/review continua abrindo a Revisão, não Estatísticas', async ({ page })
   await expect(page.getByRole('heading', { name: 'Estatísticas', level: 1 })).toHaveCount(0);
 });
 
-test('o dock reflete Estatísticas como seção atual, como faz para as demais seções de "Mais"', async ({ page }) => {
+test('a barra marca Hoje nas Estatísticas, e o menu "Mais" diz qual seção está aberta', async ({ page }) => {
   await page.goto('/');
   await expect(dock(page)).toBeVisible();
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Estatísticas', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Estatísticas', level: 1 })).toBeVisible();
-  // O gatilho "···" mostra data-active quando a seção atual não está entre os itens fixos do dock —
-  // o mesmo comportamento já coberto para as demais seções de "Mais" (ex.: Ajustes, Revisão).
-  await expect(dock(page).getByRole('button', { name: 'Mais seções' })).toHaveAttribute('data-active', 'true');
+  // Na nova arquitetura, as Estatísticas moram em Hoje (Progresso → Tendências): é Hoje que a barra marca, como
+  // a seção onde a página mora, e a trilha do topo mostra o caminho.
+  await expect(dock(page).getByRole('button', { name: 'Hoje', exact: true })).toHaveAttribute('aria-current', 'true');
+  await expect(page.getByRole('navigation', { name: 'Onde você está' })).toContainText('Meu espaço / Hoje / Estatísticas');
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
-  await expect(page.getByRole('menuitem', { name: 'Estatísticas', exact: true })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('menuitem', { name: 'Estatísticas', exact: true })).toHaveAccessibleDescription('atual');
+  await expect(page.getByRole('menuitem', { name: 'Metas', exact: true })).not.toHaveAccessibleDescription('atual');
 });
 
 // "Hoje" nas Estatísticas é a data local real, porque cada atividade é gravada com o relógio do navegador.
@@ -247,7 +249,8 @@ test('foco concluído e cancelado somam os minutos medidos, só o concluído con
   await page.goto('/');
   await expect(dock(page)).toBeVisible();
 
-  await dock(page).getByRole('button', { name: 'Foco', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
   await page.getByRole('button', { name: 'Start focus' }).click();
   await page.clock.runFor(25 * 60 * 1000 + 1000);
   await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
@@ -255,7 +258,10 @@ test('foco concluído e cancelado somam os minutos medidos, só o concluído con
   await page.getByRole('button', { name: 'Start focus' }).click();
   await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
   await page.clock.runFor(7 * 60 * 1000);
-  // Sair do Foco com a sessão em andamento a abandona: vira focus.cancelled com os 7 minutos medidos.
+  // Pausada e trocada pelo descanso, a sessão é abandonada: vira focus.cancelled com os 7 minutos medidos.
+  await page.getByRole('button', { name: 'Pause session' }).click();
+  await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
+  await expect(page.getByRole('button', { name: 'Começar pausa' })).toBeVisible();
   await openStats(page);
 
   // focusMinutes = concluído (25) + cancelado (7); focusSessions conta só a concluída.
@@ -265,8 +271,9 @@ test('foco concluído e cancelado somam os minutos medidos, só o concluído con
     await expect(summaryCard(page, 'Tempo de foco').getByText('Sessões concluídas: 1', { exact: true })).toBeVisible();
     await expect(cardValue(page, 'Tarefas concluídas')).toHaveText('0');
     await expect(todayCells(page)).toHaveText(['0', '32', '0', '0']);
-    await expect(historyItems(page)).toHaveCount(4);
+    await expect(historyItems(page)).toHaveCount(5);
     await expect(historyItems(page).filter({ hasText: 'Foco iniciado' })).toHaveCount(2);
+    await expect(historyItems(page).filter({ hasText: 'Foco pausado' })).toHaveCount(1);
     await expect(historyItems(page).filter({ hasText: 'Sessão de foco concluída' })).toHaveCount(1);
     await expect(historyItems(page).filter({ hasText: 'Sessão de foco concluída' })).toContainText('25 min');
     await expect(historyItems(page).filter({ hasText: 'Sessão de foco cancelada' })).toHaveCount(1);
@@ -274,7 +281,8 @@ test('foco concluído e cancelado somam os minutos medidos, só o concluído con
   };
   await expectFocusTotals();
 
-  await dock(page).getByRole('button', { name: 'Foco', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
   await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
   await page.getByRole('button', { name: 'Começar pausa' }).click();
   await expect(page.getByRole('button', { name: 'Encerrar pausa' })).toBeVisible();

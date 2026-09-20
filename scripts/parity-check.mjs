@@ -17,9 +17,9 @@ async function read(file) {
   }
 }
 
-// As rotas e os comandos são dados, não texto: importar o módulo confere a lista que o dock e a
+// As rotas e os comandos são dados, não texto: importar o módulo confere a lista que a barra e a
 // paleta de fato exibem. Procurar `'tasks'` no arquivo passaria só pelo union `NavKey`, mesmo com a
-// rota fora do dock.
+// rota fora da barra.
 async function load(file) {
   try {
     return await import(pathToFileURL(path.resolve(file)).href);
@@ -37,7 +37,7 @@ const files = {
   week: await read('src/ui/WeekView.tsx'),
   taby: await read('src/ui/TabyView.tsx'),
   shell: await read('src/ui/shell/AppShell.tsx'),
-  dock: await read('src/ui/shell/Dock.tsx'),
+  notchActions: await read('src/ui/shell/NotchActions.tsx'),
   paletteTurn: await read('src/ui/palette/PaletteTurn.tsx'),
   assistantTurn: await read('src/ai/assistant-turn.ts'),
   localRuntime: await read('src/ai/local-runtime.ts'),
@@ -53,16 +53,16 @@ const files = {
 const routes = await load('src/ui/shell/routes.ts');
 const { PALETTE_COMMANDS = [] } = await load('src/ui/palette/commands.ts');
 
-const navigable = new Set([...(routes.DOCK_ITEMS ?? []), ...(routes.MORE_ITEMS ?? [])].map((item) => item.key));
+const navigable = new Set([...(routes.DESTINATIONS ?? []), ...(routes.MORE_ITEMS ?? [])].map((item) => item.key));
 const commandRoute = new Map(PALETTE_COMMANDS.filter((command) => 'route' in command).map((command) => [command.key, command.route]));
 const isAgendaRoute = routes.isAgendaRoute ?? (() => false);
 
 const checks = [
-  ['navigation: shell renders the dock', files.shell.includes('<Dock') && files.dock.includes('DOCK_ITEMS') && files.dock.includes('MORE_ITEMS'), 'AppShell → Dock → route lists'],
-  ['navigation: tasks', navigable.has('tasks'), 'tasks in the dock or the ··· menu'],
-  ['navigation: reminders', navigable.has('reminders'), 'reminders in the dock or the ··· menu'],
-  ['navigation: calendar', navigable.has('agenda') && isAgendaRoute('day') && isAgendaRoute('week'), 'Agenda in the dock covers Day and Week'],
-  ['navigation: focus', navigable.has('focus'), 'focus in the dock or the ··· menu'],
+  ['navigation: shell renders the notch bar', files.shell.includes('<AdaptiveNotchNavigation') && files.shell.includes('DESTINATIONS') && files.notchActions.includes('MORE_ITEMS') && files.notchActions.includes("onNavigate('settings')"), 'AppShell → notch bar → destinations, Mais and Ajustes'],
+  ['navigation: tasks', navigable.has('tasks'), 'tasks in the bar or the Mais menu'],
+  ['navigation: reminders', navigable.has('reminders'), 'reminders in the bar or the Mais menu'],
+  ['navigation: calendar', navigable.has('agenda') && isAgendaRoute('day') && isAgendaRoute('week'), 'Agenda in the bar covers Day and Week'],
+  ['navigation: focus', navigable.has('focus'), 'focus in the bar or the Mais menu'],
   ['navigation: notes/habits/goals/review', files.app.includes("case 'notes'") && files.app.includes("case 'habits'") && files.app.includes("case 'goals'") && files.app.includes("case 'review'"), 'data workspace routes'],
   ['commands: slash palette', commandRoute.get('/tasks') === 'tasks' && commandRoute.get('/reminders') === 'reminders', 'core slash commands open their routes'],
   ['desktop: notifications bridge', files.preload.includes('syncNotifications') && files.main.includes('hibi:notifications:sync'), 'native notification IPC'],

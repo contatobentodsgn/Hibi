@@ -101,6 +101,12 @@ export class LocalRepository {
     const goal = this.getGoal(id);
     if (!goal) throw new Error(`Goal not found: ${id}`);
     Object.assign(goal, changes);
+    // Mudar o alvo muda o que é "concluída": uma meta 3/3 com o alvo aumentado para 5 ficava presa como
+    // concluída. O progresso segue a regra de setGoalProgress; uma meta pausada continua pausada.
+    if (changes.target !== undefined && changes.status === undefined) {
+      goal.current = Math.max(0, Math.min(goal.target, goal.current));
+      if (goal.status !== 'paused') goal.status = goal.current >= goal.target ? 'completed' : 'open';
+    }
     return clone(goal);
   }
   deleteGoal(id: string): void { this.data.goals = this.data.goals.filter((goal) => goal.id !== id); }

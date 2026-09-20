@@ -10,11 +10,16 @@ import { TasksView } from '../TasksView';
 import { WeekView } from '../WeekView';
 import { HabitsView } from '../HabitsView';
 import { GoalsView } from '../GoalsView';
-import { DockMoreMenu } from '../shell/Dock';
+import { MORE_ITEMS } from '../shell/routes';
+import { translate } from '../../i18n/dictionary';
 import { CommandPalette } from '../palette/CommandPalette';
 import type { AssistantTurnControls } from '../useAssistantTurn';
 import { FocusView } from '../FocusView';
 import { HelpView } from '../HelpView';
+import { AgendaAvailability } from '../AgendaAvailability';
+import { deriveDayRhythm } from '../day-rhythm';
+import { TasksAtelierSummary } from '../TasksAtelierSummary';
+import { NotesView } from '../NotesView';
 
 const data = createSeedData();
 const onEvent = () => undefined;
@@ -47,6 +52,13 @@ describe('study views', () => {
     expect(markup).toContain('8 open');
   });
 
+  it('mounts the task summary and exposes a textual deadline state per open task', () => {
+    const markup = renderToStaticMarkup(<TasksView data={data} onEvent={onEvent} onTaskStatusChange={onEvent} />);
+
+    expect(markup).toContain('Task execution summary');
+    expect(markup).toContain('data-deadline-state=');
+  });
+
   it('renders accessible task creation and editing controls without prompt actions', () => {
     const markup = renderToStaticMarkup(
       <TasksView
@@ -66,6 +78,32 @@ describe('study views', () => {
     expect(markup).toContain('aria-label="Set deadline for Kabrito Post 01"');
     expect(markup).toContain('aria-label="Delete Kabrito Post 01"');
     expect(markup).not.toContain('window.prompt');
+  });
+
+  it('renders a named task execution summary with deadline states in text', () => {
+    const markup = renderToStaticMarkup(<TasksAtelierSummary tasks={data.tasks} today={keyFromToday(0)} />);
+
+    expect(markup).toContain('aria-label="Task execution summary"');
+    expect(markup).toContain('Next action');
+    expect(markup).toContain('Overdue');
+    expect(markup).toContain('Due today');
+    expect(markup).toContain('Without deadline');
+  });
+
+  it('renders a named notes capture summary with contextual counts', () => {
+    const noteData = {
+      ...data,
+      notes: [
+        { id: 'brief', title: 'Client brief', content: 'Context', folder: 'Bento', createdAt: '2026-09-11T08:00:00', updatedAt: '2026-09-12T08:00:00' },
+        { id: 'loose', title: 'Loose thought', content: '', createdAt: '2026-09-11T09:00:00', updatedAt: '2026-09-11T09:00:00' },
+      ],
+    };
+    const markup = renderToStaticMarkup(<NotesView data={noteData} onCreate={onEvent} onUpdate={onEvent} onDelete={onEvent} />);
+
+    expect(markup).toContain('aria-label="Notes capture summary"');
+    expect(markup).toContain('Latest note');
+    expect(markup).toContain('Unfiled');
+    expect(markup).toContain('Showing');
   });
 
   it('renders reminders from the study snapshot', () => {
@@ -100,6 +138,36 @@ describe('study views', () => {
     expect(markup).toContain('THU');
   });
 
+  it('summarizes planned time, focus blocks, and an available window in the agenda', () => {
+    const markup = renderToStaticMarkup(
+      <AgendaAvailability blocks={agenda.blocks} days={[keyFromToday(0)]} wallClock="08:30" />,
+    );
+
+    expect(markup).toContain('aria-label="Agenda availability"');
+    expect(markup).toContain('Time planned');
+    expect(markup).toContain('Focus blocks');
+    expect(markup).toContain('Next free window');
+    expect(markup).toContain('Schedule conflicts');
+  });
+
+  // Uma demanda sobre outra coisa não é conflito; dois compromissos fixos no mesmo horário são.
+  it('reports only commitments that clash, once per pair', () => {
+    const day = keyFromToday(0);
+    const conflicting = {
+      ...agenda,
+      blocks: [
+        { id: 'meeting-a', title: 'Reunião A', start: `${day}T09:00:00`, end: `${day}T10:00:00`, category: 'work' as const, isHard: true },
+        { id: 'meeting-b', title: 'Reunião B', start: `${day}T09:30:00`, end: `${day}T10:30:00`, category: 'work' as const, isHard: true },
+        { id: 'post', title: 'Post', start: `${day}T09:00:00`, end: `${day}T11:00:00`, category: 'work' as const },
+      ],
+    };
+    const markup = renderToStaticMarkup(
+      <AgendaAvailability blocks={conflicting.blocks} days={[keyFromToday(0)]} wallClock="08:30" />,
+    );
+
+    expect(markup).toContain('1 to review');
+  });
+
   // A data do bloco mais antigo do workspace não é "hoje": um workspace só com blocos velhos
   // continua abrindo no dia de hoje, vazio, em vez de voltar no tempo.
   it('keeps Day, Week and Home on today when the workspace only has old blocks', () => {
@@ -116,10 +184,25 @@ describe('study views', () => {
 
   it('shows the blocks of the real local day on Home', () => {
     const markup = renderToStaticMarkup(<HomeView data={agenda} onEvent={onEvent} onNavigate={onEvent} />);
+    const wallClock = new Date().toTimeString().slice(0, 5);
+    const contextualBlock = deriveDayRhythm(agenda.blocks, keyFromToday(0), wallClock).now;
 
     expect(markup).toContain(homeLabel(0));
-    expect(markup).toContain('Kabrito Post 01');
+    expect(markup).toContain(contextualBlock?.title ?? 'No block scheduled');
     expect(markup).toContain('8 work blocks planned today');
+  });
+
+  it('renders the contextual next action, progress text, free time and companion on Home', () => {
+    // Com o relógio real, este teste dependia da hora em que a suíte rodava: depois do último bloco
+    // do dia a tela diz, com razão, que o dia acabou — e não havia "Start focus" para encontrar.
+    const manha = new Date();
+    manha.setHours(9, 30, 0, 0);
+    const markup = renderToStaticMarkup(<HomeView data={agenda} onEvent={onEvent} onNavigate={onEvent} now={manha} />);
+
+    expect(markup).toContain('Start focus');
+    expect(markup).toContain('planned today');
+    expect(markup).toContain('Next free window');
+    expect(markup).toContain('Today companion');
   });
 
   it('gives day event controls descriptive delete labels', () => {
@@ -159,6 +242,21 @@ describe('study views', () => {
     expect(markup).not.toContain('window.prompt');
   });
 
+  it('renders named habits and goals progress summaries', () => {
+    const progressData = {
+      ...data,
+      habits: [{ id: 'habit-1', title: 'Read', frequency: 'daily' as const, targetPerWeek: 7, completedDates: [] }],
+      goals: [{ id: 'goal-1', title: 'Ship', target: 10, current: 7 }],
+    };
+    const habits = renderToStaticMarkup(<HabitsView data={progressData} onCreate={onEvent} onToggleCompletion={onEvent} onUpdate={onEvent} onDelete={onEvent} />);
+    const goals = renderToStaticMarkup(<GoalsView data={progressData} onCreate={onEvent} onProgress={onEvent} onUpdate={onEvent} onDelete={onEvent} />);
+
+    expect(habits).toContain('aria-label="Habits rhythm summary"');
+    expect(habits).toContain('Completed today');
+    expect(goals).toContain('aria-label="Goals direction summary"');
+    expect(goals).toContain('Closest milestone');
+  });
+
   it('renders the empty goals workspace with a create action', () => {
     const markup = renderToStaticMarkup(<GoalsView data={data} onCreate={onEvent} onProgress={onEvent} onUpdate={onEvent} onDelete={onEvent} />);
 
@@ -178,8 +276,8 @@ describe('study views', () => {
     expect(markup).not.toContain('window.prompt');
   });
 
-  it('exposes habits and goals through the dock menu and commands', () => {
-    const menu = renderToStaticMarkup(<DockMoreMenu active="home" onSelect={onEvent} />);
+  it('exposes habits and goals through the Mais menu and commands', () => {
+    const menu = MORE_ITEMS.map((item) => translate('pt', item.label)).join(' ');
     const palette = renderToStaticMarkup(<CommandPalette data={data} onClose={onEvent} onNavigate={onEvent} onEvent={onEvent} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} conversations={{ conversations: [], activeId: null, query: '', saveFailed: false, record: onEvent, select: onEvent, create: onEvent, remove: onEvent, removeAll: onEvent, search: onEvent }} />);
 
     expect(menu).toContain('Hábitos');

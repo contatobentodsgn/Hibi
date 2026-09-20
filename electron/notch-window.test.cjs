@@ -1,5 +1,6 @@
 const test = require('node:test'); const assert = require('node:assert/strict'); const { createNotchWindowManager } = require('./notch-window.cjs');
 class FakeWindow { constructor(options) { this.options = options; this.destroyed = false; this.calls = []; this.webContents = { send: (...args) => this.calls.push(['send', ...args]) }; } isDestroyed() { return this.destroyed; } setBounds(value) { this.calls.push(['bounds', value]); } setAlwaysOnTop(...args) { this.calls.push(['top', ...args]); } setVisibleOnAllWorkspaces(...args) { this.calls.push(['spaces', ...args]); } setIgnoreMouseEvents(...args) { this.calls.push(['mouse', ...args]); } setFocusable(value) { this.calls.push(['focusable', value]); } focus() { this.calls.push(['focus']); } showInactive() { this.calls.push(['show']); } hide() { this.calls.push(['hide']); } on() {} destroy() { this.destroyed = true; } }
+class LoadingWindow extends FakeWindow { constructor(options) { super(options); this.webContents.once = (event, listener) => { if (event === 'did-finish-load') this.finishLoad = listener; }; } }
 const display = { id: 1, bounds: { x: 0, y: 0, width: 1440, height: 900 } }; const screen = { getAllDisplays: () => [display], getPrimaryDisplay: () => display };
 const presentation = { requestId: 'a', kind: 'result', text: 'Done', actions: [], interaction: 'passthrough' };
 test('sets all-spaces fallback and click-through for passive presentations', () => { let loaded = false; const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => { loaded = true; }, platform: 'darwin' }); const response = manager.show(presentation); assert.equal(loaded, true); assert.equal(response.degraded, true); assert.equal(manager.activeRequestId, 'a'); });
@@ -33,6 +34,29 @@ test('uses the AppKit host before creating an Electron fallback window', () => {
   assert.deepEqual(calls.at(-1), ['hide']);
   manager.destroy();
   assert.deepEqual(calls.at(-1), ['destroy']);
+});
+test('atualiza o tamanho do host nativo sem reabrir a apresentação', () => {
+  const calls = [];
+  const nativeBridge = { nativeHostAvailable: () => true, createHost: () => true, showHost: (value) => { calls.push(value.size); return true; }, repositionHost: (...args) => { calls.push(args); return true; } };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+  manager.show(presentation);
+  assert.equal(manager.setSize('compact'), true);
+  assert.deepEqual(calls, ['normal', 'compact']);
+});
+test('keeps the startup companion on the native visual surface', () => {
+  const nativeBridge = { nativeHostAvailable: () => true, createHost: () => true, showHost: () => true };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+  const result = manager.show({ requestId: 'startup-notch', kind: 'result', text: null, actions: [], interaction: 'passthrough', host: 'native' });
+  assert.equal(result.host, 'native');
+});
+
+test('reenvia a apresentação quando a overlay termina de carregar', () => {
+  let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: LoadingWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, platform: 'darwin' });
+  manager.show({ requestId: 'load-race', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'electron' });
+  const sendsBeforeLoad = notch.calls.filter(([name]) => name === 'send').length;
+  notch.finishLoad();
+  assert.equal(notch.calls.filter(([name]) => name === 'send').length, sendsBeforeLoad + 1);
 });
 
 test('mantém estados animados no overlay Electron para reproduzir o vídeo do gatinho', () => {
@@ -93,6 +117,30 @@ test('prefers the physical Mac notch display when an external display is primary
   manager.show({ requestId: 'native-mac', kind: 'result', text: 'Check', actions: [], interaction: 'passthrough' });
 
   assert.deepEqual(calls, [1]);
+});
+
+// Antes o companion inicial ficava preso à tela com câmera mesmo com monitor escolhido. Como ele é
+// o mascote que fica na tela o tempo todo, a escolha de monitor não movia nada e parecia quebrada.
+test('o companion inicial abre no monitor escolhido, e na tela com câmera quando não há escolha', () => {
+  const external = { id: 2, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
+  const macbook = { id: 1, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
+  const multiScreen = { getAllDisplays: () => [external, macbook], getPrimaryDisplay: () => external };
+  const nativeBridge = { screenGeometry: () => [{ displayId: 2, hasCameraHousing: false }, { displayId: 1, hasCameraHousing: true }] };
+  const abrir = (preferredDisplayId) => {
+    let notch;
+    const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: (target) => { notch = target; }, nativeBridge, platform: 'darwin', preferredDisplayId });
+    manager.show({ requestId: 'startup-notch', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'electron' });
+    return notch;
+  };
+  const { notchBounds } = require('./notch-geometry.cjs');
+
+  const escolhido = abrir(2);
+  assert.equal(escolhido.options.x, notchBounds(external).x);
+  assert.equal(escolhido.options.y, external.bounds.y);
+
+  const semEscolha = abrir(null);
+  assert.equal(semEscolha.options.x, notchBounds(macbook).x);
+  assert.equal(semEscolha.options.y, macbook.bounds.y);
 });
 
 test('falls back to Electron when AppKit host creation fails', () => {
@@ -388,4 +436,134 @@ test('activeInteractive só é verdadeiro enquanto há uma confirmação ativa',
   assert.equal(manager.activeInteractive, true);
   manager.resolveAction('confirm-me', 'confirm');
   assert.equal(manager.activeInteractive, false);
+});
+
+// O companion ocioso é o mascote: quando nenhum cartão está no ar, a superfície volta a ele em vez de
+// ficar vazia. Antes, o notch sumia depois do primeiro cartão e só voltava reabrindo o app.
+const idle = { requestId: 'startup-notch', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'native', animationPath: '/loop.mp4' };
+const baseOptions = () => ({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: () => {}, platform: 'darwin' });
+const pontePreenchida = (registro) => ({
+  nativeHostAvailable: () => true,
+  createHost: () => true,
+  showHost: (presentation) => { registro.push(presentation.requestId); return true; },
+  hideHost: () => { registro.push('escondido'); return true; },
+  repositionHost: () => true,
+  destroyHost: () => true,
+  hostDiagnostics: () => ({ available: true, visible: true }),
+});
+
+test('esconder um cartão devolve o companion ocioso ao notch', () => {
+  const host = [];
+  const manager = createNotchWindowManager({
+    ...baseOptions(),
+    nativeBridge: pontePreenchida(host),
+    idlePresentation: () => idle,
+  });
+
+  manager.show(idle);
+  manager.show({ requestId: 'c-1', kind: 'confirmation', text: 'Ok?', actions: [{ id: 'confirm', label: 'Ok' }], interaction: 'capture' });
+  assert.equal(manager.hide('c-1'), true);
+
+  // Depois de esconder o cartão, o último a subir é o ocioso outra vez.
+  assert.equal(host.at(-1), 'startup-notch');
+});
+
+test('responder uma confirmação também devolve o companion ocioso', () => {
+  const host = [];
+  const manager = createNotchWindowManager({
+    ...baseOptions(),
+    nativeBridge: pontePreenchida(host),
+    idlePresentation: () => idle,
+  });
+
+  manager.show({ requestId: 'c-2', kind: 'confirmation', text: 'Ok?', actions: [{ id: 'confirm', label: 'Ok' }], interaction: 'capture' });
+  assert.equal(manager.resolveAction('c-2', 'confirm'), true);
+
+  assert.equal(host.at(-1), 'startup-notch');
+});
+
+test('esconder o próprio ocioso não o traz de volta, senão nada o apagaria', () => {
+  const host = [];
+  const manager = createNotchWindowManager({
+    ...baseOptions(),
+    nativeBridge: pontePreenchida(host),
+    idlePresentation: () => idle,
+  });
+
+  manager.show(idle);
+  assert.equal(manager.hide('startup-notch'), true);
+
+  assert.deepEqual(host, ['startup-notch', 'escondido']);
+});
+
+test('sem companion ocioso configurado, esconder continua escondendo', () => {
+  const host = [];
+  const manager = createNotchWindowManager({
+    ...baseOptions(),
+    nativeBridge: pontePreenchida(host),
+  });
+
+  manager.show({ requestId: 'c-3', kind: 'result', text: 'Pronto', actions: [], interaction: 'passthrough' });
+  assert.equal(manager.hide('c-3'), true);
+
+  assert.deepEqual(host, ['c-3', 'escondido']);
+});
+
+// A troca de monitor parecia não funcionar: o mascote ocupa a tela o tempo todo e ignorava a
+// escolha, então o ajuste era salvo e nada se movia.
+test('o mascote vai para o monitor escolhido, e não fica preso à tela com câmera', () => {
+  const external = { id: 2, label: 'LG ULTRAWIDE', internal: false, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
+  const macbook = { id: 1, label: 'Built-in', internal: true, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
+  const multiScreen = { getAllDisplays: () => [external, macbook], getPrimaryDisplay: () => external };
+  const posicionamentos = [];
+  const nativeBridge = {
+    nativeHostAvailable: () => true, createHost: () => true,
+    screenGeometry: () => [{ displayId: 1, hasCameraHousing: true }],
+    showHost: (_presentation, displayId) => { posicionamentos.push(displayId); return true; },
+    repositionHost: (displayId) => { posicionamentos.push(displayId); return true; },
+  };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+  manager.show({ requestId: 'startup-notch', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'native' });
+
+  manager.setPreferredDisplay(2);
+
+  assert.deepEqual(posicionamentos, [1, 2], 'nasce na tela com câmera e vai para a escolhida');
+  assert.equal(manager.describeDisplays().resolvedDisplayId, 2);
+  assert.equal(manager.describeDisplays().reason, 'preferred');
+});
+
+test('sem escolha feita, o mascote nasce na tela interna com câmera', () => {
+  const external = { id: 2, label: 'LG ULTRAWIDE', internal: false, bounds: { x: 0, y: 0, width: 2560, height: 1080 } };
+  const macbook = { id: 1, label: 'Built-in', internal: true, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
+  const multiScreen = { getAllDisplays: () => [external, macbook], getPrimaryDisplay: () => external };
+  const posicionamentos = [];
+  const nativeBridge = {
+    nativeHostAvailable: () => true, createHost: () => true,
+    screenGeometry: () => [{ displayId: 1, hasCameraHousing: true }],
+    showHost: (_presentation, displayId) => { posicionamentos.push(displayId); return true; },
+  };
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen: multiScreen, preloadPath: 'preload', load: () => {}, nativeBridge, platform: 'darwin' });
+
+  manager.show({ requestId: 'startup-notch', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'native' });
+
+  assert.deepEqual(posicionamentos, [1]);
+});
+
+// O recorte do notch tem 225 pt de largura: uma resposta de duas frases não cabe ali.
+test('um cartão com texto ganha a área de leitura, e sem texto o painel volta ao tamanho do notch', () => {
+  let notch;
+  const manager = createNotchWindowManager({ BrowserWindowClass: FakeWindow, screen, preloadPath: 'preload', load: (target) => { notch = target; }, platform: 'darwin' });
+  const { notchBounds, actionBounds } = require('./notch-geometry.cjs');
+  const display = screen.getPrimaryDisplay();
+
+  manager.show({ requestId: 'resposta', kind: 'result', text: 'Use a técnica de 25 minutos e faça pausas curtas.', actions: [], interaction: 'passthrough', host: 'electron' });
+  const comTexto = notch.calls.filter(([name]) => name === 'bounds').at(-1)[1];
+
+  assert.equal(comTexto.width, actionBounds(display).width);
+  assert.ok(comTexto.width > notchBounds(display).width, 'ler exige mais largura que o recorte do notch');
+
+  manager.show({ requestId: 'mascote', kind: 'idle', text: null, actions: [], interaction: 'passthrough', host: 'electron' });
+  const semTexto = notch.calls.filter(([name]) => name === 'bounds').at(-1)[1];
+
+  assert.deepEqual([semTexto.width, semTexto.height], [notchBounds(display).width, notchBounds(display).height]);
 });

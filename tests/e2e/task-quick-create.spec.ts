@@ -31,3 +31,35 @@ test('uma tarefa criada com a pasta filtrada nasce nessa pasta e aparece na list
   await expect(page.getByText('Tarefa da pasta filtrada')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Pasta · Bento/, pressed: true })).toBeVisible();
 });
+
+// "Bento" era a pasta fixa de toda tarefa rápida, então o teste acima passava por coincidência. Com outra
+// pasta filtrada, a tarefa ia para "Bento" e sumia da lista que a pessoa estava vendo.
+test('a tarefa rápida nasce na pasta filtrada, qualquer que seja, e em "Sem pasta" nasce sem pasta', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => {
+    const data = JSON.parse(window.localStorage.getItem('hibi-study-data') ?? '{}');
+    data.tasks.push({ id: 'e2e-cliente', title: 'Proposta', durationMinutes: 30, category: 'work', folder: 'Clientes' }, { id: 'e2e-solta', title: 'Solta', durationMinutes: 30, category: 'work' });
+    window.localStorage.setItem('hibi-study-data', JSON.stringify(data));
+  });
+  await page.reload();
+  await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
+
+  await page.getByRole('button', { name: /^Pasta · Clientes/ }).click();
+  await page.getByRole('textbox', { name: 'New task title' }).fill('Contrato do cliente');
+  await page.getByRole('button', { name: 'Add task', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Complete Contrato do cliente' })).toBeVisible();
+
+  // O formulário rápido abre com a tela; "+ New task" abre o modal completo.
+  await page.getByRole('button', { name: 'Hoje', exact: true }).click();
+  await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
+  await page.getByRole('button', { name: /^Pasta · Sem pasta/ }).click();
+  await page.getByRole('textbox', { name: 'New task title' }).fill('Ideia sem pasta');
+  await page.getByRole('button', { name: 'Add task', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Complete Ideia sem pasta' })).toBeVisible();
+
+  const pastas = await page.evaluate(() => {
+    const data = JSON.parse(window.localStorage.getItem('hibi-study-data') ?? '{}') as { tasks: { title: string; folder?: string }[] };
+    return Object.fromEntries(data.tasks.filter((task) => ['Contrato do cliente', 'Ideia sem pasta'].includes(task.title)).map((task) => [task.title, (task.folder ?? '').trim()]));
+  });
+  expect(pastas).toEqual({ 'Contrato do cliente': 'Clientes', 'Ideia sem pasta': '' });
+});

@@ -87,20 +87,30 @@ export function useAssistantTurn({ runtime, onEvent, onCompanionEvent, onCompani
   const ask = useCallback(async (message: string, options: { useLocalFallback?: boolean } = {}) => {
     const trimmed = message.trim();
     if (!trimmed || stateRef.current.status === 'streaming') return;
+    // Perguntar de novo com uma confirmação pendente a descarta — nada dela é executado. Antes o cartão
+    // ficava no notch e o clique em "Confirmar" era jogado fora em silêncio: a pessoa achava que tinha
+    // confirmado. Agora o cartão sai, e o registro diz que a ação ficou para trás.
+    const pending = stateRef.current;
+    if (pending.status === 'confirmation') {
+      onCompanionEvent?.({ type: 'presentation.dismissed', requestId: pending.confirmation.id });
+      onEvent('assistant-action', pending.confirmation.calls.map((call) => call.name).join(', '), 'superseded');
+    }
     const useLocalFallback = options.useLocalFallback === true;
     const requestId = assistantRequestId();
     activeRequestId.current = requestId;
     lastMessage.current = trimmed;
     dispatch({ type: 'turn.started', requestId });
     onEvent('assistant-query', trimmed, useLocalFallback ? 'local-fallback' : 'requested');
-    onCompanionEvent?.(companionEventFor('listening', requestId, 'Ouvindo…', Date.now()));
+    // O pedido chegou: o mascote pensa, e a barra mostra o que foi pedido enquanto isso.
+    onCompanionEvent?.(companionEventFor('thinking', requestId, trimmed, Date.now()));
     try {
       // O instante real: o assistente raciocina sobre o agora de quem pergunta, e é dele que sai o
       // dia usado para criar blocos e lembretes a partir de um horário solto ("às 10h").
       const result = await runtime.runTurn({ message: trimmed, surface: 'desktop', requestId, useLocalFallback, now: new Date() });
       if (activeRequestId.current !== requestId) return;
       if (result.confirmation) {
-        const text = `${result.reply}\n\nConfirme para continuar.`;
+        // Uma resposta que já é a pergunta ("Marcar a reunião…?") não precisa do lembrete de confirmar.
+        const text = result.reply.trim().endsWith('?') ? result.reply.trim() : `${result.reply}\n\nConfirme para continuar.`;
         dispatch({ type: 'turn.confirmation', requestId, confirmation: result.confirmation, text, provenance: provenanceOf(result) });
         onCompanionEvent?.(companionEventFor('confirmation', result.confirmation.id, text, Date.now()));
         onEvent('assistant-action', result.confirmation.calls.map((call) => call.name).join(', '), 'confirmation-required');

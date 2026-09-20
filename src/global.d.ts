@@ -5,9 +5,18 @@ import type { ImportCandidate } from './integrations/imports';
 import type { AiNormalizedUsage, AiProviderRequest, AiProviderStreamEvent } from './ai/contracts';
 import type { ConnectorSettings, IntegrationAuditEvent, IntegrationAuthorization, IntegrationExecutionResult, IntegrationImportTarget, IntegrationStatus, NotionDataSourceDiscovery, PreparedIntegrationAction } from './integrations/contracts';
 import type { NotchDisplayState, NotchTestResult } from './ui/notch-display';
+import type { TabyBarContent } from './ui/taby-bar-content';
 
 declare global {
   interface Window {
+    hibiBar?: {
+      current: () => Promise<TabyBarContent | null>;
+      submit: (text: string) => Promise<boolean>;
+      voice: (command: 'start' | 'stop') => Promise<boolean>;
+      action: (requestId: string, actionId: string) => Promise<boolean>;
+      close: () => Promise<boolean>;
+      onContent: (callback: (content: TabyBarContent | null) => void) => () => void;
+    };
     hibiDesktop?: {
       info: () => Promise<{ name: string; version: string; localOnly: boolean }>;
       getOpenAtLogin?: () => Promise<boolean>;
@@ -56,11 +65,13 @@ declare global {
       executeApprovedCalendarPublish?: (input: { actionId: string; confirmationId: string }) => Promise<{ remoteId: string }>;
       prepareCalendarUpdate?: (input: { calendarId: string; block: { id: string; title: string; startsAt: string; endsAt: string; allDay?: boolean } }) => Promise<{ id: string; confirmationId: string; requiresConfirmation: true; calendarId: string; summary: string }>;
       resolveCalendarConflict?: (input: { id: string; choice: 'keep-calendar' | 'keep-hibi' }) => Promise<{ resolved: true; choice: 'keep-calendar' } | { resolved: false; choice: 'keep-hibi'; action: { id: string; confirmationId: string; requiresConfirmation: true; calendarId: string; summary: string } }>;
+      listCalendarSyncChanges?: () => Promise<{ outgoing: readonly { localId: string; calendarId: string; summary: string }[]; incoming: readonly { localId: string; calendarId: string; summary: string; start: string; end: string }[] }>;
+      acknowledgeCalendarIncoming?: (input: { calendarId: string; block: { id: string; title: string; startsAt: string; endsAt: string; allDay?: boolean } }) => Promise<{ outgoing: readonly { localId: string; calendarId: string; summary: string }[]; incoming: readonly { localId: string; calendarId: string; summary: string; start: string; end: string }[] }>;
       configureWebhook?: (secret: string) => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       startWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       stopWebhook?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
       getWebhookStatus?: () => Promise<{ running: boolean; hasSecret: boolean; origin?: string }>;
-      resolveLocalApiWrite?: (input: { confirmationId: string; approved: boolean }) => Promise<{ resolved: boolean; approved?: boolean }>;
+      resolveLocalApiWrite?: (input: { confirmationId: string; approved: boolean }) => Promise<{ resolved: boolean; approved?: boolean; expired?: boolean }>;
       showNotch?: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly unknown[]; interaction: 'passthrough' | 'capture' }) => Promise<{ degraded: boolean; requestId: string; host?: 'native' | 'electron' }>;
       hideNotch?: (requestId: string) => Promise<boolean>;
       resolveNotchAction?: (requestId: string, actionId: 'confirm' | 'cancel') => Promise<boolean>;
@@ -68,8 +79,40 @@ declare global {
       getNotchCapabilities?: () => Promise<{ adapter: 'public' | 'experimental'; experimental: boolean; reason: string | null; bridgeLoaded: boolean; nativePromotion: boolean; nativeHost: boolean; screens: readonly { index: number; displayId?: number; frame: { x: number; y: number; width: number; height: number }; safeAreaTop: number; hasCameraHousing: boolean }[]; host: { available: boolean; created?: boolean; visible?: boolean; interactive?: boolean; displayId?: number; host?: 'native' | 'electron' } }>;
       listNotchDisplays?: () => Promise<NotchDisplayState>;
       setNotchDisplay?: (displayId: number | null) => Promise<NotchDisplayState>;
+      getLocalModelState?: () => Promise<{ status: 'unavailable' | 'missing' | 'unverified' | 'ready'; modelId: string | null; sizeBytes?: number; error: string | null }>;
+      verifyLocalModel?: () => Promise<{ verified: boolean; modelId: string | null; error: string | null }>;
+      downloadLocalModel?: () => Promise<{ status: 'downloading' | 'ready' | 'cancelled' | 'error'; receivedBytes: number; totalBytes: number; error: string | null }>;
+      cancelLocalModelDownload?: () => Promise<boolean>;
+      onLocalModelDownloadProgress?: (callback: (state: { status: string; receivedBytes: number; totalBytes: number; error: string | null }) => void) => () => void;
+      runLocalModel?: (input: { requestId: string; prompt: string; mode?: 'chat' | 'intent' }) => Promise<{ requestId: string | null; status: 'complete' | 'cancelled' | 'unavailable'; text: string }>;
+      cancelLocalModel?: (requestId: string) => Promise<boolean>;
+      shutdownLocalModel?: () => Promise<{ status: string; modelId: string | null; error: string | null }>;
+      getLocalVoiceState?: () => Promise<{ status: string; locale: string; error: string | null; reason?: string | null }>;
+      listenLocalVoice?: (options?: { autoStop?: boolean; vocabulary?: readonly string[] }) => Promise<{ status: string; locale: string; error: string | null; reason?: string | null; ended?: 'silence' | 'no-speech' | 'stopped' | 'done' | null }>;
+      setLocalVoiceLocale?: (locale: string) => Promise<{ status: string; locale: string; error: string | null }>;
+      stopLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null; reason?: string | null }>;
+      onLocalVoiceText?: (callback: (text: string) => void) => () => void;
+      getNotchSize?: () => Promise<{ size: 'normal' | 'compact' }>;
+      setNotchSize?: (size: 'normal' | 'compact') => Promise<{ size: 'normal' | 'compact' }>;
       testNotch?: (locale: 'pt' | 'en') => Promise<NotchTestResult>;
       onNotchDisplaysChanged?: (callback: () => void) => () => void;
+      // U04b: se o mascote do notch está na mesma tela que a janela principal (a barra de navegação desce).
+      getNotchWindowPlacement?: () => Promise<{ sharesDisplay: boolean }>;
+      onNotchWindowPlacementChanged?: (callback: (state: { sharesDisplay: boolean }) => void) => () => void;
+      getUpdateState?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
+      checkForUpdate?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
+      downloadUpdate?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
+      installUpdate?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
+      onUpdateState?: (callback: (state: { status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }) => void) => () => void;
+      getTabyShortcut?: () => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled' }>;
+      setTabyShortcut?: (accelerator: string | null) => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled'; error?: 'invalid' }>;
+      onBarSubmit?: (callback: (text: string) => void) => () => void;
+      onBarVoice?: (callback: (command: 'start' | 'stop') => void) => () => void;
+      onBarClosed?: (callback: (requestId: string) => void) => () => void;
+      onTabyShortcut?: (callback: (request: { listen: boolean; background: boolean }) => void) => () => void;
+      speakLocalVoice?: (text: string) => Promise<{ status: string; spoken: boolean }>;
+      getVoiceSettings?: () => Promise<{ shortcutVoice: 'off' | 'window' | 'notch'; spokenReplies: boolean }>;
+      setVoiceSettings?: (patch: { shortcutVoice?: 'off' | 'window' | 'notch'; spokenReplies?: boolean }) => Promise<{ shortcutVoice: 'off' | 'window' | 'notch'; spokenReplies: boolean; error?: 'invalid' }>;
       onCompanionPresentation?: (callback: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' }) => void) => () => void;
       onCompanionAction?: (callback: (action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void) => () => void;
       onNotificationTriggered?: (callback: (entry: NotificationEntry) => void) => () => void;

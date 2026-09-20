@@ -1,5 +1,6 @@
  import React, { useState } from 'react';
  import type { Goal, StudyData } from '../domain/models';
+ import { GoalsAtelierSummary } from './GoalsAtelierSummary';
 
  type GoalChanges = Partial<Omit<Goal, 'id'>>;
  type Props = {
@@ -62,6 +63,7 @@
        <label htmlFor="new-goal-unit">Unit</label><input id="new-goal-unit" value={newGoal.unit} onChange={(event) => setNewGoal({ ...newGoal, unit: event.target.value })} />
        <button className="primary" type="submit">Add goal</button>
      </form>}
+     <GoalsAtelierSummary goals={data.goals} />
      <section className="list-card">{data.goals.map((goal) => {
        const percent = Math.min(100, Math.round((goal.current / Math.max(goal.target, 1)) * 100));
        const completed = goal.status === 'completed' || goal.current >= goal.target;

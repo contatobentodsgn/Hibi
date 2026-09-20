@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Notification, dialog, screen, shell, powerMonitor } = require("electron");
+const { app, BrowserWindow, ipcMain, Notification, dialog, screen, shell, powerMonitor, systemPreferences, globalShortcut, Tray, Menu, nativeImage } = require("electron");
 const path = require("node:path");
 const crypto = require('node:crypto');
 const { createNotificationScheduler, sanitizeEntries } = require("./notifications.mjs");
@@ -22,7 +22,50 @@ const eventKitCalendar = require('../native/notch/calendar.cjs');
 const { createNotchWindowManager, validPresentation } = require("./notch-window.cjs");
 const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('./notch-settings.cjs');
 const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
+const { showStartupNotch, idleCompanionPresentation } = require('./notch-startup.cjs');
+const { createMascotPlacement } = require('./mascot-placement.cjs');
+const { createIdleEscalation, createMascot } = require('./mascot.cjs');
+const { cleanInput, createTabyBar } = require('./taby-bar.cjs');
+const { createLocalVoiceService } = require('./local-voice.cjs');
+const { createLocalModelStore } = require('./local-model-store.cjs');
+const { createLocalModelDownload } = require('./local-model-download.cjs');
+const { createLocalModelService, runWithVerifiedModel } = require('./local-model-service.cjs');
+const { createElectronUpdateService } = require('./updates.cjs');
+const { createAppTray } = require('./tray.cjs');
+const { buildAppMenuTemplate, hideFromDock } = require('./app-menu.cjs');
+const { createShortcutSettings } = require('./shortcut-settings.cjs');
+const { createTabyShortcut } = require('./taby-shortcut.cjs');
+const { createVoiceSettings } = require('./voice-settings.cjs');
+const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
+const { resolveUserDataPath } = require('./user-data-path.cjs');
+
+// O Electron nomeia a pasta de dados pelo `name` do pacote (`hibi-study-replica`), e o app se chama
+// Hibi. Quem já usou uma versão anterior tem os dados na pasta antiga: ela é movida uma vez, e nada
+// é apagado — se houver duas, a que ficou para trás é renomeada ao lado.
+app.setPath('userData', resolveUserDataPath({
+  appData: app.getPath('appData'),
+  onNotice: (notice) => console.log(`[hibi] pasta de dados (${notice.kind}): ${notice.path}${notice.error ? ` — ${notice.error}` : ''}`),
+}));
+
+// Duas cópias do app abertas ao mesmo tempo desenham dois notches, cada um obedecendo aos próprios
+// ajustes, e disputam o mesmo banco do workspace. A segunda encerra sem abrir nada e traz a
+// primeira para a frente.
+const isFirstInstance = app.requestSingleInstanceLock();
+if (!isFirstInstance) app.quit();
+app.on('second-instance', () => summonWindow());
+
+// O painel nativo toca o loop a partir de um arquivo, então ele precisa existir fora do asar: o
+// `extraResources` do empacotamento copia este vídeo para os recursos do app.
+// O manifesto do modelo viaja com o app, como o vídeo do mascote: `extraResources` o copia para
+// os recursos do pacote. Em desenvolvimento ele é lido do repositório.
+const bundledModelManifest = () => app.isPackaged
+  ? path.join(process.resourcesPath || __dirname, 'local-models', 'manifest.json')
+  : path.join(__dirname, '..', '.hibi-local-models', 'manifest.json');
+
+// O mascote oficial (o gato) mora em `public/mascot` e vai para os recursos do pacote.
+const mascot = createMascot({ root: app.isPackaged ? path.join(process.resourcesPath || __dirname, 'mascot') : path.join(__dirname, '..', 'public', 'mascot') });
+const startupNotchAnimationPath = () => mascot.animationPath('idle');
 
 let mainWindow;
 let notificationScheduler;
@@ -34,6 +77,11 @@ let integrationManager;
 let localApi;
 let webhookService;
 let connectorSettings;
+let markReconnect = () => {};
+let localVoiceService;
+let localModelStore;
+let localModelDownload;
+let localModelService;
 let oauthService;
 let calendarSyncService;
 let calendarSyncSettings;
@@ -42,10 +90,30 @@ let localApiWorkspace = { tasks: [], reminders: [], blocks: [] };
 // Até o renderer mandar o workspace, a sincronização de calendário não sabe quais blocos existem.
 let localApiWorkspaceSynced = false;
 const pendingLocalApiWrites = new Map();
+// Um pedido de escrita da API local espera a resposta pelo mesmo prazo do cartão de confirmação. Antes ele
+// ficava guardado para sempre: um cartão já sumido podia ser aprovado horas depois, e o mapa só crescia.
+const LOCAL_API_WRITE_TTL_MS = 60_000;
+const MAX_PENDING_LOCAL_API_WRITES = 50;
+const prunePendingLocalApiWrites = (nowMs = Date.now()) => {
+  for (const [id, entry] of pendingLocalApiWrites) if (entry.expiresAt <= nowMs) pendingLocalApiWrites.delete(id);
+  while (pendingLocalApiWrites.size > MAX_PENDING_LOCAL_API_WRITES) pendingLocalApiWrites.delete(pendingLocalApiWrites.keys().next().value);
+};
 let notchWindow;
+// Se o mascote do notch está na mesma tela que a janela principal: a barra de navegação desce para ele não
+// cobrir o meio dela (U04b).
+let mascotPlacement = null;
+let tabyBar;
+let idleEscalation;
+// O pedido que está no notch agora; `null` quando o mascote está em repouso.
+let notchBusyRequestId = null;
 let notchSettings;
 let notchTest;
 let detachNotchLifecycle = () => {};
+let tabyShortcut;
+let voiceSettings;
+let updateService;
+let appTray;
+let quitting = false;
 const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
 const MAX_AI_STREAM_DELTA = 8000;
 const MAX_AI_STREAM_DELAY = 60_000;
@@ -193,8 +261,58 @@ function attachRendererRecovery(window, { showWarning, quit = () => app?.quit?.(
 }
 
 // No macOS a janela principal pode ter sido fechada enquanto o app continua vivo.
+// O `electron-updater` monta o atualizador na primeira leitura da propriedade, e isso exige uma
+// versão semver e o `app` real: carregá-lo no topo derrubava o processo principal fora de um app
+// empacotado. Ele é lido tarde e, se não montar, o serviço nasce desligado em vez de impedir a
+// abertura do app.
+function loadAutoUpdater() {
+  try { return require('electron-updater').autoUpdater; } catch { return null; }
+}
+
 function sendToMainWindow(channel, ...args) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, ...args);
+}
+
+// O atalho é global: ele chega com o app atrás de tudo, minimizado ou escondido. Sem restaurar e
+// focar antes de avisar o renderer, a pessoa aperta a tecla e nada aparece.
+// A janela é uma superfície a mais: fechá-la esconde o Hibi, que continua na barra de menus com o
+// notch à vista. Sem isso, fechar a janela pareceria encerrar o app que segue rodando.
+function summonWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) createWindow();
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  app.focus?.({ steal: true });
+}
+
+// Pela barra de menus o Taby só abre. Pelo atalho, conforme o ajuste de voz: abrir e já ouvir, ou ouvir
+// sem abrir a janela, com o que foi ouvido e a resposta no notch.
+function openTaby() {
+  summonWindow();
+  sendToMainWindow('hibi:shortcut:taby');
+}
+
+// O atalho abre a barra do Taby embaixo do notch, para digitar ou falar sem sair do app em que se está.
+// `notch` já começa a ouvir; `window` é o caminho antigo, pela janela do Hibi.
+function summonTaby() {
+  const mode = voiceSettings?.get().shortcutVoice ?? 'off';
+  if (mode === 'window') { summonWindow(); sendToMainWindow('hibi:shortcut:taby', { listen: true, background: false }); return; }
+  tabyBar?.openInput();
+  if (mode === 'notch') sendToMainWindow('hibi:shortcut:taby', { listen: true, background: true });
+}
+
+// O notch recebe só o mascote: o estado vira um vídeo, sem texto nem botão.
+function mascotPresentation(presentation) {
+  // Uma resposta que é pergunta ("Para que horário?") deixa o gato curioso, não feliz: nada foi concluído.
+  const asks = presentation.kind === 'result' && typeof presentation.text === 'string' && presentation.text.trim().endsWith('?');
+  const state = asks ? 'curious' : mascot.stateFor(presentation.kind);
+  return { requestId: presentation.requestId, kind: presentation.kind, text: null, actions: [], interaction: 'passthrough', host: 'native', animationPath: mascot.animationPath(state) };
+}
+
+// O repouso escala com o tempo parado (curioso, dando uma volta, dormindo), só com o notch livre.
+function showIdleMascot(state) {
+  if (notchBusyRequestId !== null) return;
+  try { notchWindow?.show({ ...idleCompanionPresentation(mascot.animationPath(state)) }); } catch { /* sem notch agora */ }
 }
 
 function replaceAiRuntime(runtime) {
@@ -206,30 +324,47 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 820, minWidth: 960, minHeight: 620,
     title: "Hibi", backgroundColor: "#f3f2ef",
-    titleBarStyle: "hiddenInset", trafficLightPosition: { x: 14, y: 12 },
+    // Os botões do macOS (14 px) ficam dentro da superfície arredondada, a 12 px da moldura de 8 px, e no
+    // eixo dos itens da barra de navegação do topo (8 px de moldura + metade dos 36 px do item = 26).
+    titleBarStyle: "hiddenInset", trafficLightPosition: { x: 20, y: 19 },
     webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
+  mascotPlacement?.dispose();
+  mascotPlacement = createMascotPlacement({ window: mainWindow, screen, notch: () => notchWindow, send: (state) => sendToMainWindow('hibi:notch:window-placement-changed', state) });
   mainWindow.webContents.on("will-navigate", (event, url) => {
     if (!isAllowedNavigation(url)) event.preventDefault();
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => ({
     action: isAllowedNavigation(url) ? "allow" : "deny"
   }));
+  mainWindow.on('close', (event) => {
+    if (quitting) return;
+    event.preventDefault();
+    mainWindow.hide();
+  });
   attachRendererRecovery(mainWindow);
   if (isDev) { const candidate = process.env.HIBI_DEV_SERVER || "http://127.0.0.1:5173"; const url = new URL(candidate); if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(url.hostname)) throw new Error('HIBI_DEV_SERVER must target loopback HTTP'); mainWindow.loadURL(url.toString()); }
   else mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 }
 
 app.whenReady().then(async () => {
+  if (!isFirstInstance) return;
   notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => sendToMainWindow('hibi:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
   const secureKeychain = createMacKeychain();
   connectorSettings = createConnectorSettings({ filePath: path.join(app.getPath('userData'), 'connector-settings.json') });
   calendarSyncSettings = createCalendarSyncSettings({ filePath: path.join(app.getPath('userData'), 'calendar-sync.json') });
+  // O feed vem do empacotamento; num app de desenvolvimento o serviço nasce desligado.
+  updateService = createElectronUpdateService({ app, autoUpdater: loadAutoUpdater(), onEvent: (state) => sendToMainWindow('hibi:updates:state', state) });
+  voiceSettings = createVoiceSettings({ filePath: path.join(app.getPath('userData'), 'voice-settings.json') });
+  tabyShortcut = createTabyShortcut({ globalShortcut, settings: createShortcutSettings({ filePath: path.join(app.getPath('userData'), 'shortcut-settings.json') }), onTrigger: summonTaby });
   // Um banco que não abre não pode impedir o app de abrir: os canais respondem com erro controlado e o
   // renderer segue no armazenamento local.
   try { workspaceDatabase = createWorkspaceDatabase({ filePath: path.join(app.getPath('userData'), 'workspace.db') }); }
   catch { workspaceDatabase = null; }
+  // Gravar o pedido de reconexão não pode derrubar a chamada que o descobriu: se o arquivo de
+  // ajustes não puder ser escrito, a integração ainda falha com a mensagem certa.
+  markReconnect = (connectorId, required) => { try { connectorSettings.save(connectorId, { reconnectRequired: required }); } catch { /* estado de tela, não dado do workspace */ } };
   integrationManager = createIntegrationManager({
     connectors: buildConnectors(connectorSettings), keychain: secureKeychain,
     // `oauthService` nasce logo abaixo; esta função só corre quando uma chamada falha por expiração.
@@ -237,21 +372,43 @@ app.whenReady().then(async () => {
       if (!oauthService?.supports?.(connectorId)) return false;
       const { clientId } = connectorSettings.get(connectorId);
       if (!clientId) return false;
-      try { await oauthService.refresh(connectorId, { clientId }); return true; } catch { return false; }
+      // A renovação falhada é o que a tela precisa saber: sem marcar, a integração seguiria anunciada
+      // como conectada, com uma credencial que já não abre nada, e ninguém saberia que é só reconectar.
+      try { await oauthService.refresh(connectorId, { clientId }); markReconnect(connectorId, false); return true; }
+      catch { markReconnect(connectorId, true); return false; }
     },
+    reconnectRequired: (connectorId) => connectorSettings.get(connectorId).reconnectRequired === true,
   });
   oauthService = createOAuthService({ keychain: secureKeychain, getConnector: (id) => integrationManager.getConnector(id), openExternal: (url) => shell.openExternal(url) });
   calendarSyncService = createCalendarSyncService({ eventKit: eventKitCalendar, integrations: integrationManager, settings: connectorSettings, calendarSettings: calendarSyncSettings, workspace: () => (localApiWorkspaceSynced ? localApiWorkspace : null) });
   localApi = createLocalApi({ tokenStore: createLocalApiTokenStore({ keychain: createMacKeychain() }), workspace: () => localApiWorkspace, prepareWrite: async (intent) => {
     const confirmationId = `local-api-${crypto.randomUUID()}`;
-    pendingLocalApiWrites.set(confirmationId, intent);
+    pendingLocalApiWrites.set(confirmationId, { intent, expiresAt: Date.now() + LOCAL_API_WRITE_TTL_MS });
+    prunePendingLocalApiWrites();
     sendToMainWindow('hibi:local-api:confirmation', { confirmationId, kind: intent.kind, payload: intent.payload });
     return { confirmationId, requiresConfirmation: true };
   } });
   webhookService = createWebhookService({ keychain: secureKeychain });
   replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
   notchSettings = createNotchSettings({ filePath: path.join(app.getPath('userData'), 'notch-settings.json') });
-  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, preferElectronForAnimated: true, load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
+  // A voz é do sistema, e só existe no macOS: fora dele o serviço nasce indisponível e a tela diz isso.
+  localVoiceService = createLocalVoiceService({ adapter: process.platform === 'darwin' ? createMacVoiceAdapter() : undefined });
+  // Em desenvolvimento o modelo mora no repositório; no app empacotado, na pasta de dados da pessoa.
+  localModelStore = createLocalModelStore({ dataRoot: app.isPackaged ? app.getPath('userData') : path.join(__dirname, '..'), manifestFile: bundledModelManifest() });
+  // O download é sempre pedido: quase dois gigabytes não descem sozinhos.
+  localModelDownload = createLocalModelDownload({ store: localModelStore, onProgress: (state) => sendToMainWindow('hibi:local-model:download-progress', state) });
+  // O motor é carregado na primeira pergunta, e só se houver modelo verificado: importar o llama.cpp
+  // na abertura custaria memória para quem nunca vai usar o cérebro offline.
+  localModelService = createLocalModelService({
+    dataRoot: localModelStore.root,
+    engineFactory: async ({ modelPath: file }) => {
+      const { createLlamaEngine } = await import('./local-model-engine.mjs');
+      return createLlamaEngine({ modelPath: file });
+    },
+  });
+  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, size: notchSettings.get().size, idlePresentation: () => idleCompanionPresentation(startupNotchAnimationPath()), load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
+  tabyBar = createTabyBar({ BrowserWindowClass: BrowserWindow, preloadPath: path.join(__dirname, 'bar-preload.cjs'), displayFor: () => notchWindow.currentDisplay(), sizeFor: () => notchWindow.currentSize(), load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=bar`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'bar' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
+  idleEscalation = createIdleEscalation({ onState: showIdleMascot });
   notchTest = createNotchTest({ manager: notchWindow });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('hibi:notch:displays-changed') });
   ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
@@ -292,7 +449,8 @@ app.whenReady().then(async () => {
     return status;
   });
   ipcMain.handle('hibi:integrations:list-status', () => integrationManager.listStatus());
-  ipcMain.handle('hibi:integrations:connect', (_event, connectorId, credential) => integrationManager.connect(connectorId, { credential }));
+  // Uma credencial nova, seja colada à mão ou vinda do OAuth, encerra o pedido de reconexão.
+  ipcMain.handle('hibi:integrations:connect', async (_event, connectorId, credential) => { const status = await integrationManager.connect(connectorId, { credential }); markReconnect(connectorId, false); return { ...status, state: 'connected', needsReconnect: false }; });
   ipcMain.handle('hibi:integrations:audit', () => integrationManager.audit());
   ipcMain.handle('hibi:integrations:revoke', async (_event, connectorId) => {
     // Revogar pela tela precisa apagar também o refresh token do OAuth. Sem isso ele continua no
@@ -317,8 +475,11 @@ app.whenReady().then(async () => {
     return saved;
   });
   ipcMain.handle('hibi:oauth:supported', (_event, connectorId) => oauthService.supports(connectorId));
-  ipcMain.handle('hibi:oauth:authorize', (_event, connectorId) => oauthService.authorize(connectorId, { clientId: connectorSettings.get(connectorId).clientId }));
-  ipcMain.handle('hibi:oauth:refresh', (_event, connectorId) => oauthService.refresh(connectorId, { clientId: connectorSettings.get(connectorId).clientId }));
+  ipcMain.handle('hibi:oauth:authorize', async (_event, connectorId) => { const result = await oauthService.authorize(connectorId, { clientId: connectorSettings.get(connectorId).clientId }); markReconnect(connectorId, false); return result; });
+  ipcMain.handle('hibi:oauth:refresh', async (_event, connectorId) => {
+    try { const result = await oauthService.refresh(connectorId, { clientId: connectorSettings.get(connectorId).clientId }); markReconnect(connectorId, false); return result; }
+    catch (error) { markReconnect(connectorId, true); throw error; }
+  });
   ipcMain.handle('hibi:oauth:cancel', () => oauthService.cancel());
   ipcMain.handle('hibi:oauth:client-secret', (_event, connectorId) => oauthService.hasClientSecret(connectorId));
   ipcMain.handle('hibi:oauth:save-client-secret', (_event, connectorId, secret) => oauthService.saveClientSecret(connectorId, secret));
@@ -332,6 +493,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:calendar-sync:execute-approved', (_event, input) => calendarSyncService.executeApproved(input));
   ipcMain.handle('hibi:calendar-sync:prepare-update', (_event, input) => calendarSyncService.prepareUpdate(input));
   ipcMain.handle('hibi:calendar-sync:resolve-conflict', (_event, input) => calendarSyncService.resolveConflict(input));
+  ipcMain.handle('hibi:calendar-sync:changes', () => calendarSyncService.listChanges());
+  ipcMain.handle('hibi:calendar-sync:acknowledge-incoming', (_event, input) => calendarSyncService.acknowledgeIncoming(input));
   const workspaceStore = () => { if (!workspaceDatabase) throw new Error('The workspace database is unavailable.'); return workspaceDatabase; };
   // A entrada vem do renderer: texto fora do formato vira erro de validação, e não exceção de tipo.
   const workspaceInput = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
@@ -356,27 +519,143 @@ app.whenReady().then(async () => {
   ipcMain.handle('hibi:local-api:status', () => ({ running: localApi.isRunning() }));
   ipcMain.handle('hibi:local-api:resolve-write', (_event, input) => {
     const confirmationId = typeof input?.confirmationId === 'string' ? input.confirmationId : '';
-    const intent = pendingLocalApiWrites.get(confirmationId);
-    if (!intent) return { resolved: false };
+    const entry = pendingLocalApiWrites.get(confirmationId);
+    if (!entry) return { resolved: false };
     pendingLocalApiWrites.delete(confirmationId);
+    if (entry.expiresAt <= Date.now()) return { resolved: false, expired: true };
     return { resolved: true, approved: input?.approved === true };
   });
   ipcMain.handle('hibi:webhook:configure', async (_event, secret) => { await webhookService.configure(secret); return webhookService.status(); });
   ipcMain.handle('hibi:webhook:start', async () => { await webhookService.start(); return webhookService.status(); });
   ipcMain.handle('hibi:webhook:stop', async () => { await webhookService.stop(); return webhookService.status(); });
   ipcMain.handle('hibi:webhook:status', () => webhookService.status());
-  ipcMain.handle('hibi:notch:show', (_event, presentation) => { if (!isRendererPresentationAllowed(presentation)) throw new Error('Invalid companion presentation.'); return notchWindow.show(presentation); });
-  ipcMain.handle('hibi:notch:hide', (_event, requestId) => notchWindow.hide(typeof requestId === 'string' ? requestId : ''));
-  ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && notchWindow.resolveAction(requestId, actionId));
-  ipcMain.handle('hibi:notch:current', () => notchWindow.activePresentation ?? null);
+  ipcMain.handle('hibi:notch:show', (_event, presentation) => {
+    if (!isRendererPresentationAllowed(presentation)) throw new Error('Invalid companion presentation.');
+    // Uma confirmação no ar espera um clique. Nenhum outro cartão pedido pelo renderer a cobre —
+    // inclusive de quem fala com o notch por fora do controlador do companion, como a sincronização
+    // do Notion. Senão a confirmação sumia e o pedido ficava pendente sem cartão.
+    const active = tabyBar.current();
+    if (active && active.actions.length > 0 && active.requestId !== presentation.requestId) return { deferred: true, requestId: active.requestId };
+    // Regra do produto: no notch só o mascote. Texto e botões vão para a barra embaixo dele.
+    notchBusyRequestId = presentation.requestId;
+    idleEscalation.stop();
+    const shown = notchWindow.show(mascotPresentation(presentation));
+    tabyBar.show(presentation);
+    return shown;
+  });
+  ipcMain.handle('hibi:notch:hide', (_event, requestId) => {
+    const id = typeof requestId === 'string' ? requestId : '';
+    tabyBar.hide(id);
+    const hidden = notchWindow.hide(id);
+    if (hidden && notchBusyRequestId === id) { notchBusyRequestId = null; idleEscalation.reset(); }
+    return hidden;
+  });
+  ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && tabyBar.resolveAction(requestId, actionId));
+  ipcMain.handle('hibi:notch:current', () => tabyBar.current());
+  // A barra do Taby fala só por estes canais, e só a janela dela é ouvida.
+  const fromBar = (event) => tabyBar.isSender(event?.sender);
+  ipcMain.handle('hibi:bar:current', (event) => (fromBar(event) ? tabyBar.current() : null));
+  ipcMain.handle('hibi:bar:action', (event, requestId, actionId) => fromBar(event) && isValidNotchAction(requestId, actionId) && tabyBar.resolveAction(requestId, actionId));
+  ipcMain.handle('hibi:bar:submit', (event, text) => {
+    const message = fromBar(event) ? cleanInput(text) : null;
+    if (!message) return false;
+    sendToMainWindow('hibi:bar:submit', message);
+    return true;
+  });
+  ipcMain.handle('hibi:bar:voice', (event, command) => {
+    if (!fromBar(event) || (command !== 'start' && command !== 'stop')) return false;
+    sendToMainWindow('hibi:bar:voice', command);
+    return true;
+  });
+  ipcMain.handle('hibi:bar:close', (event) => {
+    if (!fromBar(event)) return false;
+    const closing = tabyBar.current();
+    tabyBar.hide();
+    if (closing) sendToMainWindow('hibi:bar:closed', closing.requestId);
+    return true;
+  });
   ipcMain.handle('hibi:notch:capabilities', () => notchCapabilities(notchAdapter, notchWindow));
   ipcMain.handle('hibi:notch:displays', () => notchDisplayState(notchSettings, notchWindow));
-  ipcMain.handle('hibi:notch:set-display', (_event, displayId) => applyNotchDisplay(notchSettings, notchWindow, displayId));
+  ipcMain.handle('hibi:notch:set-display', (_event, displayId) => {
+    const state = applyNotchDisplay(notchSettings, notchWindow, displayId);
+    // O mascote pode ter ido para a tela da janela, ou saído dela.
+    mascotPlacement?.refresh();
+    return state;
+  });
+  ipcMain.handle('hibi:notch:window-placement', () => mascotPlacement?.current() ?? { sharesDisplay: false });
   ipcMain.handle('hibi:notch:test', (_event, locale) => notchTest.run(locale === 'en' ? 'en' : 'pt'));
+  // O tamanho do companion é ajuste da pessoa e vale entre aberturas: fica no mesmo arquivo do monitor
+  // preferido, e a superfície — painel nativo ou janela — é reposicionada na hora.
+  // O estado diz se a tecla está valendo: `taken` é outro app com ela, e a tela precisa mostrar qual
+  // atalho está escolhido mesmo assim.
+  // Nada é baixado nem instalado sem pedido da tela.
+  ipcMain.handle('hibi:updates:state', () => updateService.state());
+  ipcMain.handle('hibi:updates:check', () => updateService.check());
+  ipcMain.handle('hibi:updates:download', () => updateService.download());
+  ipcMain.handle('hibi:updates:install', () => updateService.install());
+  ipcMain.handle('hibi:shortcut:get', () => tabyShortcut.describe());
+  ipcMain.handle('hibi:shortcut:set', (_event, accelerator) => {
+    try { return tabyShortcut.set(accelerator === null ? null : String(accelerator)); }
+    catch { return { ...tabyShortcut.describe(), error: 'invalid' }; }
+  });
+  ipcMain.handle('hibi:local-model:state', () => localModelStore.describe());
+  // A conferência completa lê o arquivo inteiro e leva segundos: é pedida, nunca automática.
+  ipcMain.handle('hibi:local-model:verify', () => localModelStore.verify());
+  ipcMain.handle('hibi:local-model:download', () => localModelDownload.start());
+  ipcMain.handle('hibi:local-model:cancel-download', () => localModelDownload.cancel());
+  ipcMain.handle('hibi:local-model:run', (_event, input) => runWithVerifiedModel({ service: localModelService, store: localModelStore, input }));
+  ipcMain.handle('hibi:local-model:cancel', (_event, requestId) => { localModelService.cancel(requestId); return true; });
+  ipcMain.handle('hibi:local-model:shutdown', () => localModelService.shutdown());
+  ipcMain.handle('hibi:local-voice:state', () => localVoiceService.state());
+  ipcMain.handle('hibi:local-voice:listen', async (_event, options) => {
+    // A permissão é pedida antes de abrir o microfone, e uma recusa vira estado, não exceção.
+    if (process.platform === 'darwin' && systemPreferences?.askForMediaAccess) {
+      const allowed = await systemPreferences.askForMediaAccess('microphone').catch(() => false);
+      if (!allowed) return { ...localVoiceService.state(), status: 'error', error: 'Microphone access was denied in macOS settings.' };
+    }
+    return localVoiceService.listen({ autoStop: options?.autoStop === true, vocabulary: options?.vocabulary, onText: (text) => sendToMainWindow('hibi:local-voice:text', text) });
+  });
+  ipcMain.handle('hibi:local-voice:set-locale', (_event, locale) => localVoiceService.setLocale(locale));
+  ipcMain.handle('hibi:local-voice:stop', () => localVoiceService.stop());
+  // Ler a resposta em voz alta só com o ajuste ligado: o processo principal confere, não só a tela.
+  ipcMain.handle('hibi:local-voice:speak', async (_event, text) => {
+    if (!voiceSettings.get().spokenReplies) return { ...localVoiceService.state(), spoken: false };
+    if (typeof text !== 'string' || !text.trim()) return { ...localVoiceService.state(), spoken: false };
+    return { ...await localVoiceService.speak(text.trim().slice(0, 1_200)), spoken: true };
+  });
+  ipcMain.handle('hibi:voice-settings:get', () => voiceSettings.get());
+  ipcMain.handle('hibi:voice-settings:set', (_event, patch) => {
+    try { return voiceSettings.save(patch); } catch { return { ...voiceSettings.get(), error: 'invalid' }; }
+  });
+  ipcMain.handle('hibi:notch:size', () => ({ size: notchSettings.get().size }));
+  ipcMain.handle('hibi:notch:set-size', (_event, nextSize) => {
+    const size = nextSize === 'compact' ? 'compact' : 'normal';
+    notchSettings.save({ ...notchSettings.get(), size });
+    notchWindow.setSize(size);
+    return { size };
+  });
   createWindow();
-  app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+  // Depois da janela principal, para não correr com o carregamento da overlay: o companion de
+  // inicialização é a prova visual de que o notch físico está coberto, e nasce na tela com câmera.
+  // Só barra de menus: sem ícone no Dock e sem ⌘Tab. O menu do app continua montado porque é ele
+  // que carrega ⌘C, ⌘V, ⌘Z e ⌘A dentro dos campos.
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildAppMenuTemplate({ appName: app.getName?.() ?? 'Hibi' })));
+  hideFromDock({ app });
+  appTray = createAppTray({ Tray, Menu, nativeImage, onOpen: summonWindow, onTaby: openTaby, onHide: () => mainWindow?.hide(), onQuit: () => { quitting = true; app.quit(); } });
+  tabyShortcut.apply();
+  showStartupNotch(notchWindow, startupNotchAnimationPath());
+  mascotPlacement?.refresh();
+  idleEscalation.reset();
+  app.on("activate", () => summonWindow());
 });
-app.on("before-quit", () => { detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
+app.on("before-quit", () => { quitting = true; mascotPlacement?.dispose(); localVoiceService?.stop(); appTray?.destroy(); tabyShortcut?.dispose(); detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
+// O helper de voz é outro processo: sem este `stop`, uma escuta aberta sobrevivia ao app, com o
+// microfone ligado e ninguém para desligá-lo. Ver o `localVoiceService?.stop()` no before-quit.
+//
+// A atualização fecha as janelas **antes** do `before-quit`, e a janela principal só se esconde
+// enquanto `quitting` for falso: sem isto, "Reiniciar e instalar" escondia a janela e a instalação
+// era abortada.
+app.on("before-quit-for-update", () => { quitting = true; });
 app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
 
 module.exports = { isAllowedNavigation, isValidNotchAction, notchCapabilities, attachNotchLifecycle, attachRendererRecovery, rendererRecoveryPrompt, safeAiStreamEvent, routeNotchAction, isRendererPresentationAllowed };

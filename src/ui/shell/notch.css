@@ -1,0 +1,60 @@
+/*
+ * O que a barra de navegação (U03) precisa além das classes do Tailwind. Em camada, como toda regra da nova
+ * UI (regra 2 do plano): dentro de `.hibi-ui`, uma regra sem camada seria descartada.
+ */
+@layer components {
+  /* A camada da barra cobre a superfície inteira sem tirar o ponteiro do conteúdo por baixo: só os notches
+     e o que o HeroUI desenha a partir deles (o menu "Mais" e as dicas) recebem clique. */
+  .notch-layer .notch-part,
+  .notch-layer > [data-hibi-portal] { pointer-events: auto; }
+
+  /*
+   * macOS: a janela se arrasta pela faixa do topo (a banda da barra e a borda de cima da moldura), nunca
+   * pelos botões nem pelo conteúdo. O Chromium monta as regiões na ordem da árvore, uma por caixa marcada,
+   * e a mais recente vence; o valor é herdado, e qualquer valor explícito (até `none`) vira `no-drag`
+   * (`LocalFrameView::CollectDraggableRegions` e `WindowDrag::ApplyValue`). Então:
+   * - nada acima da barra declara região: a moldura e a superfície não emitem nenhuma;
+   * - na árvore, a faixa vem primeiro, depois os notches e os menus deles, e por último o conteúdo, que não
+   *   declara região (se declarasse `drag`, venceria os botões da barra);
+   * - o fundo do menu compacto só marca `no-drag` aberto, para o clique fora fechar o menu.
+   * O que rola por baixo da faixa fica escondido sob a borda da superfície (`.notch-scroll-edge`): ali o clique
+   * arrasta a janela. Um modal das telas atuais que alcance a faixa continua arrastando a janela ali, como no
+   * shell antigo.
+   */
+  .notch-drag-region { -webkit-app-region: drag; }
+  .notch-layer .notch-part,
+  .notch-backdrop[data-open="true"],
+  .notch-layer > [data-hibi-portal] { -webkit-app-region: no-drag; }
+
+  /* A área de trabalho ocupa a altura visível inteira: a faixa do topo em cima e o conteúdo embaixo. A
+     barra de rolagem é a fina do preview (`* { scrollbar-width: thin }`), sem trilho. */
+  .notch-viewport { scrollbar-width: thin; scrollbar-color: var(--hibi-scrollbar) transparent; }
+
+  /* A borda sob a faixa de arrastar só aparece com a área de trabalho rolada: parada, o topo dela é respiro, e a
+     janela fica igual ao preview (a borda somaria o próprio arredondamento ao das quinas da superfície). */
+  .notch-scroll-edge { opacity: 0; transition: opacity var(--hibi-duration-control) ease-out; }
+  .notch-frame[data-scrolled="true"] .notch-scroll-edge { opacity: 1; }
+
+  /* O foco que rola a área de trabalho (Tab, Shift+Tab) para o elemento onde ele fica à vista: abaixo da faixa da
+     barra em cima e da faixa de arrastar, e acima da barra embaixo. */
+  .notch-frame[data-position="top"] .notch-viewport { scroll-padding-block: calc(var(--spacing) * 17.5) calc(var(--spacing) * 3); }
+  .notch-frame[data-position="bottom"] .notch-viewport { scroll-padding-block: calc(var(--spacing) * 11) calc(var(--spacing) * 17.5); }
+  .notch-viewport > .shell-page { display: flex; flex-direction: column; min-height: 100%; }
+}
+
+/* Com a barra embaixo, a faixa do topo deixa espaço para os botões de fechar, minimizar e ampliar do macOS,
+   que ficam no canto de cima. Na camada dos utilitários, porque vence o `px-[42px]` da faixa. */
+@layer utilities {
+  .notch-frame[data-position="bottom"] .hibi-topbar { padding-left: 84px; }
+
+  /*
+   * Tema escuro com as telas atuais (U04c). As telas atuais são uma ilha clara nos dois temas
+   * (`.legacy-surface`), e no escuro o notch é claro: rolando por baixo dele, o branco o apagava (com a
+   * barra embaixo, o tempo todo). Aqui a faixa da barra deixa de ser respiro dentro da área de rolagem e
+   * vira margem fora dela: o conteúdo para antes do notch, que fica sobre a superfície escura, como no
+   * preview. As telas novas são escuras e não usam a ilha: para elas a regra some sozinha e o conteúdo
+   * volta a passar por baixo da barra, como no desenho aprovado.
+   */
+  [data-theme="dark"] .notch-frame[data-position="top"] .notch-viewport:has(.legacy-surface) { padding-top: 0; scroll-padding-top: 0; margin-top: calc(var(--spacing) * 17.5); height: calc(100% - var(--spacing) * 17.5); }
+  [data-theme="dark"] .notch-frame[data-position="bottom"] .notch-viewport:has(.legacy-surface) { padding-bottom: 0; scroll-padding-bottom: 0; margin-bottom: calc(var(--spacing) * 17.5); height: calc(100% - var(--spacing) * 17.5); }
+}

@@ -26,7 +26,8 @@ const weekdayOptions = [0, 1, 2, 3, 4, 5, 6];
 
 function reminderDetail(reminder: Reminder): string {
   const recurrence = reminder.schedule.recurrence;
-  if (!recurrence) return `${reminder.schedule.at.slice(11, 16)} · one-time`;
+  // O dia entra: sem ele, um lembrete único de outro dia (ou já passado) parecia ser de hoje.
+  if (!recurrence) return `${reminder.schedule.at.slice(8, 10)}/${reminder.schedule.at.slice(5, 7)} ${reminder.schedule.at.slice(11, 16)} · one-time`;
   if (recurrence.frequency === 'daily') return `Every day · ${recurrence.time ?? reminder.schedule.at.slice(11, 16)}`;
   return (recurrence.weekdays ?? []).map((day) => `${weekdayLabels[day]} ${recurrence.timesByWeekday?.[day] ?? recurrence.time ?? reminder.schedule.at.slice(11, 16)}`).join(' · ');
 }
@@ -43,14 +44,27 @@ export function RemindersView({ data, onEvent, onReminderStatusChange, onCreateR
   const [schedule, setSchedule] = useState<EditedReminderSchedule>({ date: '', frequency: 'one-time', time: '09:00', weekdays: [1] });
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
   const activeReminders = data.reminders.filter((reminder) => reminder.status !== 'paused');
-  const recurringTimes = activeReminders.flatMap((reminder) => { const recurrence = reminder.schedule.recurrence; if (!recurrence) return []; if (recurrence.frequency === 'daily') return [recurrence.time ?? reminder.schedule.at.slice(11, 16)]; return (recurrence.weekdays ?? []).map((day) => recurrence.timesByWeekday?.[day] ?? recurrence.time ?? reminder.schedule.at.slice(11, 16)); });
-  const closeRepeatingReminders = recurringTimes.some((time, index) => recurringTimes.slice(index + 1).some((other) => { const toMinutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5)); return Math.abs(toMinutes(time) - toMinutes(other)) <= 60; }));
+  const recurringTimes = activeReminders.flatMap((reminder) => { const recurrence = reminder.schedule.recurrence; if (!recurrence) return []; if (recurrence.frequency === 'daily') return [{ id: reminder.id, time: recurrence.time ?? reminder.schedule.at.slice(11, 16) }]; return (recurrence.weekdays ?? []).map((day) => ({ id: reminder.id, time: recurrence.timesByWeekday?.[day] ?? recurrence.time ?? reminder.schedule.at.slice(11, 16) })); });
+  // O par de lembretes repetidos a até uma hora um do outro. "Review spacing" só registrava um evento;
+  // agora abre a edição do segundo, que é o que se afasta — o importante fica fixo, como diz o aviso.
+  const toMinutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5));
+  const closePair = recurringTimes.flatMap((entry, index) => recurringTimes.slice(index + 1).filter((other) => other.id !== entry.id && Math.abs(toMinutes(entry.time) - toMinutes(other.time)) <= 60).map((other) => [entry.id, other.id] as const))[0];
+  const closeRepeatingReminders = closePair !== undefined;
+  const reviewSpacing = () => {
+    if (!closePair) return;
+    const pair = closePair.map((id) => data.reminders.find((reminder) => reminder.id === id)).filter((reminder): reminder is Reminder => reminder !== undefined);
+    const movable = pair.find((reminder) => reminder.category !== 'important') ?? pair[1] ?? pair[0];
+    if (!movable) return;
+    setFilter('all');
+    beginEdit(movable);
+    onEvent('validation', 'Reminder spacing review', 'needs-review');
+  };
   const visibleReminders = data.reminders.filter((reminder) => filter === 'all' || reminder.category === filter);
   const rhythm = deriveReminderRhythm(data.reminders, new Date());
   const beginEdit = (reminder: Reminder) => { setEditingId(reminder.id); setDraftTitle(reminder.title); setSchedule(initialSchedule(reminder)); };
   const saveEdit = (reminder: Reminder) => { const title = draftTitle.trim(); if (!title) return; if (title !== reminder.title) onRenameReminder?.(reminder.id, title); onEditReminderSchedule?.(reminder.id, schedule); onEvent('edit', reminder.title, 'schedule-save-requested'); setEditingId(null); };
   return <div className="view"><div className="view-heading"><div><p className="eyebrow">ATTENTION LAYER</p><h1>Reminders</h1><p className="muted">{activeReminders.length} active · grouped by priority</p></div><button type="button" className="primary" aria-haspopup="dialog" aria-controls="reminder-create-title" onClick={() => onCreateReminder?.('')}>+ New reminder</button></div>
-  {closeRepeatingReminders && <div className="notice"><span className="notice-icon">!</span><div><strong>Two repeating reminders are close together.</strong><p>Review the schedule before spacing them out. Important reminders stay fixed.</p></div><button className="outline" onClick={() => onEvent('validation', 'Reminder spacing review', 'needs-review')}>Review spacing</button></div>}
+  {closeRepeatingReminders && <div className="notice"><span className="notice-icon">!</span><div><strong>Two repeating reminders are close together.</strong><p>Review the schedule before spacing them out. Important reminders stay fixed.</p></div><button className="outline" onClick={reviewSpacing}>Review spacing</button></div>}
   <RemindersAtelierSummary reminders={data.reminders} />
   <div className="filter-row" aria-label="Reminder filters">{([['all', `All ${data.reminders.length}`], ['important', `Important ${data.reminders.filter((reminder) => reminder.category === 'important').length}`], ['wellbeing', `Wellbeing ${data.reminders.filter((reminder) => reminder.category === 'wellbeing').length}`]] as const).map(([value, label]) => <button key={value} className={`filter ${filter === value ? 'active' : ''}`} aria-pressed={filter === value} onClick={() => { setFilter(value); onEvent('filter', `Reminders · ${label}`); }}>{label}</button>)}</div><section className="list-card">{visibleReminders.map((reminder) => {
     const paused = reminder.status === 'paused';

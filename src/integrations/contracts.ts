@@ -1,5 +1,7 @@
 export type IntegrationCapability = 'import' | 'write' | 'sync' | 'notify'
-export type IntegrationState = 'connected' | 'disconnected' | 'error'
+// `expired` é credencial que existe e não vale mais: a renovação automática falhou e só reconectar
+// resolve. Sem esse estado, a tela dizia "conectado" para uma integração que já não respondia.
+export type IntegrationState = 'connected' | 'disconnected' | 'error' | 'expired'
 
 export type IntegrationDescriptor = Readonly<{
   id: string
@@ -10,6 +12,9 @@ export type IntegrationDescriptor = Readonly<{
 export type IntegrationStatus = IntegrationDescriptor & Readonly<{
   state: IntegrationState
   hasCredential: boolean
+  // Opcional para não obrigar quem monta um status de exemplo na tela a preenchê-lo; o processo
+  // principal sempre envia, e `state: 'expired'` diz a mesma coisa.
+  needsReconnect?: boolean
   lastSyncAt?: string
   error?: string
 }>

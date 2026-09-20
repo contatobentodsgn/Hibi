@@ -1,9 +1,17 @@
 export type ThemePreference = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
-export type TintPreference = 'aurora' | 'ocean' | 'moss' | 'iris' | 'rose'
+// Os quatro tons do preview aprovado ("Um toque de cor"). Lavanda é o padrão.
+export type TintPreference = 'lavender' | 'blue' | 'mint' | 'peach'
+export type ContrastPreference = 'normal' | 'more'
+export type MotionPreference = 'system' | 'reduce'
 
 export const THEME_STORAGE_KEY = 'hibi-theme'
 export const TINT_STORAGE_KEY = 'hibi-tint'
+export const CONTRAST_STORAGE_KEY = 'hibi-contrast'
+export const MOTION_STORAGE_KEY = 'hibi-motion'
+
+// Os cinco tons de antes viram o mais próximo do preview, para ninguém perder a escolha feita.
+const PREVIOUS_TINTS: Readonly<Record<string, TintPreference>> = { aurora: 'lavender', iris: 'lavender', ocean: 'blue', moss: 'mint', rose: 'peach' }
 
 export type ThemeHost = Readonly<{
   storage: Pick<Storage, 'getItem' | 'setItem'>
@@ -12,7 +20,9 @@ export type ThemeHost = Readonly<{
 }>
 
 export const isThemePreference = (value: unknown): value is ThemePreference => value === 'system' || value === 'light' || value === 'dark'
-export const isTintPreference = (value: unknown): value is TintPreference => value === 'aurora' || value === 'ocean' || value === 'moss' || value === 'iris' || value === 'rose'
+export const isTintPreference = (value: unknown): value is TintPreference => value === 'lavender' || value === 'blue' || value === 'mint' || value === 'peach'
+export const isContrastPreference = (value: unknown): value is ContrastPreference => value === 'normal' || value === 'more'
+export const isMotionPreference = (value: unknown): value is MotionPreference => value === 'system' || value === 'reduce'
 
 export function resolveTheme(preference: ThemePreference, systemPrefersDark: boolean): ResolvedTheme {
   if (preference === 'system') return systemPrefersDark ? 'dark' : 'light'
@@ -24,7 +34,19 @@ export function readThemePreference(storage: Pick<Storage, 'getItem'>): ThemePre
 }
 
 export function readTintPreference(storage: Pick<Storage, 'getItem'>): TintPreference {
-  try { const saved = storage.getItem(TINT_STORAGE_KEY); return isTintPreference(saved) ? saved : 'aurora' } catch { return 'aurora' }
+  try {
+    const saved = storage.getItem(TINT_STORAGE_KEY)
+    if (isTintPreference(saved)) return saved
+    return (saved !== null && PREVIOUS_TINTS[saved]) || 'lavender'
+  } catch { return 'lavender' }
+}
+
+export function readContrastPreference(storage: Pick<Storage, 'getItem'>): ContrastPreference {
+  try { const saved = storage.getItem(CONTRAST_STORAGE_KEY); return isContrastPreference(saved) ? saved : 'normal' } catch { return 'normal' }
+}
+
+export function readMotionPreference(storage: Pick<Storage, 'getItem'>): MotionPreference {
+  try { const saved = storage.getItem(MOTION_STORAGE_KEY); return isMotionPreference(saved) ? saved : 'system' } catch { return 'system' }
 }
 
 // Aplica o tema agora e, em `system`, segue o sistema até a função devolvida ser chamada.
@@ -41,6 +63,17 @@ export function applyThemePreference(preference: ThemePreference, host: ThemeHos
 export function applyTintPreference(tint: TintPreference, host: ThemeHost): void {
   try { host.storage.setItem(TINT_STORAGE_KEY, tint) } catch { /* armazenamento indisponível */ }
   host.root.setAttribute('data-tint', tint)
+}
+
+// "Mais contraste" e "Reduzir movimento", do preview aprovado: atributos na raiz, lidos pelos tokens.
+export function applyContrastPreference(contrast: ContrastPreference, host: ThemeHost): void {
+  try { host.storage.setItem(CONTRAST_STORAGE_KEY, contrast) } catch { /* armazenamento indisponível */ }
+  host.root.setAttribute('data-contrast', contrast)
+}
+
+export function applyMotionPreference(motion: MotionPreference, host: ThemeHost): void {
+  try { host.storage.setItem(MOTION_STORAGE_KEY, motion) } catch { /* armazenamento indisponível */ }
+  host.root.setAttribute('data-motion', motion)
 }
 
 const noopStorage: Pick<Storage, 'getItem' | 'setItem'> = { getItem: () => null, setItem: () => undefined }

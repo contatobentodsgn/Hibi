@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.hibi.study.voice</string>
+    <key>CFBundleName</key>
+    <string>Hibi Voice</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <!-- O macOS só mostra o pedido de permissão se o processo responsável trouxer estes textos. Sem
+         eles, a captura é negada em silêncio, e a pessoa não vê diálogo nenhum. -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Hibi uses the microphone only when you start voice input.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Hibi recognises speech on this Mac only when you start voice input.</string>
+  </dict>
+</plist>

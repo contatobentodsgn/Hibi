@@ -43,6 +43,8 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,executeApprovedCalendarPublish: (input) => ipcRenderer.invoke('hibi:calendar-sync:execute-approved', input)
   ,prepareCalendarUpdate: (input) => ipcRenderer.invoke('hibi:calendar-sync:prepare-update', input)
   ,resolveCalendarConflict: (input) => ipcRenderer.invoke('hibi:calendar-sync:resolve-conflict', input)
+  ,listCalendarSyncChanges: () => ipcRenderer.invoke('hibi:calendar-sync:changes')
+  ,acknowledgeCalendarIncoming: (input) => ipcRenderer.invoke('hibi:calendar-sync:acknowledge-incoming', input)
   ,configureWebhook: (secret) => ipcRenderer.invoke('hibi:webhook:configure', secret)
   ,startWebhook: () => ipcRenderer.invoke('hibi:webhook:start')
   ,stopWebhook: () => ipcRenderer.invoke('hibi:webhook:stop')
@@ -59,8 +61,39 @@ contextBridge.exposeInMainWorld("hibiDesktop", {
   ,getNotchCapabilities: () => ipcRenderer.invoke('hibi:notch:capabilities')
   ,listNotchDisplays: () => ipcRenderer.invoke('hibi:notch:displays')
   ,setNotchDisplay: (displayId) => ipcRenderer.invoke('hibi:notch:set-display', displayId)
+  ,getLocalModelState: () => ipcRenderer.invoke('hibi:local-model:state')
+  ,verifyLocalModel: () => ipcRenderer.invoke('hibi:local-model:verify')
+  ,downloadLocalModel: () => ipcRenderer.invoke('hibi:local-model:download')
+  ,cancelLocalModelDownload: () => ipcRenderer.invoke('hibi:local-model:cancel-download')
+  ,onLocalModelDownloadProgress: (callback) => { if (typeof callback !== 'function') throw new TypeError('Download listener must be a function.'); const listener = (_event, state) => callback(state); ipcRenderer.on('hibi:local-model:download-progress', listener); return () => ipcRenderer.removeListener('hibi:local-model:download-progress', listener); }
+  ,runLocalModel: (input) => ipcRenderer.invoke('hibi:local-model:run', input)
+  ,cancelLocalModel: (requestId) => ipcRenderer.invoke('hibi:local-model:cancel', requestId)
+  ,shutdownLocalModel: () => ipcRenderer.invoke('hibi:local-model:shutdown')
+  ,getLocalVoiceState: () => ipcRenderer.invoke('hibi:local-voice:state')
+  ,listenLocalVoice: (options) => ipcRenderer.invoke('hibi:local-voice:listen', { autoStop: options?.autoStop === true, vocabulary: Array.isArray(options?.vocabulary) ? options.vocabulary.filter((term) => typeof term === 'string') : [] })
+  ,speakLocalVoice: (text) => ipcRenderer.invoke('hibi:local-voice:speak', text)
+  ,getVoiceSettings: () => ipcRenderer.invoke('hibi:voice-settings:get')
+  ,setVoiceSettings: (patch) => ipcRenderer.invoke('hibi:voice-settings:set', patch)
+  ,setLocalVoiceLocale: (locale) => ipcRenderer.invoke('hibi:local-voice:set-locale', locale)
+  ,stopLocalVoice: () => ipcRenderer.invoke('hibi:local-voice:stop')
+  ,onLocalVoiceText: (callback) => { if (typeof callback !== 'function') throw new TypeError('Voice listener must be a function.'); const listener = (_event, text) => { if (typeof text === 'string') callback(text); }; ipcRenderer.on('hibi:local-voice:text', listener); return () => ipcRenderer.removeListener('hibi:local-voice:text', listener); }
+  ,getNotchSize: () => ipcRenderer.invoke('hibi:notch:size')
+  ,setNotchSize: (size) => ipcRenderer.invoke('hibi:notch:set-size', size)
   ,testNotch: (locale) => ipcRenderer.invoke('hibi:notch:test', locale)
+  ,getNotchWindowPlacement: () => ipcRenderer.invoke('hibi:notch:window-placement')
+  ,onNotchWindowPlacementChanged: (callback) => { if (typeof callback !== 'function') throw new TypeError('Placement listener must be a function.'); const listener = (_event, state) => callback({ sharesDisplay: state?.sharesDisplay === true }); ipcRenderer.on('hibi:notch:window-placement-changed', listener); return () => ipcRenderer.removeListener('hibi:notch:window-placement-changed', listener); }
   ,onNotchDisplaysChanged: (callback) => { const listener = () => callback(); ipcRenderer.on('hibi:notch:displays-changed', listener); return () => ipcRenderer.removeListener('hibi:notch:displays-changed', listener); }
+  ,getUpdateState: () => ipcRenderer.invoke('hibi:updates:state')
+  ,checkForUpdate: () => ipcRenderer.invoke('hibi:updates:check')
+  ,downloadUpdate: () => ipcRenderer.invoke('hibi:updates:download')
+  ,installUpdate: () => ipcRenderer.invoke('hibi:updates:install')
+  ,onUpdateState: (callback) => { const listener = (_event, state) => callback(state); ipcRenderer.on('hibi:updates:state', listener); return () => ipcRenderer.removeListener('hibi:updates:state', listener); }
+  ,getTabyShortcut: () => ipcRenderer.invoke('hibi:shortcut:get')
+  ,setTabyShortcut: (accelerator) => ipcRenderer.invoke('hibi:shortcut:set', accelerator)
+  ,onBarSubmit: (callback) => { const listener = (_event, text) => { if (typeof text === 'string') callback(text); }; ipcRenderer.on('hibi:bar:submit', listener); return () => ipcRenderer.removeListener('hibi:bar:submit', listener); }
+  ,onBarVoice: (callback) => { const listener = (_event, command) => { if (command === 'start' || command === 'stop') callback(command); }; ipcRenderer.on('hibi:bar:voice', listener); return () => ipcRenderer.removeListener('hibi:bar:voice', listener); }
+  ,onBarClosed: (callback) => { const listener = (_event, requestId) => { if (typeof requestId === 'string') callback(requestId); }; ipcRenderer.on('hibi:bar:closed', listener); return () => ipcRenderer.removeListener('hibi:bar:closed', listener); }
+  ,onTabyShortcut: (callback) => { const listener = (_event, request) => callback({ listen: request?.listen === true, background: request?.background === true }); ipcRenderer.on('hibi:shortcut:taby', listener); return () => ipcRenderer.removeListener('hibi:shortcut:taby', listener); }
   ,onAiStreamEvent: (callback) => {
     if (typeof callback !== 'function') throw new TypeError('AI stream listener must be a function.');
     let subscribed = true;

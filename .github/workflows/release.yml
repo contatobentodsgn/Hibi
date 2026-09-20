@@ -1,0 +1,44 @@
+name: Release
+
+# Só por tag: publicar é decisão de quem empurra a versão, nunca efeito colateral de um merge.
+# O passo a passo das credenciais está em docs/release-signing.md.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: App macOS assinado e notarizado
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix native/notch ci
+      - name: Conferir credenciais antes de gastar o build
+        run: npm run release:preflight
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      # `--publish always` anexa o pacote e o `latest-mac.yml` à release: é esse arquivo que o app
+      # consulta para saber que existe versão nova. Sem ele, a tela de Atualizações não acha nada.
+      - name: Construir, assinar, notarizar e publicar
+        run: npm run build && npx electron-builder --mac --publish always
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

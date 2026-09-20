@@ -69,8 +69,16 @@ const presentation = (
   expiresAtMs: expiryAt(event.nowMs, event.expiresInMs),
 });
 
-const canReplace = (state: CompanionPresentation, candidate: CompanionPresentation): boolean =>
-  state.requestId === null || state.requestId === candidate.requestId || candidate.priority >= state.priority;
+/**
+ * Uma confirmação pendente espera resposta: outro cartão por cima dela — um erro de formulário, a
+ * pergunta de ausência do foco, outra confirmação — a apagava do notch, e o pedido ficava pendente sem
+ * lugar para responder. Ela só sai quando é respondida, dispensada ou expira; até lá, o resto espera.
+ */
+const canReplace = (state: CompanionPresentation, candidate: CompanionPresentation): boolean => {
+  if (state.requestId === null || state.requestId === candidate.requestId) return true;
+  if (state.kind === 'confirmation') return false;
+  return candidate.priority >= state.priority;
+};
 
 export function reduceCompanion(state: CompanionPresentation, event: CompanionEvent): CompanionPresentation {
   switch (event.type) {

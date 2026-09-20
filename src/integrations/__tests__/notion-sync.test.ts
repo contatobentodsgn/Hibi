@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildNotionSyncPlan, notionTaskHash, type NotionSyncCheckpoint, type NotionTaskRecord } from '../notion-sync'
+import { buildNotionSyncPlan, notionTaskHash, staleNotionPlanKeys, type NotionSyncCheckpoint, type NotionTaskRecord } from '../notion-sync'
 import type { Task } from '../../domain/models'
 
 const local = (changes: Partial<Task> = {}): Task => ({
@@ -61,5 +61,43 @@ describe('Notion revisions rounded to the minute', () => {
   it('treats the same instant written in another format as unchanged', () => {
     const base = checkpoint()
     expect(buildNotionSyncPlan([local()], [remote({ deadline: '2026-09-10T12:00:00.000Z' })], [base]).items[0].state).toBe('unchanged')
+  })
+})
+
+describe('prévia velha', () => {
+  const localChanged = () => buildNotionSyncPlan([local({ title: 'Write brief v2' })], [remote()], [checkpoint()])
+  const remoteChanged = () => buildNotionSyncPlan([local()], [remote({ revision: 'r2', title: 'Remote v2' })], [checkpoint()])
+  const keyOf = (plan: ReturnType<typeof buildNotionSyncPlan>) => plan.items[0]!.key
+
+  it('nada mudou desde a prévia: nada é velho', () => {
+    const plan = localChanged()
+    expect(staleNotionPlanKeys(plan, { [keyOf(plan)]: 'keep-local' }, [local({ title: 'Write brief v2' })], [remote()])).toEqual([])
+  })
+
+  it('a tarefa local editada depois da prévia torna o item velho', () => {
+    const plan = localChanged()
+    expect(staleNotionPlanKeys(plan, { [keyOf(plan)]: 'keep-local' }, [local({ title: 'Write brief v3' })], [remote()])).toEqual([keyOf(plan)])
+  })
+
+  it('a tarefa local apagada depois da prévia torna o item velho', () => {
+    const plan = localChanged()
+    expect(staleNotionPlanKeys(plan, { [keyOf(plan)]: 'keep-local' }, [], [remote()])).toEqual([keyOf(plan)])
+  })
+
+  it('a página editada ou apagada no Notion depois da prévia torna o item velho', () => {
+    const plan = remoteChanged()
+    const decisions = { [keyOf(plan)]: 'keep-remote' }
+    expect(staleNotionPlanKeys(plan, decisions, [local()], [remote({ revision: 'r3', title: 'Remote v3' })])).toEqual([keyOf(plan)])
+    expect(staleNotionPlanKeys(plan, decisions, [local()], [])).toEqual([keyOf(plan)])
+  })
+
+  it('uma página criada no Notion para uma tarefa que a prévia via só daqui torna o item velho', () => {
+    const plan = buildNotionSyncPlan([local()], [], [])
+    expect(staleNotionPlanKeys(plan, { [keyOf(plan)]: 'keep-local' }, [local()], [remote()])).toEqual([keyOf(plan)])
+  })
+
+  it('um item que não será aplicado não bloqueia nada', () => {
+    const plan = localChanged()
+    expect(staleNotionPlanKeys(plan, { [keyOf(plan)]: 'skip' }, [], [])).toEqual([])
   })
 })

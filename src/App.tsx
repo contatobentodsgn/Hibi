@@ -16,6 +16,9 @@ import { HomeView } from './ui/HomeView';
 import { TasksView } from './ui/TasksView';
 import { RemindersView, type EditedReminderSchedule } from './ui/RemindersView';
 import { FocusView } from './ui/FocusView';
+import { appendEventRecord, loadEventLog } from './ui/event-log';
+import { useCalendarDay } from './ui/useCalendarDay';
+import { FocusBackgroundNotice } from './ui/FocusBackgroundNotice';
 import { deriveFocusMood, focusSessionsCompletedToday } from './ui/focus-mood';
 import { SettingsView } from './ui/SettingsView';
 import { InstrumentationView } from './ui/InstrumentationView';
@@ -36,6 +39,10 @@ import { ReminderCreateModal, type NewReminderForm } from './ui/ReminderCreateMo
 import { DeadlineEditModal } from './ui/DeadlineEditModal';
 import { createLocalHibiRuntime, LocalToolProvider } from './ai/local-runtime';
 import { ElectronConfiguredProvider } from './ai/electron-provider';
+import { OfflineBrainProvider } from './ai/offline-brain-provider';
+import { useTabyShortcut } from './ui/useTabyShortcut';
+import { useVoiceTurn } from './ui/useVoiceTurn';
+import { voiceVocabulary } from './ai/voice-vocabulary';
 import { HeuristicAiProvider } from './ai/heuristic-provider';
 import { CompanionController } from './companion/controller';
 import type { CompanionEvent } from './companion/contracts';
@@ -79,6 +86,12 @@ export default function App() {
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const workspaceWarned = useRef(false);
   const [route, setRoute] = useState<NavKey>('home');
+  // Muda à meia-noite e renderiza as telas de novo: "hoje" nelas é calculado ao renderizar.
+  const calendarDay = useCalendarDay();
+  const [focusStartPending, setFocusStartPending] = useState(false);
+  // Uma sessão de foco iniciada (rodando ou pausada) sobrevive à troca de tela: com o app na barra de
+  // menus a pessoa abre Tarefas no meio do foco o tempo todo, e desmontar a tela abandonava a sessão.
+  const [focusActive, setFocusActive] = useState(false);
   // Filtro de pasta pedido junto com a navegação. O `nonce` muda a cada navegação e vira `key` das
   // telas, então o filtro pedido é reaplicado mesmo quando se volta à mesma tela.
   const [folderFilter, setFolderFilter] = useState<{ folder: string | null; nonce: number }>({ folder: null, nonce: 0 });
@@ -92,7 +105,33 @@ export default function App() {
   const aiFallbackPolicyRef = useRef(aiFallbackPolicy);
   const updateAiFallbackPolicy = (policy: AiFallbackPolicy) => { aiFallbackPolicyRef.current = policy; setAiFallbackPolicy(policy); try { window.localStorage.setItem(AI_FALLBACK_POLICY_STORAGE_KEY, policy); } catch { /* unavailable storage */ } };
   // Uma ação confirmada do Taby registra como a tela: conclusões e reaberturas. O aviso só aparece na transição para concluída.
-  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskStatusChanged: (before: Task, after: Task) => { recordActivity(taskStatusActivity(before, after.status ?? 'open', new Date().toISOString())); if (before.status !== 'completed' && after.status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${after.title}`, nowMs: Date.now(), expiresInMs: 3_000 }); }, onBlockCreated: (block: ScheduleBlock) => recordActivity(blockActivity('created', block, new Date().toISOString())), onBlockDeleted: (block: ScheduleBlock) => recordActivity(blockActivity('deleted', block, new Date().toISOString())), onFocusStarted: () => { setRoute('focus'); dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000, focusLoopAnimation: focusSettingsRef.current.focusLoopAnimation, focusMood: deriveFocusMood({ awayPending: false, completedToday: focusSessionsCompletedToday(repository.snapshot().activity, new Date()) }) }); }, onAudit: (event: AiAuditEvent) => setAiHistory((current) => appendAiAuditEvent(current, event)), onUsage: (event: { at: string; provider: string; model: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number }; outcome: 'completed'; fallback: boolean }) => setAiUsage((current) => appendAiUsageRecord(current, event)), ...(window.hibiDesktop?.prepareIntegrationAction && window.hibiDesktop?.executeApprovedIntegrationAction ? { integrations: { prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => window.hibiDesktop!.prepareIntegrationAction!(input), executeApproved: (input: { actionId: string; confirmationId: string }) => window.hibiDesktop!.executeApprovedIntegrationAction!(input) as Promise<{ ok: boolean; remoteId?: string }> } } : {}) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new LocalToolProvider(repository)), new HeuristicAiProvider(), () => aiFallbackPolicyRef.current); });
+  // Uma reunião marcada pelo Taby vai também para o primeiro calendário bidirecional escolhido em
+  // Ajustes › Integrations. A confirmação do Taby é a aprovação da pessoa para esta escrita.
+  const publishMeetingToCalendar = async (block: ScheduleBlock): Promise<string | null> => {
+    const bridge = window.hibiDesktop!;
+    const state = await bridge.getCalendarSyncState!();
+    const target = state.calendars.find((calendar) => calendar.mode === 'bidirectional');
+    if (!target) return null;
+    const action = await bridge.prepareCalendarPublish!({ calendarId: target.id, block: { id: block.id, title: block.title, startsAt: block.start, endsAt: block.end, allDay: false } });
+    await bridge.executeApprovedCalendarPublish!({ actionId: action.id, confirmationId: action.confirmationId });
+    return target.label;
+  };
+  // Mover pelo Taby uma reunião que já está no calendário muda o evento lá. Sem vínculo, nada sai daqui.
+  const updateMeetingInCalendar = async (block: ScheduleBlock): Promise<string | null> => {
+    const bridge = window.hibiDesktop!;
+    const state = await bridge.getCalendarSyncState!();
+    const target = state.calendars.find((calendar) => calendar.mode === 'bidirectional');
+    if (!target || !bridge.prepareCalendarUpdate) return null;
+    const action = await bridge.prepareCalendarUpdate({ calendarId: target.id, block: { id: block.id, title: block.title, startsAt: block.start, endsAt: block.end, allDay: false } }).catch((error: unknown) => {
+      // Bloco que nunca foi ao calendário não tem o que atualizar; qualquer outra recusa é falha de verdade.
+      if (error instanceof Error && /not linked/iu.test(error.message)) return null;
+      throw error;
+    });
+    if (!action) return null;
+    await bridge.executeApprovedCalendarPublish!({ actionId: action.id, confirmationId: action.confirmationId });
+    return target.label;
+  };
+  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskStatusChanged: (before: Task, after: Task) => { recordActivity(taskStatusActivity(before, after.status ?? 'open', new Date().toISOString())); if (before.status !== 'completed' && after.status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${after.title}`, nowMs: Date.now(), expiresInMs: 3_000 }); }, onBlockCreated: (block: ScheduleBlock) => recordActivity(blockActivity('created', block, new Date().toISOString())), onBlockDeleted: (block: ScheduleBlock) => recordActivity(blockActivity('deleted', block, new Date().toISOString())), onFocusStarted: () => { setFocusStartPending(true); setRoute('focus'); }, ...(window.hibiDesktop?.getCalendarSyncState && window.hibiDesktop?.prepareCalendarPublish && window.hibiDesktop?.executeApprovedCalendarPublish ? { calendar: { publish: publishMeetingToCalendar, update: updateMeetingInCalendar } } : {}), onAudit: (event: AiAuditEvent) => setAiHistory((current) => appendAiAuditEvent(current, event)), onUsage: (event: { at: string; provider: string; model: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number }; outcome: 'completed'; fallback: boolean }) => setAiUsage((current) => appendAiUsageRecord(current, event)), ...(window.hibiDesktop?.prepareIntegrationAction && window.hibiDesktop?.executeApprovedIntegrationAction ? { integrations: { prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => window.hibiDesktop!.prepareIntegrationAction!(input), executeApproved: (input: { actionId: string; confirmationId: string }) => window.hibiDesktop!.executeApprovedIntegrationAction!(input) as Promise<{ ok: boolean; remoteId?: string }> } } : {}) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new OfflineBrainProvider(window.hibiDesktop ?? {}, new LocalToolProvider(repository))), new HeuristicAiProvider(), () => aiFallbackPolicyRef.current); });
   // Ajustes de Foco e a janela da sessão em andamento. Os dois existem aqui só para serem entregues ao
   // agendador junto das entradas: é lá, em electron/focus-gate.mjs, que a decisão de silenciar vale.
   const [focusSettingsHost] = useState(browserFocusSettingsHost);
@@ -108,12 +147,12 @@ export default function App() {
   const [deadlineEditTaskId, setDeadlineEditTaskId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState('');
   const [pendingLocalApiIntent, setPendingLocalApiIntent] = useState<LocalApiIntent | null>(null);
-  const [events, setEvents] = useState<EventRecord[]>(() => { try { const saved = window.localStorage.getItem('hibi-events'); return saved ? JSON.parse(saved) as EventRecord[] : initialEvents; } catch { return initialEvents; } });
+  const [events, setEvents] = useState<EventRecord[]>(() => { try { return loadEventLog(window.localStorage.getItem('hibi-events'), initialEvents); } catch { return initialEvents; } });
   const clearEvents = () => setEvents([]);
   const clearAiHistory = () => setAiHistory([]);
 
   const log = (action: string, detail: string, result?: string) => {
-    setEvents((current) => [{ id: Math.max(0, ...current.map((event) => event.id)) + 1, at: new Date().toLocaleTimeString('pt-BR'), route, action, detail, result }, ...current]);
+    setEvents((current) => appendEventRecord(current, { at: new Date().toLocaleTimeString('pt-BR'), route, action, detail, result }));
   };
 
   const assistantTurn = useAssistantTurn({ runtime: aiRuntime, onEvent: log, onCompanionEvent: dispatchCompanion, onCompanionError: (text) => dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }) });
@@ -121,6 +160,10 @@ export default function App() {
   // thread que morasse dentro da tela perderia essas perguntas. Recebe o turno porque a resposta do
   // assistente é gravada uma vez só, deste lado.
   const conversations = useConversations({ turn: assistantTurn, onEvent: log });
+  // A voz vive aqui, e não na tela Taby: o atalho pode ouvir com a janela escondida, e o notch mostra.
+  const voice = useVoiceTurn({ ask: (text) => { conversations.record({ role: 'user', text, at: new Date().toISOString() }); void assistantTurn.ask(text); }, turnState: assistantTurn.state, onCompanionEvent: dispatchCompanion, vocabulary: () => voiceVocabulary(data) });
+  const voiceRef = useRef(voice);
+  voiceRef.current = voice;
 
   const refreshData = () => setData(repository.snapshot());
   // Chamado só depois da mutação aplicada. Se registrar falhar, a ação continua valendo: só avisa.
@@ -136,8 +179,9 @@ export default function App() {
     }
     refreshData();
   };
-  // Data sugerida para um lembrete novo: o começo do plano guardado e, sem plano, hoje.
-  const planStartDate = () => repository.listBlocks().map((block) => block.start.slice(0, 10)).filter(Boolean).sort()[0] ?? todayKey();
+  // Data sugerida para um lembrete novo: o começo do plano guardado, se ainda está por vir, e senão hoje.
+  // O bloco mais antigo guardado costuma estar no passado, e um lembrete único lá nunca tocaria.
+  const planStartDate = () => { const start = repository.listBlocks().map((block) => block.start.slice(0, 10)).filter(Boolean).sort()[0]; const today = todayKey(); return start && start > today ? start : today; };
 
   // getTask/getHabit/getGoal devolvem o objeto vivo do repositório: o "antes" precisa ser copiado.
   const changeTaskStatus = (id: string, status: EntityStatus) => {
@@ -177,6 +221,17 @@ export default function App() {
     refreshData();
     log('delete', block.title);
     recordActivity(blockActivity('deleted', block, new Date().toISOString()));
+  };
+  // Trazer para o Hibi o horário de um evento movido no calendário: passa pela mesma validação de um bloco novo.
+  const moveBlock = (id: string, start: string, end: string): boolean => {
+    const current = repository.listBlocks().find((block) => block.id === id);
+    if (!current) return false;
+    const validation = validateScheduleBlock({ ...current, start, end }, repository.listBlocks());
+    if (!validation.valid) { setValidationError(validation.errors.join('\n')); log('validation', current.title, 'blocked'); return false; }
+    repository.updateBlock(id, { start, end });
+    refreshData();
+    log('edit', current.title, 'calendar-incoming');
+    return true;
   };
   const createTask = ({ title, durationMinutes, folder }: NewTaskForm) => { repository.createTask({ title, durationMinutes, category: 'work', folder, status: 'open' }); refreshData(); log('create', title); setTaskCreateOpen(false); };
   const createReminder = ({ title, category, date, frequency, time, weekdays }: NewReminderForm) => {
@@ -285,12 +340,19 @@ export default function App() {
     // Sem descartar a apresentação, o estado do companion guarda a confirmação até ela expirar e o
     // relógio a mostra de novo no notch, já respondida.
     dispatchCompanion({ type: 'presentation.dismissed', requestId: intent.confirmationId });
-    if (approved) {
-      const mutation = localApiTaskMutation(intent);
-      if (mutation) { repository.createTask(mutation); refreshData(); log('local-api', mutation.title, 'approved'); }
-    }
-    await window.hibiDesktop?.resolveLocalApiWrite?.({ confirmationId: intent.confirmationId, approved });
+    // O processo principal decide primeiro: um pedido expirado ou já respondido não cria nada aqui.
+    const outcome = await window.hibiDesktop?.resolveLocalApiWrite?.({ confirmationId: intent.confirmationId, approved });
+    if (!approved) return;
+    if (!outcome?.resolved) { log('local-api', 'confirmation expired', 'expired'); setValidationError('A confirmação da API local expirou. Peça de novo pelo app que enviou.'); return; }
+    const mutation = localApiTaskMutation(intent);
+    if (mutation) { repository.createTask(mutation); refreshData(); log('local-api', mutation.title, 'approved'); }
   };
+  // O cartão da API local some com o prazo do pedido: depois disso o processo principal já não aceita a resposta.
+  React.useEffect(() => {
+    if (!pendingLocalApiIntent) return undefined;
+    const timer = window.setTimeout(() => setPendingLocalApiIntent((current) => (current === pendingLocalApiIntent ? null : current)), 60_000);
+    return () => window.clearTimeout(timer);
+  }, [pendingLocalApiIntent]);
 
   const testNativeNotification = async () => {
     const shown = await window.hibiDesktop?.showTestNotification?.();
@@ -364,29 +426,55 @@ export default function App() {
     setRoute(next);
     log(source, options.folder === undefined ? `Opened ${next}` : `Opened ${next} · folder`);
   };
+  // A barra embaixo do notch: o texto enviado vira pedido, falar e parar vão para a voz, e fechar
+  // dispensa o que ela mostrava (parando a escuta, se era ela).
+  React.useEffect(() => {
+    const bridge = window.hibiDesktop;
+    const offs = [
+      bridge?.onBarSubmit?.((text) => { conversations.record({ role: 'user', text, at: new Date().toISOString() }); void assistantTurn.ask(text); }),
+      bridge?.onBarVoice?.((command) => { if (command === 'start') void voiceRef.current.start({ notch: true }); else void voiceRef.current.stop(); }),
+      bridge?.onBarClosed?.((requestId) => { if (voiceRef.current.listening) void voiceRef.current.stop(); dispatchCompanion({ type: 'presentation.dismissed', requestId }); }),
+    ];
+    return () => { for (const off of offs) off?.(); };
+  }, [conversations, assistantTurn.ask]);
+  useTabyShortcut((request) => {
+    // No modo notch a janela nem aparece: trocar de tela ali só mudaria o que a pessoa vê depois.
+    if (!request?.background) navigate('taby', 'shortcut');
+    if (request?.listen) void voice.start({ notch: request.background });
+  });
 
   const content = useMemo(() => {
     const props = { onEvent: log, onNavigate: navigate };
-    switch (route) {
-      case 'tasks': return <TasksView key={`tasks-${folderFilter.nonce}`} {...props} data={data} initialFolder={folderFilter.folder} onTaskStatusChange={changeTaskStatus} onCreateTask={(title) => createTask({ title, durationMinutes: 60, folder: 'Bento' })} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
+    const focusView = (mode: 'focus' | 'break') => <FocusView key={mode} {...props} autoStart={focusStartPending} onAutoStarted={() => setFocusStartPending(false)} mode={mode} onModeChange={(next) => navigate(next)} sessionMinutes={focusSettings.sessionMinutes} awayBehavior={focusSettings.awayBehavior} idleMinutes={focusSettings.idleMinutes} focusLoopAnimation={focusSettings.focusLoopAnimation} activity={data.activity} presence={{ watch: window.hibiDesktop?.watchFocusPresence, subscribe: window.hibiDesktop?.onFocusPresence }} onCompanionEvent={dispatchCompanion} subscribeCompanionActions={window.hibiDesktop?.onCompanionAction} onFocusWindowChange={setFocusUntilMs} onFocusLifecycle={(event) => { if (mode === 'focus') setFocusActive(event.type === 'started' || event.type === 'resumed' || event.type === 'paused'); recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString())); }} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000, focusLoopAnimation: focusSettings.focusLoopAnimation, focusMood: deriveFocusMood({ awayPending: false, completedToday: focusSessionsCompletedToday(data.activity, new Date()) }) })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
+    // A tela de Foco fica montada, escondida, enquanto a sessão existir. A pausa de descanso continua
+    // encerrando a sessão: ela é outra tela, e o botão só aparece com o relógio parado.
+    const keepFocus = route === 'focus' || (focusActive && route !== 'break');
+    const focusHost = keepFocus ? <div className="focus-host" style={{ display: route === 'focus' ? 'contents' : 'none' }}>{focusView('focus')}</div> : null;
+    const screen = (() => { switch (route) {
+      case 'tasks': return <TasksView key={`tasks-${folderFilter.nonce}`} {...props} data={data} initialFolder={folderFilter.folder} onTaskStatusChange={changeTaskStatus} onCreateTask={(title, folder) => createTask({ title, durationMinutes: 60, folder: folder ?? 'Bento' })} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
       case 'notes': return <NotesView key={`notes-${folderFilter.nonce}`} data={data} initialFolder={folderFilter.folder} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
       case 'reminders': return <RemindersView {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={() => setReminderCreateOpen(true)} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
-      case 'review': return <ReviewView data={data} onNavigate={navigate} />;
+      case 'review': return <ReviewView data={data} onNavigate={navigate} onCreateBlock={createBlock} />;
       case 'stats': return <StatsView records={data.activity} referenceDate={new Date()} onEvent={log} />;
-      case 'taby': return <TabyView data={data} turn={assistantTurn} conversations={conversations} />;
+      case 'taby': return <TabyView data={data} turn={assistantTurn} conversations={conversations} voice={voice} />;
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'agenda': case 'day': case 'week': return <AgendaView {...props} data={data} mode={route === 'agenda' ? undefined : route} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onModeChange={(mode) => setRoute(mode)} />;
-      case 'focus': case 'break': return <FocusView key={route} {...props} mode={route === 'break' ? 'break' : 'focus'} onModeChange={(next) => navigate(next)} sessionMinutes={focusSettings.sessionMinutes} awayBehavior={focusSettings.awayBehavior} idleMinutes={focusSettings.idleMinutes} focusLoopAnimation={focusSettings.focusLoopAnimation} activity={data.activity} presence={{ watch: window.hibiDesktop?.watchFocusPresence, subscribe: window.hibiDesktop?.onFocusPresence }} onCompanionEvent={dispatchCompanion} subscribeCompanionActions={window.hibiDesktop?.onCompanionAction} onFocusWindowChange={setFocusUntilMs} onFocusLifecycle={(event) => recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString()))} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000, focusLoopAnimation: focusSettings.focusLoopAnimation, focusMood: deriveFocusMood({ awayPending: false, completedToday: focusSessionsCompletedToday(data.activity, new Date()) }) })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
-      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} focusSettings={focusSettings} onFocusSettingsChange={updateFocusSettings} />;
+      case 'focus': return null;
+      case 'break': return focusView('break');
+      case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} onMoveBlock={moveBlock} focusSettings={focusSettings} onFocusSettingsChange={updateFocusSettings} />;
       case 'instrumentation': return <InstrumentationView events={events} aiHistory={aiHistory} onEvent={log} onClear={clearEvents} onClearAiHistory={clearAiHistory} />;
       case 'updates': return <AvailabilityView kind="updates" onNavigate={navigate} />;
       case 'hardware': return <AvailabilityView kind="hardware" onNavigate={navigate} />;
       default: return <HomeView {...props} data={data} onOpenCommands={openPalette} />;
-    }
-  }, [route, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, folderFilter, openPalette, focusSettings]);
+    } })();
+    const banner = focusActive && route !== 'focus' && route !== 'break'
+      ? <FocusBackgroundNotice onReturn={() => navigate('focus')} />
+      : null;
+    return <>{banner}{focusHost}{screen}</>;
+  }, [route, calendarDay, focusActive, focusStartPending, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, voice.listening, voice.transcript, voice.notice, folderFilter, openPalette, focusSettings]);
 
   return (
     <AppShell active={route} onNavigate={(key) => {

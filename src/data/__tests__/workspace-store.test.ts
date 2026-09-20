@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   WORKSPACE_MIGRATED_KEY,
   WORKSPACE_MIGRATION_LABEL,
+  WORKSPACE_PENDING_KEY,
   WORKSPACE_STORAGE_KEY,
   WORKSPACE_RESTORE_POINT_KEYS,
   createDesktopWorkspaceBackend,
@@ -308,5 +309,69 @@ describe('workspace store', () => {
     // Sem correspondência, quem mostra a lista exibe o texto como veio, em vez de sumir com a linha.
     expect(restorePointLabelKey('ponto de uma versão futura')).toBe(null)
     expect(restorePointLabelKey('')).toBe(null)
+  })
+})
+
+// Um banco que recusa uma gravação deixava a mudança só no espelho; na abertura seguinte o banco,
+// ainda com o estado anterior, sobrescrevia o espelho e a sessão inteira se perdia.
+describe('mudanças que o banco recusou', () => {
+  const bancoQueRecusa = (inicial: string) => {
+    const banco = databaseWith(inicial)
+    let recusar = true
+    // O mesmo banco, que recusa gravar até `voltar()`: `banco` continua sendo o que se inspeciona.
+    const backend: WorkspaceBackend = { ...banco, save: async (payload: string, options?: { restorePoint?: string }) => { if (recusar) throw new Error('disco cheio'); return banco.save(payload, options) } }
+    return { banco, backend, voltar: () => { recusar = false } }
+  }
+
+  it('sobrevivem à reabertura: o espelho vai para o banco, com ponto do que estava lá', async () => {
+    const storage = storageWith()
+    const { banco, backend, voltar } = bancoQueRecusa(workspace('antes'))
+    const sessao = createWorkspaceStore({ storage, database: backend })
+
+    expect(await sessao.save(workspace('feito com o banco falhando'))).toMatchObject({ origin: 'local', degraded: 'disco cheio' })
+    voltar()
+    const reaberto = await createWorkspaceStore({ storage, database: backend }).load()
+
+    expect(reaberto.payload).toBe(workspace('feito com o banco falhando'))
+    expect(banco.payload).toBe(workspace('feito com o banco falhando'))
+    expect(banco.saves.at(-1)?.restorePoint).toBe(WORKSPACE_RESTORE_POINT_KEYS.beforeRecovery)
+  })
+
+  it('depois de recuperadas, a abertura seguinte volta a confiar no banco', async () => {
+    const storage = storageWith()
+    const { banco, backend, voltar } = bancoQueRecusa(workspace('antes'))
+    await createWorkspaceStore({ storage, database: backend }).save(workspace('recusado'))
+    voltar()
+    await createWorkspaceStore({ storage, database: backend }).load()
+    banco.payload = workspace('mudou no banco depois')
+
+    expect((await createWorkspaceStore({ storage, database: backend }).load()).payload).toBe(workspace('mudou no banco depois'))
+  })
+
+  it('se o banco recusar de novo ao reabrir, o espelho continua valendo e a recuperação fica pendente', async () => {
+    const storage = storageWith()
+    const { backend } = bancoQueRecusa(workspace('antes'))
+    await createWorkspaceStore({ storage, database: backend }).save(workspace('recusado'))
+
+    const reaberto = await createWorkspaceStore({ storage, database: backend }).load()
+
+    expect(reaberto).toMatchObject({ payload: workspace('recusado'), origin: 'local', degraded: 'disco cheio' })
+    expect(storage.values.get(WORKSPACE_PENDING_KEY)).toBe('true')
+  })
+
+  it('uma gravação que dá certo tira a pendência, e o banco volta a valer', async () => {
+    const storage = storageWith()
+    const { banco, backend, voltar } = bancoQueRecusa(workspace('antes'))
+    const sessao = createWorkspaceStore({ storage, database: backend })
+    await sessao.save(workspace('recusado'))
+    voltar()
+    await sessao.save(workspace('aceito'))
+    banco.payload = workspace('mais novo no banco')
+
+    expect((await createWorkspaceStore({ storage, database: backend }).load()).payload).toBe(workspace('mais novo no banco'))
+  })
+
+  it('o ponto criado na recuperação tem rótulo legível', () => {
+    expect(restorePointLabelKey(WORKSPACE_RESTORE_POINT_KEYS.beforeRecovery)).toBe('data.restorePoint.beforeRecovery')
   })
 })

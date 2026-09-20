@@ -77,7 +77,7 @@ describe('activity ledger wiring', () => {
   it('records Taby task status changes and focus lifecycle events', () => {
     expect(appSource).not.toContain('onTaskCompleted');
     expect(appSource).toContain("onTaskStatusChanged: (before: Task, after: Task) => { recordActivity(taskStatusActivity(before, after.status ?? 'open', new Date().toISOString()));");
-    expect(appSource).toContain('onFocusLifecycle={(event) => recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString()))}');
+    expect(appSource).toContain('recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString()));');
   });
 
   it('records blocks created and deleted through Taby, but not block updates', () => {
@@ -107,7 +107,7 @@ describe('local calendar day', () => {
   // o app pular para amanhã depois das 21h em São Paulo.
   it('never derives the current day from the UTC instant', () => {
     expect(appSource).not.toContain('new Date().toISOString().slice(0, 10)');
-    expect(appSource).toContain('?? todayKey()');
+    expect(appSource).toContain('const today = todayKey();');
   });
 });
 

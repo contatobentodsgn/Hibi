@@ -1,0 +1,75 @@
+:root {
+  --ui-signal-blue: #0088ff;
+  --ui-bright-blue: #1c95ff;
+  --ui-ink: #101010;
+  --ui-smoke: #6e6e73;
+  --ui-pewter: #ababb0;
+  --ui-snow: #f5f5f7;
+  --ui-silver: #d0d0d3;
+  --ui-ambient-shadow: rgba(16, 16, 16, .1) 0 0 30px;
+}
+
+body:has(.shell) { min-width: 0; background: #fff; color: var(--ui-ink); }
+.shell { background: #fff; color: var(--ui-ink); }
+.shell-content { background: #fff; padding: 0 24px 24px; }
+.legacy-surface { background: #fff; color: var(--ui-ink); }
+.legacy-surface .view { width: min(100%, 1200px); margin: 0 auto; }
+.legacy-surface .view-heading { padding-top: 28px; }
+.legacy-surface .view-heading > div:first-child { max-width: 70ch; }
+.legacy-surface .view-heading .eyebrow { color: var(--ui-signal-blue); letter-spacing: .05em; }
+.legacy-surface .view-heading h1,
+.legacy-surface .hero h1,
+.legacy-surface .focus-view h1 { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-weight: 700; letter-spacing: -.7px; color: var(--ui-ink); }
+.legacy-surface .view-heading h1 { font-size: clamp(40px, 5vw, 54px); line-height: 1.04; }
+.legacy-surface .muted { color: var(--ui-smoke); }
+.legacy-surface .primary { background: var(--ui-signal-blue); color: #fff; border-radius: 100px; padding: 10px 20px; transition: background-color 140ms ease, transform 140ms ease; }
+.legacy-surface .primary:hover { background: var(--ui-bright-blue); transform: translateY(-1px); }
+.legacy-surface .outline { border-color: var(--ui-ink); border-radius: 100px; padding: 10px 20px; }
+.legacy-surface .text-button { color: var(--ui-signal-blue); }
+.legacy-surface .filter { border-color: var(--ui-silver); border-radius: 100px; background: #fff; }
+.legacy-surface .filter.active { background: var(--ui-ink); color: #fff; border-color: var(--ui-ink); }
+.legacy-surface .list-card,
+.legacy-surface .panel,
+.legacy-surface .settings-card { border-color: transparent; box-shadow: var(--ui-ambient-shadow); border-radius: 20px; }
+.legacy-surface .panel { background: #fff; }
+.legacy-surface .task-row strong,
+.legacy-surface .reminder-row strong { font-weight: 600; color: var(--ui-ink); }
+.legacy-surface .task-row span,
+.legacy-surface .reminder-row span { color: var(--ui-smoke); font-size: 14px; }
+.legacy-surface .tag,
+.legacy-surface .pill { border-radius: 100px; }
+.legacy-surface .check { width: 24px; height: 24px; border-radius: 8px; }
+.legacy-surface .schedule-card,
+.legacy-surface .mini-card { border-radius: 16px; }
+.legacy-surface .schedule-card.orange,
+.legacy-surface .mini-card.orange { background: #fff1e8; color: #9b3f0c; }
+.legacy-surface .schedule-card.green,
+.legacy-surface .mini-card.green { background: #e8f7e9; color: #276c3f; }
+.legacy-surface .schedule-card.blue,
+.legacy-surface .mini-card.blue { background: #e8f2fb; color: #365f78; }
+.legacy-surface input,
+.legacy-surface textarea,
+.legacy-surface select { border-color: var(--ui-silver); border-radius: 12px; min-height: 44px; }
+.legacy-surface textarea { min-height: 100px; }
+.legacy-surface .focus-ring { box-shadow: inset 0 0 0 18px #f0f0f2; }
+.legacy-surface .focus-view .eyebrow { color: var(--ui-signal-blue); }
+.legacy-surface .home-view { width: min(100%, 1100px); }
+.legacy-surface .feedback-form { display: grid; gap: 20px; padding: 28px; }
+.legacy-surface .feedback-form label { display: grid; gap: 8px; color: var(--ui-ink); font-size: 14px; font-weight: 600; }
+.legacy-surface .feedback-form select,
+.legacy-surface .feedback-form textarea { width: 100%; font: inherit; }
+.legacy-surface .feedback-form textarea { resize: vertical; line-height: 1.5; }
+.legacy-surface .feedback-form .primary { justify-self: start; }
+.legacy-surface .home-view .hero h1 { font-size: clamp(52px, 7vw, 80px); line-height: 1; }
+.legacy-surface .home-view .subhead { font-size: 18px; }
+.legacy-surface .filter-row { flex-wrap: wrap; }
+.legacy-surface .task-row,
+.legacy-surface .reminder-row { padding: 18px 24px; border-color: #f0f0f0; }
+.legacy-surface .quick-input { border-radius: 16px; box-shadow: var(--ui-ambient-shadow); }
+.legacy-surface .hero h1 em { background: linear-gradient(0deg, rgb(240, 100, 19) -29.375%, rgb(254, 171, 48) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+@media (max-width: 760px) {
+  .shell-content { padding-inline: 12px; }
+  .legacy-surface .view-heading { padding-top: 18px; }
+  .legacy-surface .view-heading h1 { font-size: 40px; }
+  .legacy-surface .primary, .legacy-surface .outline { min-height: 44px; }
+}

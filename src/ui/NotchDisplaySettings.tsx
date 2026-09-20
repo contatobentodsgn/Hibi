@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { AUTO_NOTCH_VALUE, disconnectedPreference, fillDisplay, notchDisplayOptions, notchTestMessage, resolvedNotchDisplay, selectedNotchValue, type NotchDisplayState } from './notch-display';
-import { TintSettings } from './TintSettings';
 
 type Props = { onEvent: (action: string, detail: string, result?: string) => void };
 
@@ -22,6 +21,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   const [saveFailed, setSaveFailed] = useState(false);
   const [testing, setTesting] = useState(false);
   const [notice, setNotice] = useState('');
+  const [size, setSize] = useState<'normal' | 'compact'>('normal');
   // Leituras e gravações disputam o mesmo estado: uma resposta só vale se nenhuma requisição mais nova começou depois dela.
   const sequence = useRef(0);
   // A nota de falha ao salvar segue só a gravação mais recente: uma leitura que chega no meio
@@ -44,6 +44,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
     };
     refreshRef.current = refresh;
     refresh();
+    void bridge.getNotchSize?.().then((value) => { if (value?.size === 'compact' || value?.size === 'normal') setSize(value.size); }).catch(() => undefined);
     const unsubscribe = bridge.onNotchDisplaysChanged?.(refresh) ?? (() => undefined);
     return () => { active = false; unsubscribe(); };
   }, []);
@@ -56,7 +57,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
     return () => window.removeEventListener('focus', retry);
   }, [loadFailed, state]);
 
-  if (!available) return <><TintSettings onEvent={onEvent} /><Row title={t('settings.notch.title')} detail={t('settings.notch.detail')}><span className="setting-value">{t('settings.notch.desktopOnly')}</span></Row></>;
+  if (!available) return <><Row title={t('settings.notch.title')} detail={t('settings.notch.detail')}><span className="setting-value">{t('settings.notch.desktopOnly')}</span></Row></>;
 
   const choose = async (value: string) => {
     const setDisplay = window.hibiDesktop?.setNotchDisplay;
@@ -88,13 +89,24 @@ export function NotchDisplaySettings({ onEvent }: Props) {
       onEvent('test', 'Notch', 'failed');
     } finally { setTesting(false); }
   };
+  const chooseSize = async (nextSize: 'normal' | 'compact') => {
+    const save = window.hibiDesktop?.setNotchSize;
+    if (!save) return;
+    try { const saved = await save(nextSize); setSize(saved.size); onEvent('edit', 'Notch size', saved.size); }
+    catch { setNotice(t('settings.notch.saveFailed')); }
+  };
 
   const options = state ? notchDisplayOptions(state, t) : [{ value: AUTO_NOTCH_VALUE, label: t('settings.notch.auto'), disabled: false }];
   const fallback = state && disconnectedPreference(state) ? fillDisplay(t('settings.notch.fallback'), resolvedNotchDisplay(state)?.label ?? t('settings.notch.unknownDisplay')) : undefined;
   // Precedência da nota da linha: falha ao salvar > falha ao ler > aviso de desconectado.
   const rowNote = saveFailed ? t('settings.notch.saveFailed') : loadFailed ? t('settings.notch.loadFailed') : fallback;
   return <>
-    <TintSettings onEvent={onEvent} />
+    <Row title={t('settings.notch.size.title')} detail={t('settings.notch.size.detail')}>
+      <select aria-label={t('settings.notch.size.title')} value={size} onChange={(event) => void chooseSize(event.target.value === 'compact' ? 'compact' : 'normal')}>
+        <option value="normal">{t('settings.notch.size.normal')}</option>
+        <option value="compact">{t('settings.notch.size.compact')}</option>
+      </select>
+    </Row>
     <Row title={t('settings.notch.title')} detail={t('settings.notch.detail')} note={rowNote} noteId={rowNote ? NOTE_ID : undefined}>
       {/* Travado durante o teste: o resultado precisa nomear o monitor que foi testado. */}
       <select aria-label={t('settings.notch.title')} aria-describedby={rowNote ? NOTE_ID : undefined} disabled={!state || testing} value={state ? selectedNotchValue(state) : AUTO_NOTCH_VALUE} onChange={(event) => void choose(event.target.value)}>

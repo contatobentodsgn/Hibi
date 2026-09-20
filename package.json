@@ -8,9 +8,10 @@
     "dev": "vite",
     "desktop": "npm run native:build && node scripts/start-desktop.mjs",
     "desktop:production": "npm run build && HIBI_PRODUCTION=1 electron electron/main.cjs",
-    "native:build": "npm --prefix native/notch run build",
+    "native:build": "npm --prefix native/notch run build && node scripts/build-voice.mjs",
     "build": "npm run native:build && tsc --noEmit && vite build",
     "check:companion-assets": "node scripts/check-companion-assets.mjs",
+    "icon:build": "node scripts/build-app-icon.mjs",
     "safety:renderer": "node scripts/renderer-safety-check.mjs",
     "parity:check": "node scripts/parity-check.mjs",
     "audit": "npm run parity:check && npm run safety:renderer && npm run build && npm test && npm run test:e2e",
@@ -19,6 +20,7 @@
     "test:providers:live": "node scripts/test-live-providers.mjs",
     "test:connectors:live": "node scripts/test-live-connectors.mjs",
     "test:notion:live": "electron scripts/notion-live-keychain.cjs",
+    "app:install": "node scripts/install-app.mjs",
     "release:preflight": "node scripts/release-preflight.mjs",
     "release:mac": "npm run release:preflight && npm run build && electron-builder --mac"
   },
@@ -34,35 +36,82 @@
       "native/notch/build/Release/*.node",
       "!{electron,native}/**/*.test.*",
       "!electron/**/*.d.{mts,cts}",
-      "package.json"
+      "package.json",
+      "native/voice/build/hibi-voice"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "contatobentodsgn",
+        "repo": "Hibi"
+      }
     ],
     "mac": {
       "category": "public.app-category.productivity",
+      "icon": "build/icon/icon.icns",
       "target": [
         "dmg"
       ],
       "hardenedRuntime": true,
       "entitlements": "electron/entitlements.mac.plist",
-      "entitlementsInherit": "electron/entitlements.mac.plist"
-      ,"extendInfo": {
+      "entitlementsInherit": "electron/entitlements.mac.plist",
+      "extendInfo": {
         "NSCalendarsUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose.",
-        "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose."
-      }
+        "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose.",
+        "NSMicrophoneUsageDescription": "Hibi needs the microphone to turn what you say into text on this Mac.",
+        "NSSpeechRecognitionUsageDescription": "Hibi recognises your speech on this Mac to type what you dictate.",
+        "LSUIElement": true,
+        "CFBundleIconName": "Hibi"
+      },
+      "binaries": [
+        "Contents/Resources/native/voice/build/hibi-voice"
+      ]
     },
-    "afterSign": "scripts/notarize.cjs"
+    "afterSign": "scripts/notarize.cjs",
+    "extraResources": [
+      {
+        "from": "build/icon/Assets.car",
+        "to": "Assets.car"
+      },
+      {
+        "from": "public/mascot",
+        "to": "mascot",
+        "filter": ["*.mp4"]
+      },
+      {
+        "from": "native/voice/build/hibi-voice",
+        "to": "native/voice/build/hibi-voice"
+      },
+      {
+        "from": ".hibi-local-models/manifest.json",
+        "to": "local-models/manifest.json"
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/node-llama-cpp/**",
+      "node_modules/@node-llama-cpp/**"
+    ]
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
+    "node-llama-cpp": "^3.21.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@electron/notarize": "^3.1.1",
+    "@heroui/react": "3.2.6",
+    "@heroui/styles": "3.2.6",
     "@playwright/test": "1.63.0",
+    "@tailwindcss/vite": "4.3.3",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "@vitejs/plugin-react": "6.1.1",
     "electron": "44.2.0",
     "electron-builder": "^26.15.3",
+    "lucide-react": "0.577.0",
+    "motion": "12.43.0",
+    "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "vite": "8.2.2",
     "vitest": "5.0.0"

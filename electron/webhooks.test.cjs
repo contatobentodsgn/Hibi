@@ -56,3 +56,28 @@ test('stores a webhook secret in Keychain and reports only its loopback state', 
   try { assert.deepEqual(await service.status(), { running: true, hasSecret: true, origin: started.origin }); }
   finally { await service.stop(); }
 });
+
+test('trocar o segredo com o receptor rodando vale na hora, na mesma porta', async () => {
+  const values = new Map();
+  const keychain = { set: async (k, v) => { values.set(k, v); }, get: async (k) => values.get(k), has: async (k) => values.has(k), remove: async (k) => { values.delete(k); } };
+  const service = createWebhookService({ keychain });
+  await service.configure('segredo-antigo');
+  const { origin } = await service.start();
+  const body = Buffer.from('{"event":"task.updated"}');
+  const post = (secret, nonce) => {
+    const timestamp = String(Date.now());
+    return fetch(`${origin}/webhook`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-hibi-timestamp': timestamp, 'x-hibi-nonce': nonce, 'x-hibi-signature': signed(secret, timestamp, nonce, body) }, body });
+  };
+  try {
+    await service.configure('segredo-novo');
+    const novo = await post('segredo-novo', 'nonce-novo');
+    assert.equal(novo.status, 200);
+    await novo.text();
+    const antigo = await post('segredo-antigo', 'nonce-antigo');
+    assert.equal(antigo.status, 401);
+    await antigo.text();
+    assert.equal((await service.status()).origin, origin);
+  } finally {
+    await service.stop();
+  }
+});

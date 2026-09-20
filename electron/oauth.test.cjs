@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const crypto = require('node:crypto');
+const net = require('node:net');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -31,6 +32,25 @@ function memoryKeychain() {
 
 const jsonResponse = (body, ok = true) => ({ ok, status: ok ? 200 : 400, json: async () => body });
 
+// O corpo da resposta precisa ser consumido. `fetch` resolve nos cabeçalhos, e o serviço encerra o
+// servidor de loopback logo depois de autorizar: com o corpo pendurado, o socket morre no meio e o
+// erro sai como ECONNRESET solto, fora de qualquer asserção — foi assim que esta suíte falhou uma vez,
+// sem nenhuma regressão no código.
+const chamarCallback = async (url) => {
+  const response = await fetch(url);
+  const body = await response.text();
+  return { status: response.status, body };
+};
+
+// Prova determinística de que o servidor de loopback caiu: a porta volta a aceitar outro ouvinte.
+// Tentar uma conexão e esperar que ela falhe é corrida — dá ECONNREFUSED, ECONNRESET ou sucesso,
+// conforme o instante em que o sistema operacional recolhe o socket.
+const portaLivre = (port) => new Promise((resolve, reject) => {
+  const sonda = net.createServer();
+  sonda.once('error', reject);
+  sonda.listen(port, '127.0.0.1', () => sonda.close(() => resolve(true)));
+});
+
 test('monta uma autorização PKCE com S256, state e callback de loopback', async () => {
   const keychain = memoryKeychain();
   let opened;
@@ -57,7 +77,7 @@ test('monta uma autorização PKCE com S256, state e callback de loopback', asyn
   assert.match(challenge, /^[A-Za-z0-9_-]{43}$/);
 
   const state = opened.searchParams.get('state');
-  const callback = await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(state)}&code=auth-code-1`);
+  const callback = await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(state)}&code=auth-code-1`);
   assert.equal(callback.status, 200);
 
   const result = await started;
@@ -109,11 +129,12 @@ test('recusa reutilizar o state do callback e encerra o servidor de loopback', a
   const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
   const state = opened.searchParams.get('state');
 
-  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(state)}&code=auth-code-1`);
+  assert.equal((await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(state)}&code=auth-code-1`)).status, 200);
   await started;
   assert.equal(service.isAwaitingCallback(), false);
 
-  await assert.rejects(fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(state)}&code=auth-code-2`));
+  // O state foi usado e o servidor saiu do ar: a porta está livre para qualquer outro ouvinte.
+  assert.equal(await portaLivre(Number(redirectUri.port)), true);
 });
 
 test('rejeita um state divergente sem trocar o código por um token', async () => {
@@ -132,7 +153,7 @@ test('rejeita um state divergente sem trocar o código por um token', async () =
   await new Promise((resolve) => setImmediate(resolve));
   const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
 
-  const rejected = await fetch(`${redirectUri.origin}/oauth/callback?state=state-falsificado&code=auth-code-1`);
+  const rejected = await chamarCallback(`${redirectUri.origin}/oauth/callback?state=state-falsificado&code=auth-code-1`);
   assert.equal(rejected.status, 400);
 
   assert.match((await settled).message, /timed out/);
@@ -150,7 +171,7 @@ test('propaga a recusa do servidor de autorização sem armazenar credencial', a
   const settled = started.then(() => null, (error) => error);
   await new Promise((resolve) => setImmediate(resolve));
   const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
-  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&error=access_denied`);
+  await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&error=access_denied`);
 
   assert.match((await settled).message, /rejected this authorization/);
   assert.equal(keychain.store.size, 0);
@@ -184,7 +205,7 @@ test('revoga o acesso e o refresh token do Keychain', async () => {
   keychain.store.set('integration:fixture', 'access');
   keychain.store.set('integration:fixture:refresh', 'refresh');
   const service = createOAuthService({ keychain, getConnector: () => connector, openExternal: () => undefined, fetch: async () => jsonResponse({}) });
-  assert.deepEqual(await service.revoke('fixture'), { connectorId: 'fixture', connected: false, hasRefreshToken: false });
+  assert.deepEqual(await service.revoke('fixture'), { connectorId: 'fixture', connected: false, hasRefreshToken: false, remoteRevoked: false });
   assert.equal(keychain.store.size, 0);
 });
 
@@ -244,7 +265,7 @@ test('autoriza um conector entregue usando as URLs de OAuth configuradas com o e
   assert.equal(`${opened.origin}${opened.pathname}`, 'https://login.interno.example/oauth/authorize');
   assert.equal(opened.searchParams.get('scope'), 'chat:write stars:read');
   const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
-  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&code=auth-code-1`);
+  await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&code=auth-code-1`);
 
   assert.deepEqual(await started, { connectorId: 'slack', connected: true, hasRefreshToken: false });
   assert.equal(calls[0].url, 'https://login.interno.example/oauth/token');
@@ -276,7 +297,7 @@ const refusedExchange = async (body, status = 400) => {
   const started = service.authorize('fixture', { clientId: 'client-123' }).then(() => null, (reason) => reason);
   await new Promise((resolve) => setImmediate(resolve));
   const redirectUri = new URL(opened.searchParams.get('redirect_uri'));
-  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&code=auth-code-1`);
+  await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened.searchParams.get('state'))}&code=auth-code-1`);
   const error = await started;
   return { message: error?.message ?? '', keychain };
 };
@@ -307,7 +328,7 @@ const authorizeWith = async (service, bodies, opened) => {
   const started = service.authorize('fixture', { clientId: 'client-123' }).then((value) => value, (reason) => reason);
   await new Promise((resolve) => setImmediate(resolve));
   const redirectUri = new URL(opened().searchParams.get('redirect_uri'));
-  await fetch(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened().searchParams.get('state'))}&code=auth-code-1`);
+  await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(opened().searchParams.get('state'))}&code=auth-code-1`);
   const result = await started;
   return { result, body: new URLSearchParams(bodies.at(-1)) };
 };
@@ -365,4 +386,73 @@ test('recusa uma credencial de cliente vazia e apaga a guardada quando pedido', 
 
   assert.deepEqual(await service.clearClientSecret('fixture'), { connectorId: 'fixture', hasClientSecret: false });
   assert.equal(await service.hasClientSecret('fixture'), false);
+});
+
+// Clicar duas vezes em Conectar: a segunda autorização substitui a primeira e precisa chegar ao fim.
+test('a segunda autorização, pedida com a primeira em andamento, conclui', async () => {
+  const keychain = memoryKeychain();
+  const opened = [];
+  const service = createOAuthService({
+    keychain, getConnector: () => connector,
+    openExternal: (url) => { opened.push(new URL(url)); },
+    fetch: async () => jsonResponse({ access_token: 'access-2', refresh_token: 'refresh-2' }),
+  });
+
+  const first = service.authorize('fixture', { clientId: 'client-123' });
+  const firstOutcome = first.then(() => 'ok', (error) => error.message);
+  await new Promise((resolve) => setImmediate(resolve));
+  const second = service.authorize('fixture', { clientId: 'client-123' });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(await firstOutcome, 'A newer authorization replaced this one.');
+  // O `finally` da primeira já rodou: a segunda continua esperando o callback.
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(service.isAwaitingCallback(), true);
+
+  const latest = opened.at(-1);
+  const redirectUri = new URL(latest.searchParams.get('redirect_uri'));
+  const callback = await chamarCallback(`${redirectUri.origin}/oauth/callback?state=${encodeURIComponent(latest.searchParams.get('state'))}&code=auth-code-2`);
+  assert.equal(callback.status, 200);
+  assert.equal((await second).connected, true);
+  assert.equal(keychain.store.get('integration:fixture'), 'access-2');
+});
+
+// "Revogar" apagava só o Keychain: o token continuava válido no provedor.
+test('revogar invalida o token no provedor, o de renovação primeiro, e apaga daqui', async () => {
+  const keychain = memoryKeychain();
+  await keychain.set('integration:fixture', 'access-9');
+  await keychain.set('integration:fixture:refresh', 'refresh-9');
+  const calls = [];
+  const revocable = { ...connector, oauth: { ...connector.oauth, revocationUrl: 'https://service.example.test/oauth/revoke' } };
+  const service = createOAuthService({ keychain, getConnector: () => revocable, openExternal: () => {}, fetch: async (url, init) => { calls.push({ url, body: init.body, redirect: init.redirect }); return { ok: true, status: 200 }; } });
+
+  const result = await service.revoke('fixture');
+
+  assert.deepEqual(calls, [{ url: 'https://service.example.test/oauth/revoke', body: 'token=refresh-9', redirect: 'error' }]);
+  assert.equal(result.remoteRevoked, true);
+  assert.equal(keychain.store.size, 0);
+});
+
+test('sem rede, revogar apaga daqui mesmo assim e diz que o provedor não confirmou', async () => {
+  const keychain = memoryKeychain();
+  await keychain.set('integration:fixture', 'access-9');
+  const revocable = { ...connector, oauth: { ...connector.oauth, revocationUrl: 'https://service.example.test/oauth/revoke' } };
+  const service = createOAuthService({ keychain, getConnector: () => revocable, openExternal: () => {}, fetch: async () => { throw new Error('offline'); } });
+
+  const result = await service.revoke('fixture');
+
+  assert.equal(result.remoteRevoked, false);
+  assert.equal(keychain.store.size, 0);
+});
+
+test('um endpoint de revogação fora dos hosts do conector é recusado, sem enviar o token', async () => {
+  const keychain = memoryKeychain();
+  await keychain.set('integration:fixture', 'access-9');
+  const calls = [];
+  const hostile = { ...connector, oauth: { ...connector.oauth, revocationUrl: 'https://evil.example.test/revoke' } };
+  const service = createOAuthService({ keychain, getConnector: () => hostile, openExternal: () => {}, fetch: async (url) => { calls.push(url); return { ok: true }; } });
+
+  await service.revoke('fixture');
+
+  assert.deepEqual(calls, []);
+  assert.equal(keychain.store.size, 0);
 });

@@ -23,11 +23,11 @@ test('navega pelo calendário e abre comandos', async ({ page }) => {
 
 test('todas as seções principais são navegáveis', async ({ page }) => {
   await page.goto('/');
-  for (const section of ['Tarefas', 'Agenda', 'Foco', 'Taby', 'Home']) {
+  for (const section of ['Hoje', 'Agenda', 'Tarefas', 'Notas', 'Taby', 'Ajustes']) {
     await go(page, section);
     await expect(page.locator('main')).toBeVisible();
   }
-  for (const section of ['Lembretes', 'Notas', 'Hábitos', 'Metas', 'Revisão', 'Ajustes', 'Ajuda', 'Eventos', 'Feedback', 'Atualizações', 'Hardware']) {
+  for (const section of ['Foco', 'Lembretes', 'Hábitos', 'Metas', 'Revisão', 'Estatísticas', 'Ajuda', 'Eventos', 'Feedback', 'Atualizações', 'Hardware']) {
     await goMore(page, section);
     await expect(page.locator('main')).toBeVisible();
   }
@@ -65,18 +65,18 @@ test('filtro de pasta funciona em Tarefas e Notas', async ({ page }) => {
   await chip.click();
   await expect(chip).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.task-row').first()).toBeVisible();
-  await goMore(page, 'Notas');
+  await go(page, 'Notas');
   await expect(page.getByRole('button', { name: 'Pasta · Todas' })).toBeVisible();
 });
 
 test('+ New note leva o foco para o formulário de nota nova', async ({ page }) => {
   await page.goto('/');
-  await goMore(page, 'Notas');
+  await go(page, 'Notas');
   await page.getByRole('button', { name: '+ New note' }).click();
   await expect(page.getByRole('form', { name: 'Create note' }).getByLabel('Title')).toBeFocused();
 });
 
-test('clicar no item do dock da tela atual não apaga o que está sendo digitado', async ({ page }) => {
+test('clicar no item da barra da tela atual não apaga o que está sendo digitado', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Tarefas');
   await page.getByLabel('New task title').fill('Rascunho de tarefa');
@@ -86,7 +86,7 @@ test('clicar no item do dock da tela atual não apaga o que está sendo digitado
 
 test('nota criada em pasta nova ganha filtro próprio, e trocar de filtro não apaga o rascunho', async ({ page }) => {
   await page.goto('/');
-  await goMore(page, 'Notas');
+  await go(page, 'Notas');
   const form = page.getByRole('form', { name: 'Create note' });
   await form.getByLabel('Title').fill('Briefing Clientes');
   await form.getByLabel('Folder').fill('Clientes');
@@ -98,7 +98,7 @@ test('nota criada em pasta nova ganha filtro próprio, e trocar de filtro não a
   await page.getByRole('button', { name: 'Pasta · Clientes 1' }).click();
   await expect(form.getByLabel('Title')).toHaveValue('Rascunho');
   await expect(form.getByLabel('Folder')).toHaveValue('Clientes');
-  await expect(page.getByText('Briefing Clientes')).toBeVisible();
+  await expect(page.locator('.list-card').getByText('Briefing Clientes')).toBeVisible();
 
   // O chip clicado acima bate com a pasta já digitada, o que não provaria nada sobre folderTouched.
   // Digitar uma pasta diferente e trocar de filtro é o que de fato mostra que o rascunho sobrevive.
@@ -109,12 +109,12 @@ test('nota criada em pasta nova ganha filtro próprio, e trocar de filtro não a
 
 test('editar uma nota troca e limpa a pasta', async ({ page }) => {
   await page.goto('/');
-  await goMore(page, 'Notas');
+  await go(page, 'Notas');
   const form = page.getByRole('form', { name: 'Create note' });
   await form.getByLabel('Title').fill('Nota para editar');
   await form.getByLabel('Folder').fill('Clientes');
   await form.getByRole('button', { name: 'Add note' }).click();
-  await expect(page.getByText('Nota para editar')).toBeVisible();
+  await expect(page.locator('.list-card').getByText('Nota para editar')).toBeVisible();
 
   await page.getByRole('button', { name: 'Edit Nota para editar' }).click();
   const dialog = page.getByRole('dialog', { name: 'Edit note' });
@@ -133,7 +133,7 @@ test('editar uma nota troca e limpa a pasta', async ({ page }) => {
 
 test('abas de Settings alternam conteúdo funcional', async ({ page }) => {
   await page.goto('/');
-  await goMore(page, 'Ajustes');
+  await go(page, 'Ajustes');
   await expect(page.getByRole('heading', { name: 'General' })).toBeVisible();
   await page.getByRole('button', { name: 'Notifications', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
@@ -153,15 +153,15 @@ test('restaura um backup completo pela interface sem incluir dados do Keychain',
     data.blocks.push({ id: 'backup-block', title: 'Bloco restaurado', start: '2026-09-07T08:00:00-03:00', end: '2026-09-07T09:00:00-03:00', category: 'important' });
     return JSON.stringify({ app: 'Hibi', version: 1, exportedAt: '2026-09-08T12:00:00.000Z', data, preferences: { language: 'pt', twentyFourHour: true } });
   });
-  await goMore(page, 'Ajustes');
+  await go(page, 'Ajustes');
   await page.getByRole('button', { name: 'Data', exact: true }).click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByLabel('Choose Hibi workspace backup').setInputFiles({ name: 'hibi-workspace-backup.json', mimeType: 'application/json', buffer: Buffer.from(backup) });
   await expect(page.getByText('Workspace restored from hibi-workspace-backup.json.')).toBeVisible();
   await go(page, 'Tarefas');
   await expect(page.getByText('Tarefa restaurada')).toBeVisible();
-  await goMore(page, 'Notas');
-  await expect(page.getByText('Nota restaurada')).toBeVisible();
+  await go(page, 'Notas');
+  await expect(page.locator('.list-card').getByText('Nota restaurada')).toBeVisible();
   await goDay(page);
   await expect(page.getByText('Bloco restaurado')).toBeVisible();
 });
@@ -262,11 +262,11 @@ test('edita deadline de uma task por formulário acessível e permite remover', 
   const deadline = dialog.getByRole('textbox', { name: 'Deadline' });
   await deadline.fill('2026-09-10 14:30');
   await dialog.getByRole('button', { name: 'Save deadline' }).click();
-  await expect(page.getByText(/deadline 2026-09-10 14:30/)).toBeVisible();
+  await expect(page.getByText(/Overdue · 2026-09-10 14:30/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Deadline for Kabrito Post 01' }).click();
   await page.getByRole('dialog', { name: 'Edit task deadline' }).getByRole('button', { name: 'Remove deadline' }).click();
-  await expect(page.getByText(/Kabrito Post 01/).locator('..').getByText('sem deadline')).toBeVisible();
+  await expect(page.getByText(/Kabrito Post 01/).locator('..').getByText('No deadline')).toBeVisible();
 });
 
 test('filtros do calendário usam as categorias reais dos blocos', async ({ page }) => {
@@ -281,7 +281,7 @@ test('filtros do calendário usam as categorias reais dos blocos', async ({ page
 
 test('Foco e pausa aplicam a duração escolhida antes de iniciar', async ({ page }) => {
   await page.goto('/');
-  await go(page, 'Foco');
+  await goMore(page, 'Foco');
   await expect(page.getByText('25:00')).toBeVisible();
   await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
   await page.getByRole('button', { name: '10m', exact: true }).click();

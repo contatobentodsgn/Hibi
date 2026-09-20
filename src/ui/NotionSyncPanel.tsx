@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import type { Task } from '../domain/models'
 import type { ConnectorSettings, IntegrationExecutionResult, NotionConnectorState } from '../integrations/contracts'
-import { buildNotionSyncPlan, defaultDecisionFor, notionRecordFromCandidate, notionTaskHash, type NotionDecision, type NotionSyncPlan, type NotionTaskRecord } from '../integrations/notion-sync'
+import { buildNotionSyncPlan, defaultDecisionFor, notionRecordFromCandidate, notionTaskHash, staleNotionPlanKeys, type NotionDecision, type NotionSyncPlan, type NotionTaskRecord } from '../integrations/notion-sync'
 import type { NotionLocalMutation } from '../integrations/notion-apply'
 
 export type { NotionDecision }
@@ -55,6 +55,9 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('Sync is manual. Nothing changes until you review it.')
   const [failedKeys, setFailedKeys] = useState<readonly string[]>([])
+  // A confirmação chega por um ouvinte assinado antes: ele precisa das tarefas de agora, não das do render dele.
+  const localTasksRef = useRef(localTasks)
+  localTasksRef.current = localTasks
 
   const showConfirmation = (next: Pending, text: string) => {
     setPending(next)
@@ -156,6 +159,20 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
     if (!approved) { setNotice('Synchronization cancelled. No selected change was applied.'); return }
     setBusy(true)
     try {
+      // Antes de escrever, a base é lida de novo: uma prévia confirmada tarde enviava a versão antiga e
+      // marcava como sincronizado o que mudou no meio do caminho, dos dois lados.
+      if (current.kind === 'sync' && current.plan && current.decisions) {
+        const candidates = await window.hibiDesktop?.listIntegrationImportCandidates?.('notion')
+        if (!candidates) throw new Error('Could not read Hibi Tasks again. Nothing was applied.')
+        const remoteNow = candidates.map(remoteRecord).filter((item): item is NotionTaskRecord => Boolean(item))
+        const stale = staleNotionPlanKeys(current.plan, current.decisions, localTasksRef.current, remoteNow)
+        if (stale.length) {
+          setPlan(null); setDecisions({}); setFailedKeys([])
+          setNotice(`${stale.length} item(s) changed since the preview. Nothing was applied: sync again to review the current version.`)
+          onEvent('notion-sync-apply', `${stale.length} stale`, 'stale')
+          return
+        }
+      }
       const execution = current.actionId ? await window.hibiDesktop?.executeApprovedIntegrationAction?.({ actionId: current.actionId, confirmationId: current.confirmationId }) : { ok: true, items: [] }
       if (!execution) throw new Error('Confirmation could not be executed.')
       if (current.kind === 'setup') {

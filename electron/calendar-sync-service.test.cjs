@@ -781,3 +781,78 @@ test("resolves keep-hibi by preparing a fresh confirmed update without mutating 
     action: { id: "calendar-conflict", confirmationId: "calendar-confirm-conflict", requiresConfirmation: true, calendarId: "apple:personal", summary: "Local" },
   });
 });
+
+// Antes a publicação era de mão única: editar o bloco no Hibi não chegava ao calendário, e mover o
+// evento no calendário não chegava ao Hibi.
+const changesService = ({ blocks = [workspaceBlock()], links = [link(inside)], conflicts = [], calendars = bidirectional("apple:personal"), memory } = {}) => {
+  const settingsMemory = memory ?? memorySettings({ calendars, links, conflicts });
+  return {
+    memory: settingsMemory,
+    service: createCalendarSyncService({ eventKit: appleKit(), integrations: { listStatus: async () => [] }, settings: noTargets, calendarSettings: settingsMemory, workspace: () => ({ blocks }) }),
+  };
+};
+
+test("sem mudança de nenhum lado, não há nada a enviar nem a trazer", () => {
+  assert.deepEqual(changesService().service.listChanges(), { outgoing: [], incoming: [] });
+});
+
+test("um bloco editado no Hibi aparece para enviar ao calendário", () => {
+  const { service } = changesService({ blocks: [workspaceBlock({ start: "2026-09-14T11:00:00", end: "2026-09-14T12:00:00" })] });
+  assert.deepEqual(service.listChanges(), { outgoing: [{ localId: "block-1", calendarId: "apple:personal", summary: "Planejar semana" }], incoming: [] });
+});
+
+test("um evento movido no calendário aparece para trazer ao Hibi, na hora de parede local", () => {
+  const moved = { remoteStartsAt: local("2026-09-14T15:00:00"), remoteEndsAt: local("2026-09-14T16:30:00") };
+  const { service } = changesService({ links: [link(moved)] });
+  assert.deepEqual(service.listChanges(), {
+    outgoing: [],
+    incoming: [{ localId: "block-1", calendarId: "apple:personal", summary: "Planejar semana", start: "2026-09-14T15:00:00", end: "2026-09-14T16:30:00" }],
+  });
+});
+
+test("um vínculo em conflito, num calendário só de leitura ou sem o bloco local fica de fora", () => {
+  const moved = { remoteStartsAt: local("2026-09-14T15:00:00"), remoteEndsAt: local("2026-09-14T16:00:00") };
+  assert.deepEqual(changesService({ links: [link(moved)], conflicts: [{ id: "apple:personal:event-1", calendarId: "apple:personal", kind: "concurrent-update", summary: "x" }] }).service.listChanges(), { outgoing: [], incoming: [] });
+  assert.deepEqual(changesService({ links: [link(moved)], calendars: [{ id: "apple:personal", mode: "read-only" }] }).service.listChanges(), { outgoing: [], incoming: [] });
+  assert.deepEqual(changesService({ links: [link(moved)], blocks: [] }).service.listChanges(), { outgoing: [], incoming: [] });
+});
+
+test("depois de trazer o horário, o vínculo considera o bloco movido sincronizado", () => {
+  const moved = { remoteStartsAt: local("2026-09-14T15:00:00"), remoteEndsAt: local("2026-09-14T16:00:00") };
+  const blocks = [workspaceBlock()];
+  const { service, memory } = changesService({ links: [link(moved)], blocks });
+  blocks[0] = workspaceBlock({ start: "2026-09-14T15:00:00", end: "2026-09-14T16:00:00" });
+
+  const after = service.acknowledgeIncoming({ calendarId: "apple:personal", block: { id: "block-1", title: "Planejar semana", startsAt: "2026-09-14T15:00:00", endsAt: "2026-09-14T16:00:00" } });
+
+  assert.deepEqual(after, { outgoing: [], incoming: [] });
+  assert.equal(memory.current().links[0].localFingerprint, blockFingerprint(blocks[0]));
+});
+
+test("confirmar a chegada com outro horário que o do calendário é recusado", () => {
+  const moved = { remoteStartsAt: local("2026-09-14T15:00:00"), remoteEndsAt: local("2026-09-14T16:00:00") };
+  const { service, memory } = changesService({ links: [link(moved)] });
+  const saves = memory.saves.length;
+
+  assert.throws(() => service.acknowledgeIncoming({ calendarId: "apple:personal", block: { id: "block-1", title: "Planejar semana", startsAt: "2026-09-14T17:00:00", endsAt: "2026-09-14T18:00:00" } }), /does not match/);
+  assert.throws(() => service.acknowledgeIncoming({ calendarId: "apple:other", block: { id: "block-1", title: "Planejar semana", startsAt: "2026-09-14T15:00:00", endsAt: "2026-09-14T16:00:00" } }), /not linked/);
+  assert.equal(memory.saves.length, saves);
+});
+
+// Visto no app instalado: com o arquivo de configurações de verdade, que devolve uma cópia a cada leitura,
+// trazer o horário do calendário não atualizava o vínculo, e o bloco aparecia em seguida como "mudou no Hibi".
+test("trazer o horário do calendário grava o vínculo também no arquivo de configurações real", (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "hibi-calendar-ack-"));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const calendarSettings = createCalendarSyncSettings({ filePath: path.join(folder, "calendar-sync.json") });
+  const moved = { remoteStartsAt: local("2026-09-14T15:00:00"), remoteEndsAt: local("2026-09-14T16:00:00") };
+  calendarSettings.save({ calendars: bidirectional("apple:personal"), links: [link(moved)] });
+  const blocks = [workspaceBlock()];
+  const service = createCalendarSyncService({ eventKit: appleKit(), integrations: { listStatus: async () => [] }, settings: noTargets, calendarSettings, workspace: () => ({ blocks }) });
+
+  blocks[0] = workspaceBlock({ start: "2026-09-14T15:00:00", end: "2026-09-14T16:00:00" });
+  service.acknowledgeIncoming({ calendarId: "apple:personal", block: { id: "block-1", title: "Planejar semana", startsAt: "2026-09-14T15:00:00", endsAt: "2026-09-14T16:00:00" } });
+
+  assert.equal(calendarSettings.get().links[0].localFingerprint, blockFingerprint(blocks[0]));
+  assert.deepEqual(service.listChanges(), { outgoing: [], incoming: [] });
+});

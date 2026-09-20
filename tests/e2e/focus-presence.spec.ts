@@ -71,14 +71,14 @@ async function startFocusSession(page: Page, settings?: Record<string, unknown>)
   await page.goto('/');
   await expect(dock(page)).toBeVisible();
   await page.clock.pauseAt(new Date(2026, 8, 10, 10, 5, 0));
-  await dock(page).getByRole('button', { name: 'Foco', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
   await page.getByRole('button', { name: 'Start focus' }).click();
   await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
 }
 
 async function openFocusSettings(page: Page) {
-  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
-  await page.getByRole('menuitem', { name: 'Ajustes', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Focus', exact: true }).click();
 }
 
@@ -137,6 +137,13 @@ test('com "perguntar", responder "Ainda estou aqui" pelo notch fecha a pergunta,
   expect((await focusActivity(page)).filter((record) => record.type === 'focus.cancelled')).toEqual([]);
 });
 
+// Trocar de tela não encerra mais a sessão: pausada, a ida para o descanso a abandona.
+async function abandonSession(page: Page) {
+  await page.getByRole('button', { name: 'Pause session' }).click();
+  await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
+  await expect(page.getByRole('button', { name: 'Começar pausa' })).toBeVisible();
+}
+
 // O que o /stats mostra em "Hoje": o cartão "Tempo de foco" e a coluna de foco da tabela do dia.
 async function openStatsToday(page: Page) {
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
@@ -187,7 +194,9 @@ test('com "perguntar", a volta muda a pergunta, e "Descontar" tira o tempo ausen
   await expect(clockFace(page)).toHaveText('48:00');
   await expect.poll(async () => (await calls(page)).some((call) => call.startsWith('hide:focus-returned-'))).toBe(true);
 
-  // Sair da tela abandona a sessão com 2 minutos presentes, não os 27 do relógio de parede.
+  // Encerrar a sessão (pausar e ir para o descanso) abandona com 2 minutos presentes, não os 27 do
+  // relógio de parede.
+  await abandonSession(page);
   const { focusCard, focusCell } = await openStatsToday(page);
   await expect(focusCell).toHaveText('2');
   await expect(focusCard.locator('.stats-card-value')).toHaveText('2 min');
@@ -267,9 +276,9 @@ test('com "pausar", a ausência pausa sozinha sem contar o tempo ausente, e a vo
   await page.clock.runFor(60_000);
   await expect(clockFace(page)).toHaveText('20:00');
 
-  // O que o /stats soma: saindo da tela a sessão é abandonada com os minutos presentes — 4 antes de sair
+  // O que o /stats soma: encerrada, a sessão é abandonada com os minutos presentes — 4 antes de sair
   // e 1 depois de retomar —, não os 12 do relógio de parede.
-  await dock(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
+  await abandonSession(page);
   await expect.poll(async () => (await focusActivity(page)).filter((record) => record.type === 'focus.cancelled').map((record) => record.durationMinutes)).toEqual([5]);
 });
 
@@ -278,7 +287,8 @@ test('na pausa de descanso a ausência não muda nada', async ({ page }) => {
   await installPresenceBridge(page, { awayBehavior: 'pause' });
   await page.goto('/');
   await page.clock.pauseAt(new Date(2026, 8, 10, 10, 5, 0));
-  await dock(page).getByRole('button', { name: 'Foco', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
   await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
   await page.getByRole('button', { name: 'Começar pausa' }).click();
   await page.clock.runFor(2 * 60_000);
@@ -314,7 +324,8 @@ test('os ajustes de presença sobrevivem a recarregar, e o loop escolhido toca d
   await expect(page.getByLabel('Tempo de inatividade')).toBeDisabled();
   await page.getByLabel('Quando você se afastar').selectOption('pause');
 
-  await dock(page).getByRole('button', { name: 'Foco', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
+  await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
   await page.getByRole('button', { name: 'Start focus' }).click();
   await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', /listening_music_loop\.mp4$/);
   await expect.poll(() => calls(page)).toContain('watch:true:10');
