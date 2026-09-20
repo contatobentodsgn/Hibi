@@ -118,10 +118,10 @@ test('a Agenda lembra a última visualização', async ({ page }) => {
   await page.goto('/');
   await dock(page).getByRole('button', { name: 'Agenda', exact: true }).click();
   await page.getByRole('tab', { name: 'Semana' }).click();
-  await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
+  await expect(page.getByText('07–13 de setembro')).toBeVisible();
   await dock(page).getByRole('button', { name: 'Hoje', exact: true }).click();
   await dock(page).getByRole('button', { name: 'Agenda', exact: true }).click();
-  await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
+  await expect(page.getByText('07–13 de setembro')).toBeVisible();
   await page.reload();
   await dock(page).getByRole('button', { name: 'Agenda', exact: true }).click();
   await expect(page.getByRole('tab', { name: 'Semana' })).toHaveAttribute('aria-selected', 'true');

@@ -16,7 +16,7 @@ test('navega pelo calendário e abre comandos', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Um dia de cada vez.' })).toBeVisible();
   await goWeek(page);
-  await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
+  await expect(page.getByText('07–13 de setembro')).toBeVisible();
   await page.keyboard.press('Meta+K');
   await expect(page.getByRole('dialog', { name: 'Paleta de comandos' })).toBeVisible();
 });
@@ -43,7 +43,7 @@ test('paleta de comandos permite navegação por teclado', async ({ page }) => {
   await input.fill('/week');
   await expect(palette.getByRole('option', { name: /Abrir agenda da semana/ })).toHaveAttribute('data-selected', 'true');
   await input.press('Enter');
-  await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
+  await expect(page.getByText('07–13 de setembro')).toBeVisible();
 });
 
 test('atalho barra abre comandos fora de campos de texto', async ({ page }) => {
@@ -174,9 +174,9 @@ test('navegação diária e semanal atualiza o período', async ({ page }) => {
   await page.getByRole('button', { name: 'Next day' }).click();
   await expect(page.getByText('TUESDAY · 08 SEPTEMBER 2026')).toBeVisible();
   await page.getByRole('tab', { name: 'Semana' }).click();
-  await expect(page.getByText('Mon 07 — Sun 13')).toBeVisible();
-  await page.getByRole('button', { name: 'Next week' }).click();
-  await expect(page.getByText('Mon 14 — Sun 20')).toBeVisible();
+  await expect(page.getByText('07–13 de setembro')).toBeVisible();
+  await page.getByRole('button', { name: 'Próxima semana' }).click();
+  await expect(page.getByText('14–20 de setembro')).toBeVisible();
 });
 
 test('filtros de lembretes alteram a lista', async ({ page }) => {

@@ -11,6 +11,7 @@ import { validateScheduleBlock } from './domain/conflicts';
 import { AppShell } from './ui/shell/AppShell';
 import type { NavKey } from './ui/shell/routes';
 import { AgendaView } from './ui/AgendaView';
+import { AgendaScreen } from './ui/redesign/screens/AgendaScreen';
 import { CommandPalette } from './ui/palette/CommandPalette';
 import { TodayScreen } from './ui/redesign/screens/TodayScreen';
 import { TasksScreen } from './ui/redesign/screens/TasksScreen';
@@ -462,7 +463,7 @@ export default function App() {
       case 'taby': return <TabyView data={data} turn={assistantTurn} conversations={conversations} voice={voice} />;
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
-      case 'agenda': case 'day': case 'week': return <AgendaView {...props} data={data} mode={route === 'agenda' ? undefined : route} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onModeChange={(mode) => setRoute(mode)} />;
+      case 'agenda': case 'day': case 'week': return <AgendaScreen {...props} data={data} mode={route === 'week' ? 'week' : 'day'} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onMoveBlock={moveBlock} onModeChange={(mode) => setRoute(mode)} />;
       case 'focus': return null;
       case 'break': return focusView('break');
       case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} onMoveBlock={moveBlock} focusSettings={focusSettings} onFocusSettingsChange={updateFocusSettings} />;
@@ -489,7 +490,7 @@ export default function App() {
     }} onOpenCommands={openPalette}>
       {validationError && <div role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, margin: '0 0 16px', padding: '13px 16px', border: '1px solid #e2a992', borderRadius: 12, background: '#fff0eb', color: '#984418' }}><span aria-hidden="true" style={{ fontWeight: 900 }}>!</span><div style={{ flex: 1, whiteSpace: 'pre-line' }}>{validationError}</div><button type="button" className="outline" onClick={() => setValidationError('')} aria-label="Dismiss validation error" style={{ padding: '7px 10px' }}>Dismiss</button></div>}
       {pendingLocalApiIntent && <div role="alert" className="notice" style={{ marginBottom: 16 }}><div><strong>Confirmação da API local</strong><p>Deseja criar “{typeof pendingLocalApiIntent.payload.title === 'string' ? pendingLocalApiIntent.payload.title : 'esta tarefa'}”?</p></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={() => void resolveLocalApiIntent(true)}>Confirmar</button><button className="outline" onClick={() => void resolveLocalApiIntent(false)}>Cancelar</button></div></div>}
-      <div className={route === 'home' || route === 'tasks' || route === 'reminders' ? 'redesign-surface' : 'legacy-surface'} onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } if (route === 'reminders' && button?.textContent?.trim() === '+ New reminder') { event.preventDefault(); event.stopPropagation(); setReminderCreateOpen(true); } }}>{content}</div>
+      <div className={route === 'home' || route === 'tasks' || route === 'reminders' || route === 'agenda' || route === 'day' || route === 'week' ? 'redesign-surface' : 'legacy-surface'} onClickCapture={(event) => { const button = (event.target as HTMLElement).closest('button'); if (route === 'tasks' && button?.textContent?.trim() === '+ New task') { event.preventDefault(); event.stopPropagation(); setTaskCreateOpen(true); } if (route === 'reminders' && button?.textContent?.trim() === '+ New reminder') { event.preventDefault(); event.stopPropagation(); setReminderCreateOpen(true); } }}>{content}</div>
       {paletteOpen && <CommandPalette data={data} onClose={() => setPaletteOpen(false)} onNavigate={(next, options) => { setPaletteOpen(false); navigate(next, 'command', options); }} onEvent={log} onRenameFolder={renameFolder} turn={assistantTurn} conversations={conversations} />}
       {taskCreateOpen && <TaskCreateModal onClose={() => setTaskCreateOpen(false)} onSubmit={createTask} folders={listFolders(data).map((entry) => entry.name).filter((name) => name !== NO_FOLDER)} />}
       {reminderCreateOpen && <ReminderCreateModal defaultDate={planStartDate()} onClose={() => setReminderCreateOpen(false)} onSubmit={createReminder} />}
