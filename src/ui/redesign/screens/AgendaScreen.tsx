@@ -8,13 +8,14 @@ import { readIcsCalendar, toIcsCalendar } from '../../../domain/ics';
 import { commitmentClashes } from '../../../domain/conflicts';
 import { visibleHours } from '../../calendar-grid';
 import { AgendaAvailability } from '../../AgendaAvailability';
-import { ExternalCalendarAgenda } from '../../ExternalCalendarAgenda';
 import { ConflictSummary } from '../../ConflictSummary';
+import { labelCalendarSources, type CalendarSyncState } from '../../calendar-sync';
 import { externalEventsForWeek, type ExternalCalendarEvent, type ReadonlyAgendaEvent } from '../../external-calendar-events';
 import { HibiEmptyState } from '../components/HibiEmptyState';
 import { HibiTag } from '../components/HibiTag';
 import { HibiUiRoot } from '../components/HibiUiRoot';
 import { SectionHeader } from '../components/SectionHeader';
+import { ExternalCalendarPanel } from './ExternalCalendarPanel';
 import './agenda-screen.css';
 
 export type AgendaDisplayMode = 'day' | 'week';
@@ -31,6 +32,14 @@ type Props = Readonly<{
   onMoveBlock?: (id: string, start: string, end: string) => boolean;
 }>;
 
+type CalendarChanges = Readonly<{
+  outgoing: readonly Readonly<{ localId: string; calendarId: string; summary: string }> [];
+  incoming: readonly Readonly<{ localId: string; calendarId: string; summary: string; start: string; end: string }> [];
+}>;
+type PendingCalendarAction = Readonly<{ id: string; confirmationId: string; summary: string }>;
+const EMPTY_CALENDAR_STATE: CalendarSyncState = { sources: [], calendars: [], conflicts: [] };
+const EMPTY_CALENDAR_CHANGES: CalendarChanges = { outgoing: [], incoming: [] };
+
 const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const categoryName: Record<ScheduleBlock['category'], string> = { work: 'Foco', learning: 'Estudo', break: 'Pausa', important: 'Importante', wellbeing: 'Bem-estar' };
 const categoryTone: Record<ScheduleBlock['category'], 'mint' | 'peach' | 'lavender' | 'neutral'> = { work: 'lavender', learning: 'mint', break: 'mint', important: 'peach', wellbeing: 'mint' };
@@ -44,10 +53,14 @@ export function AgendaScreen({ data, mode, date: initialDate, onModeChange, onDa
   const [date, setDate] = useState(initialDate ?? todayKey());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [importNotice, setImportNotice] = useState('');
-  const [externalEvents, setExternalEvents] = useState<readonly ReadonlyAgendaEvent[]>([]);
   const [showAllHours, setShowAllHours] = useState(false);
   const [showConflicts, setShowConflicts] = useState(mode === 'week');
   const [layer, setLayer] = useState<AgendaLayer>('schedule');
+  const [calendarState, setCalendarState] = useState<CalendarSyncState>(EMPTY_CALENDAR_STATE);
+  const [externalEvents, setExternalEvents] = useState<readonly ReadonlyAgendaEvent[]>([]);
+  const [calendarChanges, setCalendarChanges] = useState<CalendarChanges>(EMPTY_CALENDAR_CHANGES);
+  const [pendingCalendarAction, setPendingCalendarAction] = useState<PendingCalendarAction | null>(null);
+  const [calendarNotice, setCalendarNotice] = useState('');
   const visibleDays = mode === 'day' ? [date] : weekDays(date);
   const periodBlocks = useMemo(() => data.blocks.filter((block) => visibleDays.includes(toDateKey(block.start))), [data.blocks, visibleDays.join('|')]);
   const blocks = useMemo(() => periodBlocks.filter((block) => layer === 'schedule' || (layer === 'important' ? block.isHard === true : block.category === 'break')), [periodBlocks, layer]);
@@ -64,28 +77,66 @@ export function AgendaScreen({ data, mode, date: initialDate, onModeChange, onDa
   };
   const exportIcs = () => {
     const url = URL.createObjectURL(new Blob([toIcsCalendar(data.blocks)], { type: 'text/calendar' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'hibi-calendar.ics';
-    link.click();
-    URL.revokeObjectURL(url);
+    const link = document.createElement('a'); link.href = url; link.download = 'hibi-calendar.ics'; link.click(); URL.revokeObjectURL(url);
     onEvent('export', 'Exported calendar ICS', 'pass');
   };
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const bridge = window.hibiDesktop;
-      if (!bridge?.getCalendarSyncState || !bridge.readCalendarSyncEvents) return;
-      try {
-        const state = await bridge.getCalendarSyncState();
-        const calendars = state.calendars.filter((calendar) => calendar.mode !== 'disabled').map((calendar) => ({ sourceId: calendar.sourceId as 'apple' | 'google', id: calendar.id }));
-        const events = calendars.length ? await bridge.readCalendarSyncEvents({ start: `${visibleDays[0]}T00:00:00`, end: `${shiftDayKey(visibleDays.at(-1)!, 1)}T00:00:00`, calendars }) : [];
-        if (active) setExternalEvents(externalEventsForWeek(visibleDays[0]!, events as readonly ExternalCalendarEvent[]).filter((event) => visibleDays.includes(event.date)));
-      } catch { if (active) setExternalEvents([]); }
-    })();
-    return () => { active = false; };
-  }, [date, mode]);
+
+  const refreshExternalCalendar = async () => {
+    const bridge = window.hibiDesktop;
+    if (!bridge?.getCalendarSyncState) return;
+    try {
+      const snapshot = await bridge.getCalendarSyncState();
+      const nextState = labelCalendarSources(snapshot);
+      setCalendarState(nextState);
+      const calendars = nextState.calendars.filter((calendar) => calendar.mode !== 'disabled').map((calendar) => ({ sourceId: calendar.sourceId as 'apple' | 'google', id: calendar.id }));
+      if (bridge.readCalendarSyncEvents && calendars.length > 0) {
+        const start = visibleDays[0]!;
+        const end = shiftDayKey(visibleDays[visibleDays.length - 1]!, 1);
+        const events = await bridge.readCalendarSyncEvents({ start: `${start}T00:00:00`, end: `${end}T00:00:00`, calendars });
+        setExternalEvents(externalEventsForWeek(start, events as readonly ExternalCalendarEvent[]).filter((event) => visibleDays.includes(event.date)));
+      } else setExternalEvents([]);
+      setCalendarChanges(await bridge.listCalendarSyncChanges?.() ?? EMPTY_CALENDAR_CHANGES);
+    } catch {
+      setCalendarNotice('Não foi possível atualizar os calendários conectados.');
+    }
+  };
+  useEffect(() => { void refreshExternalCalendar(); }, [mode, date]);
   useEffect(() => { if (mode === 'week') setShowConflicts(true); }, [mode]);
+  const queueCalendarAction = (action: PendingCalendarAction) => {
+    setPendingCalendarAction(action);
+    setCalendarNotice(`Revise “${action.summary}” antes de enviar.`);
+  };
+  const sendCalendarChange = async (change: CalendarChanges['outgoing'][number]) => {
+    const block = data.blocks.find((item) => item.id === change.localId);
+    const bridge = window.hibiDesktop;
+    if (!block || !bridge?.prepareCalendarUpdate) return;
+    try { queueCalendarAction(await bridge.prepareCalendarUpdate({ calendarId: change.calendarId, block: { id: block.id, title: block.title, startsAt: block.start, endsAt: block.end, allDay: false } })); }
+    catch { setCalendarNotice('Não foi possível preparar a atualização do evento.'); }
+  };
+  const bringCalendarChange = async (change: CalendarChanges['incoming'][number]) => {
+    const block = data.blocks.find((item) => item.id === change.localId);
+    const bridge = window.hibiDesktop;
+    if (!block || !onMoveBlock || !bridge?.acknowledgeCalendarIncoming) return;
+    if (!onMoveBlock(block.id, change.start, change.end)) { setCalendarNotice('O horário recebido não é válido para esse bloco.'); return; }
+    try { setCalendarChanges(await bridge.acknowledgeCalendarIncoming({ calendarId: change.calendarId, block: { id: block.id, title: block.title, startsAt: change.start, endsAt: change.end, allDay: false } })); setCalendarNotice(`“${change.summary}” foi trazido para o Hibi.`); }
+    catch { setCalendarNotice('O bloco mudou, mas o vínculo não foi confirmado. Atualize a agenda antes de tentar novamente.'); }
+  };
+  const resolveCalendarConflict = async (conflict: CalendarSyncState['conflicts'][number], choice: 'keep-calendar' | 'keep-hibi') => {
+    const bridge = window.hibiDesktop;
+    if (!bridge?.resolveCalendarConflict) return;
+    try {
+      const result = await bridge.resolveCalendarConflict({ id: conflict.id, choice });
+      if (result.resolved) { setCalendarNotice('O vínculo externo foi removido; o bloco permanece apenas no Hibi.'); await refreshExternalCalendar(); }
+      else queueCalendarAction(result.action);
+    } catch { setCalendarNotice('Não foi possível preparar a resolução do conflito.'); }
+  };
+  const confirmCalendarAction = async () => {
+    const pending = pendingCalendarAction;
+    const bridge = window.hibiDesktop;
+    if (!pending || !bridge?.executeApprovedCalendarPublish) return;
+    try { await bridge.executeApprovedCalendarPublish({ actionId: pending.id, confirmationId: pending.confirmationId }); setPendingCalendarAction(null); setCalendarNotice(`“${pending.summary}” foi atualizado no calendário.`); await refreshExternalCalendar(); }
+    catch { setCalendarNotice('A alteração não foi enviada. A decisão continua pendente.'); }
+  };
 
   return <HibiUiRoot className="agenda-screen">
     <SectionHeader title="Agenda" subtitle={periodLabel(mode, date)} actions={<Button variant="primary" onPress={() => createAt(date, 9)}><Plus size={17} />Criar bloco</Button>} />
@@ -95,7 +146,9 @@ export function AgendaScreen({ data, mode, date: initialDate, onModeChange, onDa
     <div className="agenda-screen__body"><Card className="agenda-screen__grid-card"><div className={`agenda-screen__grid agenda-screen__grid--${mode}`}><div className="agenda-screen__corner"><Clock3 size={14} /></div>{visibleDays.map((day) => <div className="agenda-screen__day-head" key={day}><span>{dayNames[localNoon(day).getDay()]}</span><strong>{day.slice(8, 10)}</strong></div>)}{hours.map((hour) => <div className="agenda-screen__row" key={hour}><time>{hourTime(hour)}</time>{visibleDays.map((day) => { const hourBlocks = blocks.filter((block) => toDateKey(block.start) === day && Number(block.start.slice(11, 13)) === hour); return <div className="agenda-screen__slot" key={`${day}-${hour}`} role="button" tabIndex={0} aria-label={`Add block ${day} at ${hourTime(hour)}`} onClick={() => createAt(day, hour)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); createAt(day, hour); } }}><span className="agenda-screen__slot-create" aria-hidden="true">+</span>{hourBlocks.map((block) => <button className="agenda-screen__event" data-category={block.category} key={block.id} onClick={(event) => { event.stopPropagation(); onDeleteBlock?.(block.id); }} aria-label={`Delete ${block.title} at ${block.start.slice(11, 16)} on ${day}`}><strong>{block.title}</strong><span>{block.start.slice(11, 16)} · {durationMinutes(block)} min</span><HibiTag tone={categoryTone[block.category]}>{categoryName[block.category]}</HibiTag></button>)}</div>; })}</div>)}</div>{blocks.length === 0 && <HibiEmptyState icon={CalendarDays} tone="lavender" title="A semana está livre" description="Crie um bloco quando quiser reservar tempo para algo importante." action={<Button variant="secondary" onPress={() => createAt(date, 9)}>Criar bloco</Button>} />}</Card>
       <aside className="agenda-screen__detail" aria-label="Detalhe do bloco">{selected ? <BlockDetails block={selected} onClose={() => setSelectedId(null)} onDelete={() => { onDeleteBlock?.(selected.id); setSelectedId(null); }} onSave={editSelected} /> : <Card><CalendarDays size={20} /><h2>Seu tempo, por inteiro.</h2><p>Escolha um bloco para ver ou ajustar seus horários locais.</p></Card>}</aside>
     </div>
-    <ExternalCalendarAgenda events={externalEvents} />
+    <ExternalCalendarPanel state={calendarState} events={externalEvents} changes={calendarChanges} onRefresh={() => void refreshExternalCalendar()} onSendChange={(change) => void sendCalendarChange(change)} onBringChange={(change) => void bringCalendarChange(change)} onResolveConflict={(conflict, choice) => void resolveCalendarConflict(conflict, choice)} />
+    {calendarNotice && <p className="agenda-screen__calendar-notice" role="status">{calendarNotice}</p>}
+    {pendingCalendarAction && <Card className="agenda-screen__calendar-confirmation" role="alert"><div><strong>Confirmar alteração externa</strong><p>“{pendingCalendarAction.summary}” será enviado ao calendário conectado.</p></div><div><Button variant="secondary" onPress={() => { setPendingCalendarAction(null); setCalendarNotice('Alteração cancelada.'); }}>Cancelar</Button><Button variant="primary" onPress={() => void confirmCalendarAction()}>Confirmar</Button></div></Card>}
     {showConflicts && <ConflictSummary pairs={commitmentClashes(periodBlocks)} emptyText={mode === 'week' ? 'Nenhum compromisso bate com outro nesta semana.' : 'Nenhum compromisso bate com outro neste dia.'} />}
   </HibiUiRoot>;
 }

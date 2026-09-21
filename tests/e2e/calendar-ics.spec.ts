@@ -70,8 +70,8 @@ test('mostra um evento de calendário conectado como somente leitura', async ({ 
   await page.goto('/');
   await goWeek(page);
 
-  const external = page.getByRole('region', { name: 'Eventos externos somente leitura' });
+  const external = page.getByRole('region', { name: 'Agenda externa e conflitos' });
   await expect(external.getByText('Reunião de cliente')).toBeVisible();
-  await expect(external.getByLabel('Somente leitura', { exact: true })).toBeVisible();
-  await expect(external.getByRole('button')).toHaveCount(0);
+  await expect(external.getByText('Somente leitura', { exact: true })).toBeVisible();
+  await expect(external.getByRole('button', { name: 'Atualizar' })).toBeVisible();
 });
