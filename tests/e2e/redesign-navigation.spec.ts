@@ -29,7 +29,7 @@ const centerOf = async (page: Page, selector: string) => { const box = (await pa
 test('cada destino, Ajustes e cada item do Mais abrem a tela real, e a trilha diz onde a pessoa está', async ({ page }) => {
   await page.goto('/');
   const places: { name: string; via: 'bar' | 'more'; marked: string | null; path: string; screen: (page: Page) => ReturnType<Page['locator']> }[] = [
-    { name: 'Agenda', via: 'bar', marked: 'Agenda', path: 'Agenda', screen: (p) => p.locator('.agenda-view') },
+    { name: 'Agenda', via: 'bar', marked: 'Agenda', path: 'Agenda', screen: (p) => p.locator('.agenda-screen') },
     { name: 'Tarefas', via: 'bar', marked: 'Tarefas', path: 'Tarefas', screen: (p) => p.locator('.tasks-screen') },
     { name: 'Notas', via: 'bar', marked: 'Notas', path: 'Notas', screen: (p) => p.getByRole('heading', { level: 1, name: 'Notes' }) },
     { name: 'Taby', via: 'bar', marked: 'Taby', path: 'Taby', screen: (p) => p.getByRole('heading', { level: 1, name: 'Local assistant' }) },

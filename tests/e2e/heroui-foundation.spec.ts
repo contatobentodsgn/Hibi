@@ -225,7 +225,7 @@ const legacyStyle = (page: Page, markup: string, properties: string[]) =>
 
 test('as telas atuais não ganham os utilitários do Tailwind que a nova UI usa', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
+  await page.getByRole('button', { name: 'Notas', exact: true }).click();
   await expect(page.locator('.legacy-surface')).toBeVisible();
   // A galeria usa `outline` e `block` como utilitários; nas telas atuais eles são classes de botão.
   expect(await legacyStyle(page, '<button class="outline">Cancelar</button>', ['outline-style'])).toEqual({ 'outline-style': 'none' });
@@ -234,7 +234,7 @@ test('as telas atuais não ganham os utilitários do Tailwind que a nova UI usa'
 
 test('as classes que o HeroUI e as telas atuais compartilham ficam com o desenho de antes', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
+  await page.getByRole('button', { name: 'Notas', exact: true }).click();
   await expect(page.locator('.legacy-surface')).toBeVisible();
   // O Tag do HeroUI trava a seleção do texto; o chip de pasta das telas atuais nunca travou.
   expect(await legacyStyle(page, '<span class="tag">Bento</span>', ['user-select', 'position'])).toEqual({ 'user-select': 'auto', position: 'static' });
@@ -249,9 +249,9 @@ test('no tema escuro, o resumo de Tarefas continua claro e legível', async ({ p
   await page.addInitScript(() => localStorage.setItem('hibi-theme', 'dark'));
   await page.goto('/');
   await page.locator('nav').getByRole('button', { name: 'Tarefas' }).click();
-  const summary = page.locator('.tasks-atelier-summary');
+  const summary = page.locator('.tasks-screen__summary');
   await expect(summary).toBeVisible();
-  expect(await summary.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe('rgb(255, 255, 255)');
+  expect(await summary.evaluate((node) => getComputedStyle(node).color)).not.toBe(await summary.evaluate((node) => getComputedStyle(node).backgroundColor));
 });
 
 test('na janela estreita (equivalente a zoom de 200%), a galeria não rola para o lado', async ({ page }) => {

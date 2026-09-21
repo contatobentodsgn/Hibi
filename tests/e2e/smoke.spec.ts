@@ -79,9 +79,11 @@ test('+ New note leva o foco para o formulário de nota nova', async ({ page }) 
 test('clicar no item da barra da tela atual não apaga o que está sendo digitado', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Tarefas');
-  await page.getByLabel('New task title').fill('Rascunho de tarefa');
+  await page.getByRole('button', { name: 'Nova tarefa' }).click();
+  const draft = page.getByLabel('Título da tarefa');
+  await draft.fill('Rascunho de tarefa');
   await go(page, 'Tarefas');
-  await expect(page.getByLabel('New task title')).toHaveValue('Rascunho de tarefa');
+  await expect(draft).toHaveValue('Rascunho de tarefa');
 });
 
 test('nota criada em pasta nova ganha filtro próprio, e trocar de filtro não apaga o rascunho', async ({ page }) => {
@@ -182,7 +184,7 @@ test('navegação diária e semanal atualiza o período', async ({ page }) => {
 test('filtros de lembretes alteram a lista', async ({ page }) => {
   await page.goto('/');
   await goMore(page, 'Lembretes');
-  await expect(page.locator('.list-card').getByText('vaga/inglês - Horizontes')).toBeVisible();
+  await expect(page.locator('.reminders-screen__list').getByText('vaga/inglês - Horizontes')).toBeVisible();
   await page.getByRole('button', { name: /Wellbeing 0/ }).click();
   await expect(page.getByText('No reminders match this filter.')).toBeVisible();
   await page.getByRole('button', { name: /All 1/ }).click();
@@ -199,7 +201,7 @@ test('criação de lembrete diário preserva a recorrência', async ({ page }) =
   await form.getByRole('textbox', { name: 'Time' }).fill('08:30');
   await form.getByRole('button', { name: 'Create reminder' }).click();
   await expect(page.locator('.reminders-screen__list').getByText('Revisar agenda')).toBeVisible();
-  await expect(page.getByText('Todos os dias · 08:30')).toBeVisible();
+  await expect(page.locator('.reminders-screen__list').getByText('Todos os dias · 08:30')).toBeVisible();
 });
 
 // O dia pré-marcado é o do início do plano (`planStartDate`, o primeiro dia com bloco), e o seed é
@@ -218,7 +220,7 @@ test('criação semanal preseleciona o dia do início e permite escolher categor
   await form.getByRole('textbox', { name: 'Time' }).fill('19:00');
   await form.getByRole('button', { name: 'Create reminder' }).click();
   await expect(page.locator('.reminders-screen__list').getByText('Caminhar')).toBeVisible();
-  await expect(page.getByText('Toda semana · 19:00')).toBeVisible();
+  await expect(page.locator('.reminders-screen__list').getByText('Toda semana · 19:00')).toBeVisible();
 });
 
 test('edição de lembrete semanal mantém dias e horários configurados', async ({ page }) => {
@@ -231,7 +233,7 @@ test('edição de lembrete semanal mantém dias e horários configurados', async
   await form.getByRole('checkbox', { name: 'Ter' }).uncheck();
   await form.getByRole('checkbox', { name: 'Qua' }).check();
   await form.getByRole('button', { name: 'Salvar alterações' }).click();
-  await expect(page.getByText('Toda semana · 20:00')).toBeVisible();
+  await expect(page.locator('.reminders-screen__list').getByText('Toda semana · 20:00')).toBeVisible();
 });
 
 test('edição de lembrete pelo formulário persiste o novo horário', async ({ page }) => {
@@ -241,22 +243,23 @@ test('edição de lembrete pelo formulário persiste o novo horário', async ({ 
   const form = page.getByRole('dialog', { name: 'Editar lembrete' });
   await form.getByLabel('Horário').fill('10:30');
   await form.getByRole('button', { name: 'Salvar alterações' }).click();
-  await expect(page.getByText(/10:30/)).toBeVisible();
+  await expect(page.locator('.reminders-screen__list').getByText(/10:30/)).toBeVisible();
 });
 
 test('filtros e ordenação de Tasks são interativos', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Tarefas');
-  await page.getByRole('button', { name: /All 8/ }).click();
-  await expect(page.getByRole('button', { name: /All 8/ })).toHaveClass(/active/);
-  await page.getByRole('button', { name: /Deadline/ }).click();
-  await expect(page.getByRole('button', { name: /Deadline/ })).toHaveClass(/active/);
+  await page.getByRole('button', { name: /Todas 8/ }).click();
+  await expect(page.getByRole('button', { name: /Todas 8/ })).toHaveAttribute('data-active', 'true');
+  await page.getByRole('button', { name: /Por prazo/ }).click();
+  await expect(page.getByRole('button', { name: /Por criação/ })).toBeVisible();
 });
 
 test('edita deadline de uma task por formulário acessível e permite remover', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Tarefas');
-  await page.getByRole('button', { name: 'Deadline for Kabrito Post 01' }).click();
+  await page.getByRole('button', { name: /Kabrito Post 01/ }).click();
+  await page.getByRole('button', { name: 'Editar prazo' }).click();
   const dialog = page.getByRole('dialog', { name: 'Edit task deadline' });
   await expect(dialog).toBeVisible();
   const deadline = dialog.getByRole('textbox', { name: 'Deadline' });
