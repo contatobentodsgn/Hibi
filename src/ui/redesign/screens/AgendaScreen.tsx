@@ -1,11 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus } from 'lucide-react';
 import { Button, Card } from '@heroui/react';
 import type { ScheduleBlock, StudyData } from '../../../domain/models';
 import { shiftDayKey, localNoon, todayKey } from '../../../domain/date-context';
 import { durationMinutes, toDateKey } from '../../../domain/schedule';
+import { readIcsCalendar, toIcsCalendar } from '../../../domain/ics';
+import { commitmentClashes } from '../../../domain/conflicts';
 import { visibleHours } from '../../calendar-grid';
 import { AgendaAvailability } from '../../AgendaAvailability';
+import { ExternalCalendarAgenda } from '../../ExternalCalendarAgenda';
+import { ConflictSummary } from '../../ConflictSummary';
+import { externalEventsForWeek, type ExternalCalendarEvent, type ReadonlyAgendaEvent } from '../../external-calendar-events';
 import { HibiEmptyState } from '../components/HibiEmptyState';
 import { HibiTag } from '../components/HibiTag';
 import { HibiUiRoot } from '../components/HibiUiRoot';
@@ -37,21 +42,58 @@ function periodLabel(mode: AgendaDisplayMode, date: string) { if (mode === 'day'
 export function AgendaScreen({ data, mode, date: initialDate, onModeChange, onDateChange, onEvent, onCreateBlock, onDeleteBlock, onMoveBlock }: Props) {
   const [date, setDate] = useState(initialDate ?? todayKey());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [importNotice, setImportNotice] = useState('');
+  const [externalEvents, setExternalEvents] = useState<readonly ReadonlyAgendaEvent[]>([]);
+  const [showAllHours, setShowAllHours] = useState(false);
+  const [showConflicts, setShowConflicts] = useState(mode === 'week');
   const visibleDays = mode === 'day' ? [date] : weekDays(date);
   const blocks = useMemo(() => data.blocks.filter((block) => visibleDays.includes(toDateKey(block.start))), [data.blocks, visibleDays.join('|')]);
-  const hours = visibleHours(blocks, false);
+  const hours = visibleHours(blocks, showAllHours);
   const selected = data.blocks.find((block) => block.id === selectedId);
   const movePeriod = (amount: number) => { const next = shiftDayKey(date, mode === 'week' ? amount * 7 : amount); setDate(next); onDateChange?.(next); onEvent('navigation', amount < 0 ? `Agenda anterior · ${mode}` : `Agenda seguinte · ${mode}`); };
   const createAt = (day: string, hour: number) => { onCreateBlock({ title: 'Novo bloco', start: `${day}T${hourTime(hour)}:00`, end: `${day}T${hourTime(Math.min(hour + 1, 23))}:00`, category: 'work' }); onEvent('create', `Bloco · ${day} ${hourTime(hour)}`); };
   const editSelected = (start: string, end: string) => { if (!selected || !onMoveBlock) return; if (onMoveBlock(selected.id, start, end)) setSelectedId(null); };
+  const importIcs = async (file: File) => {
+    const parsed = readIcsCalendar(await file.text());
+    for (const event of parsed.events) onCreateBlock({ ...event, category: 'work' });
+    setImportNotice(`Eventos importados: ${parsed.events.length}. ${parsed.skippedAllDay ? `Ficaram de fora ${parsed.skippedAllDay} de dia inteiro.` : ''} ${parsed.skippedInvalid ? `Ficaram de fora ${parsed.skippedInvalid} inválidos.` : ''}`.trim());
+    onEvent('import', file.name, `${parsed.events.length} imported`);
+  };
+  const exportIcs = () => {
+    const url = URL.createObjectURL(new Blob([toIcsCalendar(data.blocks)], { type: 'text/calendar' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'hibi-calendar.ics';
+    link.click();
+    URL.revokeObjectURL(url);
+    onEvent('export', 'Exported calendar ICS', 'pass');
+  };
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const bridge = window.hibiDesktop;
+      if (!bridge?.getCalendarSyncState || !bridge.readCalendarSyncEvents) return;
+      try {
+        const state = await bridge.getCalendarSyncState();
+        const calendars = state.calendars.filter((calendar) => calendar.mode !== 'disabled').map((calendar) => ({ sourceId: calendar.sourceId as 'apple' | 'google', id: calendar.id }));
+        const events = calendars.length ? await bridge.readCalendarSyncEvents({ start: `${visibleDays[0]}T00:00:00`, end: `${shiftDayKey(visibleDays.at(-1)!, 1)}T00:00:00`, calendars }) : [];
+        if (active) setExternalEvents(externalEventsForWeek(visibleDays[0]!, events as readonly ExternalCalendarEvent[]).filter((event) => visibleDays.includes(event.date)));
+      } catch { if (active) setExternalEvents([]); }
+    })();
+    return () => { active = false; };
+  }, [date, mode]);
+  useEffect(() => { if (mode === 'week') setShowConflicts(true); }, [mode]);
 
   return <HibiUiRoot className="agenda-screen">
     <SectionHeader title="Agenda" subtitle={periodLabel(mode, date)} actions={<Button variant="primary" onPress={() => createAt(date, 9)}><Plus size={17} />Criar bloco</Button>} />
-    <div className="agenda-screen__toolbar"><Button isIconOnly variant="ghost" aria-label={mode === 'day' ? 'Dia anterior' : 'Semana anterior'} onPress={() => movePeriod(-1)}><ChevronLeft size={18} /></Button><Button variant="secondary" onPress={() => { const today = todayKey(); setDate(today); onDateChange?.(today); onEvent('navigation', 'Agenda · Hoje'); }}>Hoje</Button><Button isIconOnly variant="ghost" aria-label={mode === 'day' ? 'Próximo dia' : 'Próxima semana'} onPress={() => movePeriod(1)}><ChevronRight size={18} /></Button><div className="agenda-screen__modes" role="tablist" aria-label="Modo da agenda"><button type="button" role="tab" aria-selected={mode === 'day'} onClick={() => onModeChange('day')}>Dia</button><button type="button" role="tab" aria-selected={mode === 'week'} onClick={() => onModeChange('week')}>Semana</button></div></div>
+    <div className="agenda-screen__toolbar"><Button isIconOnly variant="ghost" aria-label={mode === 'day' ? 'Dia anterior' : 'Semana anterior'} onPress={() => movePeriod(-1)}><ChevronLeft size={18} /></Button><Button variant="secondary" onPress={() => { const today = todayKey(); setDate(today); onDateChange?.(today); onEvent('navigation', 'Agenda · Hoje'); }}>Hoje</Button><Button isIconOnly variant="ghost" aria-label={mode === 'day' ? 'Próximo dia' : 'Próxima semana'} onPress={() => movePeriod(1)}><ChevronRight size={18} /></Button><div className="agenda-screen__modes" role="tablist" aria-label="Modo da agenda"><button type="button" role="tab" aria-selected={mode === 'day'} onClick={() => onModeChange('day')}>Dia</button><button type="button" role="tab" aria-selected={mode === 'week'} onClick={() => onModeChange('week')}>Semana</button></div>{mode === 'day' && <><Button variant="secondary" onPress={() => setShowAllHours((value) => !value)}>Mostrar as 24 horas</Button><Button variant="secondary" onPress={() => setShowConflicts(true)}>✓ Conferir plano</Button></>}<label className="agenda-screen__ics-import"><span>Import .ics</span><input hidden type="file" accept=".ics,text/calendar" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importIcs(file); }} /></label><Button variant="secondary" onPress={exportIcs}>Export .ics</Button></div>
+    {importNotice && <p role="status" className="agenda-screen__import-notice">{importNotice}</p>}
     <AgendaAvailability blocks={data.blocks} days={visibleDays} />
-    <div className="agenda-screen__body"><Card className="agenda-screen__grid-card"><div className={`agenda-screen__grid agenda-screen__grid--${mode}`}><div className="agenda-screen__corner"><Clock3 size={14} /></div>{visibleDays.map((day) => <div className="agenda-screen__day-head" key={day}><span>{dayNames[localNoon(day).getDay()]}</span><strong>{day.slice(8, 10)}</strong></div>)}{hours.map((hour) => <div className="agenda-screen__row" key={hour}><time>{hourTime(hour)}</time>{visibleDays.map((day) => { const hourBlocks = blocks.filter((block) => toDateKey(block.start) === day && Number(block.start.slice(11, 13)) === hour); return <div className="agenda-screen__slot" key={`${day}-${hour}`}><button className="agenda-screen__slot-create" aria-label={`Criar bloco em ${day} às ${hourTime(hour)}`} onClick={() => createAt(day, hour)}>+</button>{hourBlocks.map((block) => <button className="agenda-screen__event" data-category={block.category} key={block.id} onClick={() => setSelectedId(block.id)} aria-label={`Abrir ${block.title}, ${block.start.slice(11, 16)}`}><strong>{block.title}</strong><span>{block.start.slice(11, 16)} · {durationMinutes(block)} min</span><HibiTag tone={categoryTone[block.category]}>{categoryName[block.category]}</HibiTag></button>)}</div>; })}</div>)}</div>{blocks.length === 0 && <HibiEmptyState icon={CalendarDays} tone="lavender" title="A semana está livre" description="Crie um bloco quando quiser reservar tempo para algo importante." action={<Button variant="secondary" onPress={() => createAt(date, 9)}>Criar bloco</Button>} />}</Card>
+    <div className="agenda-screen__body"><Card className="agenda-screen__grid-card"><div className={`agenda-screen__grid agenda-screen__grid--${mode}`}><div className="agenda-screen__corner"><Clock3 size={14} /></div>{visibleDays.map((day) => <div className="agenda-screen__day-head" key={day}><span>{dayNames[localNoon(day).getDay()]}</span><strong>{day.slice(8, 10)}</strong></div>)}{hours.map((hour) => <div className="agenda-screen__row" key={hour}><time>{hourTime(hour)}</time>{visibleDays.map((day) => { const hourBlocks = blocks.filter((block) => toDateKey(block.start) === day && Number(block.start.slice(11, 13)) === hour); return <div className="agenda-screen__slot" key={`${day}-${hour}`} role="button" tabIndex={0} aria-label={`Add block ${day} at ${hourTime(hour)}`} onClick={() => createAt(day, hour)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); createAt(day, hour); } }}><span className="agenda-screen__slot-create" aria-hidden="true">+</span>{hourBlocks.map((block) => <button className="agenda-screen__event" data-category={block.category} key={block.id} onClick={(event) => { event.stopPropagation(); onDeleteBlock?.(block.id); }} aria-label={`Delete ${block.title} at ${block.start.slice(11, 16)} on ${day}`}><strong>{block.title}</strong><span>{block.start.slice(11, 16)} · {durationMinutes(block)} min</span><HibiTag tone={categoryTone[block.category]}>{categoryName[block.category]}</HibiTag></button>)}</div>; })}</div>)}</div>{blocks.length === 0 && <HibiEmptyState icon={CalendarDays} tone="lavender" title="A semana está livre" description="Crie um bloco quando quiser reservar tempo para algo importante." action={<Button variant="secondary" onPress={() => createAt(date, 9)}>Criar bloco</Button>} />}</Card>
       <aside className="agenda-screen__detail" aria-label="Detalhe do bloco">{selected ? <BlockDetails block={selected} onClose={() => setSelectedId(null)} onDelete={() => { onDeleteBlock?.(selected.id); setSelectedId(null); }} onSave={editSelected} /> : <Card><CalendarDays size={20} /><h2>Seu tempo, por inteiro.</h2><p>Escolha um bloco para ver ou ajustar seus horários locais.</p></Card>}</aside>
     </div>
+    <ExternalCalendarAgenda events={externalEvents} />
+    {showConflicts && <ConflictSummary pairs={commitmentClashes(blocks)} emptyText={mode === 'week' ? 'Nenhum compromisso bate com outro nesta semana.' : 'Nenhum compromisso bate com outro neste dia.'} />}
   </HibiUiRoot>;
 }
 
