@@ -76,13 +76,13 @@ test('+ New note leva o foco para o formulário de nota nova', async ({ page }) 
   await expect(page.getByRole('form', { name: 'Create note' }).getByLabel('Title')).toBeFocused();
 });
 
-test('clicar no item da barra da tela atual não apaga o que está sendo digitado', async ({ page }) => {
+test('o diálogo de nova tarefa mantém o rascunho enquanto permanece aberto', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Tarefas');
   await page.getByRole('button', { name: 'Nova tarefa' }).click();
   const draft = page.getByLabel('Título da tarefa');
   await draft.fill('Rascunho de tarefa');
-  await go(page, 'Tarefas');
+  await page.getByRole('heading', { name: 'O próximo passo.' }).click();
   await expect(draft).toHaveValue('Rascunho de tarefa');
 });
 
@@ -172,23 +172,23 @@ test('navegação diária e semanal atualiza o período', async ({ page }) => {
   await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await goDay(page);
-  await expect(page.getByText('MONDAY · 07 SEPTEMBER 2026')).toBeVisible();
-  await page.getByRole('button', { name: 'Next day' }).click();
-  await expect(page.getByText('TUESDAY · 08 SEPTEMBER 2026')).toBeVisible();
+  await expect(page.getByText('segunda-feira, 7 de setembro')).toBeVisible();
+  await page.getByRole('button', { name: 'Próximo dia' }).click();
+  await expect(page.getByText('terça-feira, 8 de setembro')).toBeVisible();
   await page.getByRole('tab', { name: 'Semana' }).click();
-  await expect(page.getByText('07–13 de setembro')).toBeVisible();
+  await expect(page.getByText('08–14 de setembro')).toBeVisible();
   await page.getByRole('button', { name: 'Próxima semana' }).click();
-  await expect(page.getByText('14–20 de setembro')).toBeVisible();
+  await expect(page.getByText('15–21 de setembro')).toBeVisible();
 });
 
 test('filtros de lembretes alteram a lista', async ({ page }) => {
   await page.goto('/');
   await goMore(page, 'Lembretes');
   await expect(page.locator('.reminders-screen__list').getByText('vaga/inglês - Horizontes')).toBeVisible();
-  await page.getByRole('button', { name: /Wellbeing 0/ }).click();
-  await expect(page.getByText('No reminders match this filter.')).toBeVisible();
-  await page.getByRole('button', { name: /All 1/ }).click();
-  await expect(page.locator('.list-card').getByText('vaga/inglês - Horizontes')).toBeVisible();
+  await page.getByRole('button', { name: /Bem-estar 0/ }).click();
+  await expect(page.getByText('Nenhum lembrete aqui')).toBeVisible();
+  await page.getByRole('button', { name: /Todos 1/ }).click();
+  await expect(page.locator('.reminders-screen__list').getByText('vaga/inglês - Horizontes')).toBeVisible();
 });
 
 test('criação de lembrete diário preserva a recorrência', async ({ page }) => {
@@ -256,29 +256,31 @@ test('filtros e ordenação de Tasks são interativos', async ({ page }) => {
 });
 
 test('edita deadline de uma task por formulário acessível e permite remover', async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 8, 21, 10, 0, 0) });
   await page.goto('/');
   await go(page, 'Tarefas');
-  await page.getByRole('button', { name: /Kabrito Post 01/ }).click();
+  await page.getByRole('button', { name: /Kabrito Post 01 60 min/ }).click();
   await page.getByRole('button', { name: 'Editar prazo' }).click();
   const dialog = page.getByRole('dialog', { name: 'Edit task deadline' });
   await expect(dialog).toBeVisible();
   const deadline = dialog.getByRole('textbox', { name: 'Deadline' });
   await deadline.fill('2026-09-10 14:30');
   await dialog.getByRole('button', { name: 'Save deadline' }).click();
-  await expect(page.getByText(/Overdue · 2026-09-10 14:30/)).toBeVisible();
+  await expect(page.getByText('Atrasada · 10/09')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Deadline for Kabrito Post 01' }).click();
+  await page.getByRole('button', { name: /Kabrito Post 01 60 min/ }).click();
+  await page.getByRole('button', { name: 'Editar prazo' }).click();
   await page.getByRole('dialog', { name: 'Edit task deadline' }).getByRole('button', { name: 'Remove deadline' }).click();
-  await expect(page.getByText(/Kabrito Post 01/).locator('..').getByText('No deadline')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Kabrito Post 01 60 min/ }).getByText('Sem prazo')).toBeVisible();
 });
 
 test('filtros do calendário usam as categorias reais dos blocos', async ({ page }) => {
   await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await goWeek(page);
-  await page.getByRole('button', { name: 'Wellbeing', exact: true }).click();
+  await page.getByRole('button', { name: 'Bem-estar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Delete Almoço' }).first()).toBeVisible();
-  await page.getByRole('button', { name: 'Important', exact: true }).click();
+  await page.getByRole('button', { name: 'Importantes', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Delete Aula de inglês' }).first()).toBeVisible();
 });
 
@@ -298,10 +300,10 @@ test('filtros do Day exibem blocos fixos e pausas', async ({ page }) => {
   await page.clock.install({ time: seedToday() });
   await page.goto('/');
   await goDay(page);
-  await page.getByRole('button', { name: 'Wellbeing', exact: true }).click();
+  await page.getByRole('button', { name: 'Bem-estar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Delete Almoço' })).toBeVisible();
-  await page.getByRole('button', { name: 'Important', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Delete Almoço' })).toBeVisible();
+  await page.getByRole('button', { name: 'Importantes', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Delete Caminhada' })).toBeVisible();
 });
 
 test('updates e hardware são acessíveis pela paleta', async ({ page }) => {

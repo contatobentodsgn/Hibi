@@ -26,14 +26,14 @@ test('a criação rápida de Tarefas cria a tarefa, e ela sobrevive a recarregar
 test('uma tarefa criada com a pasta filtrada nasce nessa pasta e aparece na lista', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
-  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Bento \d+$/ }).click();
+  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pasta · Bento \d+$/ }).click();
 
   await openTaskCreateDialog(page);
   await page.getByRole('textbox', { name: 'Título da tarefa' }).fill('Tarefa da pasta filtrada');
   await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();
 
   await expect(page.getByText('Tarefa da pasta filtrada')).toBeVisible();
-  await expect(page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Bento \d+$/ })).toBeVisible();
+  await expect(page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pasta · Bento \d+$/ })).toBeVisible();
 });
 
 test('a tarefa rápida nasce na pasta filtrada, qualquer que seja, e em "Sem pasta" nasce sem pasta', async ({ page }) => {
@@ -46,7 +46,7 @@ test('a tarefa rápida nasce na pasta filtrada, qualquer que seja, e em "Sem pas
   await page.reload();
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
 
-  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Clientes \d+$/ }).click();
+  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pasta · Clientes \d+$/ }).click();
   await openTaskCreateDialog(page);
   await page.getByRole('textbox', { name: 'Título da tarefa' }).fill('Contrato do cliente');
   await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();
@@ -54,7 +54,7 @@ test('a tarefa rápida nasce na pasta filtrada, qualquer que seja, e em "Sem pas
 
   await page.getByRole('button', { name: 'Hoje', exact: true }).click();
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
-  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Sem pasta \d+$/ }).click();
+  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pasta · Sem pasta \d+$/ }).click();
   await openTaskCreateDialog(page);
   await page.getByRole('textbox', { name: 'Título da tarefa' }).fill('Ideia sem pasta');
   await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();

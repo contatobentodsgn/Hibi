@@ -239,7 +239,7 @@ for (const position of ['top', 'bottom'] as const) {
     await page.addInitScript((p) => { localStorage.setItem('hibi-theme', 'dark'); localStorage.setItem('hibi.ui.navigation-position.v1', p); }, position);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
-    await nav(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
+    await nav(page).getByRole('button', { name: 'Notas', exact: true }).click();
     // Em cima, o conteúdo só chega à faixa rolando; embaixo, já está sob a barra desde o começo da tela (no fim
     // da rolagem, o próprio respiro da área cobre a faixa).
     if (position === 'top') await page.locator('.notch-viewport').evaluate((element) => { element.scrollTop = 400; });

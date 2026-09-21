@@ -413,7 +413,7 @@ export default function App() {
   // aberto, em toda forma de abrir a paleta (atalho, dock, captura rápida da Home).
   const modalOpen = taskCreateOpen || reminderCreateOpen || deadlineEditTaskId !== null;
   const openPalette = useCallback(() => {
-    const dialogOpen = document.querySelector('[role="dialog"], .hibi-action-dialog') !== null;
+    const dialogOpen = document.querySelector('.hibi-action-dialog') !== null;
     if (!modalOpen && !dialogOpen) setPaletteOpen(true);
   }, [modalOpen]);
   React.useEffect(() => {
