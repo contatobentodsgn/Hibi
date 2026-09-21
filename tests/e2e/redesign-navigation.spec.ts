@@ -29,7 +29,7 @@ const centerOf = async (page: Page, selector: string) => { const box = (await pa
 test('cada destino, Ajustes e cada item do Mais abrem a tela real, e a trilha diz onde a pessoa está', async ({ page }) => {
   await page.goto('/');
   const places: { name: string; via: 'bar' | 'more'; marked: string | null; path: string; screen: (page: Page) => ReturnType<Page['locator']> }[] = [
-    { name: 'Agenda', via: 'bar', marked: 'Agenda', path: 'Agenda', screen: (p) => p.locator('.agenda-view') },
+    { name: 'Agenda', via: 'bar', marked: 'Agenda', path: 'Agenda', screen: (p) => p.locator('.agenda-screen') },
     { name: 'Tarefas', via: 'bar', marked: 'Tarefas', path: 'Tarefas', screen: (p) => p.locator('.tasks-screen') },
     { name: 'Notas', via: 'bar', marked: 'Notas', path: 'Notas', screen: (p) => p.getByRole('heading', { level: 1, name: 'Notes' }) },
     { name: 'Taby', via: 'bar', marked: 'Taby', path: 'Taby', screen: (p) => p.getByRole('heading', { level: 1, name: 'Local assistant' }) },
@@ -239,7 +239,7 @@ for (const position of ['top', 'bottom'] as const) {
     await page.addInitScript((p) => { localStorage.setItem('hibi-theme', 'dark'); localStorage.setItem('hibi.ui.navigation-position.v1', p); }, position);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
-    await nav(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
+    await nav(page).getByRole('button', { name: 'Notas', exact: true }).click();
     // Em cima, o conteúdo só chega à faixa rolando; embaixo, já está sob a barra desde o começo da tela (no fim
     // da rolagem, o próprio respiro da área cobre a faixa).
     if (position === 'top') await page.locator('.notch-viewport').evaluate((element) => { element.scrollTop = 400; });

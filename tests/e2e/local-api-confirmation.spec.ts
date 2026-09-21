@@ -59,7 +59,7 @@ const DISMISSED = `hide:${CONFIRMATION_ID}`;
 const card = (page: Page) => page.getByRole('alert').filter({ hasText: 'Confirmação da API local' });
 // A tarefa criada só existe na lista com o botão de concluir; o cartão não tem nenhum botão assim,
 // então este seletor nunca confunde a pergunta com a resposta.
-const taskRow = (page: Page) => page.locator('.legacy-surface').getByRole('button', { name: `Complete ${TITLE}` });
+const taskRow = (page: Page) => page.getByRole('button', { name: `Concluir ${TITLE}` });
 // Só o que esta confirmação provocou: outra apresentação do companion no meio do caminho não muda
 // o que está sendo verificado aqui.
 const callsForIntent = (page: Page) => page.evaluate((id) => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.calls.filter((call) => call.includes(id)), CONFIRMATION_ID);

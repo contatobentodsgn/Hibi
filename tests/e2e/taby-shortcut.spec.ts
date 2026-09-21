@@ -27,7 +27,7 @@ test('o atalho global abre o Taby de qualquer tela', async ({ page }) => {
   await installBridge(page);
   await page.goto('/');
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
-  await expect(page.getByRole('textbox', { name: 'New task title' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tarefas, com espaço para respirar.' })).toBeVisible();
 
   await page.evaluate(() => (window as unknown as { hibiE2E: { press: () => void } }).hibiE2E.press());
 

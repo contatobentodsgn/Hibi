@@ -119,18 +119,18 @@ export function TasksScreen({ data, today = new Date().toISOString().slice(0, 10
           </div>
           <div className="tasks-screen__filter-group">
             <span className="tasks-screen__filter-heading"><Folder size={14} aria-hidden="true" />Pastas</span>
-            <button type="button" data-active={activeFolder === null} onClick={() => chooseFolder(null)}>Todas as pastas</button>
-            {visibleFolders.map((entry) => <button key={entry.name || 'none'} type="button" data-active={activeFolder === entry.name} onClick={() => chooseFolder(entry.name)}>{entry.name || 'Sem pasta'} <span>{entry.tasks}</span></button>)}
+            <button type="button" aria-label="Pasta · Todas" aria-pressed={activeFolder === null} data-active={activeFolder === null} onClick={() => chooseFolder(null)}>Todas as pastas</button>
+            {visibleFolders.map((entry) => <button key={entry.name || 'none'} type="button" aria-label={`Pasta · ${entry.name || 'Sem pasta'} ${entry.tasks}`} aria-pressed={activeFolder === entry.name} data-active={activeFolder === entry.name} onClick={() => chooseFolder(entry.name)}>{entry.name || 'Sem pasta'} <span>{entry.tasks}</span></button>)}
           </div>
         </aside>
 
         <section className="tasks-screen__main" aria-labelledby="tasks-list-title">
           <div className="tasks-screen__list-header"><div><h2 id="tasks-list-title">{folderLabel(activeFolder)}</h2><p>{visibleTasks.length} tarefa{visibleTasks.length === 1 ? '' : 's'} nesta visão</p></div><Button variant="tertiary" size="sm" onPress={() => { setSortByDeadline((current) => !current); onEvent('sort', 'Tarefas · Prazo'); }}><CalendarClock size={15} aria-hidden="true" />{sortByDeadline ? 'Por criação' : 'Por prazo'} <ChevronDown size={14} aria-hidden="true" /></Button></div>
-          <Card className="tasks-screen__list-card">
+          <Card className="tasks-screen__list-card list-card">
             {visibleTasks.length ? <ul className="tasks-screen__list">{visibleTasks.map((task) => {
               const completed = task.status === 'completed';
               const deadlineState = rhythm.deadlineStateById[task.id] ?? 'none';
-              return <li key={task.id} data-deadline={deadlineState}>
+              return <li className="task-row" key={task.id} data-deadline={deadlineState}>
                 <button type="button" className="tasks-screen__check" aria-label={`${completed ? 'Reabrir' : 'Concluir'} ${task.title}`} data-completed={completed} onClick={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }}><Check size={14} aria-hidden="true" /></button>
                 <TaskDetailsPanel
                   task={task}
@@ -139,7 +139,7 @@ export function TasksScreen({ data, today = new Date().toISOString().slice(0, 10
                   onOpenChange={(open) => setSelectedId(open ? task.id : null)}
                   deadline={deadlineCopy(deadlineState, task.deadline)}
                   deadlineTone={deadlineTone(deadlineState)}
-                ><TaskPanelActions task={task} editingTitle={editingTitle} titleDraft={titleDraft} deleteOpen={deleteOpen} onStartEdit={() => { setTitleDraft(task.title); setEditingTitle(true); }} onCancelEdit={() => setEditingTitle(false)} onTitleDraftChange={setTitleDraft} onRename={submitRename} onToggleStatus={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }} onEditDeadline={() => onEditTaskDeadline?.(task.id)} onDeleteOpenChange={setDeleteOpen} onDelete={() => { onDeleteTask?.(task.id); onEvent('delete', task.title); setDeleteOpen(false); setSelectedId(null); }} /></TaskDetailsPanel>
+                ><TaskPanelActions task={task} editingTitle={editingTitle} titleDraft={titleDraft} deleteOpen={deleteOpen} onStartEdit={() => { setTitleDraft(task.title); setEditingTitle(true); }} onCancelEdit={() => setEditingTitle(false)} onTitleDraftChange={setTitleDraft} onRename={submitRename} onToggleStatus={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }} onEditDeadline={() => { setSelectedId(null); onEditTaskDeadline?.(task.id); }} onDeleteOpenChange={setDeleteOpen} onDelete={() => { onDeleteTask?.(task.id); onEvent('delete', task.title); setDeleteOpen(false); setSelectedId(null); }} /></TaskDetailsPanel>
               </li>;
             })}</ul> : <div className="tasks-screen__empty"><HibiEmptyState icon={CheckCheck} tone="mint" title={activeFolder !== null ? 'Nenhuma tarefa nesta pasta' : 'Nenhuma tarefa nesta visão'} description={scope === 'open' ? 'As concluídas ficam guardadas em “Todas”.' : 'Comece por uma tarefa pequena e bem definida.'} action={<Button variant="secondary" size="sm" onPress={() => setCreateOpen(true)}>{activeFolder !== null ? `Criar tarefa em ${folderLabel(activeFolder)}` : 'Criar tarefa'}</Button>} /></div>}
           </Card>

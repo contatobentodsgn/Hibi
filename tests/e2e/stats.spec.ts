@@ -99,8 +99,8 @@ const todayCells = (page: Page) => dailyTable(page).getByRole('row').nth(1).getB
 const completeTask = async (page: Page, title: string) => {
   await expect(dock(page)).toBeVisible();
   await dock(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
-  await page.getByRole('button', { name: `Complete ${title}`, exact: true }).click();
-  await expect(page.getByRole('button', { name: `Complete ${title}`, exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: `Concluir ${title}`, exact: true }).click();
+  await expect(page.getByRole('button', { name: `Concluir ${title}`, exact: true })).toHaveCount(0);
 };
 
 const expectCompletedTaskToday = async (page: Page) => {

@@ -11,6 +11,7 @@ import { validateScheduleBlock } from './domain/conflicts';
 import { AppShell } from './ui/shell/AppShell';
 import type { NavKey } from './ui/shell/routes';
 import { AgendaView } from './ui/AgendaView';
+import { browserAgendaHost, readAgendaMode, writeAgendaMode, type AgendaMode } from './ui/agenda-storage';
 import { AgendaScreen } from './ui/redesign/screens/AgendaScreen';
 import { CommandPalette } from './ui/palette/CommandPalette';
 import { TodayScreen } from './ui/redesign/screens/TodayScreen';
@@ -88,6 +89,8 @@ export default function App() {
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const workspaceWarned = useRef(false);
   const [route, setRoute] = useState<NavKey>('home');
+  const [agendaHost] = useState(browserAgendaHost);
+  const [agendaMode, setAgendaMode] = useState<AgendaMode>(() => readAgendaMode(agendaHost.storage));
   // Muda à meia-noite e renderiza as telas de novo: "hoje" nelas é calculado ao renderizar.
   const calendarDay = useCalendarDay();
   const [focusStartPending, setFocusStartPending] = useState(false);
@@ -409,7 +412,10 @@ export default function App() {
   // cada modal já cuida do seu próprio Escape — então a regra é não empilhar a paleta sobre um modal
   // aberto, em toda forma de abrir a paleta (atalho, dock, captura rápida da Home).
   const modalOpen = taskCreateOpen || reminderCreateOpen || deadlineEditTaskId !== null;
-  const openPalette = useCallback(() => { if (!modalOpen) setPaletteOpen(true); }, [modalOpen]);
+  const openPalette = useCallback(() => {
+    const dialogOpen = document.querySelector('.hibi-action-dialog') !== null;
+    if (!modalOpen && !dialogOpen) setPaletteOpen(true);
+  }, [modalOpen]);
   React.useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -425,7 +431,7 @@ export default function App() {
     // Só remonta a tela quando a rota muda ou um filtro é pedido, para que clicar no item do dock
     // da tela atual nunca apague o que o usuário está digitando.
     setFolderFilter((current) => ({ folder: options.folder ?? null, nonce: next !== route || options.folder !== undefined ? current.nonce + 1 : current.nonce }));
-    setRoute(next);
+    setRoute(next === 'agenda' ? agendaMode : next);
     log(source, options.folder === undefined ? `Opened ${next}` : `Opened ${next} · folder`);
   };
   // A barra embaixo do notch: o texto enviado vira pedido, falar e parar vão para a voz, e fechar
@@ -463,7 +469,7 @@ export default function App() {
       case 'taby': return <TabyView data={data} turn={assistantTurn} conversations={conversations} voice={voice} />;
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
-      case 'agenda': case 'day': case 'week': return <AgendaScreen {...props} data={data} mode={route === 'week' ? 'week' : 'day'} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onMoveBlock={moveBlock} onModeChange={(mode) => setRoute(mode)} />;
+      case 'agenda': case 'day': case 'week': return <AgendaScreen {...props} data={data} mode={route === 'week' ? 'week' : 'day'} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onMoveBlock={moveBlock} onModeChange={(mode) => { setAgendaMode(mode); writeAgendaMode(agendaHost.storage, mode); setRoute(mode); }} />;
       case 'focus': return null;
       case 'break': return focusView('break');
       case 'settings': return <SettingsView {...props} data={data} onReset={resetStudyData} onRestore={restoreStudyData} onTestNotification={testNativeNotification} aiFallbackPolicy={aiFallbackPolicy} onAiFallbackPolicyChange={updateAiFallbackPolicy} aiUsage={aiUsage} onApplyImport={applyImportedTask} onApplyNotion={applyNotionSync} onMoveBlock={moveBlock} focusSettings={focusSettings} onFocusSettingsChange={updateFocusSettings} />;
@@ -476,7 +482,7 @@ export default function App() {
       ? <FocusBackgroundNotice onReturn={() => navigate('focus')} />
       : null;
     return <>{banner}{focusHost}{screen}</>;
-  }, [route, calendarDay, focusActive, focusStartPending, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, voice.listening, voice.transcript, voice.notice, folderFilter, openPalette, focusSettings]);
+  }, [route, calendarDay, focusActive, focusStartPending, events, aiHistory, aiFallbackPolicy, aiUsage, data, assistantTurn.state, conversations, voice.listening, voice.transcript, voice.notice, folderFilter, openPalette, focusSettings, agendaMode]);
 
   return (
     <AppShell active={route} onNavigate={(key) => {
