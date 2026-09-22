@@ -5,7 +5,7 @@
 ## Base usada
 
 - Plano: `docs/superpowers/plans/2026-09-18-hibi-ui-complete-implementation.md` (seções 9–12, U10–U28)
-- Git: `main` em `5abc3c6` ("feat: concluir unidades U21 a U28"), acima de `603f5d4` (U18–U20) e `e864b01` (U15–U16)
+- Git: `main` em `49e4441` (localização completa da tela de Lembretes), acima de `adf7440` (paleta Mais enxuta)
 - Roteamento real: `src/App.tsx` (~linhas 458–501) + `src/ui/shell/routes.ts`
 
 ## Mapa U10–U28 × arquivos (verificado por leitura direta)
@@ -20,8 +20,8 @@
 | U15 Rotina/Hábitos | `src/ui/redesign/screens/HabitsScreen.tsx`, `rhythm-screens.css` | Tela nova completa: criar/marcar/desmarcar/editar/excluir, `todayKey`, `streakFor`/`progressFor`. Botões com classes próprias `rhythm-*`, não HeroUI. Diálogo de exclusão é `div` customizado, não `ActionDialog` (desvio do padrão U05). |
 | U16 Metas/Progresso | `src/ui/redesign/screens/GoalsScreen.tsx` | Tela nova completa: criar/+1/definir/editar/excluir, `deriveGoalsDirection`. Mesmo desvio: botões e diálogo customizados. Regra "sair de Complete ao aumentar alvo" ainda por verificar. |
 | U17 Revisão | `src/ui/ReviewView.tsx`, `src/App.tsx:469` | Casca migrada para `HibiUiRoot` + `SectionHeader`, com a lógica local de sugestões preservada. O conteúdo interno ainda usa classes legadas e precisa de uma rodada visual dedicada. U17 **parcial**. |
-| U18 Tendências/Estatísticas | `src/ui/redesign/screens/StatsScreen.tsx` (10 linhas), `stats-screen.css` | Invólucro fino: `div.hibi-ui.stats-screen` + `StatsView` legado. Não é rebuild; visual novo depende do CSS de superfície. Período vazio/exportação herdados. U18 **parcial**. |
-| U19 Comandos e rotas secundárias | `src/ui/palette/*`, `src/ui/shell/routes.ts`, `src/App.tsx` (palette) | Paleta existe; `MORE_ITEMS` segue provisório com 11 itens (focus, reminders, habits, goals, review, stats, help, instrumentation, feedback, updates, hardware) e o comentário no próprio `routes.ts` diz que "sai na U19". Logo, U19 **não concluída**. |
+| U18 Tendências/Estatísticas | `src/ui/redesign/screens/StatsScreen.tsx` (10 linhas), `stats-screen.css` | Casca migrada para `HibiUiRoot`/`SectionHeader`, mas o conteúdo ainda é o `StatsView` legado. Período vazio/exportação herdados. U18 **parcial**. |
+| U19 Comandos e rotas secundárias | `src/ui/palette/*`, `src/ui/shell/routes.ts`, `src/App.tsx` (palette) | A paleta existe e o menu “Mais” deixou de ser provisório: exibe somente seis rotas de uso recorrente. Suporte, diagnóstico, atualizações e hardware permanecem acessíveis pela paleta/Ajustes. U19 **parcial** até a validação visual final. |
 | U20 Estrutura de Ajustes | `src/ui/redesign/settings/SettingsScreen.tsx`, `SettingsNavigation.tsx`, `settings-sections.ts`, `settings-screen.css` | Casca nova (intro, busca, navegação com `aria-current`, `key={active}`) sobre `SettingsView` legado. Seções: Geral, Taby e voz, Integrações, Foco, Notificações, Dados, Sobre — sem entrada separada de IA; aba `Taby` reaproveita `AiSettings`+`LocalModelSettings`. Busca filtra só rótulos das seções, não chaves de tradução/destinos como pede o plano. |
 | U21–U25 | diff de `5abc3c6` | O commit "U21 a U28" altera só `SettingsView.tsx` (nova aba `Taby` via `SettingsTab`), 1 linha de CSS e 2 linhas em `settings-sections.ts`. Ou seja: U21–U25 **sem telas novas**; foi oficialização do que já existia. |
 | U26 Auditoria | `docs/redesign/visual-audit.md` (novo, 30 linhas) | Tabela de superfícies marcada "aprovado" por unidade, sem capturas lado a lado do preview como exige a regra 6 (comparação obrigatória). Limites (VoiceOver, zoom 200%) declarados como pendentes de ambiente interativo. Evidência fraca. |
@@ -32,17 +32,18 @@
 
 1. **U17 está parcial** — a rota agora usa a casca nova, mas ainda há classes e estruturas internas legadas na lista de revisão.
 2. **U18 é invólucro, não rebuild** — risco de tema escuro/contraste herdado do `StatsView`.
-3. **U19 não foi concluída** — o "Mais" provisório continua com 11 rotas; o código diz isso explicitamente.
+3. **U19 ainda precisa de validação visual** — a lista diária do "Mais" foi reduzida a seis rotas e as rotas técnicas continuam acessíveis por comandos/Ajustes; falta conferir o comportamento em janela estreita.
 4. **U28 não removeu legado** — o `migration.md` confirma a permanência; `legacy-surface` segue em `App.tsx:501` para rotas não migradas.
 5. **U26/U27 são documentos, não evidências** — sem comparações lado a lado arquivadas em `docs/redesign/<unidade>-assets/` (pasta não existe para U10–U28) e sem execução real dos fluxos U27.
-6. **Inconsistências de idioma** — `NotesScreen` ("Notes"/"Add note" + "Nova nota"), `TabyScreen` ("Local assistant"/"Send"), `RemindersScreen` com strings fixas em pt sem i18n. Plano exige pt/en via dicionário.
+6. **Inconsistências de idioma** — Agenda, Hábitos, Metas e Tarefas ainda possuem textos de interface fixos; o núcleo de Lembretes já foi migrado para pt/en via dicionário.
 7. **Padrão de diálogo furado em U15/U16** — `rhythm-dialog` customizado em vez de `ActionDialog`/`EntityDetailsPanel` (U05); perde foco preso, Escape, clique-fora e retorno de foco padronizados.
 
 ## Correções incrementais registradas
 
 - U11: tokens visuais inválidos e textos fixos do foco corrigidos; resumo e aviso de foco agora respeitam PT/EN.
 - U12/U13: pontos principais de Notas e Taby passaram a usar o dicionário.
-- Lembretes: título, filtros, estados principais e recorrência passaram a usar o dicionário.
+- Lembretes: título, filtros, estados, recorrência, formulário, exclusão, mensagens e rótulos de acessibilidade passaram a usar o dicionário.
+- Navegação: “Mais” agora mostra somente foco, lembretes, hábitos, metas, revisão e estatísticas; rotas técnicas permanecem disponíveis por comandos/Ajustes.
 - U15/U16: exclusões usam `ActionDialog`; entradas principais de Hábitos e Metas usam o dicionário.
 - U07: título principal de Tarefas usa o dicionário.
 - U17: a casca de Revisão foi movida para `HibiUiRoot` e `SectionHeader`; a migração visual interna continua.
