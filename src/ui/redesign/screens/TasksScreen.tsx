@@ -38,11 +38,12 @@ const deadlineCopy = (state: TaskDeadlineState, deadline?: string) => {
 
 const deadlineTone = (state: TaskDeadlineState): HibiTagTone => state === 'overdue' ? 'peach' : state === 'today' ? 'lavender' : 'neutral';
 
-const folderLabel = (folder: string | null) => folder === null ? 'Todas as pastas' : folder || 'Sem pasta';
+const folderLabel = (folder: string | null, t: (key: import('../../../i18n/dictionary').DictionaryKey) => string) => folder === null ? t('tasks.allFolders') : folder || t('tasks.noFolder');
 
 /** A lista de tarefas do redesenho (U07): a seleção abre os detalhes sem trocar de rota ou perder o filtro atual. */
 export function TasksScreen({ data, today = new Date().toISOString().slice(0, 10), onEvent, onTaskStatusChange, onCreateTask, onRenameTask, onDeleteTask, onEditTaskDeadline, initialFolder = null }: Props) {
   const t = useT();
+  const copy = (key: import('../../../i18n/dictionary').DictionaryKey, values: Record<string, string | number> = {}) => Object.entries(values).reduce((value, [name, replacement]) => value.replace(`{${name}}`, String(replacement)), t(key));
   const [folder, setFolder] = useState<string | null>(initialFolder);
   const [scope, setScope] = useState<Scope>('open');
   const [sortByDeadline, setSortByDeadline] = useState(false);
@@ -103,31 +104,31 @@ export function TasksScreen({ data, today = new Date().toISOString().slice(0, 10
       <SectionHeader
         title={t('tasks.title')}
         subtitle={`${openTaskCount} aberta${openTaskCount === 1 ? '' : 's'} · ${rhythm.overdue ? `${rhythm.overdue} atrasada${rhythm.overdue === 1 ? '' : 's'}` : 'Tudo no seu ritmo'}`}
-        actions={<ActionDialog trigger={<Button variant="primary"><Plus size={17} aria-hidden="true" />Nova tarefa</Button>} isOpen={createOpen} onOpenChange={setCreateOpen} title="O próximo passo." description={`Ela será criada em ${folderLabel(activeFolder).toLowerCase()} com duração padrão de 60 minutos.`}>
+        actions={<ActionDialog trigger={<Button variant="primary"><Plus size={17} aria-hidden="true" />{t('tasks.create')}</Button>} isOpen={createOpen} onOpenChange={setCreateOpen} title={t('tasks.nextStep')} description={copy('tasks.createdIn', { folder: folderLabel(activeFolder, t).toLowerCase() })}>
           <form className="tasks-screen__create-form" onSubmit={submitCreate}>
-            <label htmlFor="task-title">Título da tarefa</label>
-            <input id="task-title" value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder="O que importa agora?" autoFocus />
-            <div><Button type="button" variant="secondary" onPress={() => setCreateOpen(false)}>Cancelar</Button><Button type="submit" variant="primary">Criar tarefa</Button></div>
+            <label htmlFor="task-title">{t('tasks.titleField')}</label>
+            <input id="task-title" value={newTitle} onChange={(event) => setNewTitle(event.target.value)} placeholder={t('tasks.placeholder')} autoFocus />
+            <div><Button type="button" variant="secondary" onPress={() => setCreateOpen(false)}>{t('tasks.cancel')}</Button><Button type="submit" variant="primary">{t('tasks.create')}</Button></div>
           </form>
         </ActionDialog>}
       />
 
       <div className="tasks-screen__layout">
-        <aside className="tasks-screen__sidebar" aria-label="Filtros de tarefas">
+        <aside className="tasks-screen__sidebar" aria-label={t('tasks.filters')}>
           <div className="tasks-screen__filter-group">
-            <span className="tasks-screen__filter-heading"><ListFilter size={14} aria-hidden="true" />Ver</span>
-            <button type="button" data-active={scope === 'open'} onClick={() => { setScope('open'); onEvent('filter', 'Tarefas · Abertas'); }}><Circle size={15} aria-hidden="true" />Em aberto <span>{openTaskCount}</span></button>
-            <button type="button" data-active={scope === 'all'} onClick={() => { setScope('all'); onEvent('filter', 'Tarefas · Todas'); }}><CheckCheck size={15} aria-hidden="true" />Todas <span>{data.tasks.length}</span></button>
+            <span className="tasks-screen__filter-heading"><ListFilter size={14} aria-hidden="true" />{t('tasks.view')}</span>
+            <button type="button" data-active={scope === 'open'} onClick={() => { setScope('open'); onEvent('filter', 'Tarefas · Abertas'); }}><Circle size={15} aria-hidden="true" />{t('tasks.open')} <span>{openTaskCount}</span></button>
+            <button type="button" data-active={scope === 'all'} onClick={() => { setScope('all'); onEvent('filter', 'Tarefas · Todas'); }}><CheckCheck size={15} aria-hidden="true" />{t('tasks.all')} <span>{data.tasks.length}</span></button>
           </div>
           <div className="tasks-screen__filter-group">
-            <span className="tasks-screen__filter-heading"><Folder size={14} aria-hidden="true" />Pastas</span>
-            <button type="button" aria-label="Pasta · Todas" aria-pressed={activeFolder === null} data-active={activeFolder === null} onClick={() => chooseFolder(null)}>Todas as pastas</button>
-            {visibleFolders.map((entry) => <button key={entry.name || 'none'} type="button" aria-label={`Pasta · ${entry.name || 'Sem pasta'} ${entry.tasks}`} aria-pressed={activeFolder === entry.name} data-active={activeFolder === entry.name} onClick={() => chooseFolder(entry.name)}>{entry.name || 'Sem pasta'} <span>{entry.tasks}</span></button>)}
+            <span className="tasks-screen__filter-heading"><Folder size={14} aria-hidden="true" />{t('tasks.folders')}</span>
+            <button type="button" aria-label={`${t('tasks.folders')} · ${t('tasks.all')}`} aria-pressed={activeFolder === null} data-active={activeFolder === null} onClick={() => chooseFolder(null)}>{t('tasks.allFolders')}</button>
+            {visibleFolders.map((entry) => <button key={entry.name || 'none'} type="button" aria-label={`${t('tasks.folders')} · ${entry.name || t('tasks.noFolder')} ${entry.tasks}`} aria-pressed={activeFolder === entry.name} data-active={activeFolder === entry.name} onClick={() => chooseFolder(entry.name)}>{entry.name || t('tasks.noFolder')} <span>{entry.tasks}</span></button>)}
           </div>
         </aside>
 
         <section className="tasks-screen__main" aria-labelledby="tasks-list-title">
-          <div className="tasks-screen__list-header"><div><h2 id="tasks-list-title">{folderLabel(activeFolder)}</h2><p>{visibleTasks.length} tarefa{visibleTasks.length === 1 ? '' : 's'} nesta visão</p></div><Button variant="tertiary" size="sm" onPress={() => { setSortByDeadline((current) => !current); onEvent('sort', 'Tarefas · Prazo'); }}><CalendarClock size={15} aria-hidden="true" />{sortByDeadline ? 'Por criação' : 'Por prazo'} <ChevronDown size={14} aria-hidden="true" /></Button></div>
+          <div className="tasks-screen__list-header"><div><h2 id="tasks-list-title">{folderLabel(activeFolder, t)}</h2><p>{copy('tasks.count', { count: visibleTasks.length, suffix: visibleTasks.length === 1 ? '' : 's' })}</p></div><Button variant="tertiary" size="sm" onPress={() => { setSortByDeadline((current) => !current); onEvent('sort', 'Tarefas · Prazo'); }}><CalendarClock size={15} aria-hidden="true" />{sortByDeadline ? t('tasks.byCreation') : t('tasks.byDeadline')} <ChevronDown size={14} aria-hidden="true" /></Button></div>
           <Card className="tasks-screen__list-card list-card">
             {visibleTasks.length ? <ul className="tasks-screen__list">{visibleTasks.map((task) => {
               const completed = task.status === 'completed';
@@ -143,7 +144,7 @@ export function TasksScreen({ data, today = new Date().toISOString().slice(0, 10
                   deadlineTone={deadlineTone(deadlineState)}
                 ><TaskPanelActions task={task} editingTitle={editingTitle} titleDraft={titleDraft} deleteOpen={deleteOpen} onStartEdit={() => { setTitleDraft(task.title); setEditingTitle(true); }} onCancelEdit={() => setEditingTitle(false)} onTitleDraftChange={setTitleDraft} onRename={submitRename} onToggleStatus={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }} onEditDeadline={() => { setSelectedId(null); onEditTaskDeadline?.(task.id); }} onDeleteOpenChange={setDeleteOpen} onDelete={() => { onDeleteTask?.(task.id); onEvent('delete', task.title); setDeleteOpen(false); setSelectedId(null); }} /></TaskDetailsPanel>
               </li>;
-            })}</ul> : <div className="tasks-screen__empty"><HibiEmptyState icon={CheckCheck} tone="mint" title={activeFolder !== null ? 'Nenhuma tarefa nesta pasta' : 'Nenhuma tarefa nesta visão'} description={scope === 'open' ? 'As concluídas ficam guardadas em “Todas”.' : 'Comece por uma tarefa pequena e bem definida.'} action={<Button variant="secondary" size="sm" onPress={() => setCreateOpen(true)}>{activeFolder !== null ? `Criar tarefa em ${folderLabel(activeFolder)}` : 'Criar tarefa'}</Button>} /></div>}
+            })}</ul> : <div className="tasks-screen__empty"><HibiEmptyState icon={CheckCheck} tone="mint" title={activeFolder !== null ? 'Nenhuma tarefa nesta pasta' : 'Nenhuma tarefa nesta visão'} description={scope === 'open' ? 'As concluídas ficam guardadas em “Todas”.' : 'Comece por uma tarefa pequena e bem definida.'} action={<Button variant="secondary" size="sm" onPress={() => setCreateOpen(true)}>{activeFolder !== null ? `Criar tarefa em ${folderLabel(activeFolder, t)}` : t('tasks.create')}</Button>} /></div>}
           </Card>
         </section>
 
