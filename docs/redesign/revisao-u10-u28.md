@@ -54,6 +54,8 @@
 - `npm run build`: build nativo, TypeScript e Vite aprovados; permanece apenas o aviso não bloqueante de chunk acima de 500 kB.
 - `scripts/visual-u10-u28.mjs`: 10 rotas em viewport larga (1440×1000) + 10 em viewport estreita (900×900), total de **20 capturas reais**. A navegação compacta foi acionada e cada captura confirmou a rota esperada.
 - Correção adicional: rótulos de dias/categorias e período da Agenda agora respeitam o idioma selecionado; a suíte de Agenda/Redesign passou com **2 arquivos / 3 testes**.
+- Varredura final: os textos de interface dos fluxos Agenda, Hábitos, Metas, Tarefas e Lembretes não contêm mais literais fixos; os textos operacionais e rótulos de acessibilidade relevantes também usam o dicionário.
+- Após a última rodada de localização, a bateria completa permaneceu verde: Vitest **121 arquivos / 949 testes** e Node **671 aprovados / 0 falhas**.
 
 ## Pendências de migração estrutural
 

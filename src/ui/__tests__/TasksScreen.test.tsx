@@ -44,7 +44,7 @@ describe('TasksScreen', () => {
     expect(markup).toContain('Clientes');
     expect(markup).toContain('Design');
     expect(markup).toContain('Criar tarefa');
-    expect(markup).toContain('Concluir Entregar a proposta longa');
+    expect(markup).toContain('Concluir tarefa Entregar a proposta longa');
   });
 
   it('shows an honest empty state for a selected folder without tasks', () => {
