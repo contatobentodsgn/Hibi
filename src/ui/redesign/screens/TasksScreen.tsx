@@ -9,6 +9,7 @@ import { HibiEmptyState } from '../components/HibiEmptyState';
 import { HibiTag, type HibiTagTone } from '../components/HibiTag';
 import { HibiUiRoot } from '../components/HibiUiRoot';
 import { SectionHeader } from '../components/SectionHeader';
+import { useT } from '../../../i18n/LocaleProvider';
 import { TaskDetailsPanel } from './TaskDetailsPanel';
 import './tasks-screen.css';
 
@@ -41,6 +42,7 @@ const folderLabel = (folder: string | null) => folder === null ? 'Todas as pasta
 
 /** A lista de tarefas do redesenho (U07): a seleção abre os detalhes sem trocar de rota ou perder o filtro atual. */
 export function TasksScreen({ data, today = new Date().toISOString().slice(0, 10), onEvent, onTaskStatusChange, onCreateTask, onRenameTask, onDeleteTask, onEditTaskDeadline, initialFolder = null }: Props) {
+  const t = useT();
   const [folder, setFolder] = useState<string | null>(initialFolder);
   const [scope, setScope] = useState<Scope>('open');
   const [sortByDeadline, setSortByDeadline] = useState(false);
@@ -99,7 +101,7 @@ export function TasksScreen({ data, today = new Date().toISOString().slice(0, 10
   return (
     <HibiUiRoot className="tasks-screen">
       <SectionHeader
-        title="Tarefas, com espaço para respirar."
+        title={t('tasks.title')}
         subtitle={`${openTaskCount} aberta${openTaskCount === 1 ? '' : 's'} · ${rhythm.overdue ? `${rhythm.overdue} atrasada${rhythm.overdue === 1 ? '' : 's'}` : 'Tudo no seu ritmo'}`}
         actions={<ActionDialog trigger={<Button variant="primary"><Plus size={17} aria-hidden="true" />Nova tarefa</Button>} isOpen={createOpen} onOpenChange={setCreateOpen} title="O próximo passo." description={`Ela será criada em ${folderLabel(activeFolder).toLowerCase()} com duração padrão de 60 minutos.`}>
           <form className="tasks-screen__create-form" onSubmit={submitCreate}>
