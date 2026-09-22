@@ -69,7 +69,12 @@ function createLocalModelDownload({ store, fetchImpl = globalThis.fetch, fsImpl 
         }
         return publish({ status: 'ready', receivedBytes: running.received, totalBytes: safe.sizeBytes, error: null });
       } catch (error) {
-        try { handle?.destroy?.(); } catch { /* fluxo já fechado */ }
+        if (handle) {
+          // O corpo pode estar retomando um `write` que ficou pendente no exato instante do cancelamento.
+          // O erro de stream destruído é esperado nesse caminho; sem um listener, o Node o publica como
+          // exceção não capturada depois que `start()` já devolveu o estado cancelled.
+          try { handle.on?.('error', () => {}); handle.destroy?.(); } catch { /* fluxo já fechado */ }
+        }
         try { fsImpl.rmSync(part, { force: true }); } catch { /* nada a limpar */ }
         const cancelled = controller.signal.aborted;
         return publish({

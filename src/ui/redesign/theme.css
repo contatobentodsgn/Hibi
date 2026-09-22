@@ -33,6 +33,10 @@
     --hibi-shadow: 0 3px 4px -3px #16162712, 0 10px 26px -18px #16162720;
     --hibi-accent: #7c6da1;
     --hibi-accent-ink: #ffffff;
+    /* Aliases usados por superfícies U11 e mantidos no mesmo token source of truth. */
+    --hibi-purple: var(--hibi-accent);
+    --hibi-surface: var(--hibi-paper);
+    --hibi-shadow-soft: var(--hibi-shadow);
     /* A ação principal do preview ("Entrar em foco"): quase preta nos dois temas. */
     --hibi-action: #242428;
     --hibi-action-hover: #3a3a40;

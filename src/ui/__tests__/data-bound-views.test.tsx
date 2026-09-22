@@ -288,11 +288,11 @@ describe('study views', () => {
 
   it('separates focus and break durations', () => {
     const focus = renderToStaticMarkup(<FocusView onEvent={onEvent} />);
-    expect(focus).toContain('25m focus');
+    expect(focus).toContain('25 min de foco');
     expect(focus).not.toContain('5m break');
     expect(focus).toContain('Fazer uma pausa');
-    expect(focus).toContain('aria-label="Focus session summary"');
-    expect(focus).toContain('Sessions today');
+    expect(focus).toContain('aria-label="Resumo da sessão de foco"');
+    expect(focus).toContain('Sessões hoje');
     // A frase só permanece na tela porque o portão em electron/focus-gate.mjs a cumpre.
     expect(focus).toContain('ficam quietos durante o foco');
 
