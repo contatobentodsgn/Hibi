@@ -208,7 +208,7 @@ export function AgendaScreen({
     link.download = "hibi-calendar.ics";
     link.click();
     URL.revokeObjectURL(url);
-    onEvent("export", "Exported calendar ICS", "pass");
+    onEvent("export", t("agenda.exported"), "pass");
   };
 
   const refreshExternalCalendar = async () => {
@@ -243,9 +243,7 @@ export function AgendaScreen({
         (await bridge.listCalendarSyncChanges?.()) ?? EMPTY_CALENDAR_CHANGES,
       );
     } catch {
-      setCalendarNotice(
-        "Não foi possível atualizar os calendários conectados.",
-      );
+      setCalendarNotice(t("agenda.calendarRefreshFailed"));
     }
   };
   useEffect(() => {
@@ -278,7 +276,7 @@ export function AgendaScreen({
         }),
       );
     } catch {
-      setCalendarNotice("Não foi possível preparar a atualização do evento.");
+      setCalendarNotice(t("agenda.calendarPrepareFailed"));
     }
   };
   const bringCalendarChange = async (
@@ -288,7 +286,7 @@ export function AgendaScreen({
     const bridge = window.hibiDesktop;
     if (!block || !onMoveBlock || !bridge?.acknowledgeCalendarIncoming) return;
     if (!onMoveBlock(block.id, change.start, change.end)) {
-      setCalendarNotice("O horário recebido não é válido para esse bloco.");
+      setCalendarNotice(t("agenda.invalidIncomingTime"));
       return;
     }
     try {
@@ -321,13 +319,11 @@ export function AgendaScreen({
         choice,
       });
       if (result.resolved) {
-        setCalendarNotice(
-          "O vínculo externo foi removido; o bloco permanece apenas no Hibi.",
-        );
+        setCalendarNotice(t("agenda.externalRemoved"));
         await refreshExternalCalendar();
       } else queueCalendarAction(result.action);
     } catch {
-      setCalendarNotice("Não foi possível preparar a resolução do conflito.");
+      setCalendarNotice(t("agenda.conflictResolveFailed"));
     }
   };
   const confirmCalendarAction = async () => {

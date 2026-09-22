@@ -292,9 +292,9 @@ export function HabitsScreen({
                       <Pencil size={15} aria-hidden="true" />
                     </button>
                     <button
-                      aria-label={t("habits.delete").replace(
-                        "Excluir hábito",
-                        `Excluir ${habit.title}`,
+                      aria-label={t("habits.deleteOf").replace(
+                        "{title}",
+                        habit.title,
                       )}
                       onClick={() => setDeleting(habit)}
                     >

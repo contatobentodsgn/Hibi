@@ -172,7 +172,12 @@ export function TasksScreen({
     <HibiUiRoot className="tasks-screen">
       <SectionHeader
         title={t("tasks.title")}
-        subtitle={`${openTaskCount} aberta${openTaskCount === 1 ? "" : "s"} · ${rhythm.overdue ? `${rhythm.overdue} atrasada${rhythm.overdue === 1 ? "" : "s"}` : "Tudo no seu ritmo"}`}
+        subtitle={copy("tasks.subtitle", {
+          open: openTaskCount,
+          suffix: openTaskCount === 1 ? "" : "s",
+          overdue: rhythm.overdue,
+          overdueSuffix: rhythm.overdue === 1 ? "" : "s",
+        })}
         actions={
           <ActionDialog
             trigger={
