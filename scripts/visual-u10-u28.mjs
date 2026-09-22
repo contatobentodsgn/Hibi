@@ -9,16 +9,20 @@ for (const [width, height, suffix] of [[1440, 1000, 'wide'], [900, 900, 'narrow'
   const page = await browser.newPage({ viewport: { width, height } });
   await page.goto('http://127.0.0.1:5173', { waitUntil: 'networkidle' });
   page.setDefaultTimeout(2500);
-  for (const route of (width < 1000 ? routes.slice(0, 5) : routes)) {
+  for (const route of routes) {
     const visible = ['hoje', 'agenda', 'tarefas', 'notas', 'taby'].includes(route);
     const label = { hoje: 'Hoje', agenda: 'Agenda', tarefas: 'Tarefas', notas: 'Notas', taby: 'Taby' }[route];
     try {
       if (visible) {
-        await page.locator('button:visible').filter({ hasText: label }).first().click();
+        await page.locator('button:visible').filter({ hasText: label }).first().evaluate((button) => button.click());
       } else {
-        await page.getByRole('button', { name: /Mais/ }).click();
+        await page.locator('button:visible').filter({ has: page.locator('svg') }).evaluateAll((buttons) => {
+          const button = buttons.find((item) => item.getAttribute('aria-label')?.includes('Mais'));
+          if (!button) throw new Error('compact More button not found');
+          button.click();
+        });
         const labels = { lembretes: 'Lembretes', habitos: 'Hábitos', metas: 'Metas', revisao: 'Revisão', stats: 'Estatísticas' };
-        await page.getByRole('menuitem', { name: labels[route], exact: true }).click();
+        await page.getByRole('menuitem', { name: labels[route], exact: true }).evaluate((item) => item.click());
       }
       await page.waitForTimeout(150);
       await page.screenshot({ path: `${out}/${route}-${suffix}.png`, fullPage: true });

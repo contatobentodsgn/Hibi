@@ -38,6 +38,7 @@ import {
   type StatsNotice,
 } from './stats-format';
 import './stats.css';
+import './redesign/screens/stats-screen.css';
 import { HibiUiRoot } from './redesign/components/HibiUiRoot';
 import { SectionHeader } from './redesign/components/SectionHeader';
 
@@ -175,7 +176,7 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
   );
 
   return (
-    <HibiUiRoot className="stats-view stats-view--redesign">
+    <HibiUiRoot className="stats-screen stats-view stats-view--redesign">
       <SectionHeader title={t('stats.title')} subtitle={period ? periodRange(period, language) : t('stats.noPeriod')} />
       <div className="stats-controls">
         <div className="stats-presets" role="group" aria-label={t('stats.period')}>
