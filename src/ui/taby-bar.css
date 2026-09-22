@@ -1,25 +1,25 @@
 html:has(.taby-bar), html:has(.taby-bar) body { background: transparent; margin: 0; min-width: 0; overflow: hidden; }
 html:has(.taby-bar) #root { margin: 0; padding: 0; width: 100vw; height: 100vh; }
-.taby-bar { box-sizing: border-box; width: 100vw; min-height: 52px; max-height: 100vh; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 18px; border-radius: 26px; background: #fbf1df; color: #2b2622; font: 500 14px/1.35 system-ui, -apple-system, sans-serif; box-shadow: 0 6px 24px #0000002e; }
+.taby-bar { box-sizing: border-box; width: 100vw; min-height: 52px; max-height: 100vh; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 18px; border: 1px solid var(--hibi-edge); border-radius: 26px; background: var(--hibi-paper); color: var(--hibi-ink); font: 500 14px/1.35 var(--hibi-font); box-shadow: var(--hibi-shadow); }
 .taby-bar[data-mode=hidden] { display: none; }
 .taby-bar[data-mode=reply], .taby-bar[data-mode=confirmation], .taby-bar[data-mode=notice] { align-items: flex-start; border-radius: 22px; padding: 12px 10px 12px 18px; }
 .taby-bar-field { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; }
-.taby-bar-field::placeholder, .taby-bar-hint { color: #8f857a; }
+.taby-bar-field::placeholder, .taby-bar-hint { color: var(--hibi-ink-muted); }
 .taby-bar-text { flex: 1; min-width: 0; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .taby-bar-reply { white-space: pre-wrap; overflow-y: auto; max-height: calc(100vh - 24px); overflow-wrap: anywhere; }
 .taby-bar-actions { display: flex; align-items: center; gap: 6px; flex: none; }
-.taby-bar-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 999px; background: #1d1a17; color: #fff; cursor: pointer; }
-.taby-bar-pill { border: 0; border-radius: 999px; padding: 7px 14px; background: #1d1a1714; color: #1d1a17; font: 600 13px system-ui; cursor: pointer; }
-.taby-bar-pill.is-primary { background: #1d1a17; color: #fff; }
-.taby-bar-icon:focus-visible, .taby-bar-pill:focus-visible { outline: 3px solid #ffb347; outline-offset: 2px; }
+.taby-bar-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 999px; background: var(--hibi-action); color: var(--hibi-action-ink); cursor: pointer; }
+.taby-bar-pill { border: 0; border-radius: 999px; padding: 7px 14px; background: color-mix(in srgb, var(--hibi-ink) 10%, transparent); color: var(--hibi-ink); font: 600 13px var(--hibi-font); cursor: pointer; }
+.taby-bar-pill.is-primary { background: var(--hibi-action); color: var(--hibi-action-ink); }
+.taby-bar-icon:focus-visible, .taby-bar-pill:focus-visible { outline: 3px solid var(--hibi-accent); outline-offset: 2px; }
 .taby-bar-pulse { width: 10px; height: 10px; border-radius: 999px; background: #e0473c; animation: taby-bar-pulse 1.1s ease-in-out infinite; }
 .taby-bar-dots { display: flex; gap: 4px; padding-right: 10px; }
-.taby-bar-dots i { width: 6px; height: 6px; border-radius: 999px; background: #1d1a17; animation: taby-bar-dot 1s ease-in-out infinite; }
+.taby-bar-dots i { width: 6px; height: 6px; border-radius: 999px; background: var(--hibi-ink); animation: taby-bar-dot 1s ease-in-out infinite; }
 .taby-bar-dots i:nth-child(2) { animation-delay: .15s; } .taby-bar-dots i:nth-child(3) { animation-delay: .3s; }
 @keyframes taby-bar-pulse { 50% { opacity: .35; transform: scale(.8); } }
 @keyframes taby-bar-dot { 50% { opacity: .25; transform: translateY(-2px); } }
 @media (prefers-reduced-motion: reduce) { .taby-bar-pulse, .taby-bar-dots i { animation: none; } }
-@media (prefers-color-scheme: dark) { .taby-bar { background: #201d1a; color: #f4ece0; } .taby-bar-icon { background: #f4ece0; color: #201d1a; } .taby-bar-pill { background: #f4ece01f; color: #f4ece0; } .taby-bar-pill.is-primary { background: #f4ece0; color: #201d1a; } .taby-bar-dots i { background: #f4ece0; } }
+:root[data-theme="dark"] .taby-bar { border-color: var(--hibi-edge); }
 /* Mais estreita, a confirmação não cabe numa linha: o texto em cima, os botões embaixo, à direita. */
 .taby-bar[data-mode=confirmation] { flex-direction: column; align-items: stretch; gap: 8px; }
 .taby-bar[data-mode=confirmation] .taby-bar-actions { justify-content: flex-end; }
