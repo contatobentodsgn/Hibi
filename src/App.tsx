@@ -26,6 +26,7 @@ import { deriveFocusMood, focusSessionsCompletedToday } from './ui/focus-mood';
 import { SettingsView } from './ui/SettingsView';
 import { InstrumentationView } from './ui/InstrumentationView';
 import { NotesView } from './ui/NotesView';
+import { NotesScreen } from './ui/redesign/screens/NotesScreen';
 import { buildNotificationEntries } from './domain/notifications';
 import { browserFocusSettingsHost, readFocusSettings, writeFocusSettings, type FocusSettings } from './ui/focus-settings';
 import { HabitsView } from './ui/HabitsView';
@@ -460,7 +461,7 @@ export default function App() {
     const focusHost = keepFocus ? <div className="focus-host" style={{ display: route === 'focus' ? 'contents' : 'none' }}>{focusView('focus')}</div> : null;
     const screen = (() => { switch (route) {
       case 'tasks': return <TasksScreen key={`tasks-${folderFilter.nonce}`} {...props} data={data} initialFolder={folderFilter.folder} onTaskStatusChange={changeTaskStatus} onCreateTask={(title, folder) => createTask({ title, durationMinutes: 60, folder: folder ?? 'Bento' })} onRenameTask={renameTask} onDeleteTask={deleteTask} onEditTaskDeadline={editTaskDeadline} />;
-      case 'notes': return <NotesView key={`notes-${folderFilter.nonce}`} data={data} initialFolder={folderFilter.folder} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
+      case 'notes': return <NotesScreen key={`notes-${folderFilter.nonce}`} data={data} initialFolder={folderFilter.folder} onCreate={createNote} onUpdate={updateNote} onDelete={deleteNote} />;
       case 'reminders': return <RemindersScreen {...props} data={data} onReminderStatusChange={changeReminderStatus} onCreateReminder={() => setReminderCreateOpen(true)} onRenameReminder={renameReminder} onDeleteReminder={deleteReminder} onEditReminderSchedule={editReminderSchedule} />;
       case 'habits': return <HabitsView data={data} onCreate={createHabit} onToggleCompletion={toggleHabitCompletion} onUpdate={updateHabit} onDelete={deleteHabit} />;
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
