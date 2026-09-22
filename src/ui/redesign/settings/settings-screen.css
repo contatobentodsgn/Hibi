@@ -10,6 +10,7 @@
 .settings-navigation button { display: grid; gap: 3px; text-align: left; border: 0; border-radius: 12px; padding: 11px 12px; background: transparent; color: var(--hibi-ink); cursor: pointer; }
 .settings-navigation button span { color: var(--hibi-ink-muted); font-size: 12px; }
 .settings-navigation button.is-active { background: var(--hibi-lavender); color: var(--hibi-lavender-ink); }
+.settings-navigation button:focus-visible, .settings-navigation input:focus-visible { outline: 3px solid var(--hibi-accent); outline-offset: 2px; }
 .settings-screen__content .settings-view { padding: 0; }
 .settings-screen__content .view-heading { display: none; }
 @media (max-width: 760px) { .settings-screen { padding: 20px 14px 88px; } .settings-screen__layout { grid-template-columns: 1fr; } .settings-navigation { position: static; } .settings-navigation nav { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

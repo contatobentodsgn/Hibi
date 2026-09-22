@@ -21,5 +21,6 @@ describe('U18/U20 redesign surfaces', () => {
     expect(markup).toContain('settings-navigation')
     expect(markup).toContain('Pesquisar ajustes')
     expect(markup).toContain('Aparência')
+    expect(markup).toContain('Taby e voz')
   })
 })
