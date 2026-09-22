@@ -4,6 +4,8 @@ import { findReviewIssues, type ReviewSuggestion } from '../domain/review';
 import { findFreeSlot } from '../domain/review-slot';
 import { useT } from '../i18n/LocaleProvider';
 import { readDismissedSuggestions, writeDismissedSuggestions } from './review-dismissals';
+import { HibiUiRoot } from './redesign/components/HibiUiRoot';
+import { SectionHeader } from './redesign/components/SectionHeader';
 import './review-suggestions.css';
 
 type Props = { data: StudyData; now?: Date; onNavigate: (route: any) => void; onCreateBlock?: (input: Omit<ScheduleBlock, 'id'>) => void; storage?: Pick<Storage, 'getItem' | 'setItem'> };
@@ -38,8 +40,8 @@ export function ReviewView({ data, now = new Date(), onNavigate, onCreateBlock, 
     setScheduleNotice(t('reviewAction.scheduled').replace('{title}', () => task.title).replace('{when}', `${slot.start.slice(8, 10)}/${slot.start.slice(5, 7)} ${slot.start.slice(11, 16)}–${slot.end.slice(11, 16)}`));
   };
 
-  return <div className="view">
-    <div className="view-heading"><div><p className="eyebrow">REVIEW LAYER · LOCAL SNAPSHOT</p><h1>Review</h1><p className="muted">A focused review of your current workspace</p></div></div>
+  return <HibiUiRoot className="review-screen">
+    <SectionHeader title={t('review.title')} subtitle={t('review.subtitle')} />
     <div className="telemetry-summary">{rows.slice(0, 3).map(([label, count]) => <div key={label}><strong>{count}</strong><span>{label}</span></div>)}</div>
     <section className="list-card">{rows.map(([label, count, route]) => <div className="task-row" key={label}><div><strong>{label}</strong><span>{count} items in the current snapshot</span></div><button className="outline" onClick={() => onNavigate(route)}>Open</button></div>)}</section>
     <section className="list-card" aria-label="Review actions"><div className="task-row"><div><strong>Unscheduled open tasks · {issues.unscheduledTaskCount}</strong><span>Open tasks without a scheduled block</span></div><button className="outline" onClick={() => onNavigate('tasks')}>Review tasks</button></div><div className="task-row"><div><strong>Duplicate-looking scheduled blocks · {issues.duplicateBlockCount}</strong><span>Same-title blocks on the same day</span></div><button className="outline" onClick={() => onNavigate('week')}>Review schedule</button></div></section>
@@ -48,5 +50,5 @@ export function ReviewView({ data, now = new Date(), onNavigate, onCreateBlock, 
       {scheduleNotice && <p className="review-schedule-notice muted" role="status">{scheduleNotice}</p>}
       {suggestions.length === 0 ? <p className="review-empty" role="status">No action needs your attention right now.</p> : <div className="review-suggestion-list">{suggestions.map((suggestion) => <article className="review-suggestion" key={suggestion.id} data-review-suggestion={suggestion.id} aria-label={suggestionTitle(suggestion)}><div className="review-suggestion-copy"><div className="review-suggestion-title"><strong>{suggestionTitle(suggestion)}</strong><span className="review-confidence">{suggestion.confidence} confidence</span></div><p>{suggestion.evidence.join(' · ')}</p><small>{suggestion.taskIds.length} {suggestion.taskIds.length === 1 ? 'task' : 'tasks'} involved</small></div><div className="review-suggestion-actions">{suggestion.kind === 'missing_schedule' && onCreateBlock && <button className="primary" onClick={() => scheduleTask(suggestion)}>{t('reviewAction.schedule')}</button>}<button className="outline" onClick={() => onNavigate(suggestionRoute(suggestion))}>{suggestionAction(suggestion)}</button><button className="text-button" aria-label={`Dismiss ${suggestionTitle(suggestion).toLocaleLowerCase()}`} onClick={() => dismiss([suggestion.id])}>Dismiss</button></div></article>)}</div>}
     </section>
-  </div>;
+  </HibiUiRoot>;
 }
