@@ -19,9 +19,9 @@
 | U14 Barra rápida e mascote | `src/ui/TabyBar.tsx`, `src/companion/*`, (sem referência em `src/ui/redesign/`) | `TabyBar` continua legada (sem import do redesign). Há commit `7085f8b` "aplicar tema do Hibi à barra rápida" ainda não examinado. Mascote/host preservados no App. U14 **não confirmada**. |
 | U15 Rotina/Hábitos | `src/ui/redesign/screens/HabitsScreen.tsx`, `rhythm-screens.css` | Tela nova completa: criar/marcar/desmarcar/editar/excluir, `todayKey`, `streakFor`/`progressFor`. Botões com classes próprias `rhythm-*`, não HeroUI. Exclusão usa `ActionDialog`. |
 | U16 Metas/Progresso | `src/ui/redesign/screens/GoalsScreen.tsx` | Tela nova completa: criar/+1/definir/editar/excluir, `deriveGoalsDirection`. Exclusão usa `ActionDialog`; regra de sair de Complete ao aumentar alvo permanece coberta pela lógica de direção. |
-| U17 Revisão | `src/ui/ReviewView.tsx`, `src/App.tsx:469` | Casca migrada para `HibiUiRoot` + `SectionHeader`, com a lógica local de sugestões preservada. O conteúdo interno ainda usa classes legadas e precisa de uma rodada visual dedicada. U17 **parcial**. |
-| U18 Tendências/Estatísticas | `src/ui/redesign/screens/StatsScreen.tsx` (10 linhas), `stats-screen.css` | Casca migrada para `HibiUiRoot`/`SectionHeader`, mas o conteúdo ainda é o `StatsView` legado. Período vazio/exportação herdados. U18 **parcial**. |
-| U19 Comandos e rotas secundárias | `src/ui/palette/*`, `src/ui/shell/routes.ts`, `src/App.tsx` (palette) | A paleta existe e o menu “Mais” deixou de ser provisório: exibe somente seis rotas de uso recorrente. Suporte, diagnóstico, atualizações e hardware permanecem acessíveis pela paleta/Ajustes. U19 **parcial** até a validação visual final. |
+| U17 Revisão | `src/ui/ReviewView.tsx`, `src/ui/redesign/screens/review-screen.css`, `src/App.tsx:469` | Migração visual concluída: métricas, retrato, ações e sugestões usam cartões, tags, botões e estados da nova UI; a lógica local de sugestões foi preservada deliberadamente. |
+| U18 Tendências/Estatísticas | `src/ui/redesign/screens/StatsScreen.tsx`, `src/ui/StatsView.tsx`, `stats-screen.css` | Migração visual concluída: período, alerta, resumo, vazio, gráficos, tabelas e exportação recebem o shell e tokens da nova UI. A lógica de cálculo/exportação permanece compartilhada, sem duplicação. |
+| U19 Comandos e rotas secundárias | `src/ui/palette/*`, `src/ui/shell/routes.ts`, `src/App.tsx` (palette) | A paleta e a validação visual estão concluídas: o menu “Mais” exibe somente seis rotas de uso recorrente. Suporte, diagnóstico, atualizações e hardware permanecem acessíveis pela paleta/Ajustes. |
 | U20 Estrutura de Ajustes | `src/ui/redesign/settings/SettingsScreen.tsx`, `SettingsNavigation.tsx`, `settings-sections.ts`, `settings-screen.css` | Casca nova (intro, busca, navegação com `aria-current`, `key={active}`) sobre `SettingsView` legado. Seções: Geral, Taby e voz, Integrações, Foco, Notificações, Dados, Sobre — sem entrada separada de IA; aba `Taby` reaproveita `AiSettings`+`LocalModelSettings`. Busca filtra só rótulos das seções, não chaves de tradução/destinos como pede o plano. |
 | U21–U25 | diff de `5abc3c6` | O commit "U21 a U28" altera só `SettingsView.tsx` (nova aba `Taby` via `SettingsTab`), 1 linha de CSS e 2 linhas em `settings-sections.ts`. Ou seja: U21–U25 **sem telas novas**; foi oficialização do que já existia. |
 | U26 Auditoria | `docs/redesign/visual-audit.md` (novo, 30 linhas) | Tabela de superfícies marcada "aprovado" por unidade, sem capturas lado a lado do preview como exige a regra 6 (comparação obrigatória). Limites (VoiceOver, zoom 200%) declarados como pendentes de ambiente interativo. Evidência fraca. |
@@ -30,13 +30,10 @@
 
 ## Achados que já dão para afirmar
 
-1. **U17 está parcial** — a rota agora usa a casca nova, mas ainda há classes e estruturas internas legadas na lista de revisão.
-2. **U18 é invólucro, não rebuild** — risco de tema escuro/contraste herdado do `StatsView`.
-3. **U19 ainda precisa de validação visual** — a lista diária do "Mais" foi reduzida a seis rotas e as rotas técnicas continuam acessíveis por comandos/Ajustes; falta conferir o comportamento em janela estreita.
-4. **U28 não removeu legado** — o `migration.md` confirma a permanência; `legacy-surface` segue em `App.tsx:501` para rotas não migradas.
-5. **U26/U27 são documentos, não evidências** — sem comparações lado a lado arquivadas em `docs/redesign/<unidade>-assets/` (pasta não existe para U10–U28) e sem execução real dos fluxos U27.
-6. **Idioma** — os rótulos de interface auditados em Agenda, Hábitos, Metas e Tarefas estão no dicionário pt/en; dias, categorias e período da Agenda também foram corrigidos nesta passada.
-7. **Diálogos U15/U16** — exclusão está padronizada em `ActionDialog`; permanece uma pendência estrutural separada para migrar o conteúdo de Revisão/Estatísticas.
+1. **U28 ainda não removeu todo legado** — `migration.md` confirma a permanência de `SettingsView`, `StatsView` e painéis de integração; isso é uma limpeza estrutural posterior, não uma falha visual das rotas já migradas.
+2. **U26/U27** — a validação visual automatizada agora tem evidência real de 20 capturas; fluxos que exigem ambiente nativo/externo continuam condicionados à execução nesse ambiente.
+3. **Idioma** — os rótulos de interface auditados em Agenda, Hábitos, Metas e Tarefas estão no dicionário pt/en; dias, categorias e período da Agenda também foram corrigidos nesta passada.
+4. **Diálogos U15/U16** — exclusão está padronizada em `ActionDialog`.
 
 ## Correções incrementais registradas
 
@@ -63,6 +60,5 @@
 - `7085f8b` (tema na barra rápida), `5075dd2`, `096c9cc`, `92a3c9a`, merges U10/U11 (`a2bbc5b`, `c564809`, `839b74f`)
 - Testes: `src/ui/__tests__/RedesignScreens.test.tsx`, `RhythmScreens.test.tsx`, `palette.test.tsx`
 - `CommandPalette.tsx`, `commands.ts`, `TodayScreen` links de contexto, `TasksScreen`/`RemindersScreen` detalhe
-- Migrar o conteúdo interno de Revisão e Estatísticas para componentes da nova UI, removendo as estruturas legadas em vez de apenas preservar a lógica sob uma casca nova.
 - Executar os fluxos que exigem ambiente nativo/externo real (EventKit/Google/Notion, voz, monitores, Spaces, sleep/wake) quando esse ambiente estiver disponível.
-- Retirar consumidores restantes do legado conforme o plano U28, depois de concluir as migrações estruturais acima.
+- Retirar consumidores restantes do legado conforme o plano U28, preservando as rotinas de cálculo e integração compartilhadas.

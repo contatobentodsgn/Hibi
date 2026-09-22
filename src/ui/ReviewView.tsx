@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { ClipboardCheck, Lightbulb, Sparkles } from 'lucide-react';
+import { Button, Card } from '@heroui/react';
 import type { ScheduleBlock, StudyData } from '../domain/models';
 import { findReviewIssues, type ReviewSuggestion } from '../domain/review';
 import { findFreeSlot } from '../domain/review-slot';
@@ -6,7 +8,10 @@ import { useT } from '../i18n/LocaleProvider';
 import { readDismissedSuggestions, writeDismissedSuggestions } from './review-dismissals';
 import { HibiUiRoot } from './redesign/components/HibiUiRoot';
 import { SectionHeader } from './redesign/components/SectionHeader';
+import { HibiEmptyState } from './redesign/components/HibiEmptyState';
+import { HibiTag } from './redesign/components/HibiTag';
 import './review-suggestions.css';
+import './redesign/screens/review-screen.css';
 
 type Props = { data: StudyData; now?: Date; onNavigate: (route: any) => void; onCreateBlock?: (input: Omit<ScheduleBlock, 'id'>) => void; storage?: Pick<Storage, 'getItem' | 'setItem'> };
 const browserStorage = () => { try { return window.localStorage; } catch { return undefined; } };
@@ -46,9 +51,9 @@ export function ReviewView({ data, now = new Date(), onNavigate, onCreateBlock, 
 
   return <HibiUiRoot className="review-screen">
     <SectionHeader title={t('review.title')} subtitle={t('review.subtitle')} />
-    <div className="telemetry-summary">{rows.slice(0, 3).map(([label, count]) => <div key={label}><strong>{count}</strong><span>{label}</span></div>)}</div>
-    <section className="list-card">{rows.map(([label, count, route]) => <div className="task-row" key={label}><div><strong>{label}</strong><span>{text('review.currentSnapshot', { count })}</span></div><button className="outline" onClick={() => onNavigate(route)}>{t('review.open')}</button></div>)}</section>
-    <section className="list-card" aria-label={t('review.actions')}><div className="task-row"><div><strong>{text('review.unscheduled', { count: issues.unscheduledTaskCount })}</strong><span>{t('review.unscheduledDetail')}</span></div><button className="outline" onClick={() => onNavigate('tasks')}>{t('review.reviewTasks')}</button></div><div className="task-row"><div><strong>{text('review.duplicates', { count: issues.duplicateBlockCount })}</strong><span>{t('review.duplicatesDetail')}</span></div><button className="outline" onClick={() => onNavigate('week')}>{t('review.reviewSchedule')}</button></div></section>
+    <div className="review-summary-grid">{rows.slice(0, 3).map(([label, count]) => <Card className="review-metric" key={label}><strong>{count}</strong><span>{label}</span></Card>)}</div>
+    <Card className="review-snapshot"><div className="review-card-heading"><div><HibiTag tone="lavender">{t('review.snapshot')}</HibiTag><h2>{t('review.snapshotTitle')}</h2></div><ClipboardCheck aria-hidden="true" size={22} /></div>{rows.map(([label, count, route]) => <div className="review-row" key={label}><div><strong>{label}</strong><span>{text('review.currentSnapshot', { count })}</span></div><Button variant="secondary" onPress={() => onNavigate(route)}>{t('review.open')}</Button></div>)}</Card>
+    <Card className="review-actions-card" aria-label={t('review.actions')}><div className="review-card-heading"><div><HibiTag tone="mint">{t('review.actions')}</HibiTag><h2>{t('review.actionsTitle')}</h2></div><Lightbulb aria-hidden="true" size={22} /></div><div className="review-action-grid"><div><strong>{text('review.unscheduled', { count: issues.unscheduledTaskCount })}</strong><span>{t('review.unscheduledDetail')}</span><Button variant="secondary" onPress={() => onNavigate('tasks')}>{t('review.reviewTasks')}</Button></div><div><strong>{text('review.duplicates', { count: issues.duplicateBlockCount })}</strong><span>{t('review.duplicatesDetail')}</span><Button variant="secondary" onPress={() => onNavigate('week')}>{t('review.reviewSchedule')}</Button></div></div></Card>
     <section className="review-suggestions" aria-label={t('review.suggestions')}>
       <div className="review-suggestions-heading"><div><p className="eyebrow">{t('review.suggestionsEyebrow')}</p><h2>{t('review.suggestions')}</h2><p className="muted">{t('review.suggestionsDetail')}</p></div><div className="review-dismiss-actions">{duplicateSuggestions.length > 0 && <button className="outline" onClick={() => dismiss(duplicateSuggestions.map((suggestion) => suggestion.id))}>{t('review.dismissDuplicates')}</button>}{missingScheduleSuggestions.length > 0 && <button className="outline" onClick={() => dismiss(missingScheduleSuggestions.map((suggestion) => suggestion.id))}>{t('review.dismissMissing')}</button>}</div></div>
       {scheduleNotice && <p className="review-schedule-notice muted" role="status">{scheduleNotice}</p>}
