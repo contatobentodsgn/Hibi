@@ -28,12 +28,12 @@ type Props = Readonly<{
 
 type Scope = 'open' | 'all';
 
-const deadlineCopy = (state: TaskDeadlineState, deadline?: string) => {
-  if (!deadline) return 'Sem prazo';
+const deadlineCopy = (state: TaskDeadlineState, deadline: string | undefined, t: (key: import('../../../i18n/dictionary').DictionaryKey) => string) => {
+  if (!deadline) return t('tasks.deadline.none');
   const date = deadline.slice(0, 10).split('-').reverse().join('/');
-  if (state === 'overdue') return `Atrasada · ${date}`;
-  if (state === 'today') return `Hoje · ${deadline.slice(11, 16)}`;
-  return `Prazo · ${date}`;
+  if (state === 'overdue') return t('tasks.deadline.overdue').replace('{date}', date);
+  if (state === 'today') return t('tasks.deadline.today').replace('{time}', deadline.slice(11, 16));
+  return t('tasks.deadline.scheduled').replace('{date}', date);
 };
 
 const deadlineTone = (state: TaskDeadlineState): HibiTagTone => state === 'overdue' ? 'peach' : state === 'today' ? 'lavender' : 'neutral';
@@ -137,10 +137,10 @@ export function TasksScreen({ data, today = new Date().toISOString().slice(0, 10
                 <button type="button" className="tasks-screen__check" aria-label={`${completed ? 'Reabrir' : 'Concluir'} ${task.title}`} data-completed={completed} onClick={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }}><Check size={14} aria-hidden="true" /></button>
                 <TaskDetailsPanel
                   task={task}
-                  trigger={<Button className="tasks-screen__task-trigger" variant="ghost" onPress={() => setSelectedId(task.id)}><span className="tasks-screen__task-copy"><strong>{task.title}</strong><span>{task.durationMinutes} min · {folderOf(task) || 'Sem pasta'}</span></span><HibiTag tone={deadlineTone(deadlineState)}>{deadlineCopy(deadlineState, task.deadline)}</HibiTag></Button>}
+                  trigger={<Button className="tasks-screen__task-trigger" variant="ghost" onPress={() => setSelectedId(task.id)}><span className="tasks-screen__task-copy"><strong>{task.title}</strong><span>{task.durationMinutes} min · {folderOf(task) || t('tasks.folder.none')}</span></span><HibiTag tone={deadlineTone(deadlineState)}>{deadlineCopy(deadlineState, task.deadline, t)}</HibiTag></Button>}
                   isOpen={selectedId === task.id}
                   onOpenChange={(open) => setSelectedId(open ? task.id : null)}
-                  deadline={deadlineCopy(deadlineState, task.deadline)}
+                  deadline={deadlineCopy(deadlineState, task.deadline, t)}
                   deadlineTone={deadlineTone(deadlineState)}
                 ><TaskPanelActions task={task} editingTitle={editingTitle} titleDraft={titleDraft} deleteOpen={deleteOpen} onStartEdit={() => { setTitleDraft(task.title); setEditingTitle(true); }} onCancelEdit={() => setEditingTitle(false)} onTitleDraftChange={setTitleDraft} onRename={submitRename} onToggleStatus={() => { onTaskStatusChange(task.id, completed ? 'open' : 'completed'); onEvent(completed ? 'reopen' : 'complete', task.title); }} onEditDeadline={() => { setSelectedId(null); onEditTaskDeadline?.(task.id); }} onDeleteOpenChange={setDeleteOpen} onDelete={() => { onDeleteTask?.(task.id); onEvent('delete', task.title); setDeleteOpen(false); setSelectedId(null); }} /></TaskDetailsPanel>
               </li>;
