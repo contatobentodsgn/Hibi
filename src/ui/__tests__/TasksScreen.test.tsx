@@ -43,7 +43,7 @@ describe('TasksScreen', () => {
     expect(markup).toContain('Hoje');
     expect(markup).toContain('Clientes');
     expect(markup).toContain('Design');
-    expect(markup).toContain('Nova tarefa');
+    expect(markup).toContain('Criar tarefa');
     expect(markup).toContain('Concluir Entregar a proposta longa');
   });
 
