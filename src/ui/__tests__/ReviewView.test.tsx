@@ -22,13 +22,13 @@ describe('ReviewView', () => {
   it('renders explainable review suggestions and accessible batch dismissal controls', () => {
     const markup = renderToStaticMarkup(<ReviewView data={data} now={new Date(2026, 8, 12, 12)} onNavigate={() => undefined} />);
 
-    expect(markup).toContain('aria-label="Review suggestions"');
-    expect(markup).toContain('Possible duplicate tasks');
-    expect(markup).toContain('Missing schedule');
+    expect(markup).toContain('aria-label="Sugestões"');
+    expect(markup).toContain('Blocos agendados possivelmente duplicados');
+    expect(markup).toContain('Tarefas abertas sem agenda');
     expect(markup).toContain('same title');
     expect(markup).toContain('45 min');
-    expect(markup).toContain('Dismiss all duplicate suggestions');
-    expect(markup).toContain('Dismiss all missing schedule suggestions');
-    expect(markup).toContain('aria-label="Dismiss possible duplicate tasks"');
+    expect(markup).toContain('Dispensar todas as sugestões duplicadas');
+    expect(markup).toContain('Dispensar todas as sugestões sem agenda');
+    expect(markup).toContain('aria-label="Dispensar blocos agendados possivelmente duplicados · 2"');
   });
 });
