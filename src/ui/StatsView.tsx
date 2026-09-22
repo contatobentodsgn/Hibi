@@ -38,6 +38,8 @@ import {
   type StatsNotice,
 } from './stats-format';
 import './stats.css';
+import { HibiUiRoot } from './redesign/components/HibiUiRoot';
+import { SectionHeader } from './redesign/components/SectionHeader';
 
 type OnEvent = (action: string, detail: string, result?: string) => void;
 
@@ -173,14 +175,8 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
   );
 
   return (
-    <div className="view stats-view">
-      <div className="view-heading">
-        <div>
-          <p className="eyebrow">{t('stats.eyebrow')}</p>
-          <h1>{t('stats.title')}</h1>
-          <p className="muted">{period ? periodRange(period, language) : t('stats.noPeriod')}</p>
-        </div>
-      </div>
+    <HibiUiRoot className="stats-view stats-view--redesign">
+      <SectionHeader title={t('stats.title')} subtitle={period ? periodRange(period, language) : t('stats.noPeriod')} />
       <div className="stats-controls">
         <div className="stats-presets" role="group" aria-label={t('stats.period')}>
           {PRESETS.map((item) => (
@@ -235,7 +231,7 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
           </section>
         </>
       )}
-    </div>
+    </HibiUiRoot>
   );
 }
 

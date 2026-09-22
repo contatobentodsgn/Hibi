@@ -101,7 +101,7 @@ describe('StatsView', () => {
   const markup = renderView(ledger);
 
   it('renders the page heading and the period presets with their pressed state', () => {
-    expect(markup).toContain('<h1>Estatísticas</h1>');
+    expect(markup).toContain('class="hibi-section-header__title">Estatísticas</h1>');
     expect(markup).toMatch(/role="group" aria-label="Período"/);
     expect(markup).toMatch(/aria-pressed="false"[^>]*>Hoje</);
     expect(markup).toMatch(/aria-pressed="true"[^>]*>Semana</);
@@ -231,7 +231,7 @@ describe('StatsView', () => {
         <StatsView records={ledger} referenceDate={reference} onEvent={noop} />
       </LocaleProvider>,
     );
-    expect(english).toContain('<h1>Statistics</h1>');
+    expect(english).toContain('class="hibi-section-header__title">Statistics</h1>');
     expect(english).toMatch(/aria-pressed="true"[^>]*>Week</);
     expect(english).toContain('Tasks completed');
     expect(english).toMatch(/<button[^>]*>Export CSV<\/button>/);
