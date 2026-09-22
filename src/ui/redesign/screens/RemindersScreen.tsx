@@ -10,6 +10,7 @@ import { HibiEmptyState } from '../components/HibiEmptyState';
 import { HibiTag } from '../components/HibiTag';
 import { HibiUiRoot } from '../components/HibiUiRoot';
 import { SectionHeader } from '../components/SectionHeader';
+import { useT } from '../../../i18n/LocaleProvider';
 import './reminders-screen.css';
 import './reminders-screen-edit.css';
 
@@ -47,6 +48,7 @@ function draftScheduleText(schedule: EditedReminderSchedule): string {
 function toMinutes(value: string): number { return Number(value.slice(0, 2)) * 60 + Number(value.slice(3, 5)); }
 
 export function RemindersScreen({ data, onEvent, onReminderStatusChange, onCreateReminder, onRenameReminder, onDeleteReminder, onEditReminderSchedule }: Props) {
+  const t = useT();
   const [filter, setFilter] = useState<'all' | 'important' | 'wellbeing'>('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Reminder | null>(null);
@@ -71,10 +73,10 @@ export function RemindersScreen({ data, onEvent, onReminderStatusChange, onCreat
   };
 
   return <HibiUiRoot className="reminders-screen">
-    <SectionHeader title="Lembretes que cuidam do seu tempo." subtitle={`${data.reminders.filter((item) => item.status !== 'paused').length} ativos · ${rhythm.paused} pausado${rhythm.paused === 1 ? '' : 's'}`} actions={<Button variant="primary" onPress={onCreateReminder}><Plus size={17} />Novo lembrete</Button>} />
+    <SectionHeader title={t('reminders.title')} subtitle={`${data.reminders.filter((item) => item.status !== 'paused').length} ativos · ${rhythm.paused} pausado${rhythm.paused === 1 ? '' : 's'}`} actions={<Button variant="primary" onPress={onCreateReminder}><Plus size={17} />{t('reminders.new')}</Button>} />
     {closePair && <div className="reminders-screen__notice"><div><strong>Dois lembretes recorrentes estão próximos.</strong><p>O importante fica fixo; ajuste o outro com calma.</p></div><Button variant="secondary" onPress={reviewSpacing}>Rever espaçamento</Button></div>}
     <div className="reminders-screen__layout">
-      <aside aria-label="Filtros de lembretes"><span>Mostrar</span>{([['all', 'Todos'], ['important', 'Importantes'], ['wellbeing', 'Bem-estar']] as const).map(([key, label]) => <button key={key} type="button" data-active={filter === key} aria-pressed={filter === key} onClick={() => { setFilter(key); onEvent('filter', `Lembretes · ${label}`); }}>{label}<small>{key === 'all' ? data.reminders.length : data.reminders.filter((item) => item.category === key).length}</small></button>)}</aside>
+      <aside aria-label="Filtros de lembretes"><span>Mostrar</span>{([['all', t('reminders.all')], ['important', t('reminders.important')], ['wellbeing', t('reminders.wellbeing')]] as const).map(([key, label]) => <button key={key} type="button" data-active={filter === key} aria-pressed={filter === key} onClick={() => { setFilter(key); onEvent('filter', `Lembretes · ${label}`); }}>{label}<small>{key === 'all' ? data.reminders.length : data.reminders.filter((item) => item.category === key).length}</small></button>)}</aside>
       <section aria-labelledby="reminders-list-title"><div className="reminders-screen__heading"><h2 id="reminders-list-title">{filter === 'all' ? 'Todos os lembretes' : filter === 'important' ? 'Importantes' : 'Bem-estar'}</h2><p>Próxima ocorrência e recorrência ficam sempre visíveis.</p></div><Card className="reminders-screen__list">{visible.length ? <ul>{visible.map((reminder) => { const paused = reminder.status === 'paused'; return <li key={reminder.id}><span className="reminders-screen__icon" data-tone={reminder.category}><Bell size={16} /></span><div><strong>{reminder.title}</strong><span>{scheduleText(reminder)}</span></div><HibiTag tone={paused ? 'neutral' : reminder.category === 'important' ? 'peach' : 'mint'}>{paused ? 'Pausado' : reminder.category === 'important' ? 'Importante' : 'Bem-estar'}</HibiTag><div className="reminders-screen__actions"><Button isIconOnly variant="ghost" aria-label={`Editar ${reminder.title}`} onPress={() => beginEdit(reminder)}><CalendarClock size={16} /></Button><Button isIconOnly variant="ghost" aria-label={`${paused ? 'Retomar' : 'Pausar'} ${reminder.title}`} onPress={() => { onReminderStatusChange(reminder.id, paused ? 'open' : 'paused'); onEvent(paused ? 'resume' : 'pause', reminder.title); }}>{paused ? <Play size={16} /> : <Pause size={16} />}</Button><Button isIconOnly variant="ghost" aria-label={`Excluir ${reminder.title}`} onPress={() => setDeleteId(reminder.id)}><Trash2 size={16} /></Button></div></li>; })}</ul> : <HibiEmptyState icon={Bell} tone="mint" title="Nenhum lembrete aqui" description="Escolha outra categoria ou crie um lembrete." action={<Button variant="secondary" onPress={onCreateReminder}>Criar lembrete</Button>} />}</Card></section>
       <Card className="reminders-screen__summary"><h2>Seu próximo cuidado.</h2>{rhythm.next ? <><strong>{rhythm.next.title}</strong><p>{scheduleText(rhythm.next)}</p></> : <p>Nenhum lembrete ativo agora.</p>}<div><span>{rhythm.overdue}<small>atrasados</small></span><span>{rhythm.paused}<small>pausados</small></span></div></Card>
     </div>
