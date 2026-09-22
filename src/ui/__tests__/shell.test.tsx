@@ -83,8 +83,8 @@ describe('shell', () => {
 
   it('deixa toda rota alcançável: pela barra, pelo Mais ou pelo botão de Ajustes', () => {
     expect(DESTINATIONS.map((item) => item.key)).toEqual(['home', 'agenda', 'tasks', 'notes', 'taby'])
-    expect(MORE_ITEMS.map((item) => item.key)).toEqual(['focus', 'reminders', 'habits', 'goals', 'review', 'stats', 'help', 'instrumentation', 'feedback', 'updates', 'hardware'])
-    const reachable = new Set<NavKey>([...DESTINATIONS.map((item) => item.key), ...MORE_ITEMS.map((item) => item.key), 'settings'])
+    expect(MORE_ITEMS.map((item) => item.key)).toEqual(['focus', 'reminders', 'habits', 'goals', 'review', 'stats'])
+    const reachable = new Set<NavKey>([...DESTINATIONS.map((item) => item.key), ...MORE_ITEMS.map((item) => item.key), 'settings', 'help', 'feedback', 'instrumentation', 'updates', 'hardware'])
     // Dia e Semana são modos da Agenda; a pausa é um modo do Foco.
     for (const route of Object.keys({ home: 0, tasks: 0, agenda: 0, focus: 0, taby: 0, notes: 0, reminders: 0, habits: 0, goals: 0, review: 0, stats: 0, settings: 0, help: 0, feedback: 0, instrumentation: 0, updates: 0, hardware: 0 }) as NavKey[]) expect(reachable.has(route), route).toBe(true)
   })

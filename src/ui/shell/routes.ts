@@ -16,8 +16,8 @@ export const DESTINATIONS: readonly Readonly<{ key: DestinationKey; label: Dicti
   { key: 'taby', label: 'nav.taby' },
 ]
 
-// O menu "Mais" é provisório: guarda as rotas que ainda não têm acesso pelo contexto (Hoje, Tarefas e
-// Ajustes) e sai na U19, quando todos os acessos substitutos existirem. Até lá, tudo continua a um clique.
+// O menu "Mais" concentra apenas rotas de uso recorrente. Ferramentas técnicas e de suporte continuam
+// acessíveis pela paleta de comandos e pelas áreas de Ajustes, sem poluir a navegação diária.
 export const MORE_ITEMS: readonly NavItem[] = [
   { key: 'focus', label: 'nav.focus' },
   { key: 'reminders', label: 'nav.reminders' },
@@ -25,11 +25,6 @@ export const MORE_ITEMS: readonly NavItem[] = [
   { key: 'goals', label: 'nav.goals' },
   { key: 'review', label: 'nav.review' },
   { key: 'stats', label: 'nav.stats' },
-  { key: 'help', label: 'nav.help' },
-  { key: 'instrumentation', label: 'nav.instrumentation' },
-  { key: 'feedback', label: 'nav.feedback' },
-  { key: 'updates', label: 'nav.updates' },
-  { key: 'hardware', label: 'nav.hardware' },
 ]
 
 // Onde cada rota antiga mora na nova arquitetura (tabela da seção 3.1 do plano). O `Record` obriga toda
