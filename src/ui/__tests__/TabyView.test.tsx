@@ -109,8 +109,8 @@ describe('TabyView conversations', () => {
     );
     expect(markup).toContain('agenda da semana');
     expect(markup).toContain('Conversas');
-    expect(markup).toContain('aria-label="Assistant conversation status"');
-    expect(markup).toContain('Messages in this conversation');
+    expect(markup).toContain('aria-label="Status da conversa do assistente"');
+    expect(markup).toContain('Mensagens nesta conversa');
   });
 
   it('greets through the dictionary instead of a hardcoded string', () => {

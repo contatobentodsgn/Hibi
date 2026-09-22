@@ -12,11 +12,13 @@ import type { VoiceTurnControls } from '../../useVoiceTurn';
 import { HibiEmptyState } from '../components/HibiEmptyState';
 import { HibiUiRoot } from '../components/HibiUiRoot';
 import { SectionHeader } from '../components/SectionHeader';
+import { useT } from '../../../i18n/LocaleProvider';
 import './taby-screen.css';
 
 type Props = Readonly<{ data: StudyData; turn: AssistantTurnControls; conversations: ConversationsController; voice?: VoiceTurnControls }>;
 
 export function TabyScreen({ data, turn, conversations, voice }: Props) {
+  const t = useT();
   const [input, setInput] = useState('');
   const [historyOpen, setHistoryOpen] = useState(true);
   const { state } = turn;
@@ -41,7 +43,7 @@ export function TabyScreen({ data, turn, conversations, voice }: Props) {
   const toggleVoice = () => { if (!voice) return; if (listening) void voice.stop(); else void voice.start(); };
 
   return <HibiUiRoot className="taby-screen">
-    <SectionHeader title="Local assistant" subtitle="Seu espaço para pensar. Ferramentas locais e confirmações explícitas. O modo local não envia sua conversa para a rede." actions={<Button variant="secondary" onPress={conversations.create}><Plus size={17} aria-hidden="true" />Nova conversa</Button>} />
+    <SectionHeader title={t('taby.title')} subtitle="Seu espaço para pensar. Ferramentas locais e confirmações explícitas. O modo local não envia sua conversa para a rede." actions={<Button variant="secondary" onPress={conversations.create}><Plus size={17} aria-hidden="true" />Nova conversa</Button>} />
     <div className="taby-screen__history-control"><Button variant="ghost" size="sm" aria-expanded={historyOpen} aria-controls="taby-conversations" onPress={() => setHistoryOpen((open) => !open)}><ChevronLeft className={historyOpen ? undefined : 'taby-screen__history-control-icon--closed'} size={16} aria-hidden="true" />{historyOpen ? 'Ocultar conversas' : 'Mostrar conversas'}</Button></div>
     <div className="taby-screen__layout" data-history-open={historyOpen}>
       <aside id="taby-conversations" hidden={!historyOpen} className="taby-screen__history" role="region" aria-label="Conversas">
@@ -65,7 +67,7 @@ export function TabyScreen({ data, turn, conversations, voice }: Props) {
           {state.status === 'confirmation' && <div className="taby-screen__turn taby-screen__turn--confirmation" role="alert"><Bot size={16} aria-hidden="true" /><div><strong>{state.text}</strong><div><Button variant="primary" onPress={() => void turn.confirm()}>Confirmar</Button><Button variant="secondary" onPress={() => void turn.cancelConfirmation()}>Cancelar</Button></div></div></div>}
           {failure && <div className="taby-screen__turn taby-screen__turn--failure" role="alert"><div><strong>{failure.title}</strong><p>{failure.detail}</p><div>{failure.canRetry && <Button variant="secondary" onPress={() => void turn.retry()}>Tentar novamente</Button>}{failure.canUseLocalFallback && <Button variant="primary" onPress={() => void turn.useLocalFallback()}>Usar assistente local</Button>}</div></div></div>}
         </Card>
-        <div className="taby-screen__composer"><textarea disabled={running} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={onComposerKeyDown} placeholder="Pergunte ou peça uma ação" aria-label="Pergunte ou peça uma ação" rows={2} /><div><Button variant={listening ? 'secondary' : 'ghost'} isDisabled={running} aria-label={listening ? 'Parar voz' : 'Falar'} aria-pressed={listening} onPress={toggleVoice}>{listening ? <CircleStop size={17} aria-hidden="true" /> : <Mic size={17} aria-hidden="true" />}{listening ? 'Parar voz' : 'Falar'}</Button>{running && <Button variant="secondary" onPress={turn.stop}><CircleStop size={16} aria-hidden="true" />Parar</Button>}<Button variant="primary" isDisabled={running} aria-label="Send" onPress={send}><Send size={16} aria-hidden="true" />Send</Button></div></div>
+        <div className="taby-screen__composer"><textarea disabled={running} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={onComposerKeyDown} placeholder="Pergunte ou peça uma ação" aria-label="Pergunte ou peça uma ação" rows={2} /><div><Button variant={listening ? 'secondary' : 'ghost'} isDisabled={running} aria-label={listening ? 'Parar voz' : 'Falar'} aria-pressed={listening} onPress={toggleVoice}>{listening ? <CircleStop size={17} aria-hidden="true" /> : <Mic size={17} aria-hidden="true" />}{listening ? 'Parar voz' : 'Falar'}</Button>{running && <Button variant="secondary" onPress={turn.stop}><CircleStop size={16} aria-hidden="true" />Parar</Button>}<Button variant="primary" isDisabled={running} aria-label={t('taby.send')} onPress={send}><Send size={16} aria-hidden="true" />{t('taby.send')}</Button></div></div>
         {voice?.notice && <p className="taby-screen__voice-notice" role="status"><AudioLines size={15} aria-hidden="true" />{voice.notice}</p>}
       </main>
     </div>

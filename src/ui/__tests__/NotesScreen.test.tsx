@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { StudyData } from '../../domain/models';
 import { NotesScreen } from '../redesign/screens/NotesScreen';
+import { LocaleProvider } from '../../i18n/LocaleProvider';
 
 const noop = () => undefined;
 const data: StudyData = {
@@ -15,20 +16,22 @@ const data: StudyData = {
 
 describe('NotesScreen', () => {
   it('organizes notes as a redesigned searchable workspace with an editor action', () => {
-    const markup = renderToStaticMarkup(<NotesScreen data={data} onCreate={noop} onUpdate={noop} onDelete={noop} />);
+    const markup = renderToStaticMarkup(<LocaleProvider initialLanguage="pt"><NotesScreen data={data} onCreate={noop} onUpdate={noop} onDelete={noop} /></LocaleProvider>);
 
-    expect(markup).toContain('Notes');
+    expect(markup).toContain('Notas');
     expect(markup).toContain('Plano da semana');
     expect(markup).toContain('Referências');
     expect(markup).toContain('Pesquisar notas');
     expect(markup).toContain('Nova nota');
+    expect(markup).toContain('Adicionar nota');
+    expect(markup).not.toContain('Add note');
     expect(markup).toContain('Editar Plano da semana');
     expect(markup).toContain('Excluir Plano da semana');
     expect(markup).toContain('notes-screen');
   });
 
   it('preserves an explicit folder selection and gives an honest empty state', () => {
-    const markup = renderToStaticMarkup(<NotesScreen data={data} initialFolder="Sem notas" onCreate={noop} onUpdate={noop} onDelete={noop} />);
+    const markup = renderToStaticMarkup(<LocaleProvider initialLanguage="pt"><NotesScreen data={data} initialFolder="Sem notas" onCreate={noop} onUpdate={noop} onDelete={noop} /></LocaleProvider>);
 
     expect(markup).toContain('Nenhuma nota nesta pasta');
     expect(markup).toContain('Criar nota em Sem notas');

@@ -6,6 +6,7 @@ import { createSeedData } from '../../data/seed-data';
 import { appendMessage, createConversation } from '../../domain/conversations';
 import { TabyScreen } from '../redesign/screens/TabyScreen';
 import type { AssistantTurnControls } from '../useAssistantTurn';
+import { LocaleProvider } from '../../i18n/LocaleProvider';
 
 const noop = () => undefined;
 const turn: AssistantTurnControls = { state: initialAssistantTurnState, ask: async () => undefined, confirm: async () => undefined, cancelConfirmation: async () => undefined, stop: noop, retry: async () => undefined, useLocalFallback: async () => undefined, dismiss: () => 'close', reset: noop };
@@ -14,9 +15,9 @@ const conversations = { conversations: [conversation], activeId: 'taby-1', query
 
 describe('TabyScreen', () => {
   it('presents the active conversation, history controls and an accessible composer in the redesigned surface', () => {
-    const markup = renderToStaticMarkup(<TabyScreen data={createSeedData()} turn={turn} conversations={conversations} />);
+    const markup = renderToStaticMarkup(<LocaleProvider initialLanguage="pt"><TabyScreen data={createSeedData()} turn={turn} conversations={conversations} /></LocaleProvider>);
 
-    expect(markup).toContain('Local assistant');
+    expect(markup).toContain('Assistente local');
     expect(markup).toContain('Seu espaço para pensar.');
     expect(markup).toContain('organize meu dia');
     expect(markup).toContain('Vamos começar pelo próximo compromisso.');
@@ -28,7 +29,7 @@ describe('TabyScreen', () => {
   });
 
   it('keeps a safe provider boundary visible instead of implying external access', () => {
-    const markup = renderToStaticMarkup(<TabyScreen data={createSeedData()} turn={turn} conversations={conversations} />);
+    const markup = renderToStaticMarkup(<LocaleProvider initialLanguage="pt"><TabyScreen data={createSeedData()} turn={turn} conversations={conversations} /></LocaleProvider>);
     expect(markup).toContain('Ferramentas locais e confirmações explícitas.');
     expect(markup).toContain('External AI');
   });

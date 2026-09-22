@@ -7,6 +7,7 @@ import { ActionDialog } from '../components/ActionDialog';
 import { HibiEmptyState } from '../components/HibiEmptyState';
 import { HibiUiRoot } from '../components/HibiUiRoot';
 import { SectionHeader } from '../components/SectionHeader';
+import { useT } from '../../../i18n/LocaleProvider';
 import './notes-screen.css';
 
 type Props = Readonly<{
@@ -22,6 +23,7 @@ type Draft = Readonly<{ title: string; content: string; folder: string }>;
 const emptyDraft = (folder: string) => ({ title: '', content: '', folder });
 
 export function NotesScreen({ data, onCreate, onUpdate, onDelete, initialFolder = null }: Props) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [folder, setFolder] = useState<string | null>(initialFolder);
   const [createOpen, setCreateOpen] = useState(false);
@@ -55,7 +57,7 @@ export function NotesScreen({ data, onCreate, onUpdate, onDelete, initialFolder 
   };
 
   return <HibiUiRoot className="notes-screen">
-    <SectionHeader title="Notes" subtitle={`${data.notes.length} nota${data.notes.length === 1 ? '' : 's'} locais · sem perder o fio`} actions={<Button variant="primary" onPress={() => { setDraft(emptyDraft(folder && folder !== NO_FOLDER ? folder : 'Bento')); setCreateOpen(true); }}><Plus size={17} aria-hidden="true" />Nova nota</Button>} />
+    <SectionHeader title={t('notes.title')} subtitle={`${data.notes.length} nota${data.notes.length === 1 ? '' : 's'} locais · sem perder o fio`} actions={<Button variant="primary" onPress={() => { setDraft(emptyDraft(folder && folder !== NO_FOLDER ? folder : 'Bento')); setCreateOpen(true); }}><Plus size={17} aria-hidden="true" />Nova nota</Button>} />
     <div className="notes-screen__toolbar">
       <label className="notes-screen__search"><Search size={16} aria-hidden="true" /><span className="sr-only">Pesquisar notas</span><input aria-label="Pesquisar notas" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar notas" /></label>
       <div className="notes-screen__filters" aria-label="Pastas de notas">
@@ -68,7 +70,7 @@ export function NotesScreen({ data, onCreate, onUpdate, onDelete, initialFolder 
         <div className="notes-screen__list-heading"><div><h2>{folder ?? 'Todas as notas'}</h2><p>{notes.length} nesta visão</p></div><FileText size={19} aria-hidden="true" /></div>
         {notes.length ? <ul className="notes-screen__list list-card">{notes.map((note) => <li key={note.id} className="notes-screen__row"><div className="notes-screen__note-copy"><strong>{note.title}</strong><p>{note.content || 'Sem conteúdo'}</p><span>{folderOf(note) || 'Sem pasta'} · atualizado {new Date(note.updatedAt).toLocaleDateString('pt-BR')}</span></div><div className="notes-screen__row-actions"><Button isIconOnly variant="ghost" aria-label={`Editar ${note.title}`} onPress={() => { setDraft({ title: note.title, content: note.content, folder: folderOf(note) }); setEditing(note); }}><Pencil size={15} aria-hidden="true" /></Button><Button isIconOnly variant="ghost" aria-label={`Excluir ${note.title}`} onPress={() => setDeleting(note)}><Trash2 size={15} aria-hidden="true" /></Button></div></li>)}</ul> : <HibiEmptyState icon={FileText} tone="lavender" title={folder !== null ? 'Nenhuma nota nesta pasta' : 'Nenhuma nota encontrada'} description={query || folder !== null ? 'No notes match this search.' : 'Comece registrando uma ideia pequena e clara.'} action={<Button variant="secondary" size="sm" onPress={() => { if (folder !== null) { setDraft(emptyDraft(folder === NO_FOLDER ? 'Bento' : folder)); setCreateOpen(true); } else { setQuery(''); setFolder(null); } }}>{folder !== null ? `Criar nota em ${folder === NO_FOLDER ? 'Sem pasta' : folder}` : 'Mostrar todas as notas'}</Button>} />}
       </Card>
-      <form className="notes-screen__inline-create" aria-label="Create note" onSubmit={submitCreate}><h2>Capturar uma ideia</h2><label htmlFor="empty-note-title">Title</label><input id="empty-note-title" aria-label="Title" required value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Comece uma nota" /><label htmlFor="empty-note-content">Content</label><textarea id="empty-note-content" aria-label="Content" rows={4} value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} placeholder="Escreva sem formatar; o Hibi preserva seu texto." /><label htmlFor="empty-note-folder">Folder</label><input id="empty-note-folder" aria-label="Folder" value={draft.folder} onChange={(event) => setDraft({ ...draft, folder: event.target.value })} /><Button type="submit" variant="primary" aria-label="Add note">Add note</Button></form>
+      <form className="notes-screen__inline-create" aria-label="Create note" onSubmit={submitCreate}><h2>Capturar uma ideia</h2><label htmlFor="empty-note-title">Title</label><input id="empty-note-title" aria-label="Title" required value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Comece uma nota" /><label htmlFor="empty-note-content">Content</label><textarea id="empty-note-content" aria-label="Content" rows={4} value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} placeholder="Escreva sem formatar; o Hibi preserva seu texto." /><label htmlFor="empty-note-folder">Folder</label><input id="empty-note-folder" aria-label="Folder" value={draft.folder} onChange={(event) => setDraft({ ...draft, folder: event.target.value })} /><Button type="submit" variant="primary" aria-label={t('notes.add')}>{t('notes.add')}</Button></form>
       <Card role="region" className="notes-screen__summary" aria-label="Notes capture summary"><span className="notes-screen__summary-icon"><FileText size={19} aria-hidden="true" /></span><h2>Um lugar para pensar.</h2><p>Suas notas ficam locais, leves e prontas para serem encontradas quando você precisar.</p><strong>{notes.length}</strong><span>visíveis agora</span></Card>
     </div>
     <NoteDialog title="Nova nota" isOpen={createOpen} onOpenChange={setCreateOpen} draft={draft} setDraft={setDraft} folders={suggestions} onSubmit={submitCreate} />
