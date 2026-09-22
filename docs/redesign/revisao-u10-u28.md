@@ -44,6 +44,7 @@
 - U12/U13: pontos principais de Notas e Taby passaram a usar o dicionário.
 - Lembretes: título, filtros, estados, recorrência, formulário, exclusão, mensagens e rótulos de acessibilidade passaram a usar o dicionário.
 - Navegação: “Mais” agora mostra somente foco, lembretes, hábitos, metas, revisão e estatísticas; rotas técnicas permanecem disponíveis por comandos/Ajustes.
+- Validação visual inicial: o preview Vite foi aberto com Chrome/Playwright em viewport larga (1440×1000) para Hoje, Agenda, Tarefas, Notas, Taby, Lembretes, Hábitos, Metas, Revisão e Estatísticas; Hoje, Agenda, Tarefas, Notas e Agenda também foram capturados em viewport estreita (900×900). A matriz estreita completa ainda precisa ser repetida sem o timeout da navegação compacta.
 - U15/U16: exclusões usam `ActionDialog`; entradas principais de Hábitos e Metas usam o dicionário.
 - U07: título principal de Tarefas usa o dicionário.
 - U17: a casca de Revisão foi movida para `HibiUiRoot` e `SectionHeader`; a migração visual interna continua.
