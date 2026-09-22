@@ -33,7 +33,7 @@ import { HabitsView } from './ui/HabitsView';
 import { GoalsView } from './ui/GoalsView';
 import { ReviewView } from './ui/ReviewView';
 import { StatsView } from './ui/StatsView';
-import { TabyView } from './ui/TabyView';
+import { TabyScreen } from './ui/redesign/screens/TabyScreen';
 import { HelpView } from './ui/HelpView';
 import { FeedbackView } from './ui/FeedbackView';
 import { AvailabilityView } from './ui/AvailabilityView';
@@ -467,7 +467,7 @@ export default function App() {
       case 'goals': return <GoalsView data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
       case 'review': return <ReviewView data={data} onNavigate={navigate} onCreateBlock={createBlock} />;
       case 'stats': return <StatsView records={data.activity} referenceDate={new Date()} onEvent={log} />;
-      case 'taby': return <TabyView data={data} turn={assistantTurn} conversations={conversations} voice={voice} />;
+      case 'taby': return <TabyScreen data={data} turn={assistantTurn} conversations={conversations} voice={voice} />;
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'agenda': case 'day': case 'week': return <AgendaScreen {...props} data={data} mode={route === 'week' ? 'week' : 'day'} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onMoveBlock={moveBlock} onModeChange={(mode) => { setAgendaMode(mode); writeAgendaMode(agendaHost.storage, mode); setRoute(mode); }} />;

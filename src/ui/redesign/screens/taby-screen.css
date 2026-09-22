@@ -1,0 +1,51 @@
+@layer components {
+  .hibi-ui.taby-screen { width: min(1240px, 100%); margin: 0 auto; padding: 48px clamp(20px, 4vw, 52px) 72px; color: var(--hibi-ink); }
+  .taby-screen :is(h2, p) { margin: 0; }
+  .taby-screen .card { background: var(--hibi-paper); }
+  .taby-screen__layout { display: grid; grid-template-columns: 255px minmax(0, 1fr); gap: 22px; align-items: start; }
+  .taby-screen__layout[data-history-open="false"] { grid-template-columns: minmax(0, 1fr); }
+  .taby-screen__history-control { display: flex; justify-content: flex-start; margin: -10px 0 12px; }
+  .taby-screen__history-control-icon--closed { transform: rotate(180deg); }
+  .taby-screen__history { display: grid; gap: 13px; padding: 5px 0; }
+  .taby-screen__history-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .taby-screen__history-heading h2 { font-size: 16px; font-weight: 620; letter-spacing: -.035em; }
+  .taby-screen__search { display: flex; align-items: center; gap: 8px; min-height: 39px; padding: 0 11px; border: 1px solid var(--hibi-edge); border-radius: 12px; background: var(--hibi-paper); color: var(--hibi-ink-muted); }
+  .taby-screen__search input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--hibi-ink); font: inherit; font-size: 12px; }
+  .taby-screen__conversation-list { display: grid; gap: 4px; min-height: 120px; }
+  .taby-screen__conversation-list > p { padding: 12px 5px; color: var(--hibi-ink-muted); font-size: 11px; line-height: 1.5; }
+  .taby-screen__conversation-row { display: flex; gap: 2px; align-items: center; border-radius: 11px; }
+  .taby-screen__conversation-row[data-active="true"] { background: var(--hibi-soft); }
+  .taby-screen__conversation-row > button:first-child { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; padding: 9px; color: var(--hibi-ink-muted); text-align: left; font-size: 12px; }
+  .taby-screen__conversation-row[data-active="true"] > button:first-child { color: var(--hibi-ink); font-weight: 600; }
+  .taby-screen__conversation-row > button:first-child span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .taby-screen__capabilities { display: grid; gap: 7px; margin-top: 16px; padding: 16px; border: 1px solid var(--hibi-edge); border-radius: 16px; background: var(--hibi-paper); }
+  .taby-screen__capabilities strong { font-size: 11px; font-weight: 650; }
+  .taby-screen__capabilities span { display: flex; align-items: center; gap: 6px; color: var(--hibi-ink-muted); font-size: 11px; }
+  .taby-screen__capabilities span svg { color: var(--hibi-accent); }
+  .taby-screen__capabilities small { margin-top: 5px; color: var(--hibi-ink-muted); font-size: 10px; line-height: 1.5; }
+  .taby-screen__conversation { display: grid; gap: 14px; min-width: 0; }
+  .taby-screen__conversation .taby-atelier-status { margin: 0; }
+  .taby-screen__save-failure { padding: 11px 13px; border-radius: 12px; background: color-mix(in srgb, var(--hibi-peach) 45%, var(--hibi-paper)); color: var(--hibi-ink); font-size: 12px; }
+  .taby-screen__messages { display: grid; gap: 16px; min-height: 450px; padding: 23px; }
+  .taby-screen__assistant-intro { display: flex; gap: 10px; align-items: center; padding-bottom: 14px; border-bottom: 1px solid var(--hibi-line); }
+  .taby-screen__assistant-intro > span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--hibi-lavender); color: var(--hibi-accent); }
+  .taby-screen__assistant-intro strong { font-size: 13px; }
+  .taby-screen__assistant-intro p { margin-top: 3px; color: var(--hibi-ink-muted); font-size: 11px; }
+  .taby-screen__messages ol { display: grid; gap: 13px; padding: 0; margin: 0; list-style: none; align-content: start; }
+  .taby-screen__messages li { max-width: 82%; display: grid; gap: 5px; padding: 12px 14px; border-radius: 15px 15px 15px 4px; background: var(--hibi-soft); }
+  .taby-screen__messages li[data-role="user"] { justify-self: end; border-radius: 15px 15px 4px 15px; background: var(--hibi-lavender); }
+  .taby-screen__messages li > span, .taby-screen__messages li small { color: var(--hibi-ink-muted); font-size: 10px; font-weight: 600; }
+  .taby-screen__messages li p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
+  .taby-screen__turn { display: flex; gap: 9px; align-items: flex-start; padding: 13px; border-radius: 13px; background: var(--hibi-soft); color: var(--hibi-ink); }
+  .taby-screen__turn small { display: block; margin-top: 4px; color: var(--hibi-ink-muted); font-size: 10px; }
+  .taby-screen__turn--confirmation { background: color-mix(in srgb, var(--hibi-lavender) 70%, var(--hibi-paper)); }
+  .taby-screen__turn--failure { background: color-mix(in srgb, var(--hibi-peach) 45%, var(--hibi-paper)); }
+  .taby-screen__turn p { margin-top: 5px; color: var(--hibi-ink-muted); font-size: 12px; line-height: 1.5; }
+  .taby-screen__turn div > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px; }
+  .taby-screen__composer { position: sticky; bottom: 18px; z-index: 1; display: grid; gap: 10px; padding: 12px; border: 1px solid var(--hibi-edge); border-radius: 18px; background: color-mix(in srgb, var(--hibi-paper) 92%, transparent); box-shadow: 0 12px 32px color-mix(in srgb, var(--hibi-ink) 10%, transparent); backdrop-filter: blur(14px); }
+  .taby-screen__composer textarea { width: 100%; border: 0; outline: 0; resize: none; background: transparent; color: var(--hibi-ink); font: inherit; font-size: 13px; line-height: 1.5; }
+  .taby-screen__composer > div { display: flex; justify-content: flex-end; gap: 8px; }
+  .taby-screen__voice-notice { display: flex; gap: 7px; align-items: center; color: var(--hibi-ink-muted); font-size: 11px; }
+  @media (max-width: 760px) { .hibi-ui.taby-screen { padding: 28px 16px 50px; } .taby-screen__layout { grid-template-columns: 1fr; } .taby-screen__history { order: 2; } .taby-screen__messages { min-height: 340px; } }
+  @media (max-width: 430px) { .taby-screen__messages { padding: 17px; } .taby-screen__messages li { max-width: 94%; } .taby-screen__composer { bottom: 8px; } }
+}

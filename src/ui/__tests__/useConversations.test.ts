@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { recordTurn } from '../useConversations'
+import { recordTurn, recordTurnInConversation } from '../useConversations'
 import { createConversation } from '../../domain/conversations'
 
 const at = (hour: number) => new Date(2026, 8, 11, hour, 0).toISOString()
@@ -24,5 +24,17 @@ describe('recordTurn', () => {
     const message = { role: 'assistant' as const, text: 'Olá!', at: at(10) }
     const once = recordTurn(state, message, 'c-2')
     expect(recordTurn(once, message, 'c-3')).toBe(once)
+  })
+
+  it('keeps an assistant reply in the conversation that started the turn after the visible selection changes', () => {
+    const first = createConversation('primeira pergunta', at(9), 'c-1')
+    const second = createConversation('segunda pergunta', at(10), 'c-2')
+    const state = { conversations: [first, second], activeId: 'c-2' }
+
+    const next = recordTurnInConversation(state, { role: 'assistant', text: 'resposta da primeira', at: at(11) }, 'c-1')
+
+    expect(next.conversations.find((conversation) => conversation.id === 'c-1')?.messages.at(-1)?.text).toBe('resposta da primeira')
+    expect(next.conversations.find((conversation) => conversation.id === 'c-2')?.messages).toHaveLength(1)
+    expect(next.activeId).toBe('c-2')
   })
 })

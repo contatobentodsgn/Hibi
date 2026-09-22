@@ -1,0 +1,35 @@
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
+import { initialAssistantTurnState } from '../../ai/assistant-turn';
+import { createSeedData } from '../../data/seed-data';
+import { appendMessage, createConversation } from '../../domain/conversations';
+import { TabyScreen } from '../redesign/screens/TabyScreen';
+import type { AssistantTurnControls } from '../useAssistantTurn';
+
+const noop = () => undefined;
+const turn: AssistantTurnControls = { state: initialAssistantTurnState, ask: async () => undefined, confirm: async () => undefined, cancelConfirmation: async () => undefined, stop: noop, retry: async () => undefined, useLocalFallback: async () => undefined, dismiss: () => 'close', reset: noop };
+const conversation = appendMessage(createConversation('organize meu dia', '2026-09-21T09:00:00.000Z', 'taby-1'), { role: 'assistant', text: 'Vamos começar pelo próximo compromisso.', at: '2026-09-21T09:01:00.000Z' });
+const conversations = { conversations: [conversation], activeId: 'taby-1', query: '', saveFailed: false, record: noop, select: noop, create: noop, remove: noop, removeAll: noop, search: noop };
+
+describe('TabyScreen', () => {
+  it('presents the active conversation, history controls and an accessible composer in the redesigned surface', () => {
+    const markup = renderToStaticMarkup(<TabyScreen data={createSeedData()} turn={turn} conversations={conversations} />);
+
+    expect(markup).toContain('Local assistant');
+    expect(markup).toContain('Seu espaço para pensar.');
+    expect(markup).toContain('organize meu dia');
+    expect(markup).toContain('Vamos começar pelo próximo compromisso.');
+    expect(markup).toContain('Nova conversa');
+    expect(markup).toContain('Ocultar conversas');
+    expect(markup).toContain('aria-expanded="true"');
+    expect(markup).toContain('Pergunte ou peça uma ação');
+    expect(markup).toContain('taby-screen');
+  });
+
+  it('keeps a safe provider boundary visible instead of implying external access', () => {
+    const markup = renderToStaticMarkup(<TabyScreen data={createSeedData()} turn={turn} conversations={conversations} />);
+    expect(markup).toContain('Ferramentas locais e confirmações explícitas.');
+    expect(markup).toContain('External AI');
+  });
+});

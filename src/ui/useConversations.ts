@@ -38,6 +38,15 @@ export function recordTurn(state: ConversationState, message: ConversationMessag
   return { ...state, conversations: state.conversations.map((conversation) => conversation.id === active.id ? updated : conversation) }
 }
 
+/** A resposta é anexada à conversa que iniciou o turno, não à que estiver selecionada quando ela chegar. */
+export function recordTurnInConversation(state: ConversationState, message: ConversationMessage, conversationId: string): ConversationState {
+  const target = state.conversations.find((conversation) => conversation.id === conversationId)
+  if (!target) return state
+  const last = target.messages[target.messages.length - 1]
+  if (last && sameMessage(last, message)) return state
+  return { ...state, conversations: state.conversations.map((conversation) => conversation.id === conversationId ? appendMessage(conversation, message) : conversation) }
+}
+
 /** Só uma transição terminal vira mensagem: `idle`, `streaming` e `failure` não entram no histórico. */
 export function assistantMessageFor(state: AssistantTurnState, at: string): ConversationMessage | undefined {
   if (state.status === 'replied' || state.status === 'confirmation') {
@@ -71,6 +80,7 @@ export function useConversations({ storage, turn, onEvent }: ConversationsHost =
   // `log` do App é recriado a cada render; sem a ref o efeito abaixo rodaria em todo render.
   const warned = useRef('')
   const handled = useRef('')
+  const conversationForRequest = useRef(new Map<string, string | null>())
 
   const apply = useCallback((next: ConversationState) => {
     if (next === stateRef.current) return
@@ -97,13 +107,17 @@ export function useConversations({ storage, turn, onEvent }: ConversationsHost =
   const turnState = turn?.state
   useEffect(() => {
     if (!turnState || turnState.status === 'idle') return
+    if (turnState.status === 'streaming') conversationForRequest.current.set(turnState.requestId, stateRef.current.activeId)
     const key = `${turnState.status}:${turnState.requestId}`
     if (handled.current === key) return
     const message = assistantMessageFor(turnState, new Date().toISOString())
     if (!message) return
     handled.current = key
-    record(message)
-  }, [turnState, record])
+    const target = conversationForRequest.current.get(turnState.requestId)
+    if (target) apply(recordTurnInConversation(stateRef.current, message, target))
+    else record(message)
+    if (turnState.status === 'replied' || turnState.status === 'executed' || turnState.status === 'cancelled') conversationForRequest.current.delete(turnState.requestId)
+  }, [turnState, record, apply])
 
   return useMemo<ConversationsController>(() => ({
     conversations: state.conversations,
