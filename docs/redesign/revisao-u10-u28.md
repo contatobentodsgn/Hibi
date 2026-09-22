@@ -1,11 +1,11 @@
 # Revisão U10–U28 — progresso do exame (salvo em 2026-09-22)
 
-> Exame parcial, atualizado após as correções incrementais da revisão. O relatório distingue casca migrada de conteúdo ainda legado.
+> Exame atualizado após as correções incrementais da revisão. O relatório distingue casca migrada de conteúdo ainda legado.
 
 ## Base usada
 
 - Plano: `docs/superpowers/plans/2026-09-18-hibi-ui-complete-implementation.md` (seções 9–12, U10–U28)
-- Git: `main` em `49e4441` (localização completa da tela de Lembretes), acima de `adf7440` (paleta Mais enxuta)
+- Git: `main` contém as correções de localização da Agenda e a recuperação visual de Estatísticas (`b7765b1`, `c833078`)
 - Roteamento real: `src/App.tsx` (~linhas 458–501) + `src/ui/shell/routes.ts`
 
 ## Mapa U10–U28 × arquivos (verificado por leitura direta)
@@ -17,8 +17,8 @@
 | U12 Notas | `src/ui/redesign/screens/NotesScreen.tsx`, `notes-screen.css` | Tela nova completa: busca, pastas, criar/editar/excluir via `ActionDialog`, rascunho local, texto simples preservado. Mistura pt/en nos rótulos (ex.: título "Notes" + "Nova nota", botões "Add note"/"Cancel"). |
 | U13 Taby e voz | `src/ui/redesign/screens/TabyScreen.tsx`, `taby-screen.css` | Tela nova completa: histórico recolhível com busca, nova/selecionar/excluir, streaming, cancelamento, confirmação, retry/fallback, voz (estados via `voice.notice`). Título em inglês ("Local assistant") destoa das demais. Troca de conversa durante geração ainda por verificar. |
 | U14 Barra rápida e mascote | `src/ui/TabyBar.tsx`, `src/companion/*`, (sem referência em `src/ui/redesign/`) | `TabyBar` continua legada (sem import do redesign). Há commit `7085f8b` "aplicar tema do Hibi à barra rápida" ainda não examinado. Mascote/host preservados no App. U14 **não confirmada**. |
-| U15 Rotina/Hábitos | `src/ui/redesign/screens/HabitsScreen.tsx`, `rhythm-screens.css` | Tela nova completa: criar/marcar/desmarcar/editar/excluir, `todayKey`, `streakFor`/`progressFor`. Botões com classes próprias `rhythm-*`, não HeroUI. Diálogo de exclusão é `div` customizado, não `ActionDialog` (desvio do padrão U05). |
-| U16 Metas/Progresso | `src/ui/redesign/screens/GoalsScreen.tsx` | Tela nova completa: criar/+1/definir/editar/excluir, `deriveGoalsDirection`. Mesmo desvio: botões e diálogo customizados. Regra "sair de Complete ao aumentar alvo" ainda por verificar. |
+| U15 Rotina/Hábitos | `src/ui/redesign/screens/HabitsScreen.tsx`, `rhythm-screens.css` | Tela nova completa: criar/marcar/desmarcar/editar/excluir, `todayKey`, `streakFor`/`progressFor`. Botões com classes próprias `rhythm-*`, não HeroUI. Exclusão usa `ActionDialog`. |
+| U16 Metas/Progresso | `src/ui/redesign/screens/GoalsScreen.tsx` | Tela nova completa: criar/+1/definir/editar/excluir, `deriveGoalsDirection`. Exclusão usa `ActionDialog`; regra de sair de Complete ao aumentar alvo permanece coberta pela lógica de direção. |
 | U17 Revisão | `src/ui/ReviewView.tsx`, `src/App.tsx:469` | Casca migrada para `HibiUiRoot` + `SectionHeader`, com a lógica local de sugestões preservada. O conteúdo interno ainda usa classes legadas e precisa de uma rodada visual dedicada. U17 **parcial**. |
 | U18 Tendências/Estatísticas | `src/ui/redesign/screens/StatsScreen.tsx` (10 linhas), `stats-screen.css` | Casca migrada para `HibiUiRoot`/`SectionHeader`, mas o conteúdo ainda é o `StatsView` legado. Período vazio/exportação herdados. U18 **parcial**. |
 | U19 Comandos e rotas secundárias | `src/ui/palette/*`, `src/ui/shell/routes.ts`, `src/App.tsx` (palette) | A paleta existe e o menu “Mais” deixou de ser provisório: exibe somente seis rotas de uso recorrente. Suporte, diagnóstico, atualizações e hardware permanecem acessíveis pela paleta/Ajustes. U19 **parcial** até a validação visual final. |
@@ -35,8 +35,8 @@
 3. **U19 ainda precisa de validação visual** — a lista diária do "Mais" foi reduzida a seis rotas e as rotas técnicas continuam acessíveis por comandos/Ajustes; falta conferir o comportamento em janela estreita.
 4. **U28 não removeu legado** — o `migration.md` confirma a permanência; `legacy-surface` segue em `App.tsx:501` para rotas não migradas.
 5. **U26/U27 são documentos, não evidências** — sem comparações lado a lado arquivadas em `docs/redesign/<unidade>-assets/` (pasta não existe para U10–U28) e sem execução real dos fluxos U27.
-6. **Inconsistências de idioma** — Agenda, Hábitos, Metas e Tarefas ainda possuem textos de interface fixos; o núcleo de Lembretes já foi migrado para pt/en via dicionário.
-7. **Padrão de diálogo furado em U15/U16** — `rhythm-dialog` customizado em vez de `ActionDialog`/`EntityDetailsPanel` (U05); perde foco preso, Escape, clique-fora e retorno de foco padronizados.
+6. **Idioma** — os rótulos de interface auditados em Agenda, Hábitos, Metas e Tarefas estão no dicionário pt/en; dias, categorias e período da Agenda também foram corrigidos nesta passada.
+7. **Diálogos U15/U16** — exclusão está padronizada em `ActionDialog`; permanece uma pendência estrutural separada para migrar o conteúdo de Revisão/Estatísticas.
 
 ## Correções incrementais registradas
 
@@ -49,10 +49,20 @@
 - U07: título principal de Tarefas usa o dicionário.
 - U17: a casca de Revisão foi movida para `HibiUiRoot` e `SectionHeader`; a migração visual interna continua.
 
-## Não examinado ainda (ficou para a próxima passada)
+## Verificação executada nesta passada
+
+- `npm test`: Vitest **121 arquivos / 949 testes** e suíte Node **671 aprovados / 0 falhas**.
+- `npm run parity:check`: **18 invariantes aprovadas**.
+- `npm run safety:renderer`: aprovado.
+- `npm run build`: build nativo, TypeScript e Vite aprovados; permanece apenas o aviso não bloqueante de chunk acima de 500 kB.
+- `scripts/visual-u10-u28.mjs`: 10 rotas em viewport larga (1440×1000) + 10 em viewport estreita (900×900), total de **20 capturas reais**. A navegação compacta foi acionada e cada captura confirmou a rota esperada.
+- Correção adicional: rótulos de dias/categorias e período da Agenda agora respeitam o idioma selecionado; a suíte de Agenda/Redesign passou com **2 arquivos / 3 testes**.
+
+## Pendências de migração estrutural
 
 - `7085f8b` (tema na barra rápida), `5075dd2`, `096c9cc`, `92a3c9a`, merges U10/U11 (`a2bbc5b`, `c564809`, `839b74f`)
 - Testes: `src/ui/__tests__/RedesignScreens.test.tsx`, `RhythmScreens.test.tsx`, `palette.test.tsx`
 - `CommandPalette.tsx`, `commands.ts`, `TodayScreen` links de contexto, `TasksScreen`/`RemindersScreen` detalhe
-- Rodar bateria: `npm test`, `tsc`, `build`, `parity:check`, `safety:renderer`, e2e
-- Conferir `docs/redesign/parity-matrix.md` × rotas e `IMPLEMENTATION_STATUS_AND_PLAN.md`
+- Migrar o conteúdo interno de Revisão e Estatísticas para componentes da nova UI, removendo as estruturas legadas em vez de apenas preservar a lógica sob uma casca nova.
+- Executar os fluxos que exigem ambiente nativo/externo real (EventKit/Google/Notion, voz, monitores, Spaces, sleep/wake) quando esse ambiente estiver disponível.
+- Retirar consumidores restantes do legado conforme o plano U28, depois de concluir as migrações estruturais acima.
