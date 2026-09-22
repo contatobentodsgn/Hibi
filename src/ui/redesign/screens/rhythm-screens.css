@@ -1,0 +1,48 @@
+@layer components {
+  .hibi-ui.rhythm-screen { width: min(1160px, 100%); margin: 0 auto; padding: 48px clamp(20px, 4vw, 52px) 72px; color: var(--hibi-ink); }
+  .rhythm-screen :is(h2, p) { margin: 0; }
+  .rhythm-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 37px; padding: 8px 14px; border: 1px solid var(--hibi-edge); border-radius: var(--hibi-radius-control); background: var(--hibi-paper); color: var(--hibi-ink); font: inherit; font-size: 12px; cursor: pointer; }
+  .rhythm-button--primary { border-color: var(--hibi-action); background: var(--hibi-action); color: var(--hibi-action-ink); }
+  .rhythm-button--danger { border-color: #b45151; background: #b45151; color: white; }
+  .rhythm-stats { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(130px, 1fr)); gap: 12px; margin: -7px 0 24px; }
+  .rhythm-stats > div { display: grid; gap: 7px; min-width: 0; padding: 17px 18px; border: 1px solid var(--hibi-line); border-radius: 18px; background: var(--hibi-paper); box-shadow: var(--hibi-shadow); }
+  .rhythm-stats span { color: var(--hibi-ink-muted); font-size: 11px; }
+  .rhythm-stats strong { display: flex; align-items: center; gap: 5px; overflow: hidden; font-size: 21px; font-weight: 560; letter-spacing: -.04em; text-overflow: ellipsis; white-space: nowrap; }
+  .rhythm-stats small { color: var(--hibi-ink-muted); font-size: 11px; font-weight: 450; letter-spacing: 0; }
+  .rhythm-create { display: grid; grid-template-columns: minmax(180px, 1.6fr) minmax(135px, .8fr) minmax(100px, .65fr) auto; align-items: end; gap: 12px; margin-bottom: 22px; padding: 17px; border: 1px solid var(--hibi-line); border-radius: 18px; background: var(--hibi-soft); }
+  .rhythm-create > div, .rhythm-edit { display: grid; gap: 6px; }
+  .rhythm-create label, .rhythm-edit label, .goal-progress-form label { color: var(--hibi-ink-muted); font-size: 11px; }
+  .rhythm-create input, .rhythm-create select, .rhythm-edit input, .rhythm-edit select, .goal-progress-form input { width: 100%; min-height: 38px; padding: 7px 10px; border: 1px solid var(--hibi-edge); border-radius: 10px; outline: 0; background: var(--hibi-paper); color: var(--hibi-ink); font: inherit; font-size: 12px; }
+  .rhythm-list { overflow: hidden; border: 1px solid var(--hibi-line); border-radius: 24px; background: var(--hibi-paper); box-shadow: var(--hibi-shadow); }
+  .rhythm-list > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 21px 22px 17px; border-bottom: 1px solid var(--hibi-line); }
+  .rhythm-list h2 { font-size: 17px; font-weight: 600; letter-spacing: -.03em; }
+  .rhythm-list header p { margin-top: 5px; color: var(--hibi-ink-muted); font-size: 11px; }
+  .rhythm-list header > span { color: var(--hibi-ink-muted); font-size: 10px; }
+  .rhythm-items { display: grid; }
+  .rhythm-item { display: grid; grid-template-columns: 27px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 80px; padding: 13px 20px; border-bottom: 1px solid var(--hibi-line); }
+  .rhythm-item:last-child { border-bottom: 0; }
+  .rhythm-check { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid var(--hibi-edge); border-radius: 7px; background: transparent; color: white; cursor: pointer; }
+  .rhythm-check.is-checked { border-color: var(--hibi-accent); background: var(--hibi-accent); }
+  .rhythm-item__copy { display: grid; min-width: 0; gap: 5px; }
+  .rhythm-item__copy > strong, .rhythm-item__title strong { overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+  .rhythm-item__copy > span { color: var(--hibi-ink-muted); font-size: 11px; }
+  .rhythm-progress { width: min(360px, 100%); height: 5px; overflow: hidden; border-radius: 99px; background: var(--hibi-soft); }
+  .rhythm-progress span { display: block; height: 100%; border-radius: inherit; background: var(--hibi-accent); transition: width var(--hibi-duration-control) var(--hibi-ease); }
+  .rhythm-item__actions { display: flex; align-items: center; gap: 5px; }
+  .rhythm-item__actions button { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; padding: 5px 8px; border: 0; border-radius: 9px; background: transparent; color: var(--hibi-ink-muted); font: inherit; font-size: 11px; cursor: pointer; }
+  .rhythm-item__actions button:hover { background: var(--hibi-soft); color: var(--hibi-ink); }
+  .rhythm-item__actions .rhythm-step { border: 1px solid var(--hibi-edge); color: var(--hibi-ink); font-weight: 600; }
+  .rhythm-item__actions button:disabled { cursor: not-allowed; opacity: .45; }
+  .rhythm-chip { display: inline-flex; align-items: center; gap: 4px; width: fit-content; padding: 4px 7px; border-radius: 7px; background: var(--hibi-mint); color: var(--hibi-mint-ink); font-size: 10px; }
+  .rhythm-item__title { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .rhythm-edit { grid-column: 2 / -1; grid-template-columns: minmax(120px, 1fr) auto auto auto auto; align-items: center; }
+  .goal-progress-form { grid-column: 2 / -1; display: flex; align-items: end; gap: 8px; padding-top: 9px; }
+  .goal-progress-form label { display: grid; gap: 5px; }
+  .goal-progress-form input { width: 120px; }
+  .rhythm-dialog-backdrop { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: #16162055; backdrop-filter: blur(4px); }
+  .rhythm-dialog { width: min(420px, 100%); padding: 24px; border: 1px solid var(--hibi-line); border-radius: 22px; background: var(--hibi-paper); color: var(--hibi-ink); box-shadow: 0 24px 80px #0005; }
+  .rhythm-dialog h2 { font-size: 20px; }
+  .rhythm-dialog p { margin-top: 8px; color: var(--hibi-ink-muted); font-size: 12px; }
+  .rhythm-dialog > div { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+  @media (max-width: 760px) { .hibi-ui.rhythm-screen { padding: 28px 16px 55px; } .rhythm-stats { grid-template-columns: 1fr 1fr; } .rhythm-stat--wide { grid-column: 1 / -1; } .rhythm-create { grid-template-columns: 1fr 1fr; } .rhythm-create > div:first-child { grid-column: 1 / -1; } .rhythm-create > button { grid-column: 1 / -1; } .rhythm-item { grid-template-columns: 27px minmax(0, 1fr); } .rhythm-item__actions { grid-column: 2; justify-content: flex-start; } .rhythm-edit, .goal-progress-form { grid-column: 2; grid-template-columns: 1fr; display: grid; } .goal-progress-form input { width: 100%; } }
+}
