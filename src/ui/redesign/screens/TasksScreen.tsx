@@ -148,7 +148,7 @@ export function TasksScreen({ data, today = new Date().toISOString().slice(0, 10
           </Card>
         </section>
 
-        <Card className="tasks-screen__summary" aria-label="Resumo de execução das tarefas"><h2>Um passo de cada vez.</h2><p>O que precisa de cuidado agora.</p><div><span><strong>{rhythm.overdue}</strong>Atrasadas</span><span><strong>{rhythm.dueToday}</strong>Hoje</span><span><strong>{rhythm.withoutDeadline}</strong>Sem prazo</span></div>{rhythm.next ? <p className="tasks-screen__next"><Clock3 size={15} aria-hidden="true" /><span>Próxima: <strong>{rhythm.next.title}</strong></span></p> : <p className="tasks-screen__next"><CheckCheck size={15} aria-hidden="true" />Você está em dia.</p>}</Card>
+        <Card className="tasks-screen__summary" aria-label={t('tasks.summary.aria')}><h2>{t('tasks.summary.title')}</h2><p>{t('tasks.summary.detail')}</p><div><span><strong>{rhythm.overdue}</strong>{t('tasks.overdue')}</span><span><strong>{rhythm.dueToday}</strong>{t('tasks.today')}</span><span><strong>{rhythm.withoutDeadline}</strong>{t('tasks.noDeadline')}</span></div>{rhythm.next ? <p className="tasks-screen__next"><Clock3 size={15} aria-hidden="true" /><span>{t('tasks.next')} <strong>{rhythm.next.title}</strong></span></p> : <p className="tasks-screen__next"><CheckCheck size={15} aria-hidden="true" />{t('tasks.upToDate')}</p>}</Card>
       </div>
     </HibiUiRoot>
   );
@@ -157,13 +157,14 @@ export function TasksScreen({ data, today = new Date().toISOString().slice(0, 10
 function TaskPanelActions({ task, editingTitle, titleDraft, deleteOpen, onStartEdit, onCancelEdit, onTitleDraftChange, onRename, onToggleStatus, onEditDeadline, onDeleteOpenChange, onDelete }: Readonly<{
   task: Task; editingTitle: boolean; titleDraft: string; deleteOpen: boolean; onStartEdit: () => void; onCancelEdit: () => void; onTitleDraftChange: (value: string) => void; onRename: (event: FormEvent<HTMLFormElement>) => void; onToggleStatus: () => void; onEditDeadline: () => void; onDeleteOpenChange: (open: boolean) => void; onDelete: () => void;
 }>) {
+  const t = useT();
   const completed = task.status === 'completed';
   return <>
-    {editingTitle ? <form className="tasks-screen__edit-form" onSubmit={onRename}><label htmlFor={`task-title-${task.id}`}>Título</label><input id={`task-title-${task.id}`} value={titleDraft} onChange={(event) => onTitleDraftChange(event.target.value)} autoFocus /><div><Button type="button" variant="secondary" onPress={onCancelEdit}>Cancelar</Button><Button type="submit" variant="primary">Salvar</Button></div></form> : <Button variant="secondary" onPress={onStartEdit}><Pencil size={15} aria-hidden="true" />Editar título</Button>}
-    <Button variant="secondary" onPress={onEditDeadline}><CalendarClock size={15} aria-hidden="true" />Editar prazo</Button>
-    <Button variant={completed ? 'secondary' : 'primary'} onPress={onToggleStatus}>{completed ? 'Reabrir tarefa' : 'Concluir tarefa'}</Button>
-    <ActionDialog trigger={<Button variant="danger"><Trash2 size={15} aria-hidden="true" />Excluir</Button>} isOpen={deleteOpen} onOpenChange={onDeleteOpenChange} title="Excluir tarefa?" description={`“${task.title}” será removida do seu espaço.`}>
-      <div className="tasks-screen__confirm-actions"><Button slot="close" variant="secondary">Cancelar</Button><Button slot="close" variant="danger" onPress={onDelete}>Excluir tarefa</Button></div>
+    {editingTitle ? <form className="tasks-screen__edit-form" onSubmit={onRename}><label htmlFor={`task-title-${task.id}`}>{t('tasks.titleField.short')}</label><input id={`task-title-${task.id}`} value={titleDraft} onChange={(event) => onTitleDraftChange(event.target.value)} autoFocus /><div><Button type="button" variant="secondary" onPress={onCancelEdit}>{t('tasks.cancel')}</Button><Button type="submit" variant="primary">{t('habits.save')}</Button></div></form> : <Button variant="secondary" onPress={onStartEdit}><Pencil size={15} aria-hidden="true" />{t('tasks.editTitle')}</Button>}
+    <Button variant="secondary" onPress={onEditDeadline}><CalendarClock size={15} aria-hidden="true" />{t('tasks.editDeadline')}</Button>
+    <Button variant={completed ? 'secondary' : 'primary'} onPress={onToggleStatus}>{completed ? t('tasks.reopen') : t('tasks.complete')}</Button>
+    <ActionDialog trigger={<Button variant="danger"><Trash2 size={15} aria-hidden="true" />{t('tasks.delete')}</Button>} isOpen={deleteOpen} onOpenChange={onDeleteOpenChange} title={t('tasks.deleteTitle')} description={t('tasks.deleteDescription').replace('{title}', task.title)}>
+      <div className="tasks-screen__confirm-actions"><Button slot="close" variant="secondary">{t('tasks.cancel')}</Button><Button slot="close" variant="danger" onPress={onDelete}>{t('tasks.delete')}</Button></div>
     </ActionDialog>
   </>;
 }
