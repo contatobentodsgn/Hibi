@@ -19,6 +19,11 @@
 .palette .command-row:hover, .palette .command-row[data-selected="true"] { background: var(--bg-subtle); }
 .palette .empty { color: var(--text-secondary); }
 
+.palette--redesign { border: 1px solid var(--hibi-line); border-radius: 24px; box-shadow: var(--hibi-shadow); }
+.palette--redesign .palette-search { border-bottom: 1px solid var(--hibi-line); }
+.palette--redesign .command-row { border-radius: 14px; margin: 3px 8px; }
+.palette--redesign kbd { border-radius: 8px; background: var(--hibi-lavender); color: var(--hibi-lavender-ink); }
+
 .palette-turn { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-5) var(--space-4); border-top: 1px solid var(--stroke-subtle); }
 .palette-line { display: flex; gap: var(--space-3); align-items: flex-start; font-size: var(--type-14); line-height: var(--leading-14); }
 .palette-line > .tag { flex: none; margin-top: 2px; }

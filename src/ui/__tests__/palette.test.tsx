@@ -48,6 +48,17 @@ describe('paleta', () => {
     expect(filterCommands('', t)).toHaveLength(PALETTE_COMMANDS.length)
   })
 
+  it('encontra destinos por sinônimos em português', () => {
+    const t = (key: Parameters<typeof translate>[1]) => translate('pt', key)
+    expect(filterCommands('calendário', t).map((command) => command.key)).toEqual(['/day', '/week'])
+    expect(filterCommands('preferências', t).map((command) => command.key)).toContain('/settings')
+  })
+
+  it('marca a paleta com a superfície visual da U19', () => {
+    const markup = renderToStaticMarkup(<CommandPalette data={data} onClose={noop} onNavigate={noop} onEvent={noop} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} conversations={conversations} />)
+    expect(markup).toContain('data-palette-surface="redesign"')
+  })
+
   it('renderiza o diálogo em modo comando com rótulos do dicionário', () => {
     const markup = renderToStaticMarkup(<CommandPalette data={data} onClose={noop} onNavigate={noop} onEvent={noop} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} conversations={conversations} />)
     expect(markup).toContain('aria-label="Paleta de comandos"')

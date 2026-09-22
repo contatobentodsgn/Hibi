@@ -20,7 +20,8 @@ import type { NotionLocalMutation } from '../integrations/notion-apply';
 import { createDesktopWorkspaceBackend, createWorkspaceStore, type WorkspaceRestorePoint } from '../data/workspace-store';
 import { restorePointDate, restorePointSize, restorePointText, restorePointsEmptyKey } from './restore-point-format';
 
-type Props = { data: StudyData; onEvent: (action: string, detail: string, result?: string) => void; onReset: () => void; onRestore?: (data: StudyData, preferences: WorkspacePreferences) => void; onTestNotification?: () => Promise<boolean>; aiFallbackPolicy?: AiFallbackPolicy; onAiFallbackPolicyChange?: (policy: AiFallbackPolicy) => void; aiUsage?: readonly AiUsageRecord[]; onApplyImport?: (candidate: import('../integrations/imports').ImportCandidate, decision: import('../integrations/imports').ImportDecision, localId?: string, connectorId?: string) => void; onApplyNotion?: (mutations: readonly NotionLocalMutation[]) => readonly import('../domain/models').Task[]; onMoveBlock?: (id: string, start: string, end: string) => boolean; focusSettings?: FocusSettings; onFocusSettingsChange?: (settings: FocusSettings) => void };
+export type SettingsViewProps = { data: StudyData; onEvent: (action: string, detail: string, result?: string) => void; onReset: () => void; onRestore?: (data: StudyData, preferences: WorkspacePreferences) => void; onTestNotification?: () => Promise<boolean>; aiFallbackPolicy?: AiFallbackPolicy; onAiFallbackPolicyChange?: (policy: AiFallbackPolicy) => void; aiUsage?: readonly AiUsageRecord[]; onApplyImport?: (candidate: import('../integrations/imports').ImportCandidate, decision: import('../integrations/imports').ImportDecision, localId?: string, connectorId?: string) => void; onApplyNotion?: (mutations: readonly NotionLocalMutation[]) => readonly import('../domain/models').Task[]; onMoveBlock?: (id: string, start: string, end: string) => boolean; focusSettings?: FocusSettings; onFocusSettingsChange?: (settings: FocusSettings) => void; initialTab?: 'General' | 'AI' | 'Integrations' | 'Focus' | 'Notifications' | 'Data' | 'About' };
+type Props = SettingsViewProps;
 type AiConfig = { provider: 'local' | 'openai-compatible'; endpoint: string; model: string; hasApiKey: boolean };
 const DEFAULT_AI_CONFIG: AiConfig = { provider: 'local', endpoint: '', model: 'local-tool-provider', hasApiKey: false };
 
@@ -167,8 +168,8 @@ export function FocusSettingsPanel({ settings, onChange, data, onEvent }: { sett
   </>;
 }
 
-export function SettingsView({ data, onEvent, onReset, onRestore, onTestNotification, aiFallbackPolicy, onAiFallbackPolicyChange, aiUsage, onApplyImport, onApplyNotion, onMoveBlock, focusSettings, onFocusSettingsChange }: Props) {
-  const [tab, setTab] = useState<'General' | 'AI' | 'Integrations' | 'Focus' | 'Notifications' | 'Data' | 'About'>('General');
+export function SettingsView({ data, onEvent, onReset, onRestore, onTestNotification, aiFallbackPolicy, onAiFallbackPolicyChange, aiUsage, onApplyImport, onApplyNotion, onMoveBlock, focusSettings, onFocusSettingsChange, initialTab = 'General' }: SettingsViewProps) {
+  const [tab, setTab] = useState<'General' | 'AI' | 'Integrations' | 'Focus' | 'Notifications' | 'Data' | 'About'>(initialTab);
   const { language, setLanguage, twentyFourHour, setTwentyFourHour } = useLocale();
   const t = useT();
   const [launchAtLogin, setLaunchAtLogin] = useState(false);

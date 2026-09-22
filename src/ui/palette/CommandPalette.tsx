@@ -176,7 +176,7 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
   const showFolderList = view.kind === 'folders' && folders.length > 0
   const listboxId = showCommandList ? 'palette-commands' : showFolderList ? 'palette-folders' : undefined
 
-  return <div className="overlay" onMouseDown={onClose}><section ref={paletteRef} className="palette" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('palette.title')}>
+  return <div className="overlay" onMouseDown={onClose}><section ref={paletteRef} className="palette palette--redesign" data-palette-surface="redesign" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={t('palette.title')}>
     <div className="palette-search"><span>{view.kind !== 'commands' ? '▤' : mode === 'command' ? '/' : '✦'}</span><input autoFocus role="combobox" aria-autocomplete="list" aria-expanded={listboxId !== undefined} aria-controls={listboxId} value={query} onChange={(event) => handleQueryChange(event.target.value)} onKeyDown={handleKeyDown} placeholder={placeholder} aria-label={placeholder} aria-activedescendant={activeDescendant} maxLength={view.kind === 'rename' || view.kind === 'merge' ? FOLDER_NAME_MAX : undefined} /></div>
     <div className="palette-body">
       {view.kind !== 'commands' && <p className="palette-folder-notice" role="status">{notice ?? ''}</p>}

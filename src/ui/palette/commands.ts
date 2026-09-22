@@ -1,14 +1,14 @@
 import type { DictionaryKey } from '../../i18n/dictionary'
 import type { NavKey } from '../shell/routes'
 
-type CommandBase = Readonly<{ key: string; label: DictionaryKey; group: 'palette.group.navigate' | 'palette.group.work' | 'palette.group.system' }>
+type CommandBase = Readonly<{ key: string; label: DictionaryKey; group: 'palette.group.navigate' | 'palette.group.work' | 'palette.group.system'; aliases?: readonly string[] }>
 
 // Um comando abre uma rota ou troca a paleta para outra vista. `/folder` é o único do segundo tipo.
 export type PaletteCommand = (CommandBase & Readonly<{ route: NavKey }>) | (CommandBase & Readonly<{ action: 'folders' }>)
 
 export const PALETTE_COMMANDS: readonly PaletteCommand[] = [
-  { key: '/day', label: 'command.day', group: 'palette.group.navigate', route: 'day' },
-  { key: '/week', label: 'command.week', group: 'palette.group.navigate', route: 'week' },
+  { key: '/day', label: 'command.day', group: 'palette.group.navigate', aliases: ['agenda', 'calendário', 'calendario'], route: 'day' },
+  { key: '/week', label: 'command.week', group: 'palette.group.navigate', aliases: ['agenda', 'calendário', 'calendario'], route: 'week' },
   { key: '/tasks', label: 'command.tasks', group: 'palette.group.navigate', route: 'tasks' },
   { key: '/reminders', label: 'command.reminders', group: 'palette.group.navigate', route: 'reminders' },
   { key: '/habits', label: 'command.habits', group: 'palette.group.navigate', route: 'habits' },
@@ -24,7 +24,7 @@ export const PALETTE_COMMANDS: readonly PaletteCommand[] = [
   { key: '/idea', label: 'command.idea', group: 'palette.group.system', route: 'feedback' },
   { key: '/focus', label: 'command.focus', group: 'palette.group.work', route: 'focus' },
   { key: '/break', label: 'command.break', group: 'palette.group.work', route: 'break' },
-  { key: '/settings', label: 'command.settings', group: 'palette.group.system', route: 'settings' },
+  { key: '/settings', label: 'command.settings', group: 'palette.group.system', aliases: ['preferências', 'preferencias', 'configuração', 'configuracao'], route: 'settings' },
   { key: '/tools', label: 'command.tools', group: 'palette.group.system', route: 'settings' },
   { key: '/events', label: 'command.events', group: 'palette.group.system', route: 'instrumentation' },
   { key: '/updates', label: 'command.updates', group: 'palette.group.system', route: 'updates' },
@@ -33,5 +33,5 @@ export const PALETTE_COMMANDS: readonly PaletteCommand[] = [
 
 export const filterCommands = (query: string, t: (key: DictionaryKey) => string): readonly PaletteCommand[] => {
   const needle = query.trim().toLowerCase()
-  return PALETTE_COMMANDS.filter((command) => `${command.key} ${t(command.label)}`.toLowerCase().includes(needle))
+  return PALETTE_COMMANDS.filter((command) => `${command.key} ${t(command.label)} ${(command.aliases ?? []).join(' ')}`.toLowerCase().includes(needle))
 }
