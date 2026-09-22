@@ -1,30 +1,389 @@
-import { useState, type FormEvent } from 'react';
-import { Check, Pencil, Plus, Target, Trash2 } from 'lucide-react';
-import type { Goal, StudyData } from '../../../domain/models';
-import { deriveGoalsDirection } from '../../progress-rhythm';
-import { HibiEmptyState } from '../components/HibiEmptyState';
-import { ActionDialog } from '../components/ActionDialog';
-import { HibiUiRoot } from '../components/HibiUiRoot';
-import { SectionHeader } from '../components/SectionHeader';
-import { useT } from '../../../i18n/LocaleProvider';
-import './rhythm-screens.css';
+import { useState, type FormEvent } from "react";
+import { Check, Pencil, Plus, Target, Trash2 } from "lucide-react";
+import type { Goal, StudyData } from "../../../domain/models";
+import { deriveGoalsDirection } from "../../progress-rhythm";
+import { HibiEmptyState } from "../components/HibiEmptyState";
+import { ActionDialog } from "../components/ActionDialog";
+import { HibiUiRoot } from "../components/HibiUiRoot";
+import { SectionHeader } from "../components/SectionHeader";
+import { useT } from "../../../i18n/LocaleProvider";
+import "./rhythm-screens.css";
 
-type Changes = Partial<Omit<Goal, 'id'>>;
+type Changes = Partial<Omit<Goal, "id">>;
 type Draft = { title: string; target: string; unit: string };
-type Props = Readonly<{ data: StudyData; onCreate: (title: string, target: number, unit?: string) => void; onProgress: (id: string, current: number) => void; onUpdate: (id: string, changes: Changes) => void; onDelete: (id: string) => void }>;
-const empty = (): Draft => ({ title: '', target: '10', unit: '' });
+type Props = Readonly<{
+  data: StudyData;
+  onCreate: (title: string, target: number, unit?: string) => void;
+  onProgress: (id: string, current: number) => void;
+  onUpdate: (id: string, changes: Changes) => void;
+  onDelete: (id: string) => void;
+}>;
+const empty = (): Draft => ({ title: "", target: "10", unit: "" });
 
-export function GoalsScreen({ data, onCreate, onProgress, onUpdate, onDelete }: Props) {
+export function GoalsScreen({
+  data,
+  onCreate,
+  onProgress,
+  onUpdate,
+  onDelete,
+}: Props) {
   const t = useT();
-  const [creating, setCreating] = useState(false); const [draft, setDraft] = useState<Draft>(empty()); const [editing, setEditing] = useState<string | null>(null); const [editingDraft, setEditingDraft] = useState<Draft>(empty()); const [progressId, setProgressId] = useState<string | null>(null); const [progress, setProgress] = useState(''); const [deleting, setDeleting] = useState<Goal | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState<Draft>(empty());
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState<Draft>(empty());
+  const [progressId, setProgressId] = useState<string | null>(null);
+  const [progress, setProgress] = useState("");
+  const [deleting, setDeleting] = useState<Goal | null>(null);
   const direction = deriveGoalsDirection(data.goals);
-  const submit = (event: FormEvent) => { event.preventDefault(); const target = Number(draft.target); if (draft.title.trim() && Number.isFinite(target) && target > 0) { onCreate(draft.title.trim(), target, draft.unit.trim() || undefined); setDraft(empty()); setCreating(false); } };
-  const save = (event: FormEvent, goal: Goal) => { event.preventDefault(); const target = Number(editingDraft.target); if (editingDraft.title.trim() && Number.isFinite(target) && target > 0) { onUpdate(goal.id, { title: editingDraft.title.trim(), target, unit: editingDraft.unit.trim() || undefined }); setEditing(null); } };
-  return <HibiUiRoot className="rhythm-screen goals-screen">
-    <SectionHeader title={t('goals.title')} subtitle={t('goals.subtitle').replace('{count}', String(data.goals.length))} actions={<button className="rhythm-button rhythm-button--primary" onClick={() => setCreating((value) => !value)}><Plus size={16} aria-hidden="true" />{creating ? t('goals.close') : t('goals.new')}</button>} />
-    <div className="rhythm-stats"><div className="rhythm-stat--wide"><span>{t('goals.nextMilestone')}</span><strong>{direction.next?.title ?? t('goals.choose')}</strong></div><div><span>{t('goals.inProgress')}</span><strong>{direction.active}</strong></div><div><span>{t('goals.completed')}</span><strong><Check size={17} aria-hidden="true" />{direction.completed} <small>{t('habits.of')} {direction.total}</small></strong></div></div>
-    {creating && <form className="rhythm-create" aria-label={t('goals.create.aria')} onSubmit={submit}><div><label htmlFor="new-goal-title">{t('goals.name')}</label><input id="new-goal-title" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder={t('goals.placeholder.title')} required /></div><div><label htmlFor="new-goal-target">{t('goals.target')}</label><input id="new-goal-target" type="number" min="0.01" step="any" value={draft.target} onChange={(event) => setDraft({ ...draft, target: event.target.value })} required /></div><div><label htmlFor="new-goal-unit">{t('goals.unit')}</label><input id="new-goal-unit" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} placeholder={t('goals.placeholder.unit')} /></div><button className="rhythm-button rhythm-button--primary" type="submit">{t('goals.create')}</button></form>}
-    <section className="rhythm-list" aria-label={t('goals.title')}><header><div><h2>{t('goals.listTitle')}</h2><p>{t('goals.listDescription')}</p></div><Target size={21} aria-hidden="true" /></header>{data.goals.length === 0 ? <HibiEmptyState icon={Target} tone="lavender" title={t('goals.empty')} description={t('goals.emptyDescription')} /> : <div className="rhythm-items">{data.goals.map((goal) => { const done = goal.status === 'completed' || goal.current >= goal.target; const percent = Math.min(100, Math.round(goal.current / Math.max(goal.target, 1) * 100)); return <article className="rhythm-item goal-item" key={goal.id}>{editing === goal.id ? <form className="rhythm-edit" aria-label={t('goals.edit').replace('{title}', goal.title)} onSubmit={(event) => save(event, goal)}><input aria-label={t('goals.nameOf').replace('{title}', goal.title)} value={editingDraft.title} onChange={(event) => setEditingDraft({ ...editingDraft, title: event.target.value })} required /><input aria-label={t('goals.targetOf').replace('{title}', goal.title)} type="number" min="0.01" step="any" value={editingDraft.target} onChange={(event) => setEditingDraft({ ...editingDraft, target: event.target.value })} required /><input aria-label={t('goals.unitOf').replace('{title}', goal.title)} value={editingDraft.unit} onChange={(event) => setEditingDraft({ ...editingDraft, unit: event.target.value })} /><button className="rhythm-button rhythm-button--primary" type="submit">{t('habits.save')}</button><button className="rhythm-button" type="button" onClick={() => setEditing(null)}>{t('habits.cancel')}</button></form> : <><div className="rhythm-item__copy"><div className="rhythm-item__title"><strong>{goal.title}</strong>{done && <span className="rhythm-chip"><Check size={12} aria-hidden="true" />{t('goals.done')}</span>}</div><span>{goal.current} / {goal.target}{goal.unit ? ` ${goal.unit}` : ''}</span><div className="rhythm-progress"><span style={{ width: `${percent}%` }} /></div></div><div className="rhythm-item__actions"><button className="rhythm-step" disabled={done} onClick={() => onProgress(goal.id, goal.current + 1)}>+1</button><button aria-label={t('goals.progressOf').replace('{title}', goal.title)} onClick={() => { setProgressId(goal.id); setProgress(String(goal.current)); }}>{t('goals.setProgress')}</button><button aria-label={t('goals.edit').replace('{title}', goal.title)} onClick={() => { setEditing(goal.id); setEditingDraft({ title: goal.title, target: String(goal.target), unit: goal.unit ?? '' }); }}><Pencil size={15} aria-hidden="true" /></button><button aria-label={t('goals.delete').replace('Excluir meta', `Excluir ${goal.title}`)} onClick={() => setDeleting(goal)}><Trash2 size={15} aria-hidden="true" /></button></div></>}{progressId === goal.id && <form className="goal-progress-form" aria-label={t('goals.progressOf').replace('{title}', goal.title)} onSubmit={(event) => { event.preventDefault(); const value = Number(progress); if (Number.isFinite(value) && value >= 0) { onProgress(goal.id, Math.min(value, goal.target)); setProgressId(null); } }}><label htmlFor={`goal-progress-${goal.id}`}>{t('goals.currentValue')}</label><input id={`goal-progress-${goal.id}`} type="number" min="0" step="any" value={progress} onChange={(event) => setProgress(event.target.value)} required /><button className="rhythm-button rhythm-button--primary" type="submit">{t('habits.save')}</button><button className="rhythm-button" type="button" onClick={() => setProgressId(null)}>{t('habits.cancel')}</button></form>}</article>; })}</div>}</section>
-    {deleting && <ActionDialog trigger={<button className="sr-only" aria-hidden="true" type="button">{t('goals.delete')}</button>} isOpen onOpenChange={(open) => !open && setDeleting(null)} title={t('goals.deleteTitle').replace('{title}', deleting.title)} description={t('goals.deleteDescription')}><div className="rhythm-dialog__actions"><button className="rhythm-button" onClick={() => setDeleting(null)}>{t('habits.cancel')}</button><button className="rhythm-button rhythm-button--danger" onClick={() => { onDelete(deleting.id); setDeleting(null); }}>{t('goals.delete')}</button></div></ActionDialog>}
-  </HibiUiRoot>;
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const target = Number(draft.target);
+    if (draft.title.trim() && Number.isFinite(target) && target > 0) {
+      onCreate(draft.title.trim(), target, draft.unit.trim() || undefined);
+      setDraft(empty());
+      setCreating(false);
+    }
+  };
+  const save = (event: FormEvent, goal: Goal) => {
+    event.preventDefault();
+    const target = Number(editingDraft.target);
+    if (editingDraft.title.trim() && Number.isFinite(target) && target > 0) {
+      onUpdate(goal.id, {
+        title: editingDraft.title.trim(),
+        target,
+        unit: editingDraft.unit.trim() || undefined,
+      });
+      setEditing(null);
+    }
+  };
+  return (
+    <HibiUiRoot className="rhythm-screen goals-screen">
+      <SectionHeader
+        title={t("goals.title")}
+        subtitle={t("goals.subtitle").replace(
+          "{count}",
+          String(data.goals.length),
+        )}
+        actions={
+          <button
+            className="rhythm-button rhythm-button--primary"
+            onClick={() => setCreating((value) => !value)}
+          >
+            <Plus size={16} aria-hidden="true" />
+            {creating ? t("goals.close") : t("goals.new")}
+          </button>
+        }
+      />
+      <div className="rhythm-stats">
+        <div className="rhythm-stat--wide">
+          <span>{t("goals.nextMilestone")}</span>
+          <strong>{direction.next?.title ?? t("goals.choose")}</strong>
+        </div>
+        <div>
+          <span>{t("goals.inProgress")}</span>
+          <strong>{direction.active}</strong>
+        </div>
+        <div>
+          <span>{t("goals.completed")}</span>
+          <strong>
+            <Check size={17} aria-hidden="true" />
+            {direction.completed}{" "}
+            <small>
+              {t("habits.of")} {direction.total}
+            </small>
+          </strong>
+        </div>
+      </div>
+      {creating && (
+        <form
+          className="rhythm-create"
+          aria-label={t("goals.create.aria")}
+          onSubmit={submit}
+        >
+          <div>
+            <label htmlFor="new-goal-title">{t("goals.name")}</label>
+            <input
+              id="new-goal-title"
+              value={draft.title}
+              onChange={(event) =>
+                setDraft({ ...draft, title: event.target.value })
+              }
+              placeholder={t("goals.placeholder.title")}
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="new-goal-target">{t("goals.target")}</label>
+            <input
+              id="new-goal-target"
+              type="number"
+              min="0.01"
+              step="any"
+              value={draft.target}
+              onChange={(event) =>
+                setDraft({ ...draft, target: event.target.value })
+              }
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="new-goal-unit">{t("goals.unit")}</label>
+            <input
+              id="new-goal-unit"
+              value={draft.unit}
+              onChange={(event) =>
+                setDraft({ ...draft, unit: event.target.value })
+              }
+              placeholder={t("goals.placeholder.unit")}
+            />
+          </div>
+          <button
+            className="rhythm-button rhythm-button--primary"
+            type="submit"
+          >
+            {t("goals.create")}
+          </button>
+        </form>
+      )}
+      <section className="rhythm-list" aria-label={t("goals.title")}>
+        <header>
+          <div>
+            <h2>{t("goals.listTitle")}</h2>
+            <p>{t("goals.listDescription")}</p>
+          </div>
+          <Target size={21} aria-hidden="true" />
+        </header>
+        {data.goals.length === 0 ? (
+          <HibiEmptyState
+            icon={Target}
+            tone="lavender"
+            title={t("goals.empty")}
+            description={t("goals.emptyDescription")}
+          />
+        ) : (
+          <div className="rhythm-items">
+            {data.goals.map((goal) => {
+              const done =
+                goal.status === "completed" || goal.current >= goal.target;
+              const percent = Math.min(
+                100,
+                Math.round((goal.current / Math.max(goal.target, 1)) * 100),
+              );
+              return (
+                <article className="rhythm-item goal-item" key={goal.id}>
+                  {editing === goal.id ? (
+                    <form
+                      className="rhythm-edit"
+                      aria-label={t("goals.edit").replace(
+                        "{title}",
+                        goal.title,
+                      )}
+                      onSubmit={(event) => save(event, goal)}
+                    >
+                      <input
+                        aria-label={t("goals.nameOf").replace(
+                          "{title}",
+                          goal.title,
+                        )}
+                        value={editingDraft.title}
+                        onChange={(event) =>
+                          setEditingDraft({
+                            ...editingDraft,
+                            title: event.target.value,
+                          })
+                        }
+                        required
+                      />
+                      <input
+                        aria-label={t("goals.targetOf").replace(
+                          "{title}",
+                          goal.title,
+                        )}
+                        type="number"
+                        min="0.01"
+                        step="any"
+                        value={editingDraft.target}
+                        onChange={(event) =>
+                          setEditingDraft({
+                            ...editingDraft,
+                            target: event.target.value,
+                          })
+                        }
+                        required
+                      />
+                      <input
+                        aria-label={t("goals.unitOf").replace(
+                          "{title}",
+                          goal.title,
+                        )}
+                        value={editingDraft.unit}
+                        onChange={(event) =>
+                          setEditingDraft({
+                            ...editingDraft,
+                            unit: event.target.value,
+                          })
+                        }
+                      />
+                      <button
+                        className="rhythm-button rhythm-button--primary"
+                        type="submit"
+                      >
+                        {t("habits.save")}
+                      </button>
+                      <button
+                        className="rhythm-button"
+                        type="button"
+                        onClick={() => setEditing(null)}
+                      >
+                        {t("habits.cancel")}
+                      </button>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="rhythm-item__copy">
+                        <div className="rhythm-item__title">
+                          <strong>{goal.title}</strong>
+                          {done && (
+                            <span className="rhythm-chip">
+                              <Check size={12} aria-hidden="true" />
+                              {t("goals.done")}
+                            </span>
+                          )}
+                        </div>
+                        <span>
+                          {goal.current} / {goal.target}
+                          {goal.unit ? ` ${goal.unit}` : ""}
+                        </span>
+                        <div className="rhythm-progress">
+                          <span style={{ width: `${percent}%` }} />
+                        </div>
+                      </div>
+                      <div className="rhythm-item__actions">
+                        <button
+                          className="rhythm-step"
+                          disabled={done}
+                          onClick={() => onProgress(goal.id, goal.current + 1)}
+                        >
+                          +1
+                        </button>
+                        <button
+                          aria-label={t("goals.progressOf").replace(
+                            "{title}",
+                            goal.title,
+                          )}
+                          onClick={() => {
+                            setProgressId(goal.id);
+                            setProgress(String(goal.current));
+                          }}
+                        >
+                          {t("goals.setProgress")}
+                        </button>
+                        <button
+                          aria-label={t("goals.edit").replace(
+                            "{title}",
+                            goal.title,
+                          )}
+                          onClick={() => {
+                            setEditing(goal.id);
+                            setEditingDraft({
+                              title: goal.title,
+                              target: String(goal.target),
+                              unit: goal.unit ?? "",
+                            });
+                          }}
+                        >
+                          <Pencil size={15} aria-hidden="true" />
+                        </button>
+                        <button
+                          aria-label={t("goals.delete").replace(
+                            t("goals.delete"),
+                            t("goals.deleteOf").replace("{title}", goal.title),
+                          )}
+                          onClick={() => setDeleting(goal)}
+                        >
+                          <Trash2 size={15} aria-hidden="true" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  {progressId === goal.id && (
+                    <form
+                      className="goal-progress-form"
+                      aria-label={t("goals.progressOf").replace(
+                        "{title}",
+                        goal.title,
+                      )}
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const value = Number(progress);
+                        if (Number.isFinite(value) && value >= 0) {
+                          onProgress(goal.id, Math.min(value, goal.target));
+                          setProgressId(null);
+                        }
+                      }}
+                    >
+                      <label htmlFor={`goal-progress-${goal.id}`}>
+                        {t("goals.currentValue")}
+                      </label>
+                      <input
+                        id={`goal-progress-${goal.id}`}
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={progress}
+                        onChange={(event) => setProgress(event.target.value)}
+                        required
+                      />
+                      <button
+                        className="rhythm-button rhythm-button--primary"
+                        type="submit"
+                      >
+                        {t("habits.save")}
+                      </button>
+                      <button
+                        className="rhythm-button"
+                        type="button"
+                        onClick={() => setProgressId(null)}
+                      >
+                        {t("habits.cancel")}
+                      </button>
+                    </form>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+      {deleting && (
+        <ActionDialog
+          trigger={
+            <button className="sr-only" aria-hidden="true" type="button">
+              {t("goals.delete")}
+            </button>
+          }
+          isOpen
+          onOpenChange={(open) => !open && setDeleting(null)}
+          title={t("goals.deleteTitle").replace("{title}", deleting.title)}
+          description={t("goals.deleteDescription")}
+        >
+          <div className="rhythm-dialog__actions">
+            <button className="rhythm-button" onClick={() => setDeleting(null)}>
+              {t("habits.cancel")}
+            </button>
+            <button
+              className="rhythm-button rhythm-button--danger"
+              onClick={() => {
+                onDelete(deleting.id);
+                setDeleting(null);
+              }}
+            >
+              {t("goals.delete")}
+            </button>
+          </div>
+        </ActionDialog>
+      )}
+    </HibiUiRoot>
+  );
 }
