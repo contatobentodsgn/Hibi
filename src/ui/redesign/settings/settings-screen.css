@@ -1,16 +1,92 @@
-.settings-screen { min-height: 100%; padding: 32px clamp(20px, 4vw, 56px) 96px; color: var(--hibi-ink); font-family: var(--hibi-font); }
-.settings-screen__intro { max-width: 760px; margin: 0 auto 24px; }
-.settings-screen__intro h1 { margin: 4px 0 8px; font-size: clamp(28px, 4vw, 42px); letter-spacing: -.04em; }
-.settings-screen__intro p:last-child { color: var(--hibi-ink-muted); }
-.settings-screen__layout { max-width: 1180px; margin: auto; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; align-items: start; }
-.settings-navigation { position: sticky; top: 20px; padding: 16px; background: var(--hibi-paper); border: 1px solid var(--hibi-line); border-radius: var(--hibi-radius-card); box-shadow: var(--hibi-shadow); }
-.settings-navigation > label { display: block; margin-bottom: 8px; font-size: 12px; color: var(--hibi-ink-muted); }
-.settings-navigation > input { width: 100%; box-sizing: border-box; border: 1px solid var(--hibi-edge); border-radius: 12px; padding: 10px 12px; background: var(--hibi-soft); color: var(--hibi-ink); }
-.settings-navigation nav { display: grid; gap: 5px; margin-top: 14px; }
-.settings-navigation button { display: grid; gap: 3px; text-align: left; border: 0; border-radius: 12px; padding: 11px 12px; background: transparent; color: var(--hibi-ink); cursor: pointer; }
-.settings-navigation button span { color: var(--hibi-ink-muted); font-size: 12px; }
-.settings-navigation button.is-active { background: var(--hibi-accent-soft); color: var(--hibi-accent-soft-ink); }
-.settings-navigation button:focus-visible, .settings-navigation input:focus-visible { outline: 3px solid var(--hibi-accent); outline-offset: 2px; }
-.settings-screen__content .settings-view { padding: 0; }
-.settings-screen__content .view-heading { display: none; }
-@media (max-width: 760px) { .settings-screen { padding: 20px 14px 88px; } .settings-screen__layout { grid-template-columns: 1fr; } .settings-navigation { position: static; } .settings-navigation nav { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@layer components {
+  .hibi-ui.settings-screen { min-height: 100%; padding: 32px clamp(20px, 4vw, 56px) 96px; color: var(--hibi-ink); font-family: var(--hibi-font); }
+  .settings-screen__intro { max-width: 760px; margin: 0 auto 24px; }
+  .settings-screen__intro .eyebrow { margin: 0; color: var(--hibi-ink-muted); }
+  .settings-screen__intro h1 { margin: 4px 0 8px; font-size: clamp(28px, 4vw, 42px); letter-spacing: -.04em; }
+  .settings-screen__intro p:last-child { color: var(--hibi-ink-muted); }
+  .settings-screen__layout { max-width: 1180px; margin: auto; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; align-items: start; }
+  .settings-navigation { position: sticky; top: 20px; min-width: 0; padding: 16px; background: var(--hibi-paper); border: 1px solid var(--hibi-line); border-radius: var(--hibi-radius-card); box-shadow: var(--hibi-shadow); }
+  .settings-navigation > label { display: block; margin-bottom: 8px; font-size: 12px; color: var(--hibi-ink-muted); }
+  .settings-navigation > input { width: 100%; min-height: 40px; box-sizing: border-box; border: 1px solid var(--hibi-edge); border-radius: 12px; padding: 9px 12px; background: var(--hibi-soft); color: var(--hibi-ink); font: inherit; }
+  .settings-navigation nav { display: grid; gap: 5px; margin-top: 14px; }
+  .settings-navigation nav button { display: grid; gap: 3px; min-width: 0; text-align: left; border: 0; border-radius: 12px; padding: 11px 12px; background: transparent; color: var(--hibi-ink); font: inherit; cursor: pointer; }
+  .settings-navigation nav button span { color: var(--hibi-ink-muted); font-size: 12px; }
+  .settings-navigation nav button.is-active { background: var(--hibi-accent-soft); color: var(--hibi-accent-soft-ink); }
+  .settings-navigation button:focus-visible, .settings-navigation input:focus-visible { outline: 3px solid var(--hibi-accent); outline-offset: 2px; }
+  .settings-screen__content { min-width: 0; }
+  .settings-screen__content .settings-view { width: 100%; max-width: none; margin: 0; padding: 0; color: var(--hibi-ink); }
+  .settings-screen__content > .settings-view > .view-heading, .settings-screen__content .settings-tabs { display: none; }
+  .settings-screen__content .settings-layout { display: block; width: 100%; max-width: none; }
+  .settings-screen__content > .settings-view > .settings-layout > .settings-card { display: block; }
+  .settings-screen__content > .settings-view > .settings-layout > .settings-card > .settings-section-title { display: none; }
+  .settings-screen__content > .settings-view > .settings-layout > .settings-card { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .settings-screen__content .settings-card .view-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 0 0 18px; }
+  .settings-screen__content [data-settings-section="Integrations"] .settings-card .view-heading,
+  .settings-screen__content [data-settings-section="Integrations"] .settings-card > .settings-section-title { display: none; }
+  .settings-screen__content .settings-card .view-heading > div { display: grid; gap: 5px; }
+  .settings-screen__content .settings-card .view-heading h2 { margin: 0; color: var(--hibi-ink); font: 600 22px/1.25 var(--hibi-font); letter-spacing: -.03em; }
+  .settings-screen__content .settings-card .view-heading .eyebrow { margin: 0; color: var(--hibi-ink-muted); font-size: 10px; letter-spacing: .12em; }
+  .settings-screen__content .settings-card { min-width: 0; padding: 22px 24px; overflow: visible; border: 1px solid var(--hibi-line); border-radius: var(--hibi-radius-card); background: var(--hibi-paper); color: var(--hibi-ink); box-shadow: var(--hibi-shadow); }
+  .settings-screen__content .settings-section-title { margin: 0 0 18px; color: var(--hibi-ink); font: 600 20px/1.3 var(--hibi-font); letter-spacing: -.025em; }
+  .settings-screen__content .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; padding: 17px 0; border-bottom: 1px solid var(--hibi-line); }
+  .settings-screen__content .setting-row > div:first-child { display: grid; flex: 1 1 220px; gap: 5px; min-width: 0; }
+  .settings-screen__content .setting-row > div:first-child > strong { color: var(--hibi-ink); font-size: 13px; }
+  .settings-screen__content .setting-row > div:first-child > span, .settings-screen__content .setting-card-copy > span { color: var(--hibi-ink-muted); font-size: 12px; line-height: 1.5; }
+  .settings-screen__content .setting-row > :last-child { flex: 0 1 auto; min-width: 0; }
+  .settings-screen__content .setting-row > div[style*="display: flex"] { display: flex; flex: 1 1 300px; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+  .settings-screen__content .setting-row > div[style*="display: flex"] > input { flex: 1 1 180px; min-width: min(180px, 100%); }
+  .settings-screen__content .setting-row select, .settings-screen__content input:not([type="checkbox"]):not([type="file"]), .settings-screen__content textarea { box-sizing: border-box; max-width: 100%; min-width: 0; padding: 9px 11px; border: 1px solid var(--hibi-edge); border-radius: 10px; background: var(--hibi-soft); color: var(--hibi-ink); font: inherit; }
+  .settings-screen__content .setting-row select { min-height: 38px; padding: 7px 10px; }
+  .settings-screen__content .toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 10px; border: 1px solid var(--hibi-edge); border-radius: 99px; background: var(--hibi-soft); color: var(--hibi-ink-muted); font: inherit; font-size: 12px; }
+  .settings-screen__content .toggle > span { width: 15px; height: 15px; border-radius: 50%; background: var(--hibi-paper); box-shadow: 0 1px 3px #0003; }
+  .settings-screen__content .toggle.on { border-color: var(--hibi-action); background: var(--hibi-action); color: var(--hibi-action-ink); }
+  .settings-screen__content .settings-divider { height: 18px; }
+  .settings-screen__content .settings-card .muted, .settings-screen__content .setting-value { color: var(--hibi-ink-muted); }
+  .settings-screen__content .integration-status { display: grid; gap: 8px; }
+  .settings-screen__content .integration-status > * { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--hibi-line); border-radius: 12px; background: var(--hibi-soft); }
+  .settings-screen__content .integration-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; min-width: 0; padding: 12px 14px; border: 1px solid var(--hibi-line); border-radius: 12px; background: var(--hibi-soft); color: var(--hibi-ink); }
+  .settings-screen__content .integration-row b { color: var(--hibi-ink-muted); font-size: 12px; font-weight: 500; }
+  .settings-screen__content .muted { line-height: 1.55; }
+  .settings-screen__content .connector-settings, .settings-screen__content .connector-block { min-width: 0; margin: 12px 0; padding: 14px; border: 1px solid var(--hibi-line); border-radius: 14px; background: var(--hibi-soft); }
+  .settings-screen__content .connector-settings .setting-row, .settings-screen__content .connector-block .setting-row { border-bottom: 0; }
+  .settings-screen__content .connector-block > .setting-row > div:first-child span { overflow-wrap: anywhere; }
+  .settings-screen__content .connector-block > .setting-row > div[style*="display: flex"] { justify-content: flex-start; }
+  .settings-screen__content .connector-settings { padding: 8px 14px; }
+  .settings-screen__content .connector-settings .setting-row > div[style*="display: flex"] { justify-content: flex-start; }
+  .settings-screen__content .connector-settings input { width: 100%; }
+  .settings-screen__content .ai-settings { display: grid; gap: 0; min-width: 0; }
+  .settings-screen__content .ai-settings > .muted { margin: 14px 0 0; color: var(--hibi-ink-muted); font-size: 12px; line-height: 1.55; }
+  .settings-screen__content .ai-settings > button { justify-self: start; margin-top: 16px; }
+  .settings-screen__content .ai-settings .setting-row > div[style*="display: flex"] { width: min(100%, 420px); }
+  .settings-screen__content .notion-sync-panel, .settings-screen__content .calendar-sync-panel { display: grid; gap: 14px; min-width: 0; margin: 16px 0; padding: 18px; border: 1px solid var(--hibi-line); border-radius: 16px; background: var(--hibi-soft); color: var(--hibi-ink); }
+  .settings-screen__content .notion-sync-panel h4, .settings-screen__content .notion-sync-panel h5, .settings-screen__content .calendar-sync-heading h3 { margin: 0; color: var(--hibi-ink); font: 600 17px/1.35 var(--hibi-font); letter-spacing: -.02em; }
+  .settings-screen__content .notion-sync-panel > p, .settings-screen__content .calendar-sync-heading .muted { margin: 0; color: var(--hibi-ink-muted); font-size: 12px; line-height: 1.55; }
+  .settings-screen__content .notion-sync-heading, .settings-screen__content .notion-sync-meta, .settings-screen__content .notion-sync-item, .settings-screen__content .notion-confirmation > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; min-width: 0; }
+  .settings-screen__content .notion-sync-heading > div, .settings-screen__content .notion-sync-item > div { display: grid; gap: 5px; min-width: 0; }
+  .settings-screen__content .notion-sync-meta { padding: 12px 0; border-block: 1px solid var(--hibi-line); color: var(--hibi-ink-muted); font-size: 12px; overflow-wrap: anywhere; }
+  .settings-screen__content .notion-sync-panel label { display: grid; gap: 6px; min-width: 0; margin: 0; color: var(--hibi-ink-muted); font-size: 12px; }
+  .settings-screen__content .notion-sync-panel label input { width: 100%; }
+  .settings-screen__content .notion-sync-preview { display: grid; gap: 9px; min-width: 0; }
+  .settings-screen__content .notion-sync-item { padding: 10px 12px; border: 1px solid var(--hibi-line); border-radius: 10px; background: var(--hibi-paper); }
+  .settings-screen__content .notion-sync-item span { color: var(--hibi-ink-muted); font-size: 11px; }
+  .settings-screen__content .notion-confirmation { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--hibi-edge); border-radius: 12px; background: var(--hibi-paper); }
+  .settings-screen__content .notion-confirmation p { margin: 0; color: var(--hibi-ink-muted); font-size: 12px; }
+  .settings-screen__content .calendar-sync-panel { border-inline: 0; border-bottom: 0; border-radius: 0; background: transparent; }
+  .settings-screen__content .calendar-sync-sources, .settings-screen__content .calendar-sync-calendars, .settings-screen__content .calendar-sync-conflicts { display: grid; gap: 8px; min-width: 0; }
+  .settings-screen__content .calendar-sync-source, .settings-screen__content .calendar-sync-calendar, .settings-screen__content .calendar-sync-conflict { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; min-width: 0; padding: 12px; border: 1px solid var(--hibi-line); border-radius: 12px; background: var(--hibi-paper); color: var(--hibi-ink); }
+  .settings-screen__content .calendar-sync-source > div:first-child, .settings-screen__content .calendar-sync-calendar > div:first-child { display: grid; gap: 4px; min-width: 0; }
+  .settings-screen__content .calendar-sync-source span, .settings-screen__content .calendar-sync-calendar span { color: var(--hibi-ink-muted); font-size: 11px; overflow-wrap: anywhere; }
+  .settings-screen__content .calendar-sync-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .settings-screen__content .calendar-sync-conflicts { padding: 12px; border-radius: 12px; background: var(--hibi-lavender); color: var(--hibi-lavender-ink); }
+  .settings-screen__content .audit-history { margin: 0; padding: 0; list-style: none; }
+  .settings-screen__content .event-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--hibi-line); color: var(--hibi-ink); }
+  .settings-screen__content .event-row > div { display: grid; gap: 4px; }
+  .settings-screen__content .event-row span { color: var(--hibi-ink-muted); font-size: 11px; }
+  .settings-screen__content .target-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0 0 12px; list-style: none; }
+  .settings-screen__content .target-list label { display: flex; align-items: center; gap: 7px; padding: 8px 10px; border: 1px solid var(--hibi-edge); border-radius: 10px; color: var(--hibi-ink); font-size: 12px; }
+  .settings-screen__content .outline { border: 1px solid var(--hibi-edge); border-radius: 10px; background: var(--hibi-paper); color: var(--hibi-ink); }
+  .settings-screen__content button:focus-visible, .settings-screen__content input:focus-visible, .settings-screen__content select:focus-visible, .settings-screen__content textarea:focus-visible { outline: 3px solid var(--hibi-accent); outline-offset: 2px; }
+  @media (max-width: 900px) { .settings-screen__layout { grid-template-columns: 210px minmax(0, 1fr); gap: 12px; } }
+  @media (max-width: 760px) { .hibi-ui.settings-screen { padding: 20px 14px 88px; } .settings-screen__layout { grid-template-columns: 1fr; } .settings-navigation { position: static; } .settings-navigation nav { grid-template-columns: repeat(2, minmax(0, 1fr)); } .settings-screen__content .settings-card { padding: 18px; } .settings-screen__content .setting-row { align-items: flex-start; flex-wrap: wrap; } .settings-screen__content .setting-row > div:first-child, .settings-screen__content .setting-row > :last-child { flex: 1 1 100%; max-width: 100%; } }
+  @media (max-width: 480px) { .settings-navigation nav { grid-template-columns: 1fr; } .settings-screen__content .notion-sync-panel, .settings-screen__content .calendar-sync-panel { padding: 14px; } .settings-screen__content .calendar-sync-source, .settings-screen__content .calendar-sync-calendar, .settings-screen__content .calendar-sync-conflict { align-items: stretch; flex-direction: column; } .settings-screen__content .calendar-sync-actions > button, .settings-screen__content .calendar-sync-calendar select { width: 100%; min-height: 42px; } }
+}

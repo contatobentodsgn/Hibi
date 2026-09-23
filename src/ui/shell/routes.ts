@@ -57,6 +57,14 @@ export const destinationFor = (route: NavKey): DestinationKey | 'settings' | nul
 
 export const isAgendaRoute = (key: NavKey) => key === 'agenda' || key === 'day' || key === 'week'
 
+/** Screens already rebuilt with the HeroUI surface; all others remain in the temporary legacy shell. */
+const REDESIGN_ROUTES: ReadonlySet<NavKey> = new Set([
+  'home', 'tasks', 'agenda', 'day', 'week', 'focus', 'break', 'taby', 'notes',
+  'reminders', 'habits', 'goals', 'review', 'stats', 'settings',
+])
+
+export const isRedesignRoute = (route: NavKey): boolean => REDESIGN_ROUTES.has(route)
+
 // Dia e Semana são a Agenda; a pausa é um modo do Foco.
 export const sectionLabelKey = (route: NavKey): DictionaryKey =>
   route === 'home' ? 'redesign.nav.today' : isAgendaRoute(route) ? 'nav.agenda' : route === 'break' ? 'nav.focus' : `nav.${route}`

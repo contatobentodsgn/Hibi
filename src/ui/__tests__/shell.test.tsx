@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { LocaleProvider } from '../../i18n/LocaleProvider'
 import { AppShell } from '../shell/AppShell'
-import { ariaCurrentFor, breadcrumbFor, DESTINATIONS, destinationFor, MORE_ITEMS, nextFocusIndex, sectionLabelKey, type NavKey } from '../shell/routes'
+import { ariaCurrentFor, breadcrumbFor, DESTINATIONS, destinationFor, isRedesignRoute, MORE_ITEMS, nextFocusIndex, sectionLabelKey, type NavKey } from '../shell/routes'
 import { cssBlock } from './css-block'
 
 const noop = () => undefined
@@ -79,6 +79,13 @@ describe('shell', () => {
       settings: 'settings', help: 'settings', feedback: 'settings', instrumentation: 'settings', updates: 'settings', hardware: 'settings',
     }
     for (const [route, place] of Object.entries(places)) expect(destinationFor(route as NavKey), route).toBe(place)
+  })
+
+  it('mounts every rebuilt screen, including Review, on the redesigned surface', () => {
+    const redesigned: NavKey[] = ['home', 'tasks', 'agenda', 'day', 'week', 'focus', 'break', 'taby', 'notes', 'reminders', 'habits', 'goals', 'review', 'stats', 'settings']
+    const legacy: NavKey[] = ['help', 'feedback', 'instrumentation', 'updates', 'hardware']
+    for (const route of redesigned) expect(isRedesignRoute(route), route).toBe(true)
+    for (const route of legacy) expect(isRedesignRoute(route), route).toBe(false)
   })
 
   it('deixa toda rota alcançável: pela barra, pelo Mais ou pelo botão de Ajustes', () => {

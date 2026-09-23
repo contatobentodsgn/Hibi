@@ -14,6 +14,10 @@
   .rhythm-create label, .rhythm-edit label, .goal-progress-form label { color: var(--hibi-ink-muted); font-size: 11px; }
   .rhythm-create input, .rhythm-create select, .rhythm-edit input, .rhythm-edit select, .goal-progress-form input { width: 100%; min-height: 38px; padding: 7px 10px; border: 1px solid var(--hibi-edge); border-radius: 10px; outline: 0; background: var(--hibi-paper); color: var(--hibi-ink); font: inherit; font-size: 12px; }
   .rhythm-list { overflow: hidden; border: 1px solid var(--hibi-line); border-radius: 24px; background: var(--hibi-paper); box-shadow: var(--hibi-shadow); }
+  .rhythm-list > .hibi-empty-state { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 148px; box-sizing: border-box; place-content: center; justify-items: center; gap: 8px; padding: 24px; text-align: center; }
+  .rhythm-list > .hibi-empty-state > * { max-width: 44ch; }
+  .rhythm-list > .hibi-empty-state h2 { margin: 0 0 6px; }
+  .rhythm-list > .hibi-empty-state p { margin: 0; line-height: 1.55; }
   .rhythm-list > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 21px 22px 17px; border-bottom: 1px solid var(--hibi-line); }
   .rhythm-list h2 { font-size: 17px; font-weight: 600; letter-spacing: -.03em; }
   .rhythm-list header p { margin-top: 5px; color: var(--hibi-ink-muted); font-size: 11px; }

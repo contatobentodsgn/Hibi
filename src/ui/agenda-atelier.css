@@ -1,3 +1,11 @@
+/*
+ * O CSS de telas pode ser separado pelo build de produção (`redesign.css`) e carregado antes do CSS base
+ * (`index.css`). Declare a ordem das camadas também neste primeiro stylesheet do chunk de telas; caso
+ * contrário, a primeira camada `components` seria registrada antes de `base`, fazendo o preflight do
+ * HeroUI vencer os estilos das telas só no app compilado.
+ */
+@layer theme, base, components, utilities, legacy-guard;
+
 .agenda-availability {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

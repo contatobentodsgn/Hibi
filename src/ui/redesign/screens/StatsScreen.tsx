@@ -6,5 +6,5 @@ type Props = Readonly<{ records: readonly ActivityRecord[]; referenceDate: Date;
 
 /** U18: superfície visual nova, mantendo o relatório e a exportação de Estatísticas existentes. */
 export function StatsScreen({ records, referenceDate, onEvent }: Props) {
-  return <div className="hibi-ui stats-screen" data-screen="stats"><StatsWorkspace records={records} referenceDate={referenceDate} onEvent={onEvent} /></div>
+  return <div className="stats-screen-host" data-screen="stats"><StatsWorkspace records={records} referenceDate={referenceDate} onEvent={onEvent} /></div>
 }
