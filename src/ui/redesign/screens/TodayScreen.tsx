@@ -3,6 +3,7 @@ import { Button, Card } from '@heroui/react';
 import { CalendarDays, CheckCheck, ClipboardList, FileText, Play, Plus, Sparkles, TrendingUp, Zap } from 'lucide-react';
 import type { StudyData, Task } from '../../../domain/models';
 import { localNoon, todayKey } from '../../../domain/date-context';
+import { useT } from '../../../i18n/LocaleProvider';
 import { deriveDayRhythm, formatMinutes, formatWindow } from '../../day-rhythm';
 import { ActionDialog, ActionDialogOption, ActionDialogOptions } from '../components/ActionDialog';
 import { HibiEmptyState } from '../components/HibiEmptyState';
@@ -32,6 +33,7 @@ const todayLabel = (day: string) => localNoon(day).toLocaleDateString('pt-BR', {
 
 /** A página diária do redesenho (U06). Calcula o dia com o mesmo selector usado pela Home legada. */
 export function TodayScreen({ data, now = new Date(), onNavigate, onOpenCommands, onCreateTask }: Props) {
+  const t = useT();
   const [createOpen, setCreateOpen] = useState(false);
   const day = todayKey(now);
   const wallClock = now.toTimeString().slice(0, 5);
@@ -91,7 +93,7 @@ export function TodayScreen({ data, now = new Date(), onNavigate, onOpenCommands
           <div className="today-screen__card-top"><h2>Seu ritmo</h2><RoundLink label="Ver tendências" onPress={() => onNavigate('stats')} /></div>
           <p>Pequenos passos também contam.</p>
           <div className="today-screen__week" aria-label="Resumo da semana">{['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'].map((label, index) => <span key={label} data-current={index === now.getDay() - 1 || (now.getDay() === 0 && index === 6)}>{label}<strong>{Math.max(1, now.getDate() - (now.getDay() + 6 - index) % 7)}</strong></span>)}</div>
-          <div className="today-screen__rhythm-footer"><span className="today-screen__leaf">⌁</span><div><strong>{formatWindow(rhythm.freeWindows[0])}</strong><small>Próxima janela livre</small></div></div>
+          <div className="today-screen__rhythm-footer"><span className="today-screen__leaf">⌁</span><div><strong>{formatWindow(rhythm.freeWindows[0], t('agenda.availability.noneWindow'))}</strong><small>Próxima janela livre</small></div></div>
         </Card>
       </div>
 

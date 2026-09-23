@@ -143,11 +143,11 @@ describe('study views', () => {
       <AgendaAvailability blocks={agenda.blocks} days={[keyFromToday(0)]} wallClock="08:30" />,
     );
 
-    expect(markup).toContain('aria-label="Agenda availability"');
-    expect(markup).toContain('Time planned');
-    expect(markup).toContain('Focus blocks');
-    expect(markup).toContain('Next free window');
-    expect(markup).toContain('Schedule conflicts');
+    expect(markup).toContain('aria-label="Resumo da agenda"');
+    expect(markup).toContain('Tempo planejado');
+    expect(markup).toContain('Blocos de foco');
+    expect(markup).toContain('Próxima janela livre');
+    expect(markup).toContain('Conflitos na agenda');
   });
 
   // Uma demanda sobre outra coisa não é conflito; dois compromissos fixos no mesmo horário são.
@@ -165,7 +165,7 @@ describe('study views', () => {
       <AgendaAvailability blocks={conflicting.blocks} days={[keyFromToday(0)]} wallClock="08:30" />,
     );
 
-    expect(markup).toContain('1 to review');
+    expect(markup).toContain('1 para revisar');
   });
 
   // A data do bloco mais antigo do workspace não é "hoje": um workspace só com blocos velhos

@@ -62,4 +62,4 @@ export function deriveDayRhythm(blocks: readonly ScheduleBlock[], day: string, w
 }
 
 export const formatMinutes = (minutes: number): string => minutes >= 60 && minutes % 60 === 0 ? `${minutes / 60}h` : `${minutes}m`
-export const formatWindow = (window?: FreeWindow): string => window ? `${window.start}–${window.end}` : 'No free window remaining'
+export const formatWindow = (window?: FreeWindow, emptyLabel = 'No free window remaining'): string => window ? `${window.start}–${window.end}` : emptyLabel

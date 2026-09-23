@@ -35,7 +35,7 @@ describe('AgendaAvailability', () => {
     const markup = renderToStaticMarkup(<AgendaAvailability blocks={blocos} days={[hoje]} wallClock="16:00" now={agora} />);
 
     expect(markup).not.toContain('10:00–11:00');
-    expect(markup).toContain('No free window remaining');
+    expect(markup).toContain('Sem janela livre');
   });
 });
 

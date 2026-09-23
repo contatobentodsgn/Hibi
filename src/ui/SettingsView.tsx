@@ -663,7 +663,7 @@ export function SettingsWorkspace({
     let active = true;
     const bridge = window.hibiDesktop;
     if (!bridge?.getOpenAtLogin) {
-      setLaunchNotice("Available in the desktop app.");
+      setLaunchNotice(t("settings.launchAtLogin.available"));
       return () => {
         active = false;
       };
@@ -678,12 +678,12 @@ export function SettingsWorkspace({
       })
       .catch(() => {
         if (active)
-          setLaunchNotice("Could not read the macOS startup setting.");
+          setLaunchNotice(t("settings.launchAtLogin.readFailed"));
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [language]);
   const testNotification = async () => {
     const shown = (await onTestNotification?.()) ?? false;
     onEvent("test", "Native notifications", shown ? "pass" : "unsupported");
@@ -845,9 +845,9 @@ export function SettingsWorkspace({
           {tab === "General" && (
             <>
               <ShortcutSettings onEvent={onEvent} />
-              <Setting title="Language" detail="Interface language">
+              <Setting title={t("settings.language.title")} detail={t("settings.language.detail")}>
                 <select
-                  aria-label="Language"
+                  aria-label={t("settings.language.title")}
                   value={language}
                   onChange={(event) => {
                     const next = event.target.value as Locale;
@@ -861,8 +861,8 @@ export function SettingsWorkspace({
               </Setting>
               <AppearanceSettings onEvent={onEvent} framed />
               <Setting
-                title="Time format"
-                detail="Use clear, exact times across calendar and reminders"
+                title={t("settings.timeFormat.title")}
+                detail={t("settings.timeFormat.detail")}
               >
                 <button
                   className={`toggle ${twentyFourHour ? "on" : ""}`}
@@ -874,12 +874,12 @@ export function SettingsWorkspace({
                   }}
                 >
                   <span />
-                  {twentyFourHour ? "24-hour" : "AM / PM"}
+                  {twentyFourHour ? t("settings.timeFormat.24h") : t("settings.timeFormat.12h")}
                 </button>
               </Setting>
               <Setting
-                title="Launch at login"
-                detail="Open Hibi automatically when this Mac starts"
+                title={t("settings.launchAtLogin.title")}
+                detail={t("settings.launchAtLogin.detail")}
               >
                 <button
                   className={`toggle ${launchAtLogin ? "on" : ""}`}
@@ -887,7 +887,7 @@ export function SettingsWorkspace({
                   onClick={async () => {
                     const bridge = window.hibiDesktop;
                     if (!bridge?.setOpenAtLogin || !bridge.getOpenAtLogin) {
-                      setLaunchNotice("Available in the desktop app.");
+                      setLaunchNotice(t("settings.launchAtLogin.available"));
                       return;
                     }
                     try {
@@ -902,18 +902,18 @@ export function SettingsWorkspace({
                       setLaunchNotice(
                         applied === !launchAtLogin
                           ? ""
-                          : "macOS kept its current startup setting.",
+                          : t("settings.launchAtLogin.kept"),
                       );
                       onEvent("edit", "Launch at login", String(applied));
                     } catch {
                       setLaunchNotice(
-                        "Could not update the macOS startup setting.",
+                        t("settings.launchAtLogin.failed"),
                       );
                     }
                   }}
                 >
                   <span />
-                  {launchAtLogin ? "On" : "Off"}
+                  {launchAtLogin ? t("settings.launchAtLogin.on") : t("settings.launchAtLogin.off")}
                 </button>
                 {launchNotice && (
                   <p

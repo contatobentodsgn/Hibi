@@ -33,4 +33,12 @@ describe('TabyScreen', () => {
     expect(markup).toContain('Ferramentas locais e confirmações explícitas.');
     expect(markup).toContain('External AI');
   });
+
+  it('localizes the empty conversation and assistant status in Portuguese', () => {
+    const emptyConversations = { ...conversations, conversations: [], activeId: null };
+    const markup = renderToStaticMarkup(<LocaleProvider initialLanguage="pt"><TabyScreen data={createSeedData()} turn={turn} conversations={emptyConversations} /></LocaleProvider>);
+    expect(markup).toContain('Nenhuma conversa selecionada');
+    expect(markup).not.toContain('No conversation selected');
+    expect(markup).toContain('Pronto para ajudar');
+  });
 });
