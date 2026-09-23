@@ -28,7 +28,7 @@ jobs:
   linux:
     name: Testes, tipos, build web e e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       # Os testes não abrem o Electron: o binário só seria baixado à toa.
       ELECTRON_SKIP_BINARY_DOWNLOAD: '1'

@@ -36,7 +36,7 @@ async function askForRemoteAction(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Taby', exact: true }).click();
   await page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' }).fill('envie no slack #geral: reunião às 10h');
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Enviar', exact: true }).click();
 }
 
 test('uma ação remota só é preparada e executada depois de confirmar no cartão', async ({ page }) => {
