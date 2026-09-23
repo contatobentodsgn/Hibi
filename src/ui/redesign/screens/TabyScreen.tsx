@@ -14,6 +14,7 @@ import { HibiUiRoot } from '../components/HibiUiRoot';
 import { SectionHeader } from '../components/SectionHeader';
 import { useT } from '../../../i18n/LocaleProvider';
 import './taby-screen.css';
+import './taby-history-overflow.css';
 
 type Props = Readonly<{ data: StudyData; turn: AssistantTurnControls; conversations: ConversationsController; voice?: VoiceTurnControls }>;
 
