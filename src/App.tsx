@@ -23,7 +23,6 @@ import { appendEventRecord, loadEventLog } from './ui/event-log';
 import { useCalendarDay } from './ui/useCalendarDay';
 import { FocusBackgroundNotice } from './ui/FocusBackgroundNotice';
 import { deriveFocusMood, focusSessionsCompletedToday } from './ui/focus-mood';
-import { SettingsView } from './ui/SettingsView';
 import { SettingsScreen } from './ui/redesign/settings/SettingsScreen';
 import { InstrumentationView } from './ui/InstrumentationView';
 import { NotesView } from './ui/NotesView';

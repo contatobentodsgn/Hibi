@@ -78,7 +78,7 @@ function buildReport(records: readonly ActivityRecord[], period: StatsPeriod): S
   return { current, previous, comparison: compareStats(current, previous), periodRecords: recordsForPeriod(records, period) };
 }
 
-export function StatsView({ records, referenceDate, onEvent }: { records: readonly ActivityRecord[]; referenceDate: Date; onEvent: OnEvent }) {
+export function StatsWorkspace({ records, referenceDate, onEvent }: { records: readonly ActivityRecord[]; referenceDate: Date; onEvent: OnEvent }) {
   const t = useT();
   const { language } = useLocale();
   const [selection, setSelection] = useState<PeriodSelection>({ preset: 'week', custom: { start: '', end: '' } });
@@ -133,6 +133,9 @@ export function StatsView({ records, referenceDate, onEvent }: { records: readon
     />
   );
 }
+
+/** Compatibilidade temporária para testes e integrações que ainda importam o nome histórico. */
+export const StatsView = StatsWorkspace;
 
 export interface StatsContentProps {
   records: readonly ActivityRecord[];
