@@ -10,7 +10,6 @@ function OAuthClientSecretField({ label, saved, value, onChange, onSave, onClear
   return <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input aria-label={`${label} client secret`} type="password" autoComplete="new-password" placeholder="Client credential" value={value} onChange={(event) => onChange(event.target.value)} /><button className="outline" onClick={onSave}>Save client credential</button><span aria-live="polite">{saved ? 'Saved' : 'Not saved'}</span>{saved && <button className="outline" onClick={onClear}>Clear client credential</button>}</div>
 }
 
-export const IntegrationsView = IntegrationsWorkspace;
 
 type Props = Readonly<{ onEvent: (action: string, detail: string, result?: string) => void; localRecords?: readonly LocalImportRecord[]; localTasks?: readonly Task[]; localBlocks?: readonly ScheduleBlock[]; onApplyImport?: (candidate: ImportCandidate, decision: ImportDecision, localId?: string, connectorId?: string) => void; onApplyNotion?: (mutations: readonly NotionLocalMutation[]) => readonly Task[]; onMoveBlock?: (id: string, start: string, end: string) => boolean }>
 const initial: readonly IntegrationStatus[] = [

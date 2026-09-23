@@ -6,7 +6,7 @@ import { MAX_CUSTOM_PERIOD_DAYS, resolveStatsPeriod } from '../../domain/stats';
 import { dictionary, translate, type DictionaryKey } from '../../i18n/dictionary';
 import { TIME_FORMAT_STORAGE_KEY, type LocaleHost } from '../../i18n/locale-storage';
 import { LocaleProvider } from '../../i18n/LocaleProvider';
-import { StatsContent, StatsView, type StatsContentProps } from '../StatsView';
+import { StatsContent, StatsWorkspace, type StatsContentProps } from '../StatsView';
 import {
   buildStatsExport,
   comparisonText,
@@ -66,7 +66,7 @@ const ledger: ActivityRecord[] = [
 ];
 
 const renderView = (records: readonly ActivityRecord[]) =>
-  renderToStaticMarkup(<StatsView records={records} referenceDate={reference} onEvent={noop} />);
+  renderToStaticMarkup(<StatsWorkspace records={records} referenceDate={reference} onEvent={noop} />);
 
 const renderContent = (props: Partial<StatsContentProps>) => renderToStaticMarkup(
   <StatsContent
@@ -228,7 +228,7 @@ describe('StatsView', () => {
     const twelveHour: LocaleHost = { storage: { getItem: (key) => (key === TIME_FORMAT_STORAGE_KEY ? 'false' : null), setItem: noop } };
     const english = renderToStaticMarkup(
       <LocaleProvider initialLanguage="en" host={twelveHour}>
-        <StatsView records={ledger} referenceDate={reference} onEvent={noop} />
+        <StatsWorkspace records={ledger} referenceDate={reference} onEvent={noop} />
       </LocaleProvider>,
     );
     expect(english).toContain('class="hibi-section-header__title">Statistics</h1>');

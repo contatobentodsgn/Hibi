@@ -134,8 +134,6 @@ export function StatsWorkspace({ records, referenceDate, onEvent }: { records: r
   );
 }
 
-/** Compatibilidade temporária para testes e integrações que ainda importam o nome histórico. */
-export const StatsView = StatsWorkspace;
 
 export interface StatsContentProps {
   records: readonly ActivityRecord[];

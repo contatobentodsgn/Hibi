@@ -1,10 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { IntegrationsView } from '../IntegrationsView'
+import { IntegrationsWorkspace } from '../IntegrationsView'
 
 describe('IntegrationsView', () => {
   it('shows safe connection statuses, audit controls, imports, and local API controls without credentials', () => {
-    const markup = renderToStaticMarkup(<IntegrationsView onEvent={() => undefined} />)
+    const markup = renderToStaticMarkup(<IntegrationsWorkspace onEvent={() => undefined} />)
 
     expect(markup).toContain('Integrations')
     expect(markup).toContain('Notion')

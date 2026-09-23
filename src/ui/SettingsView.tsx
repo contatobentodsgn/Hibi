@@ -1099,8 +1099,6 @@ export function SettingsWorkspace({
   );
 }
 
-/** Compatibilidade temporária para consumidores de testes e APIs internas antigas. */
-export const SettingsView = SettingsWorkspace;
 
 function Setting({
   title,

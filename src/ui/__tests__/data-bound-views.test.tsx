@@ -5,7 +5,7 @@ import type { StudyData } from '../../domain/models';
 import { DayView } from '../DayView';
 import { HomeView } from '../HomeView';
 import { RemindersView } from '../RemindersView';
-import { SettingsView } from '../SettingsView';
+import { SettingsWorkspace } from '../SettingsView';
 import { TasksView } from '../TasksView';
 import { WeekView } from '../WeekView';
 import { HabitsView } from '../HabitsView';
@@ -225,7 +225,7 @@ describe('study views', () => {
   });
 
   it('exposes settings sections for study data and notifications', () => {
-    const markup = renderToStaticMarkup(<SettingsView data={data} onEvent={onEvent} onReset={onEvent} />);
+    const markup = renderToStaticMarkup(<SettingsWorkspace data={data} onEvent={onEvent} onReset={onEvent} />);
 
     expect(markup).toContain('>Notifications</button>');
     expect(markup).toContain('>Data</button>');
