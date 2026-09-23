@@ -90,7 +90,7 @@ test('permite guardar e apagar a credencial de cliente OAuth sem exibir o valor'
 async function openIntegrations(page: Page) {
   await page.goto('/');
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
   await expect(page.getByRole('region', { name: 'Integrations' })).toBeVisible();
 }
 

@@ -5,7 +5,7 @@ test('Tarefas mantém o resumo de execução ao concluir uma tarefa', async ({ p
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click()
 
   await expect(page.getByLabel('Resumo de execução das tarefas')).toBeVisible()
-  await page.getByRole('button', { name: /Concluir Kabrito Post 01/i }).click()
+  await page.getByRole('button', { name: 'Concluir tarefa Kabrito Post 01' }).click()
   await expect(page.getByLabel('Resumo de execução das tarefas')).toBeVisible()
 })
 

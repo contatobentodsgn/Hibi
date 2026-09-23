@@ -1,24 +1,24 @@
 import { expect, test } from '@playwright/test'
 
-test('Today starts focus from the contextual action', async ({ page }) => {
+test('Hoje inicia foco pela ação contextual', async ({ page }) => {
   await page.clock.install({ time: new Date(2026, 8, 7, 10, 0, 0) })
   await page.goto('/')
 
   await page.getByRole('button', { name: 'Entrar em foco' }).click()
 
-  await expect(page.getByRole('heading', { name: /Focus/i })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Foco', exact: true })).toBeVisible()
 })
 
-test('Agenda keeps availability visible in day and week modes', async ({ page }) => {
+test('Agenda mantém o resumo de disponibilidade nos modos Dia e Semana', async ({ page }) => {
   await page.clock.install({ time: new Date(2026, 8, 7, 8, 30, 0) })
   await page.goto('/')
 
   await page.getByRole('button', { name: 'Agenda', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Agenda availability' })).toBeVisible()
-  await expect(page.getByText('Time planned')).toBeVisible()
-  await expect(page.getByText('Next free window')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Resumo da agenda' })).toBeVisible()
+  await expect(page.getByText('Tempo planejado')).toBeVisible()
+  await expect(page.getByText('Próxima janela livre')).toBeVisible()
 
   await page.getByRole('tab', { name: 'Semana' }).click()
-  await expect(page.getByRole('region', { name: 'Agenda availability' })).toBeVisible()
-  await expect(page.getByText('Focus blocks')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Resumo da agenda' })).toBeVisible()
+  await expect(page.getByText('Blocos de foco')).toBeVisible()
 })

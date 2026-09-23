@@ -25,13 +25,13 @@ test('perguntar de novo com uma confirmação pendente tira o cartão dela do no
   const campo = page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
 
   await campo.fill('crie uma tarefa: revisar roteiro');
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Enviar' }).click();
   await expect(page.getByRole('alert').getByRole('button', { name: 'Confirmar' })).toBeVisible();
   const confirmacao = (await registro(page)).mostrados.find((item) => item.kind === 'confirmation');
   expect(confirmacao).toBeDefined();
 
   await campo.fill('qual a minha agenda hoje?');
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Enviar' }).click();
 
   await expect(page.getByRole('alert').getByRole('button', { name: 'Confirmar' })).toHaveCount(0);
   await expect.poll(async () => (await registro(page)).escondidos).toContain(confirmacao!.requestId);

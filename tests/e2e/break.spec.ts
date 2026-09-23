@@ -60,11 +60,11 @@ test('terminar uma sessão de foco registra exatamente um focus-complete', async
   await expect(dock(page)).toBeVisible();
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
-  await page.getByRole('button', { name: 'Start focus' }).click();
+  await page.getByRole('button', { name: 'Começar foco' }).click();
 
   await page.clock.runFor(25 * 60 * 1000 + 1000);
 
-  await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Começar foco' })).toBeVisible();
   await expect.poll(async () => countOf(await recordedActions(page), 'focus-complete')).toBe(1);
   await expect(page.getByText('25:00')).toBeVisible();
   await page.clock.runFor(3000);

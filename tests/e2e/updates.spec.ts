@@ -2,8 +2,10 @@ import { test, expect, type Page } from '@playwright/test';
 
 const dock = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
 const openUpdates = async (page: Page) => {
-  await dock(page).getByRole('button', { name: 'Mais seções' }).click();
-  await page.getByRole('menuitem', { name: 'Atualizações', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Comandos' }).click();
+  const palette = page.getByRole('dialog', { name: 'Paleta de comandos' });
+  await palette.getByRole('combobox').fill('/updates');
+  await page.keyboard.press('Enter');
 };
 
 /** O serviço vive no processo principal; aqui o dublê guarda os pedidos e empurra os estados. */

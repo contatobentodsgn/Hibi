@@ -15,11 +15,11 @@ test('uma conversa do Taby sobrevive ao recarregar e pode ser apagada', async ({
   await page.goto('/');
   await openAssistant(page);
   await page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' }).fill('quais tarefas vencem hoje?');
-  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await page.getByRole('button', { name: 'Enviar', exact: true }).click();
   await expect(list(page)).toContainText('quais tarefas vencem hoje?');
-  const status = page.getByRole('region', { name: 'Assistant conversation status', exact: true });
-  await expect(status).toContainText('Messages in this conversation');
-  await expect(status).toContainText('Response ready');
+  const status = page.getByRole('region', { name: 'Status da conversa do assistente', exact: true });
+  await expect(status).toContainText('Mensagens nesta conversa');
+  await expect(status).toContainText('Resposta pronta');
 
   await page.reload();
   await openAssistant(page);

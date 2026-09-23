@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 const pedirAoAssistente = async (page: Page, frase: string) => {
   await page.getByRole('button', { name: 'Assistente', exact: true }).click();
   await page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' }).fill(frase);
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Enviar' }).click();
   await page.getByRole('alert').getByRole('button', { name: 'Confirmar' }).click();
 };
 
@@ -13,7 +13,7 @@ test('"iniciar foco" pelo Taby começa uma sessão de verdade', async ({ page })
   await page.goto('/');
   await pedirAoAssistente(page, 'iniciar foco');
 
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toBeVisible();
   // O relógio anda: a sessão de 25 minutos já passou do primeiro segundo.
   await expect(page.getByText(/^24:5\d$/).first()).toBeVisible({ timeout: 5_000 });
 
@@ -29,8 +29,8 @@ test('"iniciar foco" pelo Taby começa uma sessão de verdade', async ({ page })
 test('abrir a tela de Foco depois, sem pedido, não inicia nada sozinho', async ({ page }) => {
   await page.goto('/');
   await pedirAoAssistente(page, 'iniciar foco');
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
-  await page.getByRole('button', { name: 'Pause session' }).click();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toBeVisible();
+  await page.getByRole('button', { name: 'Pausar sessão' }).click();
 
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
@@ -39,6 +39,6 @@ test('abrir a tela de Foco depois, sem pedido, não inicia nada sozinho', async 
   // O pedido já foi atendido: voltar à tela não pode reiniciar a sessão. A espera dá tempo a um
   // início automático aparecer, se ele fosse acontecer.
   await page.waitForTimeout(600);
-  await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pause session' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Começar foco' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toHaveCount(0);
 });

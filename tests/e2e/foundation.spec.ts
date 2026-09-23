@@ -102,7 +102,7 @@ test('tema manual sobrevive ao reload e o sistema volta a mandar em "Sistema"', 
 test('trocar o idioma troca a barra na hora e persiste', async ({ page }) => {
   await page.goto('/');
   await openSettings(page);
-  await page.getByRole('combobox', { name: 'Language' }).selectOption('en');
+  await page.getByRole('combobox', { name: 'Idioma' }).selectOption('en');
   await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Tasks', exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();

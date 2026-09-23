@@ -101,7 +101,7 @@ async function openReview(page: Page) {
   await installNotionConfirmationBridge(page);
   await page.goto('/');
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
   await expect(page.getByRole('region', { name: 'Notion task synchronization' })).toBeVisible();
   await page.getByRole('button', { name: 'Sync now' }).click();
   await expect(page.getByRole('heading', { name: 'Review changes' })).toBeVisible();

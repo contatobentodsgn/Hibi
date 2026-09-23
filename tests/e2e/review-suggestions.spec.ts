@@ -8,6 +8,8 @@ test('review suggestions can be dismissed without mutating workspace data', asyn
 
   await page.evaluate(() => {
     const data = JSON.parse(window.localStorage.getItem('hibi-study-data') ?? '{}');
+    data.tasks = [];
+    data.blocks = [];
     data.tasks.push(
       { id: 'review-duplicate-a', title: 'Follow up café', durationMinutes: 45, category: 'important', folder: 'Bento', deadline: '2026-09-14T10:00:00-03:00' },
       { id: 'review-duplicate-b', title: ' follow up cafe ', durationMinutes: 45, category: 'important', folder: 'Bento', deadline: '2026-09-14T10:00:00-03:00' },
@@ -21,18 +23,18 @@ test('review suggestions can be dismissed without mutating workspace data', asyn
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Revisão', exact: true }).click();
 
-  const suggestions = page.getByRole('region', { name: 'Review suggestions' });
+  const suggestions = page.getByRole('region', { name: 'Sugestões' });
   await expect(suggestions).toBeVisible();
   const duplicate = suggestions.locator('[data-review-suggestion="duplicate_task:review-duplicate-a:review-duplicate-b"]');
-  await expect(duplicate).toContainText('Possible duplicate tasks');
-  await expect(suggestions.getByText('Missing schedule', { exact: true })).toBeVisible();
+  await expect(duplicate).toContainText('Blocos agendados possivelmente duplicados');
+  await expect(suggestions.getByText(/Tarefas abertas sem agenda/).first()).toBeVisible();
 
-  await duplicate.getByRole('button', { name: 'Dismiss possible duplicate tasks' }).click();
+  await duplicate.getByRole('button', { name: 'Dispensar blocos agendados possivelmente duplicados · 2' }).click();
   await expect(duplicate).toHaveCount(0);
-  await expect(suggestions.getByText('Missing schedule', { exact: true })).toBeVisible();
+  await expect(suggestions.getByText(/Tarefas abertas sem agenda/).first()).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('hibi-study-data'))).toBe(workspaceBeforeDismissal);
 
-  await suggestions.getByRole('button', { name: 'Dismiss all missing schedule suggestions' }).click();
-  await expect(suggestions.getByRole('status')).toHaveText('No action needs your attention right now.');
+  await suggestions.getByRole('button', { name: 'Dispensar todas as sugestões sem agenda' }).click();
+  await expect(suggestions.getByRole('status')).toHaveText('Nada precisa da sua atenção agora.');
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('hibi-study-data'))).toBe(workspaceBeforeDismissal);
 });

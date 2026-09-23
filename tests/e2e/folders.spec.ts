@@ -57,7 +57,7 @@ test('/folder lista as pastas com contagens e ↵ abre Tarefas filtrada', async 
   await expect(palette(page)).toHaveCount(0);
   await expect(page.locator('.list-card').getByText('Cliente A')).toBeVisible();
   await expect(page.getByText('Tarefa solta')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Pasta · Clientes 1' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Pastas · Clientes 1' })).toHaveAttribute('aria-pressed', 'true');
   await expect(dock(page).getByRole('button', { name: 'Tarefas', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 
@@ -76,10 +76,10 @@ test('⇧↵ numa pasta sem notas abre Notas filtrada e vazia', async ({ page })
   await field(page).fill('Bento');
   await page.keyboard.press('Shift+Enter');
   await expect(page.getByRole('button', { name: 'Pasta · Bento 0' })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText('No notes match this search.')).toBeVisible();
+  await expect(page.getByText('Nenhuma nota nesta pasta')).toBeVisible();
   await expect(page.getByText('Briefing do cliente')).toHaveCount(0);
-  const form = page.getByRole('form', { name: 'Create note' });
-  await expect(form.getByLabel('Folder')).toHaveValue('Bento');
+  const form = page.getByRole('form', { name: 'Capturar uma ideia' });
+  await expect(form.getByLabel('Pasta')).toHaveValue('Bento');
 });
 
 test('renomear para um nome livre aplica na hora', async ({ page }) => {
@@ -180,6 +180,6 @@ test('digitar /folder com uma confirmação pendente cancela a confirmação', a
   await dock(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
   // Garante que a lista já renderizou antes de checar a ausência — senão a contagem zero passaria
   // mesmo que a tela ainda estivesse vazia por não ter terminado de montar.
-  await expect(page.getByRole('button', { name: 'Pasta · Todas' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pastas · Todas' })).toBeVisible();
   await expect(page.getByText('Revisar briefing')).toHaveCount(0);
 });

@@ -40,7 +40,7 @@ async function openIntegrations(page: Page) {
   });
   await page.reload();
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
 }
 const changesBox = (page: Page) => page.getByLabel('Alterações entre o Pixano e o calendário');
 
@@ -91,7 +91,7 @@ test('trazer um horário que cai sobre uma demanda move o bloco normalmente: div
   });
   await page.reload();
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
 
   await changesBox(page).getByRole('button', { name: 'Trazer para o Pixano' }).click();
 

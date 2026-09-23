@@ -31,21 +31,16 @@ test('cada destino, Ajustes e cada item do Mais abrem a tela real, e a trilha di
   const places: { name: string; via: 'bar' | 'more'; marked: string | null; path: string; screen: (page: Page) => ReturnType<Page['locator']> }[] = [
     { name: 'Agenda', via: 'bar', marked: 'Agenda', path: 'Agenda', screen: (p) => p.locator('.agenda-screen') },
     { name: 'Tarefas', via: 'bar', marked: 'Tarefas', path: 'Tarefas', screen: (p) => p.locator('.tasks-screen') },
-    { name: 'Notas', via: 'bar', marked: 'Notas', path: 'Notas', screen: (p) => p.getByRole('heading', { level: 1, name: 'Notes' }) },
-    { name: 'Assistant', via: 'bar', marked: 'Assistant', path: 'Assistant', screen: (p) => p.getByRole('heading', { level: 1, name: 'Local assistant' }) },
+    { name: 'Notas', via: 'bar', marked: 'Notas', path: 'Notas', screen: (p) => p.locator('.notes-screen') },
+    { name: 'Assistente', via: 'bar', marked: 'Assistente', path: 'Assistente', screen: (p) => p.locator('.taby-screen') },
     { name: 'Hoje', via: 'bar', marked: 'Hoje', path: 'Hoje', screen: (p) => p.locator('.today-screen') },
-    { name: 'Ajustes', via: 'bar', marked: 'Ajustes', path: 'Ajustes', screen: (p) => p.getByRole('heading', { level: 1, name: 'Settings' }) },
+    { name: 'Ajustes', via: 'bar', marked: 'Ajustes', path: 'Ajustes', screen: (p) => p.locator('.settings-screen') },
     { name: 'Foco', via: 'more', marked: null, path: 'Foco', screen: (p) => p.locator('.focus-view') },
     { name: 'Lembretes', via: 'more', marked: 'Tarefas', path: 'Tarefas / Lembretes', screen: (p) => p.locator('.reminders-screen') },
-    { name: 'Hábitos', via: 'more', marked: 'Hoje', path: 'Hoje / Hábitos', screen: (p) => p.getByRole('heading', { level: 1, name: 'Habits' }) },
-    { name: 'Metas', via: 'more', marked: 'Hoje', path: 'Hoje / Metas', screen: (p) => p.getByRole('heading', { level: 1, name: 'Goals' }) },
-    { name: 'Revisão', via: 'more', marked: 'Hoje', path: 'Hoje / Revisão', screen: (p) => p.getByRole('heading', { level: 1, name: 'Review' }) },
+    { name: 'Hábitos', via: 'more', marked: 'Hoje', path: 'Hoje / Hábitos', screen: (p) => p.locator('.habits-screen') },
+    { name: 'Metas', via: 'more', marked: 'Hoje', path: 'Hoje / Metas', screen: (p) => p.locator('.goals-screen') },
+    { name: 'Revisão', via: 'more', marked: 'Hoje', path: 'Hoje / Revisão', screen: (p) => p.getByRole('heading', { level: 1, name: 'Revisão' }) },
     { name: 'Estatísticas', via: 'more', marked: 'Hoje', path: 'Hoje / Estatísticas', screen: (p) => p.getByRole('heading', { level: 1, name: 'Estatísticas' }) },
-    { name: 'Ajuda', via: 'more', marked: 'Ajustes', path: 'Ajustes / Ajuda', screen: (p) => p.getByRole('heading', { level: 1, name: 'Help' }) },
-    { name: 'Eventos', via: 'more', marked: 'Ajustes', path: 'Ajustes / Eventos', screen: (p) => p.getByRole('heading', { level: 1, name: 'Instrumentation' }) },
-    { name: 'Feedback', via: 'more', marked: 'Ajustes', path: 'Ajustes / Feedback', screen: (p) => p.getByRole('heading', { level: 1, name: 'Feedback' }) },
-    { name: 'Atualizações', via: 'more', marked: 'Ajustes', path: 'Ajustes / Atualizações', screen: (p) => p.getByRole('heading', { level: 1, name: 'Updates' }) },
-    { name: 'Hardware', via: 'more', marked: 'Ajustes', path: 'Ajustes / Hardware', screen: (p) => p.getByRole('heading', { level: 1, name: 'Hardware' }) },
   ];
   for (const place of places) {
     if (place.via === 'bar') await nav(page).getByRole('button', { name: place.name, exact: true }).click();
@@ -118,7 +113,7 @@ test('abaixo de 1280 px a barra vira a ilha compacta, que abre, navega, fecha e 
   await page.keyboard.press('ArrowDown');
   await expect(list.getByRole('button', { name: 'Agenda', exact: true })).toBeFocused();
   await list.getByRole('button', { name: 'Notas', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Notes' })).toBeVisible();
+  await expect(page.locator('.notes-screen')).toBeVisible();
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await expect(trigger).toBeFocused();
   await expect(trigger).toHaveAccessibleName('Notas, mudar de seção');
@@ -196,7 +191,7 @@ test('com "Reduzir movimento", a pílula do destino atual troca de lugar sem ani
   await page.addInitScript(() => localStorage.setItem('hibi-motion', 'reduce'));
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
-  const target = nav(page).getByRole('button', { name: 'Assistant', exact: true });
+  const target = nav(page).getByRole('button', { name: 'Assistente', exact: true });
   await target.click();
   // No quadro seguinte ao clique, a pílula já está inteira no destino novo (com animação, ainda viajaria).
   const offset = await target.evaluate((button) => new Promise<number>((resolve) => requestAnimationFrame(() => {
@@ -235,7 +230,7 @@ const bandPointOwner = async (page: Page, position: 'top' | 'bottom') => {
   return page.evaluate(([x, py]) => (document.elementFromPoint(x, py)?.closest('.legacy-surface, .redesign-surface') ? 'tela atual' : 'superfície'), [notch.x - 60, y]);
 };
 for (const position of ['top', 'bottom'] as const) {
-  test(`no tema escuro, as telas atuais param antes do notch claro (barra ${position === 'top' ? 'em cima' : 'embaixo'})`, async ({ page }) => {
+  test(`no tema escuro, a tela redesenhada permanece sob a barra (${position === 'top' ? 'em cima' : 'embaixo'})`, async ({ page }) => {
     await page.addInitScript((p) => { localStorage.setItem('hibi-theme', 'dark'); localStorage.setItem('hibi.ui.navigation-position.v1', p); }, position);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
@@ -243,7 +238,7 @@ for (const position of ['top', 'bottom'] as const) {
     // Em cima, o conteúdo só chega à faixa rolando; embaixo, já está sob a barra desde o começo da tela (no fim
     // da rolagem, o próprio respiro da área cobre a faixa).
     if (position === 'top') await page.locator('.notch-viewport').evaluate((element) => { element.scrollTop = 400; });
-    expect(await bandPointOwner(page, position)).toBe('superfície');
+    expect(await bandPointOwner(page, position)).toBe('tela atual');
   });
 }
 

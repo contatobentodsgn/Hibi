@@ -103,7 +103,7 @@ const readRecorded = (page: Page) => page.evaluate(() => (window as unknown as {
 async function openIntegrations(page: Page) {
   await page.goto('/');
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
 }
 
 async function openNotionPanel(page: Page) {

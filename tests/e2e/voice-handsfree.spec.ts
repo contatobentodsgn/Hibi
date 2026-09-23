@@ -100,10 +100,10 @@ test('sem nenhuma palavra, a tela diz que não ouviu nada', async ({ page }) => 
 
 test('a resposta de um pedido falado é lida em voz alta; a de um pedido digitado, não', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await campo(page).fill('quais são minhas tarefas?');
-  await page.getByRole('button', { name: 'Send' }).click();
-  await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await expect(page.getByRole('button', { name: 'Enviar' })).toBeEnabled();
   await page.waitForTimeout(300);
   expect((await voice(page).calls()).filter((call) => call.startsWith('speak:'))).toEqual([]);
 

@@ -31,7 +31,7 @@ async function installImportBridge(page: Page) {
 async function openIntegrations(page: Page) {
   await page.goto('/');
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
   await expect(page.getByRole('region', { name: 'Integrations' })).toBeVisible();
 }
 
@@ -85,7 +85,7 @@ test('aplicar a decisão cria a tarefa e uma segunda leitura reconhece a duplica
 
   // A referência remota precisa ter gravado o conector, senão o item voltaria como novo.
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
   const reopened = page.locator('[data-connector="slack"]');
   await reopened.getByRole('button', { name: 'Configure' }).click();
   await reopened.getByRole('button', { name: 'Read for import' }).click();

@@ -149,8 +149,8 @@ test('a sessão de foco continua depois de trocar tema, tom e posição', async 
   await page.goto('/');
   await nav(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
-  await page.getByRole('button', { name: 'Start focus' }).click();
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await page.getByRole('button', { name: 'Começar foco' }).click();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toBeVisible();
 
   await openSettings(page);
   await choose(page, 'Tema', 'Escuro');
@@ -160,7 +160,7 @@ test('a sessão de foco continua depois de trocar tema, tom e posição', async 
 
   await nav(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toBeVisible();
 });
 
 test('a Aparência não mexe no monitor do mascote do notch', async ({ page }) => {

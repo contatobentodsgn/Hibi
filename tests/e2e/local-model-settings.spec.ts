@@ -4,7 +4,7 @@ const dock = (page: Page) => page.getByRole('navigation', { name: 'Navegação p
 const openSettings = async (page: Page) => {
   await dock(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
 };
-const tab = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
+const tab = (page: Page, name: string) => page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: new RegExp(`^${name}\\b`) });
 
 /** O modelo é pedido e baixado pela tela: o dublê guarda o pedido e controla o progresso. */
 async function installBridge(page: Page, status: 'missing' | 'ready') {
@@ -31,7 +31,7 @@ test('quem ainda não tem o cérebro offline encontra e baixa o modelo na aba de
   await installBridge(page, 'missing');
   await page.goto('/');
   await openSettings(page);
-  await tab(page, 'AI').click();
+  await tab(page, 'Assistente e voz').click();
 
   const panel = page.getByText('Cérebro offline').locator('..');
   await expect(panel).toContainText('Ainda não baixado');
@@ -55,9 +55,9 @@ test('o cérebro offline fica com as outras opções de IA, e não na aba de dad
   await page.goto('/');
   await openSettings(page);
 
-  await tab(page, 'Data').click();
+  await tab(page, 'Dados').click();
   await expect(page.getByText('Cérebro offline')).toHaveCount(0);
 
-  await tab(page, 'AI').click();
+  await tab(page, 'Assistente e voz').click();
   await expect(page.getByText('Cérebro offline')).toBeVisible();
 });

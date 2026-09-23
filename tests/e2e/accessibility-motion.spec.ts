@@ -6,7 +6,7 @@ test('a keyboard-focused week slot has a visible focus indicator', async ({ page
   await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao assistente' }).fill('/week');
   await page.keyboard.press('Enter');
 
-  const slot = page.locator('[role="button"][aria-label^="Add block"]').first();
+  const slot = page.locator('[role="button"][aria-label^="Adicionar bloco"]').first();
   await slot.focus();
   await expect(slot).toBeFocused();
   await expect(slot).toHaveCSS('outline-style', 'solid');

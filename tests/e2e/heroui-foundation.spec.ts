@@ -11,6 +11,14 @@ const gallery = async (page: Page, theme: 'light' | 'dark' = 'light', tint = 'la
   await expect(page.locator('[data-gallery]')).toBeVisible();
 };
 
+const openLegacyUpdates = async (page: Page) => {
+  await page.goto('/');
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Comandos' }).click();
+  await page.getByRole('dialog', { name: 'Paleta de comandos' }).getByRole('combobox').fill('/updates');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.legacy-surface')).toBeVisible();
+};
+
 // Luminância relativa (WCAG) de uma cor CSS qualquer — oklch e color-mix inclusive —, resolvida pelo navegador.
 const contrastOf = (page: Page, pairs: Array<[string, string]>) => page.evaluate((list) => {
   const probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
@@ -228,18 +236,14 @@ const legacyStyle = (page: Page, markup: string, properties: string[]) =>
   }, { html: markup, names: properties });
 
 test('as telas atuais não ganham os utilitários do Tailwind que a nova UI usa', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Notas', exact: true }).click();
-  await expect(page.locator('.legacy-surface')).toBeVisible();
+  await openLegacyUpdates(page);
   // A galeria usa `outline` e `block` como utilitários; nas telas atuais eles são classes de botão.
   expect(await legacyStyle(page, '<button class="outline">Cancelar</button>', ['outline-style'])).toEqual({ 'outline-style': 'none' });
   expect(await legacyStyle(page, '<span class="block">x</span>', ['display'])).toEqual({ display: 'inline' });
 });
 
 test('as classes que o HeroUI e as telas atuais compartilham ficam com o desenho de antes', async ({ page }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'Notas', exact: true }).click();
-  await expect(page.locator('.legacy-surface')).toBeVisible();
+  await openLegacyUpdates(page);
   // O Tag do HeroUI trava a seleção do texto; o chip de pasta das telas atuais nunca travou.
   expect(await legacyStyle(page, '<span class="tag">Bento</span>', ['user-select', 'position'])).toEqual({ 'user-select': 'auto', position: 'static' });
   expect(await legacyStyle(page, '<div class="empty-state">Nada</div>', ['user-select'])).toEqual({ 'user-select': 'auto' });

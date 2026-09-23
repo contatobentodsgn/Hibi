@@ -9,9 +9,9 @@ test('exporta o calendário local como ICS', async ({ page }) => {
   await page.goto('/');
   await goWeek(page);
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: 'Export .ics' }).click();
+  await page.getByRole('button', { name: 'Exportar .ics' }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe('hibi-calendar.ics');
+  expect(download.suggestedFilename()).toBe('pixano-calendar.ics');
   const path = await download.path();
   expect(path).toBeTruthy();
 });
