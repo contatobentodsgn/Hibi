@@ -10,9 +10,9 @@ export const companionAssets = {
   icons: {
     icon: image('icons/icon.ico', 'icons.icon', 'Pixano Icon'),
     iconMac: image('icons/icon.icns', 'icons.iconMac', 'Pixano Mac Icon'),
-    catFaviconFace: image('icons/taby-favicon-face.svg', 'icons.catFaviconFace', 'Cat Favicon'),
-    catFaviconFull: image('icons/taby-favicon-full.svg', 'icons.catFaviconFull', 'Cat App Icon'),
-    catMarkApp: image('icons/taby-mark-app.svg', 'icons.catMarkApp', 'Cat Mark'),
+    catFaviconFace: image('icons/pixano-cat-face.svg', 'icons.catFaviconFace', 'Cat Favicon'),
+    catFaviconFull: image('icons/pixano-cat-full.svg', 'icons.catFaviconFull', 'Cat App Icon'),
+    catMarkApp: image('icons/pixano-cat-mark.svg', 'icons.catMarkApp', 'Cat Mark'),
     trayIcon: image('icons/tray-icon.png', 'icons.trayIcon', 'Tray Icon'),
     trayTemplate: image('icons/tray-template.png', 'icons.trayTemplate', 'Tray Template'),
     trayTemplate22: image('icons/tray-template-22.png', 'icons.trayTemplate22', 'Tray Template 22'),

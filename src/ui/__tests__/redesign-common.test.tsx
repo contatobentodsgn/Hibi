@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { CheckCheck } from 'lucide-react'
-import { HibiEmptyState } from '../redesign/components/HibiEmptyState'
+import { PixanoEmptyState } from '../redesign/components/PixanoEmptyState'
 import { RoundLink } from '../redesign/components/RoundLink'
 import { SectionHeader } from '../redesign/components/SectionHeader'
 
@@ -19,11 +19,11 @@ describe('componentes comuns da nova UI (U05)', () => {
   })
 
   it('o estado vazio usa o nível de título da página, com o ícone escondido do leitor de tela', () => {
-    const inCard = renderToStaticMarkup(<HibiEmptyState icon={CheckCheck} tone="mint" title="Nada pendente por aqui." description="Quando surgir algo, aparece aqui." action={<button type="button">Criar tarefa</button>} />)
+    const inCard = renderToStaticMarkup(<PixanoEmptyState icon={CheckCheck} tone="mint" title="Nada pendente por aqui." description="Quando surgir algo, aparece aqui." action={<button type="button">Criar tarefa</button>} />)
     expect(inCard).toMatch(/<span aria-hidden="true"[^>]*data-tone="mint"><svg/)
     expect(inCard).toMatch(/<h3[^>]*>Nada pendente por aqui\.<\/h3><p[^>]*>Quando surgir algo, aparece aqui\.<\/p>/)
     expect(inCard).toContain('<button type="button">Criar tarefa</button>')
-    const whole = renderToStaticMarkup(<HibiEmptyState title="Nenhuma nota ainda." headingLevel={2} />)
+    const whole = renderToStaticMarkup(<PixanoEmptyState title="Nenhuma nota ainda." headingLevel={2} />)
     expect(whole).toMatch(/<h2[^>]*>Nenhuma nota ainda\.<\/h2>/)
     expect(whole).not.toContain('aria-hidden')
   })

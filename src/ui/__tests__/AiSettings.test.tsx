@@ -7,7 +7,7 @@ const pt = (key: DictionaryKey) => translate('pt', key);
 const en = (key: DictionaryKey) => translate('en', key);
 const groq = { endpoint: 'https://api.groq.com/openai/v1/chat/completions', model: 'llama-3.1-70b-versatile' };
 // O erro chega do processo principal via ipcRenderer.invoke, que prefixa a mensagem.
-const ipcError = (code: string) => new Error(`Error invoking remote method 'hibi:ai-config:save': Error: AI provider request failed: ${code}.`);
+const ipcError = (code: string) => new Error(`Error invoking remote method 'pixano:ai-config:save': Error: AI provider request failed: ${code}.`);
 
 describe('AI settings', () => {
   it('shows the provider, model presets, fallback policy, and Keychain-only credential controls', () => {

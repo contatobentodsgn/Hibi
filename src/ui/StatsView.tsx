@@ -39,7 +39,7 @@ import {
 } from './stats-format';
 import './stats.css';
 import './redesign/screens/stats-screen.css';
-import { HibiUiRoot } from './redesign/components/HibiUiRoot';
+import { PixanoUiRoot } from './redesign/components/PixanoUiRoot';
 import { SectionHeader } from './redesign/components/SectionHeader';
 
 type OnEvent = (action: string, detail: string, result?: string) => void;
@@ -177,7 +177,7 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
   );
 
   return (
-    <HibiUiRoot className="stats-screen stats-view stats-view--redesign">
+    <PixanoUiRoot className="stats-screen stats-view stats-view--redesign">
       <SectionHeader title={t('stats.title')} subtitle={period ? periodRange(period, language) : t('stats.noPeriod')} />
       <div className="stats-controls">
         <div className="stats-presets" role="group" aria-label={t('stats.period')}>
@@ -233,7 +233,7 @@ export function StatsContent({ records, referenceDate, preset, custom, typeFilte
           </section>
         </>
       )}
-    </HibiUiRoot>
+    </PixanoUiRoot>
   );
 }
 

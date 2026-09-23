@@ -29,8 +29,8 @@
 // Como reproduzir:
 //   1. SANDBOX_TOKEN=$(openssl rand -hex 16) node scripts/connector-sandbox.mjs
 //   2. exponha a porta 8787 em HTTPS (o harness recusa HTTP), por exemplo com um túnel
-//   3. rode o harness apontando HIBI_LIVE_CONNECTOR_ENDPOINT para <url>/mail/ ou <url>/notify/,
-//      com HIBI_LIVE_CONNECTOR_ALLOW_HOSTS igual ao host e HIBI_LIVE_CONNECTOR_TOKEN igual ao token
+//   3. rode o harness apontando PIXANO_LIVE_CONNECTOR_ENDPOINT para <url>/mail/ ou <url>/notify/,
+//      com PIXANO_LIVE_CONNECTOR_ALLOW_HOSTS igual ao host e PIXANO_LIVE_CONNECTOR_TOKEN igual ao token
 import { createServer } from 'node:http'
 
 const PORT = Number(process.env.PORT ?? 8787)
@@ -50,7 +50,7 @@ const readBody = async (req) => {
 }
 
 // Duas mensagens, uma sinalizada: é o bastante para provar que a importação filtra por `flagged`.
-// Dois itens salvos em canais diferentes: com `HIBI_LIVE_CONNECTOR_TARGETS=C1`, só o primeiro deve
+// Dois itens salvos em canais diferentes: com `PIXANO_LIVE_CONNECTOR_TARGETS=C1`, só o primeiro deve
 // ser importado, o que prova o filtro por canal escolhido.
 const SLACK_ITEMS = [
   { channel: 'C1', message: { ts: '1789000001.0001', text: 'Fechar proposta do cliente' } },

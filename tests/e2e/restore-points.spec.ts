@@ -12,7 +12,7 @@ type Point = { id: number; label: string; createdAt: string; bytes: number };
 async function installBridge(page: Page, points: Point[], { restoreFails = false } = {}) {
   await page.addInitScript((input) => {
     const payload = JSON.stringify({ version: 2, data: {}, preferences: {} });
-    (window as unknown as { hibiDesktop: unknown }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: unknown }).pixanoDesktop = {
       readWorkspace: async () => ({ payload: null }),
       saveWorkspace: async () => ({ ok: true }),
       listWorkspaceRestorePoints: async () => input.points,

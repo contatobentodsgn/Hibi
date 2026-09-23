@@ -9,7 +9,7 @@ const local = (changes: Partial<Task> = {}): Task => ({
 })
 
 const remote = (changes: Partial<NotionTaskRecord> = {}): NotionTaskRecord => ({
-  remoteId: 'page-1', revision: '2026-09-09T12:00:00.000Z', hibiId: 'task-1',
+  remoteId: 'page-1', revision: '2026-09-09T12:00:00.000Z', pixanoId: 'task-1',
   title: 'Write brief', description: 'Context', durationMinutes: 60, status: 'open',
   deadline: '2026-09-10T09:00:00-03:00', ...changes,
 })

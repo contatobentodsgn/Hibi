@@ -9,7 +9,7 @@ export type EmptyStateTone = 'lavender' | 'mint' | 'peach' | 'blue';
  * desktop ou permissão negada. O círculo de ícone é o dos cartões do preview (`.icon-circle`). O nome evita o
  * `EmptyState` do HeroUI, que é só um parágrafo com recuo.
  */
-export function HibiEmptyState({ icon: Icon, tone, title, description, action, headingLevel = 3 }: Readonly<{
+export function PixanoEmptyState({ icon: Icon, tone, title, description, action, headingLevel = 3 }: Readonly<{
   icon?: LucideIcon;
   tone?: EmptyStateTone;
   title: ReactNode;

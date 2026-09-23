@@ -65,7 +65,7 @@ const browserStorage = (): Pick<Storage, 'getItem' | 'setItem'> => {
 }
 const conversationId = () => `conversation-${crypto.randomUUID()}`
 
-// O dono único da conversa, montado uma vez no App: a paleta pergunta com a tela Taby desmontada,
+// O dono único da conversa, montado uma vez no App: a paleta pergunta com a tela Assistant desmontada,
 // então a thread não pode viver dentro da tela. Aqui também mora a única escrita das respostas —
 // a transição terminal do turno vira mensagem uma vez só, guardada por `handled`.
 export function useConversations({ storage, turn, onEvent }: ConversationsHost = {}): ConversationsController {
@@ -91,7 +91,7 @@ export function useConversations({ storage, turn, onEvent }: ConversationsHost =
     // Avisa uma vez por conversa: perder a gravação não pode virar um alarme a cada mensagem.
     const key = next.activeId ?? 'none'
     if (saved) warned.current = ''
-    else if (warned.current !== key) { warned.current = key; onEventRef.current?.('taby', 'conversation', 'fail') }
+    else if (warned.current !== key) { warned.current = key; onEventRef.current?.('assistant', 'conversation', 'fail') }
   }, [host])
 
   const record = useCallback((message: ConversationMessage) => apply(recordTurn(stateRef.current, message, conversationId())), [apply])

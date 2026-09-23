@@ -1,5 +1,5 @@
 import { useT } from '../../i18n/LocaleProvider';
-import { HibiUiRoot } from '../redesign/components/HibiUiRoot';
+import { PixanoUiRoot } from '../redesign/components/PixanoUiRoot';
 import { breadcrumbFor, type NavKey } from './routes';
 
 /**
@@ -12,7 +12,7 @@ export function ShellTopbar({ active }: Readonly<{ active: NavKey }>) {
   const trail = breadcrumbFor(active);
 
   return (
-    <HibiUiRoot className="shell-topbar-root shrink-0">
+    <PixanoUiRoot className="shell-topbar-root shrink-0">
       <header className="hibi-topbar flex h-[79px] items-center gap-4 border-b border-(--hibi-line) px-[42px] max-[1180px]:px-[27px] max-[820px]:px-[21px]">
         <nav aria-label={t('redesign.shell.breadcrumb')} className="text-[12px] text-(--hibi-ink-muted)">
           <ol>
@@ -27,6 +27,6 @@ export function ShellTopbar({ active }: Readonly<{ active: NavKey }>) {
           </ol>
         </nav>
       </header>
-    </HibiUiRoot>
+    </PixanoUiRoot>
   );
 }

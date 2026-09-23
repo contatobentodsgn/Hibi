@@ -20,7 +20,7 @@ describe('voiceNotice', () => {
   });
 
   it('sem a ponte, ou com a voz indisponível, diz onde a voz existe', () => {
-    expect(voiceNotice(null, t)).toBe('[taby.voice.unavailable]');
-    expect(voiceNotice({ status: 'unavailable', error: 'x' }, t)).toBe('[taby.voice.unavailable]');
+    expect(voiceNotice(null, t)).toBe('[assistant.voice.unavailable]');
+    expect(voiceNotice({ status: 'unavailable', error: 'x' }, t)).toBe('[assistant.voice.unavailable]');
   });
 });

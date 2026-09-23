@@ -32,7 +32,7 @@ test('cada destino, Ajustes e cada item do Mais abrem a tela real, e a trilha di
     { name: 'Agenda', via: 'bar', marked: 'Agenda', path: 'Agenda', screen: (p) => p.locator('.agenda-screen') },
     { name: 'Tarefas', via: 'bar', marked: 'Tarefas', path: 'Tarefas', screen: (p) => p.locator('.tasks-screen') },
     { name: 'Notas', via: 'bar', marked: 'Notas', path: 'Notas', screen: (p) => p.locator('.notes-screen') },
-    { name: 'Assistente', via: 'bar', marked: 'Assistente', path: 'Assistente', screen: (p) => p.locator('.taby-screen') },
+    { name: 'Assistente', via: 'bar', marked: 'Assistente', path: 'Assistente', screen: (p) => p.locator('.assistant-screen') },
     { name: 'Hoje', via: 'bar', marked: 'Hoje', path: 'Hoje', screen: (p) => p.locator('.today-screen') },
     { name: 'Ajustes', via: 'bar', marked: 'Ajustes', path: 'Ajustes', screen: (p) => p.locator('.settings-screen') },
     { name: 'Foco', via: 'more', marked: null, path: 'Foco', screen: (p) => p.locator('.focus-view') },

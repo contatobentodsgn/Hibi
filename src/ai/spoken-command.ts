@@ -3,21 +3,21 @@ import { normalizePortuguese } from './ptbr-normalizer';
 /**
  * Comandos como a ditação do macOS os escreve.
  *
- * Os comandos do Taby eram reconhecidos por frases exatas — "crie um lembrete X às 15:00" —, mas a
+ * Os comandos do Assistant eram reconhecidos por frases exatas — "crie um lembrete X às 15:00" —, mas a
  * ditação escreve do jeito dela: "Crie um lembrete tomar água às 15h.", com maiúscula, ponto final,
- * "15h" em vez de "15:00" e, muitas vezes, o nome do assistente na frente ("Taby, crie…", que a
+ * "15h" em vez de "15:00" e, muitas vezes, o nome do assistente na frente ("Assistant, crie…", que a
  * ditação ainda transcreve como "Bibi" ou "Hebe"). Com isso, "às 15h" criava o lembrete para agora,
- * com "às 15h" no título, e "Taby, crie uma tarefa" listava as tarefas em vez de criar.
+ * com "às 15h" no título, e "Assistant, crie uma tarefa" listava as tarefas em vez de criar.
  */
 
 const COMMAND_VERBS = 'adi[ae]r?|adie|mov[ae]r?|mova|mud[ae]r?|remarc[ae]r?|remarque|deix[ae]r?|conclu[ai]r?|fiz|terminei|acabei|cancel[ae]r?|cancele|tir[ae]r?|tire|marque|marcar|agende|agendar|reserve|reservar|crie|criar|adicione|adicionar|edite|editar|renomeie|renomear|exclua|excluir|apague|apagar|remova|remover|envie|enviar|poste|postar|publique|publicar|inicie|inicia|iniciar|comece|começa|comeca|começar|comecar|me\\s+lembr[ae]r?|lembr[ae]-me|lembre|lembrar';
-// O jeito falado de pedir um lembrete — "me lembra de ligar às 15h" — vira o comando que o Taby já
+// O jeito falado de pedir um lembrete — "me lembra de ligar às 15h" — vira o comando que o Assistant já
 // entende. Sem isso a frase ia para a conversa, e o cérebro offline respondia "claro, vou lembrar"
 // sem criar lembrete nenhum.
 const SPOKEN_REMINDER = /^(?:me\s+lembr(?:a|e|ar)|lembr(?:a|e)-me|lembre\s+me|lembrar(?:-me)?)\s+(?:de\s+|que\s+|para\s+)?(.+)$/iu;
 
 /**
- * Tira o que a fala acrescenta e o comando não usa: o chamamento no começo ("Taby,", "ei Taby",
+ * Tira o que a fala acrescenta e o comando não usa: o chamamento no começo ("Assistant,", "ei Assistant",
  * "Hebe", "por favor") e a pontuação que a ditação põe no fim. O chamamento só sai quando o que vem
  * depois é um verbo de comando — "Hibi Study é um app" continua intacto.
  */

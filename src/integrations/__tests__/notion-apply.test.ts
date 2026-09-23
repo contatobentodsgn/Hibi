@@ -10,7 +10,7 @@ describe('applyNotionMutations', () => {
     const local = repository.createTask({ title: 'Local', durationMinutes: 60, category: 'work', status: 'open' })
     applyNotionMutations(repository, [
       { type: 'link', localId: local.id, remoteId: 'page-local', revision: 'v1' },
-      { type: 'pull-create', remote: { remoteId: 'page-new', revision: 'v2', hibiId: 'remote-task', title: 'Remote', description: 'Context', durationMinutes: 45, status: 'paused', deadline: '2026-09-11T09:00:00-03:00' } },
+      { type: 'pull-create', remote: { remoteId: 'page-new', revision: 'v2', pixanoId: 'remote-task', title: 'Remote', description: 'Context', durationMinutes: 45, status: 'paused', deadline: '2026-09-11T09:00:00-03:00' } },
     ])
     expect(repository.getTask(local.id)?.remoteRef).toEqual({ connectorId: 'notion', remoteId: 'page-local', revision: 'v1' })
     expect(repository.listTasks()).toContainEqual(expect.objectContaining({ title: 'Remote', description: 'Context', durationMinutes: 45, status: 'paused', deadline: '2026-09-11T09:00:00-03:00', remoteRef: { connectorId: 'notion', remoteId: 'page-new', revision: 'v2' } }))

@@ -58,7 +58,7 @@ function createElectronUpdateService({ app, autoUpdater, onEvent, exists = exist
   return createUpdateService({
     autoUpdater,
     isPackaged: app?.isPackaged,
-    feedUrl: process.env.HIBI_UPDATE_FEED_URL,
+    feedUrl: process.env.PIXANO_UPDATE_FEED_URL,
     hasPackagedFeed: Boolean(feedPath && exists(feedPath)),
     onEvent,
   });

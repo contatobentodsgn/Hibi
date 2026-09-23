@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AiProvider } from '../contracts';
 import { AiTurnRuntime } from '../runtime';
 import { AiToolPolicy } from '../policy';
-import { ToolRegistry, type HibiTool } from '../tools';
+import { ToolRegistry, type PixanoTool } from '../tools';
 
-const testTool = (name: string, risk: HibiTool['risk'] = 'read', execute = () => ({ summary: name })): HibiTool => ({ name, description: name, risk, inputSchema: {}, validate: () => true, execute });
+const testTool = (name: string, risk: PixanoTool['risk'] = 'read', execute = () => ({ summary: name })): PixanoTool => ({ name, description: name, risk, inputSchema: {}, validate: () => true, execute });
 const provider = (proposal: Parameters<AiProvider['generate']>[0] extends never ? never : any, label = 'Fake provider'): AiProvider => ({ id: 'fake', label, generate: vi.fn().mockResolvedValue(proposal) });
-const setup = (ai: AiProvider, tools: readonly HibiTool[] = []) => { const registry = new ToolRegistry(); tools.forEach((tool) => registry.register(tool)); return new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), context: { tasks: [{ id: 't1', title: 'Write brief' }], schedule: [{ id: 's1', title: 'Deep work', start: '09:00', end: '10:00' }] }, provider: ai }); };
+const setup = (ai: AiProvider, tools: readonly PixanoTool[] = []) => { const registry = new ToolRegistry(); tools.forEach((tool) => registry.register(tool)); return new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), context: { tasks: [{ id: 't1', title: 'Write brief' }], schedule: [{ id: 's1', title: 'Deep work', start: '09:00', end: '10:00' }] }, provider: ai }); };
 
 describe('AI turn runtime', () => {
   it('selects minimal relevant context, emits stages, and preserves provider label', async () => {

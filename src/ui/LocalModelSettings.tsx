@@ -6,7 +6,7 @@ import { modelPurposeKey, modelStatusKey } from './local-model-format';
 type ModelState = { status: LocalModelStatus; modelId: string | null; sizeBytes?: number; error: string | null };
 
 /**
- * O cérebro offline em Configurações › IA, ao lado do provedor que atende o Taby.
+ * O cérebro offline em Configurações › IA, ao lado do provedor que atende o Assistant.
  *
  * O download é sempre pedido: são quase dois gigabytes, e isso é decisão de quem usa o app, não do
  * app. Enquanto ele corre, a tela mostra o quanto já veio e permite cancelar; ao fim, o modelo só é
@@ -14,7 +14,7 @@ type ModelState = { status: LocalModelStatus; modelId: string | null; sizeBytes?
  */
 export function LocalModelSettings({ onEvent }: { onEvent: (action: string, detail: string, result?: string) => void }) {
   const t = useT();
-  const bridge = typeof window === 'undefined' ? undefined : window.hibiDesktop;
+  const bridge = typeof window === 'undefined' ? undefined : window.pixanoDesktop;
   const [state, setState] = useState<ModelState | null>(null);
   const [download, setDownload] = useState<LocalModelDownload | null>(null);
   const [notice, setNotice] = useState('');

@@ -8,7 +8,7 @@ describe('AvailabilityView adapter status', () => {
     const markup = renderToStaticMarkup(<AvailabilityView kind="updates" onNavigate={() => undefined} />);
 
     expect(markup).toContain('Pixano · local build');
-    expect(markup).not.toMatch(/Hibi|Taby/);
+    expect(markup).not.toMatch(/Hibi|Assistant/);
   });
 
   it('renders the typed status rows while preserving the companion gallery', () => {

@@ -17,13 +17,13 @@ export const notchMediaFor = (kind: string) => ({
 export function NotchOverlay({ initialPresentation = null }: { initialPresentation?: OverlayPresentation | null }) {
   const [presentation, setPresentation] = useState<OverlayPresentation | null>(initialPresentation);
   useEffect(() => {
-    const unsubscribe = window.hibiDesktop?.onCompanionPresentation?.(setPresentation) ?? (() => undefined);
+    const unsubscribe = window.pixanoDesktop?.onCompanionPresentation?.(setPresentation) ?? (() => undefined);
     // A primeira apresentação é enviada enquanto esta janela ainda carrega e se perde. Buscar a
     // ativa ao montar fecha essa corrida; um envio que chegue depois continua valendo.
-    void window.hibiDesktop?.getNotchPresentation?.().then((current) => { if (current) setPresentation((existing) => existing ?? current); }).catch(() => undefined);
+    void window.pixanoDesktop?.getNotchPresentation?.().then((current) => { if (current) setPresentation((existing) => existing ?? current); }).catch(() => undefined);
     return unsubscribe;
   }, []);
-  useEffect(() => { if (!presentation) return; const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && presentation.actions.length === 0) void window.hibiDesktop?.hideNotch?.(presentation.requestId); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [presentation]);
+  useEffect(() => { if (!presentation) return; const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && presentation.actions.length === 0) void window.pixanoDesktop?.hideNotch?.(presentation.requestId); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [presentation]);
   if (!presentation) return <main className="notch-overlay" aria-live="polite" />;
   const media = notchMediaFor(presentation.kind);
   const interactive = presentation.actions.length > 0;
@@ -31,7 +31,7 @@ export function NotchOverlay({ initialPresentation = null }: { initialPresentati
     <video src={media.url} autoPlay muted loop playsInline aria-hidden="true" />
     {presentation.text && <p>{presentation.text}</p>}
     {presentation.actions.length > 0 && <div className="notch-overlay-actions">
-      {presentation.actions.map((action, index) => <button type="button" autoFocus={index === 0} key={action.id} onClick={() => { if (action.id === 'confirm' || action.id === 'cancel') void window.hibiDesktop?.resolveNotchAction?.(presentation.requestId, action.id); }}>{action.label}</button>)}
+      {presentation.actions.map((action, index) => <button type="button" autoFocus={index === 0} key={action.id} onClick={() => { if (action.id === 'confirm' || action.id === 'cancel') void window.pixanoDesktop?.resolveNotchAction?.(presentation.requestId, action.id); }}>{action.label}</button>)}
     </div>}
   </main>;
 }

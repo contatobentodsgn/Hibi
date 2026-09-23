@@ -17,14 +17,14 @@ async function installVoice(page: Page, settings = { shortcutVoice: 'off', spoke
       shortcut: (request) => shortcutListeners.forEach((listener) => listener(request)),
     };
     (window as unknown as { voiceE2E: Log }).voiceE2E = log;
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       listenLocalVoice: (options: { autoStop?: boolean; vocabulary?: string[] }) => { calls.push(`listen:${options?.autoStop === true}`); calls.push(`vocabulary:${JSON.stringify(options?.vocabulary ?? [])}`); return new Promise((resolve) => { finishListen = resolve; }); },
       stopLocalVoice: async () => { calls.push('stop'); log.finish('stopped'); return { status: 'ready' }; },
       onLocalVoiceText: (callback: (text: string) => void) => { textListeners.push(callback); return () => textListeners.splice(textListeners.indexOf(callback), 1); },
       speakLocalVoice: async (text: string) => { calls.push(`speak:${text}`); return { status: 'ready', spoken: true }; },
-      onTabyShortcut: (callback: (request: { listen: boolean; background: boolean }) => void) => { shortcutListeners.push(callback); return () => shortcutListeners.splice(shortcutListeners.indexOf(callback), 1); },
-      getTabyShortcut: async () => ({ accelerator: 'Command+Shift+Space', status: 'active' }),
-      setTabyShortcut: async (accelerator: string | null) => ({ accelerator, status: 'active' }),
+      onAssistantShortcut: (callback: (request: { listen: boolean; background: boolean }) => void) => { shortcutListeners.push(callback); return () => shortcutListeners.splice(shortcutListeners.indexOf(callback), 1); },
+      getAssistantShortcut: async () => ({ accelerator: 'Command+Shift+Space', status: 'active' }),
+      setAssistantShortcut: async (accelerator: string | null) => ({ accelerator, status: 'active' }),
       getVoiceSettings: async () => ({ ...voiceSettings }),
       setVoiceSettings: async (patch: Record<string, unknown>) => { calls.push(`settings:${JSON.stringify(patch)}`); voiceSettings = { ...voiceSettings, ...patch }; return { ...voiceSettings }; },
       showNotch: async (presentation: { requestId: string; kind: string; text: string | null }) => { calls.push(`notch:${presentation.kind}:${presentation.text ?? ''}`); return { degraded: false, requestId: presentation.requestId }; },
@@ -131,7 +131,7 @@ test('pelo atalho no modo notch, o notch mostra o que é ouvido, sem trocar de t
   expect(await page.getByRole('heading', { level: 1 }).first().textContent()).toBe(telaAntes);
 });
 
-test('pelo atalho no modo janela, o Taby abre já ouvindo', async ({ page }) => {
+test('pelo atalho no modo janela, o Assistant abre já ouvindo', async ({ page }) => {
   await installVoice(page, { shortcutVoice: 'window', spokenReplies: false });
   await page.goto('/');
   await voice(page).shortcut({ listen: true, background: false });

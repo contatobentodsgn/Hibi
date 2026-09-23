@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { barBounds, barModeFor, cleanInput, createTabyBar } = require('./taby-bar.cjs');
+const { barBounds, barModeFor, cleanInput, createAssistantBar } = require('./assistant-bar.cjs');
 
 const macbook = { id: 1, bounds: { x: 570, y: -956, width: 1470, height: 956 } };
 class FakeWindow {
@@ -12,7 +12,7 @@ class FakeWindow {
   isDestroyed() { return false; } destroy() {}
 }
 FakeWindow.created = [];
-const makeBar = (actions = []) => { FakeWindow.created = []; return createTabyBar({ BrowserWindowClass: FakeWindow, load() {}, displayFor: () => macbook, sizeFor: () => 'compact', onAction: (action) => actions.push(action), platform: 'darwin' }); };
+const makeBar = (actions = []) => { FakeWindow.created = []; return createAssistantBar({ BrowserWindowClass: FakeWindow, load() {}, displayFor: () => macbook, sizeFor: () => 'compact', onAction: (action) => actions.push(action), platform: 'darwin' }); };
 
 test('cada tipo de apresentação vai para um modo da barra, e o que não tem texto nem botão não vai', () => {
   assert.equal(barModeFor({ kind: 'listening', text: null, actions: [] }), 'listening');
@@ -38,7 +38,7 @@ test('abrir para digitar mostra a barra com o teclado; o resto aparece sem rouba
   const [window] = FakeWindow.created;
   assert.equal(window.options.type, 'panel');
   assert.equal(window.focused, true);
-  assert.deepEqual(window.sent.at(-1), ['hibi:bar:content', { requestId: 'taby-bar-input', mode: 'input', kind: 'input', text: null, actions: [] }]);
+  assert.deepEqual(window.sent.at(-1), ['pixano:bar:content', { requestId: 'assistant-bar-input', mode: 'input', kind: 'input', text: null, actions: [] }]);
 
   window.focused = false;
   bar.show({ requestId: 'r1', kind: 'listening', text: 'crie uma', actions: [] });

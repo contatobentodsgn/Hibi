@@ -1,19 +1,19 @@
 import type { DictionaryKey } from '../../i18n/dictionary'
 
-export type NavKey = 'home' | 'tasks' | 'agenda' | 'day' | 'week' | 'focus' | 'break' | 'taby' | 'notes' | 'reminders' | 'habits' | 'goals' | 'review' | 'stats' | 'settings' | 'help' | 'feedback' | 'instrumentation' | 'updates' | 'hardware'
+export type NavKey = 'home' | 'tasks' | 'agenda' | 'day' | 'week' | 'focus' | 'break' | 'assistant' | 'notes' | 'reminders' | 'habits' | 'goals' | 'review' | 'stats' | 'settings' | 'help' | 'feedback' | 'instrumentation' | 'updates' | 'hardware'
 
 export type NavItem = Readonly<{ key: NavKey; label: DictionaryKey }>
 
 /** Os destinos do menu principal da nova UI (seção 3.1 do plano). */
-export type DestinationKey = 'home' | 'agenda' | 'tasks' | 'notes' | 'taby'
+export type DestinationKey = 'home' | 'agenda' | 'tasks' | 'notes' | 'assistant'
 
-// O menu principal, nesta ordem: Hoje · Agenda · Tarefas · Notas · Taby. Ajustes tem acesso próprio.
+// O menu principal, nesta ordem: Hoje · Agenda · Tarefas · Notas · Assistant. Ajustes tem acesso próprio.
 export const DESTINATIONS: readonly Readonly<{ key: DestinationKey; label: DictionaryKey }>[] = [
   { key: 'home', label: 'redesign.nav.today' },
   { key: 'agenda', label: 'nav.agenda' },
   { key: 'tasks', label: 'nav.tasks' },
   { key: 'notes', label: 'nav.notes' },
-  { key: 'taby', label: 'nav.taby' },
+  { key: 'assistant', label: 'nav.assistant' },
 ]
 
 // O menu "Mais" concentra apenas rotas de uso recorrente. Ferramentas técnicas e de suporte continuam
@@ -41,7 +41,7 @@ const PLACE: Readonly<Record<NavKey, DestinationKey | 'settings' | null>> = {
   tasks: 'tasks',
   reminders: 'tasks',
   notes: 'notes',
-  taby: 'taby',
+  assistant: 'assistant',
   focus: null,
   break: null,
   settings: 'settings',
@@ -59,7 +59,7 @@ export const isAgendaRoute = (key: NavKey) => key === 'agenda' || key === 'day' 
 
 /** Screens already rebuilt with the HeroUI surface; all others remain in the temporary legacy shell. */
 const REDESIGN_ROUTES: ReadonlySet<NavKey> = new Set([
-  'home', 'tasks', 'agenda', 'day', 'week', 'focus', 'break', 'taby', 'notes',
+  'home', 'tasks', 'agenda', 'day', 'week', 'focus', 'break', 'assistant', 'notes',
   'reminders', 'habits', 'goals', 'review', 'stats', 'settings',
 ])
 

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 type CompanionAction = Readonly<{ requestId: string; actionId: 'confirm' | 'cancel' }>;
-type HibiE2E = {
+type PixanoE2E = {
   calls: string[];
   companionAction: (input: CompanionAction) => void;
   editRemotePage: () => void;
@@ -37,16 +37,16 @@ async function installNotionConfirmationBridge(page: Page) {
       },
     };
 
-    const e2e: HibiE2E = {
+    const e2e: PixanoE2E = {
       calls,
       companionAction: (input) => companionListeners.forEach((listener) => listener(input)),
       // Alguém edita a página no Notion entre a prévia e a confirmação.
       editRemotePage: () => { remoteRevision = 'v2'; },
       breakReads: () => { readsBroken = true; },
     };
-    (window as unknown as { hibiE2E: HibiE2E }).hibiE2E = e2e;
+    (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E = e2e;
 
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
       listIntegrationStatus: async () => [{ id: 'notion', label: 'Notion', capabilities: ['import', 'write', 'sync'], state: 'connected', hasCredential: true }],
       listIntegrationAudit: async () => [],
@@ -88,9 +88,9 @@ const DISMISSED = `hide:${CONFIRMATION_ID}`;
 const EXECUTED = `execute:${CONFIRMATION_ID}`;
 
 const card = (page: Page) => page.getByRole('alert').filter({ hasText: 'Confirm synchronization' });
-const calls = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.calls);
+const calls = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.calls);
 const notchAction = (page: Page, actionId: 'confirm' | 'cancel', requestId = CONFIRMATION_ID) =>
-  page.evaluate((input) => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.companionAction(input), { requestId, actionId });
+  page.evaluate((input) => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.companionAction(input), { requestId, actionId });
 // Sumir da tela não basta como prova de que nada foi aplicado: isto lê o workspace que o App
 // persiste a cada mudança de dados, que é o que sobrevive ao recarregar. A tarefa que só existe no
 // Notion aparece por `pull-create`; `remoteRef` aparece em qualquer tarefa local que tenha sido
@@ -222,7 +222,7 @@ test('uma mudança só local também espera a confirmação, e aprová-la não c
 test('uma página editada no Notion depois da prévia bloqueia a confirmação, sem aplicar nada', async ({ page }) => {
   await openReview(page);
   await askConfirmation(page);
-  await page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.editRemotePage());
+  await page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.editRemotePage());
 
   await card(page).getByRole('button', { name: 'Confirm', exact: true }).click();
 
@@ -238,7 +238,7 @@ test('uma página editada no Notion depois da prévia bloqueia a confirmação, 
 test('sem conseguir reler o Notion na confirmação, nada é aplicado', async ({ page }) => {
   await openReview(page);
   await askConfirmation(page);
-  await page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.breakReads());
+  await page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.breakReads());
 
   await card(page).getByRole('button', { name: 'Confirm', exact: true }).click();
 

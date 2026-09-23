@@ -13,7 +13,7 @@ export function UpdatePanel() {
   const [state, setState] = useState<UpdateState>({ status: 'disabled', version: null, error: null });
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    const bridge = typeof window === 'undefined' ? undefined : window.hibiDesktop;
+    const bridge = typeof window === 'undefined' ? undefined : window.pixanoDesktop;
     if (!bridge?.getUpdateState) return () => undefined;
     let active = true;
     void bridge.getUpdateState().then((value) => { if (active) setState(value); }).catch(() => undefined);
@@ -23,7 +23,7 @@ export function UpdatePanel() {
 
   const pedir = async (action: 'checkForUpdate' | 'downloadUpdate' | 'installUpdate') => {
     setBusy(true);
-    const next = await window.hibiDesktop?.[action]?.().catch(() => null);
+    const next = await window.pixanoDesktop?.[action]?.().catch(() => null);
     setBusy(false);
     if (next) setState(next);
   };

@@ -8,7 +8,7 @@ async function installCalendarBridge(page: Page, changes: unknown) {
     const log: Log = { calls: [] };
     (window as unknown as { calendarE2E: Log }).calendarE2E = log;
     let current = initial as { outgoing: unknown[]; incoming: unknown[] };
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       getCalendarSyncState: async () => ({ sources: [{ id: 'apple', provider: 'apple', state: 'connected' }], calendars: [{ id: 'apple:casa', sourceId: 'apple', label: 'Casa', mode: 'bidirectional' }], conflicts: [] }),
       readCalendarSyncEvents: async () => { log.calls.push('read'); return []; },
       listCalendarSyncChanges: async () => { log.calls.push('changes'); return current; },

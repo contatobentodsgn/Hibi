@@ -27,7 +27,7 @@ export function WeekView({ data, onEvent, onCreateBlock, onDeleteBlock }: Props)
   useEffect(() => {
     let live = true;
     const load = async () => {
-      const bridge = window.hibiDesktop;
+      const bridge = window.pixanoDesktop;
       if (!bridge?.getCalendarSyncState || !bridge.readCalendarSyncEvents) return;
       try {
         const state = await bridge.getCalendarSyncState();

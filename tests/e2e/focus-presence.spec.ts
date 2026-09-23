@@ -4,7 +4,7 @@ type PresenceEvent =
   | { type: 'away'; reason: 'idle' | 'power'; idleSeconds: number; atMs: number }
   | { type: 'returned'; reason: 'idle' | 'power'; awaySeconds: number; atMs: number };
 type CompanionAction = Readonly<{ requestId: string; actionId: 'confirm' | 'cancel' }>;
-type HibiE2E = {
+type PixanoE2E = {
   calls: string[];
   presence: (event: PresenceEvent) => void;
   companionAction: (action: CompanionAction) => void;
@@ -14,15 +14,15 @@ const SETTINGS_KEY = 'hibi-focus-settings';
 const dock = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
 const clockFace = (page: Page) => page.locator('.focus-ring span');
 const prompt = (page: Page, title: string) => page.getByRole('alert').filter({ hasText: title });
-const calls = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.calls);
+const calls = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.calls);
 // O carimbo sai do relógio da própria página, como o processo principal carimbaria no Mac.
 const away = (page: Page, idleSeconds: number, reason: 'idle' | 'power' = 'idle') =>
-  page.evaluate(({ idleSeconds, reason }) => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.presence({ type: 'away', reason, idleSeconds, atMs: Date.now() }), { idleSeconds, reason });
+  page.evaluate(({ idleSeconds, reason }) => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.presence({ type: 'away', reason, idleSeconds, atMs: Date.now() }), { idleSeconds, reason });
 const returned = (page: Page, awaySeconds: number) =>
-  page.evaluate((awaySeconds) => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.presence({ type: 'returned', reason: 'idle', awaySeconds, atMs: Date.now() }), awaySeconds);
+  page.evaluate((awaySeconds) => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.presence({ type: 'returned', reason: 'idle', awaySeconds, atMs: Date.now() }), awaySeconds);
 const companionAction = (page: Page, prefix: string, actionId: 'confirm' | 'cancel') =>
   page.evaluate(({ prefix, actionId }) => {
-    const e2e = (window as unknown as { hibiE2E: HibiE2E }).hibiE2E;
+    const e2e = (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E;
     const shown = e2e.calls.filter((call) => call.startsWith(`show:confirmation:${prefix}`)).at(-1);
     if (shown) e2e.companionAction({ requestId: shown.split(':')[2]!, actionId });
   }, { prefix, actionId });
@@ -30,7 +30,7 @@ const companionAction = (page: Page, prefix: string, actionId: 'confirm' | 'canc
 const recordedActions = (page: Page) => page.evaluate(() => (JSON.parse(window.localStorage.getItem('hibi-events') ?? '[]') as { action: string }[]).map((event) => event.action));
 const focusActivity = (page: Page) => page.evaluate(() => (JSON.parse(window.localStorage.getItem('hibi-study-data') ?? '{}').activity ?? []) as { type: string; durationMinutes?: number }[]);
 
-// O e2e roda no build web, sem `window.hibiDesktop`. O dublê faz o papel do processo principal: guarda
+// O e2e roda no build web, sem `window.pixanoDesktop`. O dublê faz o papel do processo principal: guarda
 // os pedidos de vigia e as apresentações do companion num log ordenado, e deixa o teste disparar
 // ausência, retorno e respostas dadas no notch pelos mesmos callbacks que o preload entregaria.
 async function installPresenceBridge(page: Page, settings?: Record<string, unknown>) {
@@ -47,12 +47,12 @@ async function installPresenceBridge(page: Page, settings?: Record<string, unkno
       listeners.push(callback);
       return () => { const index = listeners.indexOf(callback); if (index >= 0) listeners.splice(index, 1); };
     };
-    (window as unknown as { hibiE2E: unknown }).hibiE2E = {
+    (window as unknown as { pixanoE2E: unknown }).pixanoE2E = {
       calls,
       presence: (event: unknown) => presenceListeners.forEach((listener) => listener(event)),
       companionAction: (action: unknown) => actionListeners.forEach((listener) => listener(action)),
     };
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
       showNotch: async (presentation: { requestId: string; kind: string }) => { calls.push(`show:${presentation.kind}:${presentation.requestId}`); return { degraded: false, requestId: presentation.requestId }; },
       hideNotch: async (requestId: string) => { calls.push(`hide:${requestId}`); return true; },

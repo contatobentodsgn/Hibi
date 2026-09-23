@@ -29,7 +29,7 @@ export function launchDevElectron({ plan, projectRoot, logPath, devServer, spawn
   }
   return spawnProcess(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['electron', 'electron/main.cjs'], {
     stdio: 'inherit',
-    env: { ...process.env, HIBI_DEV_SERVER: devServer },
+    env: { ...process.env, PIXANO_DEV_SERVER: devServer },
   });
 }
 

@@ -1,9 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useT } from '../i18n/LocaleProvider';
-import type { TabyBarContent } from './taby-bar-content';
-import './taby-bar.css';
+import type { AssistantBarContent } from './assistant-bar-content';
+import './assistant-bar.css';
 
-type Bridge = NonNullable<Window['hibiBar']>;
+type Bridge = NonNullable<Window['pixanoBar']>;
 
 // No ditado, o que importa é o que acabou de ser dito: numa barra estreita, um texto longo mostra as
 // últimas palavras, e não o começo cortado.
@@ -21,14 +21,14 @@ const Icon = ({ name }: { name: 'mic' | 'send' | 'stop' | 'close' }) => {
 };
 
 /**
- * A barra do Taby, embaixo do notch. No notch só o mascote; aqui fica o texto, e os botões mudam
+ * A barra do Assistant, embaixo do notch. No notch só o mascote; aqui fica o texto, e os botões mudam
  * conforme o pedido anda: digitar (falar ou enviar), ouvindo (parar), pensando, resposta, confirmação.
  */
-export function TabyBar({ bridge = typeof window === 'undefined' ? undefined : window.hibiBar, initialContent = null }: { bridge?: Bridge; initialContent?: TabyBarContent | null }) {
+export function AssistantBar({ bridge = typeof window === 'undefined' ? undefined : window.pixanoBar, initialContent = null }: { bridge?: Bridge; initialContent?: AssistantBarContent | null }) {
   const t = useT();
-  const [content, setContent] = useState<TabyBarContent | null>(initialContent);
+  const [content, setContent] = useState<AssistantBarContent | null>(initialContent);
   const [draft, setDraft] = useState('');
-  // O último pedido enviado fica à vista enquanto o Taby pensa: a barra não some entre um estado e outro.
+  // O último pedido enviado fica à vista enquanto o Assistant pensa: a barra não some entre um estado e outro.
   const [lastPrompt, setLastPrompt] = useState('');
   const field = useRef<HTMLInputElement>(null);
 
@@ -67,29 +67,29 @@ export function TabyBar({ bridge = typeof window === 'undefined' ? undefined : w
     return () => window.removeEventListener('keydown', onKey);
   }, [bridge]);
 
-  if (!content) return <main className="taby-bar" data-mode="hidden" aria-label={t('bar.label')} />;
-  const button = (label: string, icon: Parameters<typeof Icon>[0]['name'], onClick: () => void) => <button type="button" className="taby-bar-icon" aria-label={label} title={label} onClick={onClick}><Icon name={icon} /></button>;
+  if (!content) return <main className="assistant-bar" data-mode="hidden" aria-label={t('bar.label')} />;
+  const button = (label: string, icon: Parameters<typeof Icon>[0]['name'], onClick: () => void) => <button type="button" className="assistant-bar-icon" aria-label={label} title={label} onClick={onClick}><Icon name={icon} /></button>;
 
-  return <main className="taby-bar" data-mode={content.mode} aria-label={t('bar.label')} role={content.mode === 'confirmation' ? 'dialog' : undefined}>
+  return <main className="assistant-bar" data-mode={content.mode} aria-label={t('bar.label')} role={content.mode === 'confirmation' ? 'dialog' : undefined}>
     {content.mode === 'input' && <>
-      <input ref={field} className="taby-bar-field" value={draft} placeholder={t('bar.placeholder')} aria-label={t('bar.placeholder')} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submit(); } }} />
-      <div className="taby-bar-actions">{draft.trim() ? button(t('bar.send'), 'send', submit) : button(t('bar.speak'), 'mic', () => { void bridge?.voice('start'); })}</div>
+      <input ref={field} className="assistant-bar-field" value={draft} placeholder={t('bar.placeholder')} aria-label={t('bar.placeholder')} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submit(); } }} />
+      <div className="assistant-bar-actions">{draft.trim() ? button(t('bar.send'), 'send', submit) : button(t('bar.speak'), 'mic', () => { void bridge?.voice('start'); })}</div>
     </>}
     {content.mode === 'listening' && <>
-      <p className="taby-bar-text" aria-live="polite">{content.text ? latestWords(content.text) : <span className="taby-bar-hint">{t('bar.listening')}</span>}</p>
-      <div className="taby-bar-actions"><span className="taby-bar-pulse" aria-hidden="true" />{button(t('bar.stop'), 'stop', () => { void bridge?.voice('stop'); })}</div>
+      <p className="assistant-bar-text" aria-live="polite">{content.text ? latestWords(content.text) : <span className="assistant-bar-hint">{t('bar.listening')}</span>}</p>
+      <div className="assistant-bar-actions"><span className="assistant-bar-pulse" aria-hidden="true" />{button(t('bar.stop'), 'stop', () => { void bridge?.voice('stop'); })}</div>
     </>}
     {content.mode === 'thinking' && <>
-      <p className="taby-bar-text" aria-live="polite">{lastPrompt || content.text || <span className="taby-bar-hint">{t('bar.thinking')}</span>}</p>
-      <div className="taby-bar-actions"><span className="taby-bar-dots" aria-label={t('bar.thinking')}><i /><i /><i /></span></div>
+      <p className="assistant-bar-text" aria-live="polite">{lastPrompt || content.text || <span className="assistant-bar-hint">{t('bar.thinking')}</span>}</p>
+      <div className="assistant-bar-actions"><span className="assistant-bar-dots" aria-label={t('bar.thinking')}><i /><i /><i /></span></div>
     </>}
     {(content.mode === 'reply' || content.mode === 'notice') && <>
-      <p className="taby-bar-text taby-bar-reply" aria-live="polite">{content.text}</p>
-      <div className="taby-bar-actions">{button(t('bar.close'), 'close', close)}</div>
+      <p className="assistant-bar-text assistant-bar-reply" aria-live="polite">{content.text}</p>
+      <div className="assistant-bar-actions">{button(t('bar.close'), 'close', close)}</div>
     </>}
     {content.mode === 'confirmation' && <>
-      <p className="taby-bar-text taby-bar-reply">{content.text}</p>
-      <div className="taby-bar-actions">{content.actions.map((action, index) => <button type="button" key={action.id} autoFocus={index === 0} className={`taby-bar-pill ${action.id === 'confirm' ? 'is-primary' : ''}`} onClick={() => { void bridge?.action(content.requestId, action.id); }}>{action.label}</button>)}</div>
+      <p className="assistant-bar-text assistant-bar-reply">{content.text}</p>
+      <div className="assistant-bar-actions">{content.actions.map((action, index) => <button type="button" key={action.id} autoFocus={index === 0} className={`assistant-bar-pill ${action.id === 'confirm' ? 'is-primary' : ''}`} onClick={() => { void bridge?.action(content.requestId, action.id); }}>{action.label}</button>)}</div>
     </>}
   </main>;
 }

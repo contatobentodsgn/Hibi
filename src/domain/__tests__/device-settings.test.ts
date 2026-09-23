@@ -3,10 +3,10 @@ import { buildDeviceSettingsPackage, DEVICE_SETTINGS_SCHEMA, DEVICE_SETTINGS_VER
 import { DEFAULT_FOCUS_SETTINGS } from '../../ui/focus-settings';
 import { getCurrentAdapterStatuses } from '../adapter-status';
 
-// O timeout de tela é do aparelho: este Mac não tem tela do Taby para apagar. O ajuste só existe como
+// O timeout de tela é do aparelho: este Mac não tem tela do Assistant para apagar. O ajuste só existe como
 // este pacote, que o adaptador do dispositivo vai consumir — nada nele pode fingir comportamento.
 describe('pacote de ajustes do dispositivo', () => {
-  it('leva o timeout de tela escolhido e o loop que a tela do Taby toca', () => {
+  it('leva o timeout de tela escolhido e o loop que a tela do Assistant toca', () => {
     expect(buildDeviceSettingsPackage({ ...DEFAULT_FOCUS_SETTINGS, screenTimeoutSeconds: 300, focusLoopAnimation: 'music' })).toEqual({
       schema: DEVICE_SETTINGS_SCHEMA,
       version: DEVICE_SETTINGS_VERSION,

@@ -27,7 +27,7 @@ test('não empacota assinatura de distribuição nem exige notarização para a 
 
   for (const call of calls.slice(0, 2)) {
     assert.equal(call.env.CSC_IDENTITY_AUTO_DISCOVERY, 'false');
-    assert.equal(call.env.HIBI_LOCAL_INSTALL, '1');
+    assert.equal(call.env.PIXANO_LOCAL_INSTALL, '1');
   }
 });
 

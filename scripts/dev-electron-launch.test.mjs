@@ -30,7 +30,7 @@ test('o caminho antigo continua recebendo o endereço do servidor de desenvolvim
   launchDevElectron({ plan: { kind: 'npx' }, projectRoot: '/repo/', logPath: '/tmp/hibi.log', devServer: 'http://127.0.0.1:5173', spawnProcess: (file, args, options) => { calls.push([file, args, options]); return {}; } });
 
   assert.match(calls[0][0], /npx/);
-  assert.equal(calls[0][2].env.HIBI_DEV_SERVER, 'http://127.0.0.1:5173');
+  assert.equal(calls[0][2].env.PIXANO_DEV_SERVER, 'http://127.0.0.1:5173');
 });
 
 test('sair do dev fecha o app que o sistema abriu, que não é filho deste processo', () => {

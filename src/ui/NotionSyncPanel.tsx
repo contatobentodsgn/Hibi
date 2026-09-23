@@ -61,14 +61,14 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
 
   const showConfirmation = (next: Pending, text: string) => {
     setPending(next)
-    void window.hibiDesktop?.showNotch?.({ requestId: next.confirmationId, kind: 'confirmation', text, interaction: 'capture', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] })
+    void window.pixanoDesktop?.showNotch?.({ requestId: next.confirmationId, kind: 'confirmation', text, interaction: 'capture', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] })
   }
 
   const prepareSetup = async () => {
     if (!connected || !parentPageId.trim()) return
     setBusy(true)
     try {
-      const prepared = await window.hibiDesktop?.prepareIntegrationAction?.({ connectorId: 'notion', kind: 'notion.database.create', payload: { parentPageId: parentPageId.trim() } })
+      const prepared = await window.pixanoDesktop?.prepareIntegrationAction?.({ connectorId: 'notion', kind: 'notion.database.create', payload: { parentPageId: parentPageId.trim() } })
       if (!prepared) throw new Error('Setup is available in the desktop app.')
       showConfirmation({ kind: 'setup', actionId: prepared.id, confirmationId: prepared.confirmationId }, 'Criar a base Pixano Tasks dentro de Kizuna?')
       setNotice('Setup prepared. Confirm to create Pixano Tasks; no remote write has happened yet.')
@@ -81,7 +81,7 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
     if (!current?.dataSourceId) return
     setBusy(true); setFailedKeys([])
     try {
-      const candidates = await window.hibiDesktop?.listIntegrationImportCandidates?.('notion')
+      const candidates = await window.pixanoDesktop?.listIntegrationImportCandidates?.('notion')
       if (!candidates) throw new Error('Notion sync is available in the desktop app.')
       const remote = candidates.map(remoteRecord).filter((item): item is NotionTaskRecord => Boolean(item))
       const next = buildNotionSyncPlan(localTasks, remote, current.checkpoints)
@@ -103,7 +103,7 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
     setBusy(true)
     try {
       if (operations.length) {
-        const prepared = await window.hibiDesktop?.prepareIntegrationAction?.({ connectorId: 'notion', kind: 'notion.sync.batch', payload: { operations } })
+        const prepared = await window.pixanoDesktop?.prepareIntegrationAction?.({ connectorId: 'notion', kind: 'notion.sync.batch', payload: { operations } })
         if (!prepared) throw new Error('Notion writes are available in the desktop app.')
         showConfirmation({ kind: 'sync', actionId: prepared.id, confirmationId: prepared.confirmationId, plan: activePlan, decisions }, `Aplicar ${operations.length} alterações no Notion e as alterações locais selecionadas?`)
       } else {
@@ -155,14 +155,14 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
   const resolvePending = async (approved: boolean) => {
     const current = pending
     if (!current) return
-    setPending(null); void window.hibiDesktop?.hideNotch?.(current.confirmationId)
+    setPending(null); void window.pixanoDesktop?.hideNotch?.(current.confirmationId)
     if (!approved) { setNotice('Synchronization cancelled. No selected change was applied.'); return }
     setBusy(true)
     try {
       // Antes de escrever, a base é lida de novo: uma prévia confirmada tarde enviava a versão antiga e
       // marcava como sincronizado o que mudou no meio do caminho, dos dois lados.
       if (current.kind === 'sync' && current.plan && current.decisions) {
-        const candidates = await window.hibiDesktop?.listIntegrationImportCandidates?.('notion')
+        const candidates = await window.pixanoDesktop?.listIntegrationImportCandidates?.('notion')
         if (!candidates) throw new Error('Could not read the Notion task database again. Nothing was applied.')
         const remoteNow = candidates.map(remoteRecord).filter((item): item is NotionTaskRecord => Boolean(item))
         const stale = staleNotionPlanKeys(current.plan, current.decisions, localTasksRef.current, remoteNow)
@@ -173,11 +173,11 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
           return
         }
       }
-      const execution = current.actionId ? await window.hibiDesktop?.executeApprovedIntegrationAction?.({ actionId: current.actionId, confirmationId: current.confirmationId }) : { ok: true, items: [] }
+      const execution = current.actionId ? await window.pixanoDesktop?.executeApprovedIntegrationAction?.({ actionId: current.actionId, confirmationId: current.confirmationId }) : { ok: true, items: [] }
       if (!execution) throw new Error('Confirmation could not be executed.')
       if (current.kind === 'setup') {
         if (!execution.ok || !execution.remoteId) throw new Error('Notion did not create the task database.')
-        const source = await window.hibiDesktop?.discoverNotionDataSource?.(execution.remoteId)
+        const source = await window.pixanoDesktop?.discoverNotionDataSource?.(execution.remoteId)
         if (!source) throw new Error('Could not discover the Notion task database.')
         await saveNotionSettings({ targets: [{ id: source.dataSourceId, label: 'Pixano Tasks' }], notion: { workspaceLabel: "Kizuna Std's Notion", parentPageId: parentPageId.trim(), databaseId: source.databaseId, dataSourceId: source.dataSourceId, lastSyncAt: '', lastSummary: EMPTY_SUMMARY, checkpoints: [] } })
         setNotice('Pixano Tasks is ready inside Kizuna.')
@@ -186,7 +186,7 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
     finally { setBusy(false) }
   }
 
-  useEffect(() => window.hibiDesktop?.onCompanionAction?.((action) => { if (action.requestId === pending?.confirmationId) void resolvePending(action.actionId === 'confirm') }) ?? (() => undefined), [pending])
+  useEffect(() => window.pixanoDesktop?.onCompanionAction?.((action) => { if (action.requestId === pending?.confirmationId) void resolvePending(action.actionId === 'confirm') }) ?? (() => undefined), [pending])
   const visibleItems = useMemo(() => plan?.items.filter((item) => item.state !== 'unchanged') ?? [], [plan])
 
   if (!notion?.dataSourceId) return <section className="notion-sync-panel" aria-label="Notion sync setup"><h4>Pixano Tasks</h4><p className="muted">Create the dedicated task database inside Kizuna. This remote write requires confirmation.</p><label>Workspace<input value="Kizuna Std's Notion" readOnly /></label><label>Kizuna parent page ID<input aria-label="Kizuna parent page ID" value={parentPageId} onChange={(event) => setParentPageId(event.target.value)} /></label><button className="primary" disabled={!connected || busy} onClick={() => void prepareSetup()}>Prepare Pixano Tasks</button>{pending && <Confirmation onResolve={resolvePending} />}{!connected && <p className="muted">Connect Notion first.</p>}<p className="muted" aria-live="polite">{notice}</p></section>

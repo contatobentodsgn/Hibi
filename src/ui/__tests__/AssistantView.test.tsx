@@ -6,7 +6,7 @@ import { initialAssistantTurnState } from '../../ai/assistant-turn';
 import { appendMessage, createConversation } from '../../domain/conversations';
 import { LocaleProvider } from '../../i18n/LocaleProvider';
 import { companionEventFor, confirmationPresentationFor, failurePresentationFor } from '../assistant-presentation';
-import { TabyView } from '../TabyView';
+import { AssistantView } from '../AssistantView';
 import type { AssistantTurnControls } from '../useAssistantTurn';
 
 const noop = () => undefined;
@@ -30,10 +30,10 @@ const inertTurn: AssistantTurnControls = {
 // A tela não é mais dona da thread: ela recebe o controlador pronto, como o App o entrega.
 const conversations = { conversations: saved, activeId: 'c-1', query: '', saveFailed: false, record: noop, select: noop, create: noop, remove: noop, removeAll: noop, search: noop };
 
-describe('TabyView capability boundaries', () => {
+describe('AssistantView capability boundaries', () => {
   it('shows local capability statuses and unavailable surfaces', () => {
     const data = createSeedData();
-    const markup = renderToStaticMarkup(<TabyView data={data} turn={inertTurn} conversations={conversations} />);
+    const markup = renderToStaticMarkup(<AssistantView data={data} turn={inertTurn} conversations={conversations} />);
 
     expect(markup).toContain('What I can access');
     expect(markup).toContain('Tasks');
@@ -92,11 +92,11 @@ describe('TabyView capability boundaries', () => {
   });
 });
 
-describe('TabyView conversations', () => {
+describe('AssistantView conversations', () => {
   it('presents a local conversation save failure as a reusable alert state', () => {
     const markup = renderToStaticMarkup(
       <LocaleProvider initialLanguage="pt" host={host}>
-        <TabyView data={createSeedData()} turn={inertTurn} conversations={{ ...conversations, saveFailed: true }} />
+        <AssistantView data={createSeedData()} turn={inertTurn} conversations={{ ...conversations, saveFailed: true }} />
       </LocaleProvider>,
     );
 
@@ -107,7 +107,7 @@ describe('TabyView conversations', () => {
   it('renders the conversations it is given', () => {
     const markup = renderToStaticMarkup(
       <LocaleProvider initialLanguage="pt" host={host}>
-        <TabyView data={createSeedData()} turn={inertTurn} conversations={conversations} />
+        <AssistantView data={createSeedData()} turn={inertTurn} conversations={conversations} />
       </LocaleProvider>,
     );
     expect(markup).toContain('agenda da semana');
@@ -117,8 +117,8 @@ describe('TabyView conversations', () => {
   });
 
   it('greets through the dictionary instead of a hardcoded string', () => {
-    const source = readFileSync(new URL('../TabyView.tsx', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('../AssistantView.tsx', import.meta.url), 'utf8');
     expect(source).not.toContain('Olá! Sou o assistente local do Hibi');
-    expect(source).toContain("t('taby.greeting')");
+    expect(source).toContain("t('assistant.greeting')");
   });
 });

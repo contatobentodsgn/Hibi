@@ -1,14 +1,14 @@
 <!--
   macOS / Windows app icon source.
-  Black squircle background with the face-only Taby mark in white on top.
-  Face geometry comes from resources/icons/taby-favicon-face.svg (the
+  Black squircle background with the face-only cat mascot mark in white on top.
+  Face geometry comes from icons/pixano-cat-face.svg (the
   user-supplied download).
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!-- macOS-style squircle background -->
   <rect x="0" y="0" width="1024" height="1024" rx="232" ry="232" fill="#000000"/>
 
-  <!-- Face mark — verbatim paths from taby-favicon-face.svg, scaled into a
+  <!-- Face mark — verbatim paths from pixano-cat-face.svg, scaled into a
        ~826×826 stage (15% smaller than the previous 972 stage) on the 1024
        canvas. Source viewBox is 28 units, so scale = 826.2/28 = 29.5071…
        Even padding would be (1024 - 826.2) / 2 = 98.9; we add 2px to the

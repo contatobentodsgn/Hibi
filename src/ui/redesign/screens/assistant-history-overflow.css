@@ -1,0 +1,6 @@
+@layer components {
+  .assistant-screen__history { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+  .assistant-screen__conversation-list { min-width: 0; width: 100%; }
+  .assistant-screen__conversation-row { min-width: 0; width: 100%; }
+  .assistant-screen__conversation-row > button:first-child span { flex: 1; min-width: 0; }
+}

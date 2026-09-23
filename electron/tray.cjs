@@ -20,7 +20,7 @@ function resolveTrayIcon({ root = path.join(__dirname, '..'), exists = existsSyn
  * Sem um lugar fixo para reabrir, quem fechasse a janela ficaria sem caminho de volta — por isso o
  * ícone existe, e por isso "Sair" é explícito, em vez de deixar o app pendurado sem nada na tela.
  */
-function createAppTray({ Tray, Menu, nativeImage, iconPath = resolveTrayIcon(), labels = {}, onOpen, onHide, onTaby, onQuit } = {}) {
+function createAppTray({ Tray, Menu, nativeImage, iconPath = resolveTrayIcon(), labels = {}, onOpen, onHide, onAssistant, onQuit } = {}) {
   if (!Tray || !Menu || typeof onOpen !== 'function' || typeof onQuit !== 'function') throw new Error('The menu bar icon needs Electron, an open handler and a quit handler.');
   const image = nativeImage?.createFromPath?.(iconPath);
   // Um ícone de template acompanha o tema do sistema; sem isto ele vira um borrão preto no modo escuro.
@@ -28,7 +28,7 @@ function createAppTray({ Tray, Menu, nativeImage, iconPath = resolveTrayIcon(), 
   const tray = new Tray(image ?? iconPath);
   const items = [
     { label: labels.open ?? 'Abrir Pixano', click: () => onOpen() },
-    { label: labels.taby ?? 'Abrir assistente', click: () => (onTaby ?? onOpen)() },
+    { label: labels.assistant ?? 'Abrir assistente', click: () => (onAssistant ?? onOpen)() },
     { label: labels.hide ?? 'Ocultar janela', click: () => onHide?.() },
     { type: 'separator' },
     { label: labels.quit ?? 'Sair do Pixano', click: () => onQuit() },

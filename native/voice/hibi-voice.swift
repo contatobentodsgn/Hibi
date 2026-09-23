@@ -22,13 +22,13 @@ final class VoiceActivity: @unchecked Sendable {
         floor = floor == 0 ? level : (level < floor ? level : floor + (level - floor) * 0.01)
         let voiced = level > max(0.003, floor * 3)
         if voiced { voicedFor += seconds; quietFor = 0 } else { quietFor += seconds; voicedFor = 0 }
-        if !active && voicedFor >= 0.06 { active = true; HibiVoice.emit(["type": "voice", "active": true]) }
-        else if active && quietFor >= 0.3 { active = false; HibiVoice.emit(["type": "voice", "active": false]) }
+        if !active && voicedFor >= 0.06 { active = true; PixanoVoice.emit(["type": "voice", "active": true]) }
+        else if active && quietFor >= 0.3 { active = false; PixanoVoice.emit(["type": "voice", "active": false]) }
     }
 }
 
 @main
-struct HibiVoice {
+struct PixanoVoice {
     static func emit(_ object: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: object) else { return }
         FileHandle.standardOutput.write(data); FileHandle.standardOutput.write(Data([10]))
@@ -64,15 +64,15 @@ struct HibiVoice {
             AVAudioApplication.requestRecordPermission { continuation.resume(returning: $0) }
         }
         guard microphoneAllowed else { emit(["type": "error", "message": "Microphone permission denied"]); return }
-        // O reconhecedor do macOS 26 (SpeechAnalyzer) só entra com `HIBI_VOICE_ENGINE=analyzer`. Medido em
+        // O reconhecedor do macOS 26 (SpeechAnalyzer) só entra com `PIXANO_VOICE_ENGINE=analyzer`. Medido em
         // 18/09/2026: com áudio limpo, ele acertou mais (85% das palavras-chave contra 61%, já com os nomes
         // corrigidos pelo app); pelo microfone, com o som da sala, cortou e trocou frases que o de sempre
         // acertou. Fica aqui para repetir a medida com a voz de quem usa.
         let environment = ProcessInfo.processInfo.environment
-        let wantsAnalyzer = environment["HIBI_VOICE_ENGINE"] == "analyzer"
-        // Só para medir os reconhecedores: com `HIBI_VOICE_INPUT_FILE`, o áudio vem desse arquivo em vez do
+        let wantsAnalyzer = environment["PIXANO_VOICE_ENGINE"] == "analyzer"
+        // Só para medir os reconhecedores: com `PIXANO_VOICE_INPUT_FILE`, o áudio vem desse arquivo em vez do
         // microfone, e as mesmas frases gravadas servem de régua para os dois.
-        let file = environment["HIBI_VOICE_INPUT_FILE"].map { URL(fileURLWithPath: $0) }
+        let file = environment["PIXANO_VOICE_INPUT_FILE"].map { URL(fileURLWithPath: $0) }
         if wantsAnalyzer, #available(macOS 26.0, *), await listenWithAnalyzer(locale: Locale(identifier: locale), vocabulary: vocabulary, file: file) { return }
         if let file { await transcribeWithClassic(recognizer: recognizer, vocabulary: vocabulary, file: file); return }
         listenWithClassic(recognizer: recognizer, vocabulary: vocabulary)

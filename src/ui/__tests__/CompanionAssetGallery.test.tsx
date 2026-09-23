@@ -9,7 +9,7 @@ describe('CompanionAssetGallery', () => {
     expect(markup).toContain('src="/mascot/idle.mp4"');
     expect(markup).toContain('src="/mascot/happy_1.mp4"');
     expect(markup).not.toContain('/companion-assets/animations/');
-    expect(markup).not.toContain('Taby');
+    expect(markup).not.toContain('Assistant');
     expect(markup).not.toContain('Hibi');
   });
 });

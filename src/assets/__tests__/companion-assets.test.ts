@@ -16,5 +16,8 @@ describe('companion asset registry', () => {
     expect(new Set(companionAssetList.map(({ id }) => id)).size).toBe(companionAssetList.length);
     expect(companionAssets.icons.catMarkApp.id).toBe('icons.catMarkApp');
     expect(companionAssets.icons.catMarkApp.label).toBe('Cat Mark');
+    expect(companionAssets.icons.catFaviconFace.url).toBe('/companion-assets/icons/pixano-cat-face.svg');
+    expect(companionAssets.icons.catFaviconFull.url).toBe('/companion-assets/icons/pixano-cat-full.svg');
+    expect(companionAssets.icons.catMarkApp.url).toBe('/companion-assets/icons/pixano-cat-mark.svg');
   });
 });

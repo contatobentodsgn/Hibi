@@ -7,7 +7,7 @@ const { createVoiceSettings } = require('./voice-settings.cjs');
 
 const fileIn = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hibi-voice-settings-')), 'voice-settings.json');
 
-test('sem arquivo, o atalho só abre o Taby e nada é lido em voz alta', () => {
+test('sem arquivo, o atalho só abre o Assistant e nada é lido em voz alta', () => {
   assert.deepEqual(createVoiceSettings({ filePath: fileIn() }).get(), { shortcutVoice: 'off', spokenReplies: false });
 });
 

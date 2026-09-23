@@ -17,7 +17,7 @@ export const PALETTE_COMMANDS: readonly PaletteCommand[] = [
   { key: '/folder', label: 'command.folder', group: 'palette.group.navigate', action: 'folders' },
   { key: '/review', label: 'command.review', group: 'palette.group.navigate', route: 'review' },
   { key: '/stats', label: 'command.stats', group: 'palette.group.navigate', route: 'stats' },
-  { key: '/assistant', label: 'command.taby', group: 'palette.group.navigate', route: 'taby' },
+  { key: '/assistant', label: 'command.assistant', group: 'palette.group.navigate', route: 'assistant' },
   { key: '/help', label: 'command.help', group: 'palette.group.system', route: 'help' },
   { key: '/feedback', label: 'command.feedback', group: 'palette.group.system', route: 'feedback' },
   { key: '/bug', label: 'command.bug', group: 'palette.group.system', route: 'feedback' },

@@ -1,11 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { TabyBar, latestWords } from '../TabyBar';
+import { AssistantBar, latestWords } from '../AssistantBar';
 
-describe('TabyBar', () => {
+describe('AssistantBar', () => {
   it('preserves the active request while showing a reply', () => {
-    const markup = renderToStaticMarkup(<TabyBar initialContent={{ requestId: 'r-1', mode: 'reply', kind: 'result', text: 'Tarefa criada.', actions: [] }} bridge={undefined} />);
+    const markup = renderToStaticMarkup(<AssistantBar initialContent={{ requestId: 'r-1', mode: 'reply', kind: 'result', text: 'Tarefa criada.', actions: [] }} bridge={undefined} />);
     expect(markup).toContain('Tarefa criada.');
     expect(markup).toContain('data-mode="reply"');
   });
@@ -16,7 +16,7 @@ describe('TabyBar', () => {
   });
 
   it('follows the Hibi theme instead of the macOS preference', () => {
-    const css = readFileSync(new URL('../taby-bar.css', import.meta.url), 'utf8');
+    const css = readFileSync(new URL('../assistant-bar.css', import.meta.url), 'utf8');
     expect(css).toContain('var(--hibi-paper)');
     expect(css).toContain(':root[data-theme="dark"]');
     expect(css).not.toContain('prefers-color-scheme');

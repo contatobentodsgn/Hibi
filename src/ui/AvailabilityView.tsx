@@ -6,13 +6,13 @@ import { getCurrentAdapterStatuses } from '../domain/adapter-status';
 import { UpdatePanel } from './UpdatePanel';
 
 const adapterStatuses = getCurrentAdapterStatuses();
-type NotchStatus = Awaited<ReturnType<NonNullable<NonNullable<Window['hibiDesktop']>['getNotchCapabilities']>>>;
+type NotchStatus = Awaited<ReturnType<NonNullable<NonNullable<Window['pixanoDesktop']>['getNotchCapabilities']>>>;
 
 function CompanionStatus() {
   const [status, setStatus] = React.useState<NotchStatus | null>(null);
   React.useEffect(() => {
     let current = true;
-    window.hibiDesktop?.getNotchCapabilities?.().then((value) => { if (current) setStatus(value); }).catch(() => { if (current) setStatus(null); });
+    window.pixanoDesktop?.getNotchCapabilities?.().then((value) => { if (current) setStatus(value); }).catch(() => { if (current) setStatus(null); });
     return () => { current = false; };
   }, []);
   const available = status?.nativeHost === true;

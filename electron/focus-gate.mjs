@@ -34,7 +34,7 @@
 // Três são honrados pelo próprio Mac: o processo principal lê `powerMonitor.getSystemIdleTime()` e os
 // eventos de bloqueio e sono enquanto há sessão, e a tela de Foco pergunta, pausa ou segue contando;
 // o loop visual troca o vídeo do companion. O timeout de tela não tem o que governar neste Mac: é
-// entregue no pacote de `device-settings.mjs` ao futuro adaptador do Taby, e a tela diz isso.
+// entregue no pacote de `device-settings.mjs` ao futuro adaptador do Assistant, e a tela diz isso.
 
 import { DEFAULT_PRESENCE_SETTINGS, sanitizePresenceSettings } from './focus-presence.mjs';
 

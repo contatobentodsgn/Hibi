@@ -25,7 +25,7 @@ describe('modelStatusKey', () => {
 });
 
 describe('modelPurposeKey', () => {
-  it('diz o que muda para o Taby em cada estado, e nunca promete respostas sem modelo conferido', () => {
+  it('diz o que muda para o Assistant em cada estado, e nunca promete respostas sem modelo conferido', () => {
     expect(modelPurposeKey('ready')).toBe('data.model.purpose.ready');
     expect(modelPurposeKey('unverified')).toBe('data.model.purpose.unverified');
     expect(modelPurposeKey('missing')).toBe('data.model.purpose.missing');

@@ -21,7 +21,7 @@ export function modelStatusKey(status: LocalModelStatus): DictionaryKey {
 }
 
 /**
- * O que cada estado significa para quem usa o Taby. Sem o modelo o assistente continua fazendo as
+ * O que cada estado significa para quem usa o Assistant. Sem o modelo o assistente continua fazendo as
  * ações locais, e a tela precisa dizer isso: o botão de baixar quase dois gigabytes só se justifica
  * quando a pessoa sabe o que ganha com ele.
  */

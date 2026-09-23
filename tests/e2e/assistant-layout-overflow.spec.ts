@@ -13,10 +13,10 @@ test('a sidebar cheia mantém todas as conversas e ações dentro dos limites', 
   await page.goto('/');
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Assistente', exact: true }).click({ force: true });
 
-  const bounds = await page.locator('.taby-screen__history').evaluate((history) => {
+  const bounds = await page.locator('.assistant-screen__history').evaluate((history) => {
     const historyRight = history.getBoundingClientRect().right;
-    const headingRight = history.querySelector('.taby-screen__history-heading')!.getBoundingClientRect().right;
-    const rows = [...history.querySelectorAll('.taby-screen__conversation-row')];
+    const headingRight = history.querySelector('.assistant-screen__history-heading')!.getBoundingClientRect().right;
+    const rows = [...history.querySelectorAll('.assistant-screen__conversation-row')];
     return { headingRight, rows: rows.map((row) => ({
       historyRight,
       rowRight: row.getBoundingClientRect().right,

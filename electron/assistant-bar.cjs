@@ -1,10 +1,10 @@
 /**
- * A barra do Taby, logo abaixo do notch.
+ * A barra do Assistant, logo abaixo do notch.
  *
  * Regra do produto: no notch só aparece o mascote e as animações dele. Tudo o que é texto — o pedido
  * digitado, o ditado ao vivo, a resposta, a confirmação, um aviso — e os botões ficam nesta barra, que
  * nasce embaixo do mascote, no mesmo monitor, e troca de modo conforme o pedido anda. Na referência
- * visual é a pílula "Ask me anything" sob o rosto do Taby.
+ * visual é a pílula "Ask me anything" sob o rosto do Assistant.
  *
  * É um painel (`type: 'panel'`) que pode receber teclado sem ativar o app: digitar nele não traz a
  * janela do Hibi nem troca o Mac de mesa.
@@ -39,8 +39,8 @@ function barBounds(display, mode, size = 'normal') {
 
 const cleanText = (value, limit) => (typeof value === 'string' ? value.slice(0, limit) : null);
 
-function createTabyBar({ BrowserWindowClass, preloadPath, load, displayFor, sizeFor = () => 'normal', onAction, platform = process.platform }) {
-  if (typeof BrowserWindowClass !== 'function' || typeof load !== 'function' || typeof displayFor !== 'function' || typeof onAction !== 'function') throw new Error('The Taby bar needs a window class, a loader, a display and an action handler.');
+function createAssistantBar({ BrowserWindowClass, preloadPath, load, displayFor, sizeFor = () => 'normal', onAction, platform = process.platform }) {
+  if (typeof BrowserWindowClass !== 'function' || typeof load !== 'function' || typeof displayFor !== 'function' || typeof onAction !== 'function') throw new Error('The Assistant bar needs a window class, a loader, a display and an action handler.');
   let window = null;
   let content = null;
   const alive = () => (window && !window.isDestroyed?.() ? window : null);
@@ -59,7 +59,7 @@ function createTabyBar({ BrowserWindowClass, preloadPath, load, displayFor, size
     load(window);
     return window;
   };
-  const send = () => { const target = alive(); if (target) target.webContents.send('hibi:bar:content', content); };
+  const send = () => { const target = alive(); if (target) target.webContents.send('pixano:bar:content', content); };
   const place = () => { const target = alive(); if (target && content) target.setBounds(barBounds(displayFor(), content.mode, sizeFor())); };
 
   const bar = {
@@ -82,7 +82,7 @@ function createTabyBar({ BrowserWindowClass, preloadPath, load, displayFor, size
       return true;
     },
     /** Abre a barra para digitar ou falar, sem pedido em andamento. */
-    openInput() { return bar.show({ requestId: 'taby-bar-input', mode: 'input', kind: 'input', text: null, actions: [] }, { focus: true }); },
+    openInput() { return bar.show({ requestId: 'assistant-bar-input', mode: 'input', kind: 'input', text: null, actions: [] }, { focus: true }); },
     /** Esconde a barra; com `requestId`, só se ela ainda mostra aquele pedido. */
     hide(requestId) {
       if (requestId && content?.requestId !== requestId) return false;
@@ -106,4 +106,4 @@ function createTabyBar({ BrowserWindowClass, preloadPath, load, displayFor, size
 
 const cleanInput = (value) => (typeof value === 'string' && value.trim() ? value.trim().slice(0, MAX_INPUT) : null);
 
-module.exports = { barBounds, barModeFor, cleanInput, createTabyBar, MASCOT_HEIGHT };
+module.exports = { barBounds, barModeFor, cleanInput, createAssistantBar, MASCOT_HEIGHT };

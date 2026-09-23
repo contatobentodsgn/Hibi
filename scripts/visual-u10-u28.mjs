@@ -1,8 +1,8 @@
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
 
-const routes = ['hoje', 'agenda', 'tarefas', 'notas', 'taby', 'lembretes', 'habitos', 'metas', 'revisao', 'stats'];
-const out = '/tmp/hibi-visual-u10-u28';
+const routes = ['hoje', 'agenda', 'tarefas', 'notas', 'assistant', 'lembretes', 'habitos', 'metas', 'revisao', 'stats'];
+const out = '/tmp/pixano-visual-u10-u28';
 await mkdir(out, { recursive: true });
 const browser = await chromium.launch({ headless: true, executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
 for (const [width, height, suffix] of [[1440, 1000, 'wide'], [900, 900, 'narrow']]) {
@@ -10,8 +10,8 @@ for (const [width, height, suffix] of [[1440, 1000, 'wide'], [900, 900, 'narrow'
   await page.goto('http://127.0.0.1:5173', { waitUntil: 'networkidle' });
   page.setDefaultTimeout(2500);
   for (const route of routes) {
-    const visible = ['hoje', 'agenda', 'tarefas', 'notas', 'taby'].includes(route);
-    const label = { hoje: 'Hoje', agenda: 'Agenda', tarefas: 'Tarefas', notas: 'Notas', taby: 'Taby' }[route];
+    const visible = ['hoje', 'agenda', 'tarefas', 'notas', 'assistant'].includes(route);
+    const label = { hoje: 'Hoje', agenda: 'Agenda', tarefas: 'Tarefas', notas: 'Notas', assistant: 'Assistente' }[route];
     try {
       if (visible) {
         await page.locator('button:visible').filter({ hasText: label }).first().evaluate((button) => button.click());

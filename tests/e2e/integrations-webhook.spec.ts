@@ -26,7 +26,7 @@ async function installDesktopBridge(page: Page) {
       const state = read();
       return state.running ? { ...state, origin: 'http://127.0.0.1:4599' } : { running: false, hasSecret: state.hasSecret };
     };
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
       getWebhookStatus: async () => status(),
       configureWebhook: async (secret: string) => {

@@ -51,14 +51,14 @@ test('um valor guardado que não é uma escolha vale como a automática, que sem
 const installMascotPlacement = (page: Page, sharesDisplay: boolean) => page.addInitScript((initial) => {
   let current = initial;
   let listener: ((state: { sharesDisplay: boolean }) => void) | null = null;
-  (window as unknown as { hibiE2E: unknown }).hibiE2E = { move(shares: boolean) { current = shares; listener?.({ sharesDisplay: shares }); } };
-  (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+  (window as unknown as { pixanoE2E: unknown }).pixanoE2E = { move(shares: boolean) { current = shares; listener?.({ sharesDisplay: shares }); } };
+  (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
     info: async () => ({ name: 'Pixano', version: '0.1.0', localOnly: true }),
     getNotchWindowPlacement: async () => ({ sharesDisplay: current }),
     onNotchWindowPlacementChanged: (callback: (state: { sharesDisplay: boolean }) => void) => { listener = callback; return () => { listener = null; }; },
   };
 }, sharesDisplay);
-const moveWindow = (page: Page, sharesDisplay: boolean) => page.evaluate((shares) => (window as unknown as { hibiE2E: { move: (shares: boolean) => void } }).hibiE2E.move(shares), sharesDisplay);
+const moveWindow = (page: Page, sharesDisplay: boolean) => page.evaluate((shares) => (window as unknown as { pixanoE2E: { move: (shares: boolean) => void } }).pixanoE2E.move(shares), sharesDisplay);
 
 test('na automática, a barra desce com o mascote na tela da janela e sobe quando a janela vai para outra tela', async ({ page }) => {
   await installMascotPlacement(page, true);
@@ -167,8 +167,8 @@ test('a Aparência não mexe no monitor do mascote do notch', async ({ page }) =
   await page.addInitScript(() => {
     const display = { id: 7, label: 'Monitor do mascote', primary: false, internal: true, hasCameraHousing: true, width: 1512, height: 982 };
     const calls: (number | null)[] = [];
-    (window as unknown as { hibiE2E: { calls: (number | null)[] } }).hibiE2E = { calls };
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoE2E: { calls: (number | null)[] } }).pixanoE2E = { calls };
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Pixano', version: '0.1.0', localOnly: true }),
       listNotchDisplays: async () => ({ preference: { displayId: 7, displayLabel: display.label }, resolvedDisplayId: 7, reason: 'preferred', displays: [display] }),
       setNotchDisplay: async (displayId: number | null) => { calls.push(displayId); return { preference: { displayId, displayLabel: display.label }, resolvedDisplayId: 7, reason: 'preferred', displays: [display] }; },
@@ -183,21 +183,21 @@ test('a Aparência não mexe no monitor do mascote do notch', async ({ page }) =
   await page.getByRole('switch', { name: 'Mais contraste' }).check({ force: true });
   await page.getByRole('switch', { name: 'Reduzir movimento' }).check({ force: true });
   await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduce');
-  expect(await page.evaluate(() => (window as unknown as { hibiE2E: { calls: (number | null)[] } }).hibiE2E.calls)).toEqual([]);
+  expect(await page.evaluate(() => (window as unknown as { pixanoE2E: { calls: (number | null)[] } }).pixanoE2E.calls)).toEqual([]);
 });
 
 // Revisão da U04b: a resposta da ponte chega depois do primeiro desenho.
 test('na automática, o Hibi abre com a barra onde ela ficou da última vez, sem descer depois', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('hibi.ui.mascot-shares-display.v1', 'true');
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Pixano', version: '0.1.0', localOnly: true }),
       getNotchWindowPlacement: () => new Promise((resolve) => { setTimeout(() => resolve({ sharesDisplay: true }), 300); }),
       onNotchWindowPlacementChanged: () => () => undefined,
     };
     // Cada posição que a barra teve, quadro a quadro, desde o primeiro.
     const seen: string[] = [];
-    (window as unknown as { hibiE2E: { seen: string[] } }).hibiE2E = { seen };
+    (window as unknown as { pixanoE2E: { seen: string[] } }).pixanoE2E = { seen };
     const watch = () => {
       const position = document.querySelector('.notch-frame')?.getAttribute('data-position');
       if (position && seen.at(-1) !== position) seen.push(position);
@@ -209,7 +209,7 @@ test('na automática, o Hibi abre com a barra onde ela ficou da última vez, sem
   await page.goto('/');
   await expect.poll(() => notchBottom(page)).toBe(900 - 8);
   await page.waitForTimeout(500);
-  expect(await page.evaluate(() => (window as unknown as { hibiE2E: { seen: string[] } }).hibiE2E.seen)).toEqual(['bottom']);
+  expect(await page.evaluate(() => (window as unknown as { pixanoE2E: { seen: string[] } }).pixanoE2E.seen)).toEqual(['bottom']);
 });
 
 test('a resposta nova sobre o mascote fica guardada para a próxima abertura', async ({ page }) => {
@@ -228,7 +228,7 @@ test('quando a barra troca de borda, a pílula do destino atual vai junto, e ent
   await expect.poll(() => notchBottom(page)).toBe(8 + 44);
   // A maior distância entre a pílula e o botão dela, quadro a quadro, depois de a barra descer.
   const drift = await page.evaluate(() => new Promise<number>((resolve) => {
-    (window as unknown as { hibiE2E: { move: (shares: boolean) => void } }).hibiE2E.move(true);
+    (window as unknown as { pixanoE2E: { move: (shares: boolean) => void } }).pixanoE2E.move(true);
     let worst = 0;
     const start = performance.now();
     const tick = () => {

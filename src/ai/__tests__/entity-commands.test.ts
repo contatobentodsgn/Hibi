@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createLocalHibiRuntime, LocalToolProvider, type MeetingCalendarBridge } from '../local-runtime';
+import { createLocalAssistantRuntime, LocalToolProvider, type MeetingCalendarBridge } from '../local-runtime';
 import { parseEntityCommand } from '../entity-commands';
 import { parseIntent } from '../offline-brain-provider';
 import { LocalRepository } from '../../data/local-repository';
@@ -25,9 +25,9 @@ const dados = () => new LocalRepository({
   notes: [{ id: 'n-ideias', title: 'Ideias', content: 'x', createdAt: '', updatedAt: '' }],
 });
 
-const taby = (calendar?: MeetingCalendarBridge) => {
+const assistant = (calendar?: MeetingCalendarBridge) => {
   const repository = dados();
-  const runtime = createLocalHibiRuntime(repository, calendar ? { calendar } : {});
+  const runtime = createLocalAssistantRuntime(repository, calendar ? { calendar } : {});
   const pedir = (message: string) => runtime.runTurn({ message, surface: 'desktop', now: agora });
   const confirmar = async (message: string) => { const turno = await pedir(message); return runtime.confirm(turno.confirmation!); };
   return { repository, pedir, confirmar };
@@ -36,7 +36,7 @@ const taby = (calendar?: MeetingCalendarBridge) => {
 describe('mover e adiar', () => {
   // Visto no app: "adia minha reunião… para as quatro e meia" criava uma reunião nova às 04:30.
   it('adiar a reunião move o bloco e a tarefa gêmea, na mesma duração, sem criar outra', async () => {
-    const { repository, pedir, confirmar } = taby();
+    const { repository, pedir, confirmar } = assistant();
     const turno = await pedir('Adia minha reunião com a Cristiane para as 4h30');
     expect(turno.reply).toBe('Mover "Reunião com a Cristiane" de 19/09 09:00 para 19/09 às 16:30?');
     expect(turno.confirmation?.calls).toEqual([
@@ -52,38 +52,38 @@ describe('mover e adiar', () => {
   });
 
   it('"bom dia" ouvido no lugar de "adia" também move', async () => {
-    const { pedir } = taby();
+    const { pedir } = assistant();
     expect((await pedir('Bom dia minha reunião com a Cristiane para as quatro e meia')).confirmation?.calls[0]).toMatchObject({ name: 'block.update', arguments: { start: '2026-09-19T16:30:00' } });
   });
 
   it('avisa quando o novo horário cai em outro compromisso', async () => {
-    const { pedir } = taby();
+    const { pedir } = assistant();
     const turno = await pedir('Move a reunião com a Cristiane para amanhã ao meio-dia');
     expect(turno.reply).toBe('Mover "Reunião com a Cristiane" de 19/09 09:00 para 19/09 às 12:00? Atenção: no novo horário já tem o compromisso "Almoço".');
   });
 
   it('só o dia dito mantém a hora; só a hora dita mantém o dia', async () => {
-    const { pedir } = taby();
+    const { pedir } = assistant();
     expect((await pedir('remarca a reunião com a Cristiane para segunda')).confirmation?.calls[0]).toMatchObject({ arguments: { start: '2026-09-21T09:00:00', end: '2026-09-21T10:00:00' } });
     expect((await pedir('passa o lembrete do banco para as 17h')).confirmation?.calls).toEqual([{ name: 'reminder.update', arguments: { id: 'r-banco', at: '2026-09-18T17:00:00' } }]);
     expect((await pedir('passa o lembrete do banco para amanhã')).confirmation?.calls).toEqual([{ name: 'reminder.update', arguments: { id: 'r-banco', at: '2026-09-19T15:00:00' } }]);
   });
 
   it('entre nomes parecidos, vence o que é de hoje', async () => {
-    const { pedir } = taby();
+    const { pedir } = assistant();
     expect((await pedir('Deixa a produção do post da Kabrito para amanhã às 10')).confirmation?.calls).toEqual([{ name: 'task.update', arguments: { id: 't-k1', deadline: '2026-09-19T10:00:00' } }]);
   });
 
   it('o calendário conectado recebe o novo horário de um bloco que está lá', async () => {
     const update = vi.fn(async () => 'Pessoal');
-    const { confirmar } = taby({ publish: async () => null, update });
+    const { confirmar } = assistant({ publish: async () => null, update });
     const resultado = await confirmar('Adia a reunião com a Cristiane para as 16h');
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ id: 'b-cris', start: '2026-09-19T16:00:00' }));
     expect(resultado.toolResults[0]?.summary).toBe('Bloco atualizado: Reunião com a Cristiane, 19/09 às 16:00, também no calendário "Pessoal".');
   });
 
   it('sem destino, pergunta para quando', async () => {
-    const { pedir } = taby();
+    const { pedir } = assistant();
     const turno = await pedir('adia a reunião com a Cristiane');
     expect(turno.confirmation).toBeUndefined();
     expect(turno.reply).toMatch(/^Para quando\?/);
@@ -92,7 +92,7 @@ describe('mover e adiar', () => {
 
 describe('concluir', () => {
   it('"já fiz a academia" marca o hábito de hoje', async () => {
-    const { repository, pedir, confirmar } = taby();
+    const { repository, pedir, confirmar } = assistant();
     const turno = await pedir('Já fiz a academia hoje, pode marcar como concluída');
     expect(turno.reply).toBe('Marcar o hábito "Academia" como feito hoje?');
     await confirmar('Já fiz a academia hoje, pode marcar como concluída');
@@ -100,7 +100,7 @@ describe('concluir', () => {
   });
 
   it('terminar uma tarefa a conclui', async () => {
-    const { repository, confirmar, pedir } = taby();
+    const { repository, confirmar, pedir } = assistant();
     expect((await pedir('marca a tarefa revisar contrato como feita')).confirmation?.calls).toEqual([{ name: 'task.update', arguments: { id: 't-contrato', status: 'completed' } }]);
     await confirmar('Terminei o revisar contrato');
     expect(repository.getTask('t-contrato')?.status).toBe('completed');
@@ -109,7 +109,7 @@ describe('concluir', () => {
 
 describe('apagar', () => {
   it('apagar uma reunião leva a tarefa gêmea junto, depois de confirmar', async () => {
-    const { repository, pedir, confirmar } = taby();
+    const { repository, pedir, confirmar } = assistant();
     const turno = await pedir('Apaga a reunião com a Cristiane');
     expect(turno.reply).toBe('Excluir "Reunião com a Cristiane" da agenda e das tarefas? Isso não pode ser desfeito.');
     expect(repository.listBlocks()).toHaveLength(2);
@@ -119,40 +119,40 @@ describe('apagar', () => {
   });
 
   it('a pergunta diz de onde sai', async () => {
-    const { pedir } = taby();
+    const { pedir } = assistant();
     expect((await pedir('apaga o lembrete do banco')).reply).toBe('Excluir "Ligar para o banco" dos lembretes? Isso não pode ser desfeito.');
     expect((await pedir('apaga a tarefa revisar contrato')).reply).toBe('Excluir "Revisar contrato" das tarefas? Isso não pode ser desfeito.');
   });
 
   it('com mais de um candidato, pergunta qual', async () => {
-    const { pedir } = taby();
+    const { pedir } = assistant();
     const turno = await pedir('apaga o post da Marina');
     expect(turno.confirmation).toBeUndefined();
     expect(turno.reply).toBe('Qual delas: "Marina Post 01" ou "Marina Post 02"?');
   });
 
   it('sem candidato, diz que não achou', async () => {
-    const { pedir } = taby();
+    const { pedir } = assistant();
     expect((await pedir('apaga o dentista')).reply).toBe('Não achei "o dentista" na agenda, nas tarefas nem nos lembretes.');
   });
 });
 
 describe('o assunto da conversa', () => {
   it('"deixa isso pra amanhã" fala do que acabou de ser criado', async () => {
-    const { repository, pedir, confirmar } = taby();
+    const { repository, pedir, confirmar } = assistant();
     await confirmar('Crie uma tarefa revisar roteiro');
     const criada = repository.listTasks().find((task) => task.title === 'revisar roteiro')!;
     expect((await pedir('deixa isso pra amanhã')).confirmation?.calls).toEqual([{ name: 'task.update', arguments: { id: criada.id, deadline: '2026-09-19T09:00:00' } }]);
   });
 
   it('depois de mexer em algo, "ela" é a mesma coisa', async () => {
-    const { pedir } = taby();
+    const { pedir } = assistant();
     await pedir('adia a reunião com a Cristiane para as 16h');
     expect((await pedir('apaga ela')).confirmation?.calls[0]).toEqual({ name: 'block.delete', arguments: { id: 'b-cris' } });
   });
 
   it('sem assunto, pergunta do que se fala', async () => {
-    const { pedir } = taby();
+    const { pedir } = assistant();
     expect((await pedir('deixa isso pra amanhã')).reply).toMatch(/^Sobre o que você está falando\?/);
   });
 });

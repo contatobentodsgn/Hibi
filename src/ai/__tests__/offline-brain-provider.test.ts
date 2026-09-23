@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { AiProvider, AiProviderRequest } from '../contracts';
 import { OFFLINE_BRAIN_PROMPT_CHARS, OfflineBrainProvider, buildOfflineBrainPrompt, cleanOfflineBrainReply } from '../offline-brain-provider';
-import { createLocalHibiRuntime, LocalToolProvider } from '../local-runtime';
+import { createLocalAssistantRuntime, LocalToolProvider } from '../local-runtime';
 import { LocalRepository } from '../../data/local-repository';
 import { createSeedData } from '../../data/seed-data';
 
@@ -97,7 +97,7 @@ describe('offline brain provider', () => {
   it('runs through the local runtime with offline brain provenance', async () => {
     const repository = new LocalRepository(createSeedData());
     const brain = new OfflineBrainProvider({ runLocalModel: async ({ requestId }) => ({ requestId, status: 'complete', text: 'Respire fundo.' }) }, new LocalToolProvider(repository));
-    const result = await createLocalHibiRuntime(repository, {}, brain).runTurn({ message: 'me dá uma dica para focar', surface: 'desktop' });
+    const result = await createLocalAssistantRuntime(repository, {}, brain).runTurn({ message: 'me dá uma dica para focar', surface: 'desktop' });
 
     expect(result.reply).toBe('Respire fundo.');
     expect(result.provider).toMatchObject({ id: 'offline-brain', label: 'Pixano offline assistant', model: 'qwen3-1.7b' });

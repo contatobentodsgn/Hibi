@@ -6,9 +6,9 @@ import {
 import { CheckCheck, MoreHorizontal, Play, Plus, Settings2, Trash2, Zap } from 'lucide-react';
 import { ActionDialog, ActionDialogOption, ActionDialogOptions } from '../components/ActionDialog';
 import { EntityDetailsPanel } from '../components/EntityDetailsPanel';
-import { HibiEmptyState } from '../components/HibiEmptyState';
-import { HibiTag } from '../components/HibiTag';
-import { HibiUiRoot } from '../components/HibiUiRoot';
+import { PixanoEmptyState } from '../components/PixanoEmptyState';
+import { PixanoTag } from '../components/PixanoTag';
+import { PixanoUiRoot } from '../components/PixanoUiRoot';
 import { RoundLink } from '../components/RoundLink';
 import { SectionHeader } from '../components/SectionHeader';
 import { useThemePreference } from '../../theme-context';
@@ -109,7 +109,7 @@ export function ComponentGallery() {
   const extra = long ? LONG[language] : '';
 
   return (
-    <HibiUiRoot data-gallery="" lang={language} style={{ minHeight: '100vh', background: 'var(--background)', padding: 32, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 28, alignContent: 'start' }}>
+    <PixanoUiRoot data-gallery="" lang={language} style={{ minHeight: '100vh', background: 'var(--background)', padding: 32, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 28, alignContent: 'start' }}>
       <header style={{ display: 'grid', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 550, letterSpacing: '-0.04em', margin: 0 }}>{t.title}</h1>
@@ -173,7 +173,7 @@ export function ComponentGallery() {
           />
         </div>
         <Card style={{ width: 'min(414px, 100%)' }}>
-          <HibiEmptyState icon={CheckCheck} tone="mint" title={t.emptyTitle} description={t.emptyText + extra} action={<Button variant="tertiary" size="sm" onPress={() => setLastAction(t.createTask)}><Plus size={15} aria-hidden="true" />{t.createTask}</Button>} />
+          <PixanoEmptyState icon={CheckCheck} tone="mint" title={t.emptyTitle} description={t.emptyText + extra} action={<Button variant="tertiary" size="sm" onPress={() => setLastAction(t.createTask)}><Plus size={15} aria-hidden="true" />{t.createTask}</Button>} />
         </Card>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <RoundLink label={t.weekLink} onPress={() => setLastAction(`${t.shortcut}: ${t.weekLink}`)} />
@@ -182,7 +182,7 @@ export function ComponentGallery() {
             isOpen={details}
             onOpenChange={setDetails}
             title={t.taskTitle + extra}
-            tag={<HibiTag tone="lavender" dot>{t.dueToday}</HibiTag>}
+            tag={<PixanoTag tone="lavender" dot>{t.dueToday}</PixanoTag>}
             facts={[{ label: t.folderLabel, value: t.design }, { label: t.deadline, value: t.today }, { label: t.durationLabel, value: t.minutes60 }, { label: t.category, value: t.work }]}
             actions={<><Button variant="primary" onPress={() => choose(`${t.completed}: ${t.taskTitle}`)}>{t.complete}</Button><Button variant="tertiary" onPress={() => choose(`${t.shortcut}: ${t.openInTasks}`)}>{t.openInTasks}</Button></>}
           >
@@ -193,12 +193,12 @@ export function ComponentGallery() {
       </Section>
 
       <Section title={t.tags}>
-        <HibiTag tone="lavender" dot>{t.next}</HibiTag>
-        <HibiTag tone="lavender" dot>{t.design}</HibiTag>
-        <HibiTag tone="peach" dot>{t.personal}</HibiTag>
-        <HibiTag tone="blue" dot>{t.work}</HibiTag>
-        <HibiTag tone="mint">+12%</HibiTag>
-        <HibiTag>{t.moment}{extra}</HibiTag>
+        <PixanoTag tone="lavender" dot>{t.next}</PixanoTag>
+        <PixanoTag tone="lavender" dot>{t.design}</PixanoTag>
+        <PixanoTag tone="peach" dot>{t.personal}</PixanoTag>
+        <PixanoTag tone="blue" dot>{t.work}</PixanoTag>
+        <PixanoTag tone="mint">+12%</PixanoTag>
+        <PixanoTag>{t.moment}{extra}</PixanoTag>
       </Section>
 
       <Section title={t.actions}>
@@ -345,6 +345,6 @@ export function ComponentGallery() {
             como utilitário, e a camada `legacy-guard` os anula fora da UI nova. */}
         <span data-utility-sample="" className="block outline outline-offset-2 rounded-lg px-3 py-2">{t.utilitiesText}</span>
       </Section>
-    </HibiUiRoot>
+    </PixanoUiRoot>
   );
 }

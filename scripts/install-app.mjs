@@ -37,7 +37,7 @@ export function installApp({
   if (isRunning({ targetPath })) {
     return { status: 'running', targetPath, message: `Feche o Pixano antes de instalar: ${targetPath} está aberto.` };
   }
-  const env = { ...process.env, CSC_IDENTITY_AUTO_DISCOVERY: 'false', HIBI_LOCAL_INSTALL: '1' };
+  const env = { ...process.env, CSC_IDENTITY_AUTO_DISCOVERY: 'false', PIXANO_LOCAL_INSTALL: '1' };
   run('npm', ['run', 'build'], { cwd: projectRoot, env });
   run('npx', ['electron-builder', '--mac', 'dir'], { cwd: projectRoot, env });
   const built = path.join(projectRoot, BUILT_APP);

@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 type Content = { requestId: string; mode: string; kind: string; text: string | null; actions: { id: string; label: string }[] };
 type BarLog = { calls: string[]; push: (content: Content | null) => void };
-// A barra roda sozinha, na rota da janela dela, com um dublê da ponte `hibiBar`: `push` faz o papel do
+// A barra roda sozinha, na rota da janela dela, com um dublê da ponte `pixanoBar`: `push` faz o papel do
 // processo principal mandando conteúdo, e `calls` guarda o que a barra devolveu.
 async function openBar(page: Page, initial: Content | null) {
   await page.addInitScript((first) => {
@@ -10,7 +10,7 @@ async function openBar(page: Page, initial: Content | null) {
     const listeners: ((content: unknown) => void)[] = [];
     const log: BarLog = { calls, push: (content) => listeners.forEach((listener) => listener(content)) };
     (window as unknown as { barE2E: BarLog }).barE2E = log;
-    (window as unknown as { hibiBar: Record<string, unknown> }).hibiBar = {
+    (window as unknown as { pixanoBar: Record<string, unknown> }).pixanoBar = {
       current: async () => first,
       submit: async (text: string) => { calls.push(`submit:${text}`); return true; },
       voice: async (command: string) => { calls.push(`voice:${command}`); return true; },
@@ -24,7 +24,7 @@ async function openBar(page: Page, initial: Content | null) {
 const calls = (page: Page) => page.evaluate(() => (window as unknown as { barE2E: BarLog }).barE2E.calls);
 const push = (page: Page, content: Content | null) => page.evaluate((value) => (window as unknown as { barE2E: BarLog }).barE2E.push(value), content);
 const bar = (page: Page) => page.getByRole('main', { name: 'Barra do assistente' });
-const input: Content = { requestId: 'taby-bar-input', mode: 'input', kind: 'input', text: null, actions: [] };
+const input: Content = { requestId: 'assistant-bar-input', mode: 'input', kind: 'input', text: null, actions: [] };
 
 test('aberta pelo atalho, a barra recebe o texto; o botão troca de falar para enviar quando há texto', async ({ page }) => {
   await openBar(page, input);
@@ -57,7 +57,7 @@ test('falar pela barra: o ditado aparece nela, e parar vai para a voz', async ({
   expect(await calls(page)).toContain('voice:stop');
 });
 
-test('enquanto o Taby pensa, o pedido continua na barra; a resposta toma o lugar dele', async ({ page }) => {
+test('enquanto o Assistant pensa, o pedido continua na barra; a resposta toma o lugar dele', async ({ page }) => {
   await openBar(page, input);
   await page.getByRole('textbox', { name: 'Pergunte ao assistente ou peça uma ação' }).fill('quais são minhas tarefas?');
   await page.keyboard.press('Enter');

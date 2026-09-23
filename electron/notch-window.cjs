@@ -117,7 +117,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
         const target = ensure(); activeHost = 'electron'; activePresentation = presentation; position();
         const sendPresentation = () => {
           if (getWindow() === target && activeHost === 'electron' && activePresentation) {
-            target.webContents.send('hibi:companion:presentation', activePresentation);
+            target.webContents.send('pixano:companion:presentation', activePresentation);
           }
         };
         // BrowserWindow pode terminar o carregamento depois de show(); reenviar aqui fecha a
@@ -162,7 +162,7 @@ function createNotchWindowManager({ BrowserWindowClass, screen, preloadPath, loa
       position(); return true;
     },
     get size() { return size; },
-    // O monitor e o tamanho do notch: a barra do Taby nasce embaixo do mascote, no mesmo lugar.
+    // O monitor e o tamanho do notch: a barra do Assistant nasce embaixo do mascote, no mesmo lugar.
     currentDisplay: () => selectedDisplay(),
     currentSize: () => size,
     reposition() { if (activeHost === 'native') return nativeBridge?.repositionHost?.(selectedDisplayId()) === true; position(); return Boolean(getWindow()); },

@@ -16,7 +16,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   const { language } = useLocale();
   const [state, setState] = useState<NotchDisplayState | null>(null);
   // `available` só indica se a ponte existe; falhas de leitura não devem escondê-la de novo.
-  const [available] = useState(() => typeof window !== 'undefined' && Boolean(window.hibiDesktop?.listNotchDisplays));
+  const [available] = useState(() => typeof window !== 'undefined' && Boolean(window.pixanoDesktop?.listNotchDisplays));
   const [loadFailed, setLoadFailed] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -30,7 +30,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   const refreshRef = useRef<() => void>(() => undefined);
 
   useEffect(() => {
-    const bridge = window.hibiDesktop;
+    const bridge = window.pixanoDesktop;
     const list = bridge?.listNotchDisplays;
     if (!list) return undefined;
     let active = true;
@@ -60,7 +60,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   if (!available) return <><Row title={t('settings.notch.title')} detail={t('settings.notch.detail')}><span className="setting-value">{t('settings.notch.desktopOnly')}</span></Row></>;
 
   const choose = async (value: string) => {
-    const setDisplay = window.hibiDesktop?.setNotchDisplay;
+    const setDisplay = window.pixanoDesktop?.setNotchDisplay;
     if (!setDisplay) return;
     const request = ++sequence.current;
     const saveRequest = ++saveSequence.current;
@@ -76,7 +76,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   };
   const runTest = async () => {
     if (testing) return;
-    const testNotch = window.hibiDesktop?.testNotch;
+    const testNotch = window.pixanoDesktop?.testNotch;
     if (!testNotch) return;
     setTesting(true);
     setNotice('');
@@ -90,7 +90,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
     } finally { setTesting(false); }
   };
   const chooseSize = async (nextSize: 'normal' | 'compact') => {
-    const save = window.hibiDesktop?.setNotchSize;
+    const save = window.pixanoDesktop?.setNotchSize;
     if (!save) return;
     try { const saved = await save(nextSize); setSize(saved.size); onEvent('edit', 'Notch size', saved.size); }
     catch { setNotice(t('settings.notch.saveFailed')); }

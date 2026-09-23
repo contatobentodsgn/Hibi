@@ -75,9 +75,9 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request,
       const statusName = properties.Status?.select?.name;
       const deadline = properties.Start?.date?.start;
       const duration = properties['Duration minutes']?.number;
-      const hibiId = textFrom(properties['Hibi ID'], 'rich_text');
+      const pixanoId = textFrom(properties['Hibi ID'], 'rich_text');
       const description = textFrom(properties.Description, 'rich_text');
-      return { remoteId: page.id, ...(boundedId(page.last_edited_time) ? { revision: page.last_edited_time } : {}), ...(hibiId ? { hibiId: hibiId.slice(0, 240) } : {}), title: titleFrom(properties), ...(statusFromNotion[statusName] ? { status: statusFromNotion[statusName] } : {}), ...(boundedId(deadline) ? { deadline } : {}), ...(Number.isFinite(duration) ? { durationMinutes: Math.max(0, Math.round(duration)) } : {}), ...(description ? { description: description.slice(0, 2_000) } : {}), kind: 'task' };
+      return { remoteId: page.id, ...(boundedId(page.last_edited_time) ? { revision: page.last_edited_time } : {}), ...(pixanoId ? { pixanoId: pixanoId.slice(0, 240) } : {}), title: titleFrom(properties), ...(statusFromNotion[statusName] ? { status: statusFromNotion[statusName] } : {}), ...(boundedId(deadline) ? { deadline } : {}), ...(Number.isFinite(duration) ? { durationMinutes: Math.max(0, Math.round(duration)) } : {}), ...(description ? { description: description.slice(0, 2_000) } : {}), kind: 'task' };
     },
     async testConnection({ credential, request: override }) {
       const response = await call('users/me', { method: 'GET', headers: headers(credential) }, override);

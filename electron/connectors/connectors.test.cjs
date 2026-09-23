@@ -26,7 +26,7 @@ test('normalizes a Notion page without copying its body', () => {
     'Duration minutes': { number: 45 }, Description: { rich_text: [{ plain_text: 'Context' }] }, 'Hibi ID': { rich_text: [{ plain_text: 'task-1' }] },
   }, children: [{ text: 'private body' }] });
 
-  assert.deepEqual(candidate, { remoteId: 'page-1', revision: '2026-09-09T12:00:00Z', hibiId: 'task-1', title: 'Project brief', status: 'paused', deadline: '2026-09-10T09:00:00-03:00', durationMinutes: 45, description: 'Context', kind: 'task' });
+  assert.deepEqual(candidate, { remoteId: 'page-1', revision: '2026-09-09T12:00:00Z', pixanoId: 'task-1', title: 'Project brief', status: 'paused', deadline: '2026-09-10T09:00:00-03:00', durationMinutes: 45, description: 'Context', kind: 'task' });
   assert.equal(JSON.stringify(candidate).includes('private body'), false);
 });
 

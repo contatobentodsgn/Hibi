@@ -9,7 +9,7 @@ import { AiToolPolicy } from './policy';
 import type { AiFallbackPolicy, AiProvider, AiProviderProposal, AiProviderRequest, AiToolCall } from './contracts';
 import { HeuristicAiProvider } from './heuristic-provider';
 import { AiTurnRuntime, type AiRuntimeUsageEvent } from './runtime';
-import { ToolRegistry, type HibiTool } from './tools';
+import { ToolRegistry, type PixanoTool } from './tools';
 import type { AiAuditEvent } from './history';
 
 // Uma ação remota só é registrada como ferramenta quando a ponte do app desktop
@@ -37,7 +37,7 @@ const isConnectorId = (value: unknown): value is string => typeof value === 'str
 const entityStatus = (value: unknown) => value === undefined || ['open', 'completed', 'paused'].includes(String(value));
 
 export function createLocalToolRegistry(repository: LocalRepository, hooks: Hooks = {}): ToolRegistry {
-  const register = (tool: HibiTool) => registry.register(tool);
+  const register = (tool: PixanoTool) => registry.register(tool);
   const registry = new ToolRegistry();
   register({ name: 'search.schedule', description: 'Read local schedule blocks.', risk: 'read', inputSchema: { type: 'object' }, validate: () => true, execute: () => ({ summary: `${repository.listBlocks().length} blocos na agenda`, data: { count: repository.listBlocks().length } }) });
   register({ name: 'search.tasks', description: 'Read local tasks.', risk: 'read', inputSchema: { type: 'object' }, validate: () => true, execute: () => ({ summary: `${repository.listTasks().filter((task) => task.status !== 'completed').length} tarefas abertas` }) });
@@ -274,7 +274,7 @@ function subjectFromCalls(repository: LocalRepository, toolCalls: readonly AiToo
   return entity ? { kind, id: idValue, title: entity.title } : null;
 }
 
-export function createLocalHibiRuntime(repository: LocalRepository, hooks: Hooks = {}, provider: AiProvider = new LocalToolProvider(repository), fallbackProvider: AiProvider = new HeuristicAiProvider(), fallbackPolicy: AiFallbackPolicy | (() => AiFallbackPolicy) = 'automatic'): AiTurnRuntime {
+export function createLocalAssistantRuntime(repository: LocalRepository, hooks: Hooks = {}, provider: AiProvider = new LocalToolProvider(repository), fallbackProvider: AiProvider = new HeuristicAiProvider(), fallbackPolicy: AiFallbackPolicy | (() => AiFallbackPolicy) = 'automatic'): AiTurnRuntime {
   const registry = createLocalToolRegistry(repository, hooks);
   return new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), provider, fallbackProvider, fallbackPolicy, onAudit: hooks.onAudit, onUsage: hooks.onUsage, context: { get tasks() { return repository.listTasks().map((task) => ({ id: task.id, title: task.title, dueAt: task.deadline })); }, get reminders() { return repository.listReminders().map((reminder) => ({ id: reminder.id, title: reminder.title, nextAt: reminder.schedule.at })); }, get schedule() { return repository.listBlocks(); }, get notes() { return repository.listNotes().map((note) => ({ id: note.id, title: note.title })); } } });
 }

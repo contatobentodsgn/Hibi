@@ -2,7 +2,7 @@ const path = require('node:path');
 
 /**
  * O mascote oficial no notch: um vídeo por estado, e nada além dele. Texto, ditado e botões moram na
- * barra abaixo do notch (`taby-bar.cjs`); o notch só mostra o gato e as animações dele.
+ * barra abaixo do notch (`assistant-bar.cjs`); o notch só mostra o gato e as animações dele.
  *
  * Os vídeos saem de "Interactive States/Prontos", convertidos sem som, recortados para o notch e em
  * tamanho retina, e ficam em `public/mascot`.

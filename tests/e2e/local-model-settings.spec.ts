@@ -12,12 +12,12 @@ async function installBridge(page: Page, status: 'missing' | 'ready') {
     let state = { status: initial, modelId: initial === 'ready' ? 'qwen3-1.7b-q8_0' : null, sizeBytes: initial === 'ready' ? 1834426016 : 0, error: null };
     const listeners: ((progress: unknown) => void)[] = [];
     const recorded = { downloads: 0, cancels: 0 };
-    (window as unknown as { hibiE2E: unknown }).hibiE2E = {
+    (window as unknown as { pixanoE2E: unknown }).pixanoE2E = {
       recorded,
       progress(received: number, total: number) { for (const listener of listeners) listener({ status: 'downloading', receivedBytes: received, totalBytes: total, error: null }); },
       finish() { state = { status: 'ready', modelId: 'qwen3-1.7b-q8_0', sizeBytes: 1834426016, error: null }; for (const listener of listeners) listener({ status: 'ready', receivedBytes: 1834426016, totalBytes: 1834426016, error: null }); },
     };
-    (window as unknown as { hibiDesktop: unknown }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: unknown }).pixanoDesktop = {
       getLocalModelState: async () => state,
       verifyLocalModel: async () => ({ verified: true, modelId: state.modelId, error: null }),
       downloadLocalModel: async () => { recorded.downloads += 1; return { status: 'downloading', receivedBytes: 0, totalBytes: 1834426016, error: null }; },
@@ -38,16 +38,16 @@ test('quem ainda não tem o cérebro offline encontra e baixa o modelo na aba de
   await expect(panel).toContainText('responde com frases prontas');
 
   await page.getByRole('button', { name: 'Baixar', exact: true }).click();
-  await page.evaluate(() => (window as unknown as { hibiE2E: { progress: (a: number, b: number) => void } }).hibiE2E.progress(917213008, 1834426016));
+  await page.evaluate(() => (window as unknown as { pixanoE2E: { progress: (a: number, b: number) => void } }).pixanoE2E.progress(917213008, 1834426016));
 
   const progress = page.getByRole('progressbar');
   await expect(progress).toHaveAttribute('aria-valuenow', '50');
   await expect(page.getByRole('button', { name: 'Cancelar', exact: true })).toBeVisible();
 
-  await page.evaluate(() => (window as unknown as { hibiE2E: { finish: () => void } }).hibiE2E.finish());
+  await page.evaluate(() => (window as unknown as { pixanoE2E: { finish: () => void } }).pixanoE2E.finish());
   await expect(panel).toContainText('Pronto neste Mac');
   await expect(panel).toContainText('O assistente responde suas perguntas com este modelo');
-  expect(await page.evaluate(() => (window as unknown as { hibiE2E: { recorded: { downloads: number } } }).hibiE2E.recorded.downloads)).toBe(1);
+  expect(await page.evaluate(() => (window as unknown as { pixanoE2E: { recorded: { downloads: number } } }).pixanoE2E.recorded.downloads)).toBe(1);
 });
 
 test('o cérebro offline fica com as outras opções de IA, e não na aba de dados', async ({ page }) => {

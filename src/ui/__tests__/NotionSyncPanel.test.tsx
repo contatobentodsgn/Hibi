@@ -29,7 +29,7 @@ describe('NotionSyncPanel', () => {
 
   it('builds only selected remote writes and never writes conflicts by default', () => {
     const task = { id: 'task-1', title: 'Local', durationMinutes: 60, category: 'work' as const, status: 'open' as const }
-    const conflict = buildNotionSyncPlan([task], [{ remoteId: 'page-1', revision: 'v2', hibiId: 'task-1', title: 'Remote', durationMinutes: 60 }], [])
+    const conflict = buildNotionSyncPlan([task], [{ remoteId: 'page-1', revision: 'v2', pixanoId: 'task-1', title: 'Remote', durationMinutes: 60 }], [])
     expect(notionOperationsForPlan(conflict, {}, 'source-1')).toEqual([])
     expect(notionOperationsForPlan(conflict, { [conflict.items[0].key]: 'keep-local' }, 'source-1')).toEqual([
       { key: conflict.items[0].key, kind: 'notion.page.update', payload: { id: 'page-1', task } },

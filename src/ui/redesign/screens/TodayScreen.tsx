@@ -6,9 +6,9 @@ import { localNoon, todayKey } from '../../../domain/date-context';
 import { useT } from '../../../i18n/LocaleProvider';
 import { deriveDayRhythm, formatMinutes, formatWindow } from '../../day-rhythm';
 import { ActionDialog, ActionDialogOption, ActionDialogOptions } from '../components/ActionDialog';
-import { HibiEmptyState } from '../components/HibiEmptyState';
-import { HibiTag } from '../components/HibiTag';
-import { HibiUiRoot } from '../components/HibiUiRoot';
+import { PixanoEmptyState } from '../components/PixanoEmptyState';
+import { PixanoTag } from '../components/PixanoTag';
+import { PixanoUiRoot } from '../components/PixanoUiRoot';
 import { RoundLink } from '../components/RoundLink';
 import { SectionHeader } from '../components/SectionHeader';
 import type { NavKey } from '../../shell/routes';
@@ -51,7 +51,7 @@ export function TodayScreen({ data, now = new Date(), onNavigate, onOpenCommands
   };
 
   return (
-    <HibiUiRoot className="today-screen">
+    <PixanoUiRoot className="today-screen">
       <SectionHeader
         title="Um dia de cada vez."
         subtitle={`${todayLabel(day)}. Vamos com calma.`}
@@ -75,11 +75,11 @@ export function TodayScreen({ data, now = new Date(), onNavigate, onOpenCommands
       <div className="today-screen__top-grid">
         <Card className="today-screen__commitment" aria-labelledby="today-next-title">
           {next ? <>
-            <div className="today-screen__card-top"><HibiTag tone="lavender" dot>{rhythm.now ? `Agora · ${next.start.slice(11, 16)}` : `A seguir · ${next.start.slice(11, 16)}`}</HibiTag><CalendarDays aria-hidden="true" size={18} /></div>
+            <div className="today-screen__card-top"><PixanoTag tone="lavender" dot>{rhythm.now ? `Agora · ${next.start.slice(11, 16)}` : `A seguir · ${next.start.slice(11, 16)}`}</PixanoTag><CalendarDays aria-hidden="true" size={18} /></div>
             <h2 id="today-next-title">{next.title}</h2>
             <p>{next.start.slice(11, 16)} – {next.end.slice(11, 16)} · {formatMinutes(next.minutes)}</p>
             <div className="today-screen__commitment-footer"><span>{rhythm.later.length} compromisso{rhythm.later.length === 1 ? '' : 's'} depois</span><RoundLink label="Ver calendário diário" onPress={() => onNavigate('day')} /></div>
-          </> : <HibiEmptyState icon={CalendarDays} tone="mint" title="Seu dia está livre" description="Nada agendado para agora." action={<Button variant="tertiary" size="sm" onPress={() => onNavigate('day')}>Abrir Agenda</Button>} />}
+          </> : <PixanoEmptyState icon={CalendarDays} tone="mint" title="Seu dia está livre" description="Nada agendado para agora." action={<Button variant="tertiary" size="sm" onPress={() => onNavigate('day')}>Abrir Agenda</Button>} />}
         </Card>
 
         <Card className="today-screen__focus-card">
@@ -99,8 +99,8 @@ export function TodayScreen({ data, now = new Date(), onNavigate, onOpenCommands
 
       <div className="today-screen__bottom-grid">
         <Card className="today-screen__tasks-card">
-          <div className="today-screen__card-top"><div><h2>O que importa hoje</h2><HibiTag>{priorityTasks.length}</HibiTag></div><RoundLink label="Ver lista prioritária" onPress={() => onNavigate('tasks')} /></div>
-          {priorityTasks.length ? <ul className="today-screen__task-list">{priorityTasks.map((task) => <li key={task.id}><span aria-hidden="true" className="today-screen__checkbox" /><div><strong>{task.title}</strong><HibiTag tone={categoryTone(task)} dot>{task.category === 'important' ? 'Importante' : task.folder || 'Pessoal'}</HibiTag></div></li>)}</ul> : <HibiEmptyState icon={CheckCheck} tone="mint" title="Nada pendente por aqui." description="Quando surgir algo, aparece aqui." action={<Button variant="tertiary" size="sm" onPress={() => onCreateTask?.()}>Criar tarefa</Button>} />}
+          <div className="today-screen__card-top"><div><h2>O que importa hoje</h2><PixanoTag>{priorityTasks.length}</PixanoTag></div><RoundLink label="Ver lista prioritária" onPress={() => onNavigate('tasks')} /></div>
+          {priorityTasks.length ? <ul className="today-screen__task-list">{priorityTasks.map((task) => <li key={task.id}><span aria-hidden="true" className="today-screen__checkbox" /><div><strong>{task.title}</strong><PixanoTag tone={categoryTone(task)} dot>{task.category === 'important' ? 'Importante' : task.folder || 'Pessoal'}</PixanoTag></div></li>)}</ul> : <PixanoEmptyState icon={CheckCheck} tone="mint" title="Nada pendente por aqui." description="Quando surgir algo, aparece aqui." action={<Button variant="tertiary" size="sm" onPress={() => onCreateTask?.()}>Criar tarefa</Button>} />}
         </Card>
 
         <Card className="today-screen__progress-card">
@@ -118,6 +118,6 @@ export function TodayScreen({ data, now = new Date(), onNavigate, onOpenCommands
         <Button variant="tertiary" onPress={() => onNavigate('review')}>Abrir revisão</Button>
         <Button variant="tertiary" aria-label="Open quick capture" onPress={onOpenCommands}>Captura rápida</Button>
       </nav>
-    </HibiUiRoot>
+    </PixanoUiRoot>
   );
 }

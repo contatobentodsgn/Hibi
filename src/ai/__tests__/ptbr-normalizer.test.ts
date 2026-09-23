@@ -19,7 +19,7 @@ describe('normalizePortuguese', () => {
     expect(normalizePortuguese('custou um real')).toBe('custou R$ 1');
   });
 
-  it('o dia do mês vira número, para o Taby achar a data', () => {
+  it('o dia do mês vira número, para o Assistant achar a data', () => {
     expect(normalizePortuguese('marca dentista dia vinte e cinco às 15h')).toBe('marca dentista dia 25 às 15h');
     expect(normalizePortuguese('o dia quarenta')).toBe('o dia quarenta');
   });
@@ -27,7 +27,7 @@ describe('normalizePortuguese', () => {
   it('"bom dia" ouvido no lugar de "adia" volta a ser "adia" só num pedido de mudar de horário', () => {
     expect(normalizePortuguese('Bom dia minha reunião com a Cristiane para as 4h30')).toBe('adia minha reunião com a Cristiane para as 4h30');
     expect(normalizePortuguese('Bom dia, minha reunião foi ótima')).toBe('Bom dia, minha reunião foi ótima');
-    expect(normalizePortuguese('bom dia Taby')).toBe('bom dia Taby');
+    expect(normalizePortuguese('bom dia Assistant')).toBe('bom dia Assistant');
   });
 
   it('não mexe no resto', () => {

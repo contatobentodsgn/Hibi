@@ -214,7 +214,7 @@ function createCalendarSyncService({
         kind: "create",
         external: true,
         confirmationId: action.confirmationId,
-        hibiCalendarId: calendarId,
+        pixanoCalendarId: calendarId,
         block,
         fingerprint,
         eventId,
@@ -239,7 +239,7 @@ function createCalendarSyncService({
       kind: "create",
       confirmationId,
       calendarId: nativeId,
-      hibiCalendarId: calendarId,
+      pixanoCalendarId: calendarId,
       block,
       fingerprint,
       resolvesConflictId: extra.resolvesConflictId,
@@ -252,7 +252,7 @@ function createCalendarSyncService({
       throw new Error("Choose bidirectional mode before editing a Pixano block.");
     const entry = {
       kind: "update",
-      hibiCalendarId: calendarId,
+      pixanoCalendarId: calendarId,
       link,
       expectedRevision,
       block,
@@ -323,7 +323,7 @@ function createCalendarSyncService({
     const end = toInstant(action.block.endsAt);
     const linked = new Set(
       list("links")
-        .filter((link) => link?.calendarId === action.hibiCalendarId)
+        .filter((link) => link?.calendarId === action.pixanoCalendarId)
         .map((link) => link.remoteId),
     );
     const match = (eventKit.listEvents({
@@ -564,10 +564,10 @@ function createCalendarSyncService({
         throw new Error("This calendar confirmation expired. Prepare it again.");
       requireSettings();
       const verb = action.kind === "update" ? "updated" : "created";
-      const { block, hibiCalendarId } = action;
+      const { block, pixanoCalendarId } = action;
       const isThisPending = (entry) =>
-        entry?.calendarId === hibiCalendarId && entry?.localId === block.id;
-      const retrying = action.kind === "create" && Boolean(pendingFor(hibiCalendarId, block.id));
+        entry?.calendarId === pixanoCalendarId && entry?.localId === block.id;
+      const retrying = action.kind === "create" && Boolean(pendingFor(pixanoCalendarId, block.id));
       if (action.kind === "create")
         // A intenção é gravada antes da escrita remota. Se esta gravação falhar, nada foi enviado.
         saveState({
@@ -575,7 +575,7 @@ function createCalendarSyncService({
             ...list("pending").filter((entry) => !isThisPending(entry)),
             {
               localId: block.id,
-              calendarId: hibiCalendarId,
+              calendarId: pixanoCalendarId,
               startedAt: now(),
               ...(action.eventId ? { eventId: action.eventId } : {}),
             },
@@ -619,17 +619,17 @@ function createCalendarSyncService({
         ({ id: remoteId, revision } = result);
       }
       if (!boundedText(revision)) revision = remoteId;
-      const key = `${hibiCalendarId}:${remoteId}`;
+      const key = `${pixanoCalendarId}:${remoteId}`;
       saveState({
         links: [
           ...list("links").filter(
             (link) =>
-              !(link?.localId === block.id && link?.calendarId === hibiCalendarId) &&
+              !(link?.localId === block.id && link?.calendarId === pixanoCalendarId) &&
               `${link?.calendarId}:${link?.remoteId}` !== key,
           ),
           {
             localId: block.id,
-            calendarId: hibiCalendarId,
+            calendarId: pixanoCalendarId,
             remoteId,
             remoteRevision: revision,
             localFingerprint: action.fingerprint,

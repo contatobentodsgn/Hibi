@@ -86,7 +86,7 @@ describe('workspace backups', () => {
     expect(parseWorkspaceBackup(JSON.stringify(legacy), createSeedData()).preferences.focus).toEqual(DEFAULT_FOCUS_SETTINGS);
   });
 
-  // Os quatro ajustes de presença — o timeout de tela do Taby incluído — são preferência segura e
+  // Os quatro ajustes de presença — o timeout de tela do Assistant incluído — são preferência segura e
   // entram no backup. Um backup exportado antes deles restaura os campos antigos e ganha os padrões.
   it('round-trips the presence settings, and defaults them on a backup exported before they existed', () => {
     const seed = createSeedData();

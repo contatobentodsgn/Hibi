@@ -51,7 +51,7 @@ test('respostas do teste do notch ficam no processo principal e as demais vão a
   assert.equal(routeNotchAction({ requestId: 'notch-test-confirm-1', actionId: 'confirm' }, { notchTest, send }), 'test');
   assert.deepEqual(sent, []);
   assert.equal(routeNotchAction({ requestId: 'confirm-1', actionId: 'cancel' }, { notchTest, send }), 'renderer');
-  assert.deepEqual(sent, [['hibi:companion:action', { requestId: 'confirm-1', actionId: 'cancel' }]]);
+  assert.deepEqual(sent, [['pixano:companion:action', { requestId: 'confirm-1', actionId: 'cancel' }]]);
   assert.equal(routeNotchAction({ requestId: 'confirm-2', actionId: 'confirm' }, { notchTest: undefined, send }), 'renderer');
   assert.equal(sent.length, 2);
 });

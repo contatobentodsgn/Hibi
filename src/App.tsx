@@ -31,7 +31,7 @@ import { buildNotificationEntries } from './domain/notifications';
 import { browserFocusSettingsHost, readFocusSettings, writeFocusSettings, type FocusSettings } from './ui/focus-settings';
 import { ReviewView } from './ui/ReviewView';
 import { StatsScreen } from './ui/redesign/screens/StatsScreen';
-import { TabyScreen } from './ui/redesign/screens/TabyScreen';
+import { AssistantScreen } from './ui/redesign/screens/AssistantScreen';
 import { HabitsScreen } from './ui/redesign/screens/HabitsScreen';
 import { GoalsScreen } from './ui/redesign/screens/GoalsScreen';
 import { HelpView } from './ui/HelpView';
@@ -41,10 +41,10 @@ import { firstWeeklyOccurrence } from './domain/recurrence';
 import { TaskCreateModal, type NewTaskForm } from './ui/TaskCreateModal';
 import { ReminderCreateModal, type NewReminderForm } from './ui/ReminderCreateModal';
 import { DeadlineEditModal } from './ui/DeadlineEditModal';
-import { createLocalHibiRuntime, LocalToolProvider } from './ai/local-runtime';
+import { createLocalAssistantRuntime, LocalToolProvider } from './ai/local-runtime';
 import { ElectronConfiguredProvider } from './ai/electron-provider';
 import { OfflineBrainProvider } from './ai/offline-brain-provider';
-import { useTabyShortcut } from './ui/useTabyShortcut';
+import { useAssistantShortcut } from './ui/useAssistantShortcut';
 import { useVoiceTurn } from './ui/useVoiceTurn';
 import { voiceVocabulary } from './ai/voice-vocabulary';
 import { HeuristicAiProvider } from './ai/heuristic-provider';
@@ -86,7 +86,7 @@ export default function App() {
   // banco é assíncrona, então a primeira pintura ainda vem do espelho local acima e só depois o que
   // está gravado assume. Até lá a sessão grava só no espelho local, porque mandar para o banco o que
   // está em memória antes de ler sobrescreveria o que está lá — que pode ser mais novo.
-  const [workspace] = useState(() => createWorkspaceSession(createWorkspaceStore({ storage: window.localStorage, database: createDesktopWorkspaceBackend(window.hibiDesktop) })));
+  const [workspace] = useState(() => createWorkspaceSession(createWorkspaceStore({ storage: window.localStorage, database: createDesktopWorkspaceBackend(window.pixanoDesktop) })));
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const workspaceWarned = useRef(false);
   const [route, setRoute] = useState<NavKey>('home');
@@ -102,7 +102,7 @@ export default function App() {
   // telas, então o filtro pedido é reaplicado mesmo quando se volta à mesma tela.
   const [folderFilter, setFolderFilter] = useState<{ folder: string | null; nonce: number }>({ folder: null, nonce: 0 });
   const companionController = useRef<CompanionController | null>(null);
-  if (!companionController.current) companionController.current = new CompanionController({ show: (presentation) => { void window.hibiDesktop?.showNotch?.(presentation); }, hide: (requestId) => { void window.hibiDesktop?.hideNotch?.(requestId); } });
+  if (!companionController.current) companionController.current = new CompanionController({ show: (presentation) => { void window.pixanoDesktop?.showNotch?.(presentation); }, hide: (requestId) => { void window.pixanoDesktop?.hideNotch?.(requestId); } });
   const dispatchCompanion = (event: CompanionEvent) => companionController.current!.dispatch(event);
   const companionId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
   const [aiHistory, setAiHistory] = useState<AiAuditEvent[]>(() => loadAiAuditHistory(window.localStorage.getItem('hibi-ai-history')));
@@ -110,11 +110,11 @@ export default function App() {
   const [aiFallbackPolicy, setAiFallbackPolicy] = useState<AiFallbackPolicy>(readAiFallbackPolicy);
   const aiFallbackPolicyRef = useRef(aiFallbackPolicy);
   const updateAiFallbackPolicy = (policy: AiFallbackPolicy) => { aiFallbackPolicyRef.current = policy; setAiFallbackPolicy(policy); try { window.localStorage.setItem(AI_FALLBACK_POLICY_STORAGE_KEY, policy); } catch { /* unavailable storage */ } };
-  // Uma ação confirmada do Taby registra como a tela: conclusões e reaberturas. O aviso só aparece na transição para concluída.
-  // Uma reunião marcada pelo Taby vai também para o primeiro calendário bidirecional escolhido em
-  // Ajustes › Integrations. A confirmação do Taby é a aprovação da pessoa para esta escrita.
+  // Uma ação confirmada do Assistant registra como a tela: conclusões e reaberturas. O aviso só aparece na transição para concluída.
+  // Uma reunião marcada pelo Assistant vai também para o primeiro calendário bidirecional escolhido em
+  // Ajustes › Integrations. A confirmação do Assistant é a aprovação da pessoa para esta escrita.
   const publishMeetingToCalendar = async (block: ScheduleBlock): Promise<string | null> => {
-    const bridge = window.hibiDesktop!;
+    const bridge = window.pixanoDesktop!;
     const state = await bridge.getCalendarSyncState!();
     const target = state.calendars.find((calendar) => calendar.mode === 'bidirectional');
     if (!target) return null;
@@ -122,9 +122,9 @@ export default function App() {
     await bridge.executeApprovedCalendarPublish!({ actionId: action.id, confirmationId: action.confirmationId });
     return target.label;
   };
-  // Mover pelo Taby uma reunião que já está no calendário muda o evento lá. Sem vínculo, nada sai daqui.
+  // Mover pelo Assistant uma reunião que já está no calendário muda o evento lá. Sem vínculo, nada sai daqui.
   const updateMeetingInCalendar = async (block: ScheduleBlock): Promise<string | null> => {
-    const bridge = window.hibiDesktop!;
+    const bridge = window.pixanoDesktop!;
     const state = await bridge.getCalendarSyncState!();
     const target = state.calendars.find((calendar) => calendar.mode === 'bidirectional');
     if (!target || !bridge.prepareCalendarUpdate) return null;
@@ -137,7 +137,7 @@ export default function App() {
     await bridge.executeApprovedCalendarPublish!({ actionId: action.id, confirmationId: action.confirmationId });
     return target.label;
   };
-  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskStatusChanged: (before: Task, after: Task) => { recordActivity(taskStatusActivity(before, after.status ?? 'open', new Date().toISOString())); if (before.status !== 'completed' && after.status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${after.title}`, nowMs: Date.now(), expiresInMs: 3_000 }); }, onBlockCreated: (block: ScheduleBlock) => recordActivity(blockActivity('created', block, new Date().toISOString())), onBlockDeleted: (block: ScheduleBlock) => recordActivity(blockActivity('deleted', block, new Date().toISOString())), onFocusStarted: () => { setFocusStartPending(true); setRoute('focus'); }, ...(window.hibiDesktop?.getCalendarSyncState && window.hibiDesktop?.prepareCalendarPublish && window.hibiDesktop?.executeApprovedCalendarPublish ? { calendar: { publish: publishMeetingToCalendar, update: updateMeetingInCalendar } } : {}), onAudit: (event: AiAuditEvent) => setAiHistory((current) => appendAiAuditEvent(current, event)), onUsage: (event: { at: string; provider: string; model: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number }; outcome: 'completed'; fallback: boolean }) => setAiUsage((current) => appendAiUsageRecord(current, event)), ...(window.hibiDesktop?.prepareIntegrationAction && window.hibiDesktop?.executeApprovedIntegrationAction ? { integrations: { prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => window.hibiDesktop!.prepareIntegrationAction!(input), executeApproved: (input: { actionId: string; confirmationId: string }) => window.hibiDesktop!.executeApprovedIntegrationAction!(input) as Promise<{ ok: boolean; remoteId?: string }> } } : {}) }; return createLocalHibiRuntime(repository, hooks, new ElectronConfiguredProvider(window.hibiDesktop ?? {}, new OfflineBrainProvider(window.hibiDesktop ?? {}, new LocalToolProvider(repository))), new HeuristicAiProvider(), () => aiFallbackPolicyRef.current); });
+  const [aiRuntime] = useState(() => { const hooks = { onDataChanged: () => setData(repository.snapshot()), onTaskStatusChanged: (before: Task, after: Task) => { recordActivity(taskStatusActivity(before, after.status ?? 'open', new Date().toISOString())); if (before.status !== 'completed' && after.status === 'completed') dispatchCompanion({ type: 'task.completed', requestId: companionId('task'), text: `Tarefa concluída: ${after.title}`, nowMs: Date.now(), expiresInMs: 3_000 }); }, onBlockCreated: (block: ScheduleBlock) => recordActivity(blockActivity('created', block, new Date().toISOString())), onBlockDeleted: (block: ScheduleBlock) => recordActivity(blockActivity('deleted', block, new Date().toISOString())), onFocusStarted: () => { setFocusStartPending(true); setRoute('focus'); }, ...(window.pixanoDesktop?.getCalendarSyncState && window.pixanoDesktop?.prepareCalendarPublish && window.pixanoDesktop?.executeApprovedCalendarPublish ? { calendar: { publish: publishMeetingToCalendar, update: updateMeetingInCalendar } } : {}), onAudit: (event: AiAuditEvent) => setAiHistory((current) => appendAiAuditEvent(current, event)), onUsage: (event: { at: string; provider: string; model: string; usage: { inputTokens: number; outputTokens: number; totalTokens: number }; outcome: 'completed'; fallback: boolean }) => setAiUsage((current) => appendAiUsageRecord(current, event)), ...(window.pixanoDesktop?.prepareIntegrationAction && window.pixanoDesktop?.executeApprovedIntegrationAction ? { integrations: { prepare: (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => window.pixanoDesktop!.prepareIntegrationAction!(input), executeApproved: (input: { actionId: string; confirmationId: string }) => window.pixanoDesktop!.executeApprovedIntegrationAction!(input) as Promise<{ ok: boolean; remoteId?: string }> } } : {}) }; return createLocalAssistantRuntime(repository, hooks, new ElectronConfiguredProvider(window.pixanoDesktop ?? {}, new OfflineBrainProvider(window.pixanoDesktop ?? {}, new LocalToolProvider(repository))), new HeuristicAiProvider(), () => aiFallbackPolicyRef.current); });
   // Ajustes de Foco e a janela da sessão em andamento. Os dois existem aqui só para serem entregues ao
   // agendador junto das entradas: é lá, em electron/focus-gate.mjs, que a decisão de silenciar vale.
   const [focusSettingsHost] = useState(browserFocusSettingsHost);
@@ -162,11 +162,11 @@ export default function App() {
   };
 
   const assistantTurn = useAssistantTurn({ runtime: aiRuntime, onEvent: log, onCompanionEvent: dispatchCompanion, onCompanionError: (text) => dispatchCompanion({ type: 'error.raised', requestId: companionId('error'), text, nowMs: Date.now(), expiresInMs: 5_000 }) });
-  // Montado aqui, acima da tela Taby e da paleta: a paleta pergunta com a tela desmontada, e uma
+  // Montado aqui, acima da tela Assistant e da paleta: a paleta pergunta com a tela desmontada, e uma
   // thread que morasse dentro da tela perderia essas perguntas. Recebe o turno porque a resposta do
   // assistente é gravada uma vez só, deste lado.
   const conversations = useConversations({ turn: assistantTurn, onEvent: log });
-  // A voz vive aqui, e não na tela Taby: o atalho pode ouvir com a janela escondida, e o notch mostra.
+  // A voz vive aqui, e não na tela Assistant: o atalho pode ouvir com a janela escondida, e o notch mostra.
   const voice = useVoiceTurn({ ask: (text) => { conversations.record({ role: 'user', text, at: new Date().toISOString() }); void assistantTurn.ask(text); }, turnState: assistantTurn.state, onCompanionEvent: dispatchCompanion, vocabulary: () => voiceVocabulary(data) });
   const voiceRef = useRef(voice);
   voiceRef.current = voice;
@@ -347,7 +347,7 @@ export default function App() {
     // relógio a mostra de novo no notch, já respondida.
     dispatchCompanion({ type: 'presentation.dismissed', requestId: intent.confirmationId });
     // O processo principal decide primeiro: um pedido expirado ou já respondido não cria nada aqui.
-    const outcome = await window.hibiDesktop?.resolveLocalApiWrite?.({ confirmationId: intent.confirmationId, approved });
+    const outcome = await window.pixanoDesktop?.resolveLocalApiWrite?.({ confirmationId: intent.confirmationId, approved });
     if (!approved) return;
     if (!outcome?.resolved) { log('local-api', 'confirmation expired', 'expired'); setValidationError('A confirmação da API local expirou. Peça de novo pelo app que enviou.'); return; }
     const mutation = localApiTaskMutation(intent);
@@ -361,7 +361,7 @@ export default function App() {
   }, [pendingLocalApiIntent]);
 
   const testNativeNotification = async () => {
-    const shown = await window.hibiDesktop?.showTestNotification?.();
+    const shown = await window.pixanoDesktop?.showTestNotification?.();
     return shown ?? false;
   };
 
@@ -393,16 +393,16 @@ export default function App() {
   React.useEffect(() => { window.localStorage.setItem('hibi-events', JSON.stringify(events)); }, [events]);
   React.useEffect(() => { try { window.localStorage.setItem('hibi-ai-history', JSON.stringify(loadAiAuditHistory(JSON.stringify(aiHistory)))); } catch { /* unavailable storage */ } }, [aiHistory]);
   React.useEffect(() => { try { window.localStorage.setItem(AI_USAGE_LEDGER_STORAGE_KEY, JSON.stringify(loadAiUsageLedger(JSON.stringify(aiUsage)))); } catch { /* unavailable storage */ } }, [aiUsage]);
-  React.useEffect(() => { void window.hibiDesktop?.syncLocalApiWorkspace?.({ tasks: data.tasks, reminders: data.reminders, blocks: data.blocks }); }, [data]);
+  React.useEffect(() => { void window.pixanoDesktop?.syncLocalApiWorkspace?.({ tasks: data.tasks, reminders: data.reminders, blocks: data.blocks }); }, [data]);
   React.useEffect(() => {
-    const syncNotifications = window.hibiDesktop?.syncNotifications;
+    const syncNotifications = window.pixanoDesktop?.syncNotifications;
     if (syncNotifications) void syncNotifications(buildNotificationEntries(data), { settings: focusSettings, focusUntilMs }).catch(() => undefined);
   }, [data, focusSettings, focusUntilMs]);
-  React.useEffect(() => window.hibiDesktop?.onNotificationTriggered?.((entry) => {
+  React.useEffect(() => window.pixanoDesktop?.onNotificationTriggered?.((entry) => {
     dispatchCompanion({ type: 'reminder.triggered', requestId: companionId('reminder'), text: entry.title, nowMs: Date.now(), expiresInMs: 7_000, animationId: entry.kind === 'deadline' ? 'warning_01' : undefined });
   }) ?? (() => undefined), []);
-  React.useEffect(() => window.hibiDesktop?.onLocalApiConfirmation?.((intent) => { setPendingLocalApiIntent(intent); dispatchCompanion({ type: 'confirmation.requested', requestId: intent.confirmationId, text: `A API local quer criar: ${typeof intent.payload.title === 'string' ? intent.payload.title : 'uma tarefa'}`, nowMs: Date.now(), expiresInMs: 60_000, actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] }); }) ?? (() => undefined), []);
-  React.useEffect(() => window.hibiDesktop?.onCompanionAction?.((action) => { if (action.requestId === pendingLocalApiIntent?.confirmationId) void resolveLocalApiIntent(action.actionId === 'confirm'); }) ?? (() => undefined), [pendingLocalApiIntent]);
+  React.useEffect(() => window.pixanoDesktop?.onLocalApiConfirmation?.((intent) => { setPendingLocalApiIntent(intent); dispatchCompanion({ type: 'confirmation.requested', requestId: intent.confirmationId, text: `A API local quer criar: ${typeof intent.payload.title === 'string' ? intent.payload.title : 'uma tarefa'}`, nowMs: Date.now(), expiresInMs: 60_000, actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] }); }) ?? (() => undefined), []);
+  React.useEffect(() => window.pixanoDesktop?.onCompanionAction?.((action) => { if (action.requestId === pendingLocalApiIntent?.confirmationId) void resolveLocalApiIntent(action.actionId === 'confirm'); }) ?? (() => undefined), [pendingLocalApiIntent]);
   React.useEffect(() => {
     const interval = window.setInterval(() => dispatchCompanion({ type: 'time.elapsed', nowMs: Date.now() }), 1_000);
     return () => window.clearInterval(interval);
@@ -438,7 +438,7 @@ export default function App() {
   // A barra embaixo do notch: o texto enviado vira pedido, falar e parar vão para a voz, e fechar
   // dispensa o que ela mostrava (parando a escuta, se era ela).
   React.useEffect(() => {
-    const bridge = window.hibiDesktop;
+    const bridge = window.pixanoDesktop;
     const offs = [
       bridge?.onBarSubmit?.((text) => { conversations.record({ role: 'user', text, at: new Date().toISOString() }); void assistantTurn.ask(text); }),
       bridge?.onBarVoice?.((command) => { if (command === 'start') void voiceRef.current.start({ notch: true }); else void voiceRef.current.stop(); }),
@@ -446,15 +446,15 @@ export default function App() {
     ];
     return () => { for (const off of offs) off?.(); };
   }, [conversations, assistantTurn.ask]);
-  useTabyShortcut((request) => {
+  useAssistantShortcut((request) => {
     // No modo notch a janela nem aparece: trocar de tela ali só mudaria o que a pessoa vê depois.
-    if (!request?.background) navigate('taby', 'shortcut');
+    if (!request?.background) navigate('assistant', 'shortcut');
     if (request?.listen) void voice.start({ notch: request.background });
   });
 
   const content = useMemo(() => {
     const props = { onEvent: log, onNavigate: navigate };
-    const focusView = (mode: 'focus' | 'break') => <FocusView key={mode} {...props} autoStart={focusStartPending} onAutoStarted={() => setFocusStartPending(false)} mode={mode} onModeChange={(next) => navigate(next)} sessionMinutes={focusSettings.sessionMinutes} awayBehavior={focusSettings.awayBehavior} idleMinutes={focusSettings.idleMinutes} focusLoopAnimation={focusSettings.focusLoopAnimation} activity={data.activity} presence={{ watch: window.hibiDesktop?.watchFocusPresence, subscribe: window.hibiDesktop?.onFocusPresence }} onCompanionEvent={dispatchCompanion} subscribeCompanionActions={window.hibiDesktop?.onCompanionAction} onFocusWindowChange={setFocusUntilMs} onFocusLifecycle={(event) => { if (mode === 'focus') setFocusActive(event.type === 'started' || event.type === 'resumed' || event.type === 'paused'); recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString())); }} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000, focusLoopAnimation: focusSettings.focusLoopAnimation, focusMood: deriveFocusMood({ awayPending: false, completedToday: focusSessionsCompletedToday(data.activity, new Date()) }) })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
+    const focusView = (mode: 'focus' | 'break') => <FocusView key={mode} {...props} autoStart={focusStartPending} onAutoStarted={() => setFocusStartPending(false)} mode={mode} onModeChange={(next) => navigate(next)} sessionMinutes={focusSettings.sessionMinutes} awayBehavior={focusSettings.awayBehavior} idleMinutes={focusSettings.idleMinutes} focusLoopAnimation={focusSettings.focusLoopAnimation} activity={data.activity} presence={{ watch: window.pixanoDesktop?.watchFocusPresence, subscribe: window.pixanoDesktop?.onFocusPresence }} onCompanionEvent={dispatchCompanion} subscribeCompanionActions={window.pixanoDesktop?.onCompanionAction} onFocusWindowChange={setFocusUntilMs} onFocusLifecycle={(event) => { if (mode === 'focus') setFocusActive(event.type === 'started' || event.type === 'resumed' || event.type === 'paused'); recordActivity(focusActivity(event.type, event.focusedMinutes, new Date().toISOString())); }} onFocusStarted={() => dispatchCompanion({ type: 'focus.started', requestId: companionId('focus'), text: 'Sessão de foco iniciada', nowMs: Date.now(), expiresInMs: 3_000, focusLoopAnimation: focusSettings.focusLoopAnimation, focusMood: deriveFocusMood({ awayPending: false, completedToday: focusSessionsCompletedToday(data.activity, new Date()) }) })} onFocusCompleted={() => dispatchCompanion({ type: 'focus.completed', requestId: companionId('focus'), text: 'Sessão de foco concluída', nowMs: Date.now(), expiresInMs: 3_000 })} />;
     // A tela de Foco fica montada, escondida, enquanto a sessão existir. A pausa de descanso continua
     // encerrando a sessão: ela é outra tela, e o botão só aparece com o relógio parado.
     const keepFocus = route === 'focus' || (focusActive && route !== 'break');
@@ -467,7 +467,7 @@ export default function App() {
       case 'goals': return <GoalsScreen data={data} onCreate={createGoal} onProgress={setGoalProgress} onUpdate={updateGoal} onDelete={deleteGoal} />;
       case 'review': return <ReviewView data={data} onNavigate={navigate} onCreateBlock={createBlock} />;
       case 'stats': return <StatsScreen records={data.activity} referenceDate={new Date()} onEvent={log} />;
-      case 'taby': return <TabyScreen data={data} turn={assistantTurn} conversations={conversations} voice={voice} />;
+      case 'assistant': return <AssistantScreen data={data} turn={assistantTurn} conversations={conversations} voice={voice} />;
       case 'help': return <HelpView onNavigate={navigate} />;
       case 'feedback': return <FeedbackView onSubmit={submitFeedback} />;
       case 'agenda': case 'day': case 'week': return <AgendaScreen {...props} data={data} mode={route === 'week' ? 'week' : 'day'} onCreateBlock={createBlock} onDeleteBlock={deleteBlock} onMoveBlock={moveBlock} onModeChange={(mode) => { setAgendaMode(mode); writeAgendaMode(agendaHost.storage, mode); setRoute(mode); }} />;

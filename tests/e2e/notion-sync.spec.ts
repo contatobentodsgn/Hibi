@@ -39,7 +39,7 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
       },
     } : { endpoint: '', clientId: '', targets: [] };
 
-    (window as unknown as { hibiE2E: unknown }).hibiE2E = {
+    (window as unknown as { pixanoE2E: unknown }).pixanoE2E = {
       recorded,
       // Dispara a ação do notch sobre a última confirmação apresentada.
       notchAction(actionId: 'confirm' | 'cancel') {
@@ -48,7 +48,7 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
       },
     };
 
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Pixano', version: '0.1.0', localOnly: true }),
       listIntegrationStatus: async () => [
         { id: 'notion', label: 'Notion', capabilities: ['import', 'write', 'sync'], state: 'connected', hasCredential: true },
@@ -97,7 +97,7 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
   }, [options.failFirstOperation ?? false, options.configured ?? true] as [boolean, boolean]);
 }
 
-const readRecorded = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: { recorded: Recorded } }).hibiE2E.recorded);
+const readRecorded = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: { recorded: Recorded } }).pixanoE2E.recorded);
 
 // Mesma rota que os outros specs de integrações usam: Ajustes tem botão próprio na barra.
 async function openIntegrations(page: Page) {
@@ -159,7 +159,7 @@ test('confirmar pelo notch aplica o mesmo lote preparado', async ({ page }) => {
   expect(before.notch.length).toBe(1);
   expect(before.writes).toEqual([]);
 
-  await page.evaluate(() => (window as unknown as { hibiE2E: { notchAction: (id: string) => void } }).hibiE2E.notchAction('confirm'));
+  await page.evaluate(() => (window as unknown as { pixanoE2E: { notchAction: (id: string) => void } }).pixanoE2E.notchAction('confirm'));
   await expect(page.getByText(/Sync complete/)).toBeVisible();
 
   const recorded = await readRecorded(page);
@@ -173,7 +173,7 @@ test('cancelar pelo notch não escreve nada', async ({ page }) => {
   await previewChanges(page);
   await page.getByRole('button', { name: 'Review selected changes' }).click();
 
-  await page.evaluate(() => (window as unknown as { hibiE2E: { notchAction: (id: string) => void } }).hibiE2E.notchAction('cancel'));
+  await page.evaluate(() => (window as unknown as { pixanoE2E: { notchAction: (id: string) => void } }).pixanoE2E.notchAction('cancel'));
   await expect(page.getByText('Synchronization cancelled. No selected change was applied.')).toBeVisible();
 
   expect((await readRecorded(page)).writes).toEqual([]);

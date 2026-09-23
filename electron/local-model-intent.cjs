@@ -2,7 +2,7 @@
  * O modo "intenção" do cérebro offline: em vez de conversar, o modelo lê um pedido e devolve só um JSON
  * com a ação, o assunto, o dia e o horário — como a pessoa os disse. A gramática gerada deste schema
  * obriga a saída a ser esse JSON; quem calcula a data, confere conflitos e pede confirmação é o código
- * determinístico do Taby, nunca o modelo. O schema mora aqui, no processo principal: o renderer escolhe
+ * determinístico do Assistant, nunca o modelo. O schema mora aqui, no processo principal: o renderer escolhe
  * o modo, não a gramática.
  */
 const INTENT_ACTIONS = Object.freeze(['meeting', 'task', 'reminder', 'note', 'focus', 'agenda', 'move', 'complete', 'delete', 'none']);

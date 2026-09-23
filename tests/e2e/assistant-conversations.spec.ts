@@ -11,7 +11,7 @@ const openAssistant = async (page: Page) => {
   await dock(page).getByRole('button', { name: 'Assistente', exact: true }).click();
 };
 
-test('uma conversa do Taby sobrevive ao recarregar e pode ser apagada', async ({ page }) => {
+test('uma conversa do Assistant sobrevive ao recarregar e pode ser apagada', async ({ page }) => {
   await page.goto('/');
   await openAssistant(page);
   await page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' }).fill('quais tarefas vencem hoje?');

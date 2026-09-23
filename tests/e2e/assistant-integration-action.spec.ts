@@ -9,11 +9,11 @@ async function installActionBridge(page: Page, { ok = true }: { ok?: boolean } =
     // ipcRenderer.on aceita múltiplos ouvintes ao mesmo tempo (o preload real usa isso);
     // o dublê precisa fazer o mesmo, já que o turno do assistente e a intenção da API local escutam juntos.
     const companionActionListeners: ((action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void)[] = [];
-    (window as unknown as { hibiE2E: unknown }).hibiE2E = {
+    (window as unknown as { pixanoE2E: unknown }).pixanoE2E = {
       calls, notch,
       companionConfirm: (requestId: string) => companionActionListeners.forEach((listener) => listener({ requestId, actionId: 'confirm' })),
     };
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
       prepareIntegrationAction: async (input: { connectorId: string; kind: string; payload: Record<string, unknown> }) => {
         calls.push(`prepare:${input.connectorId}:${input.kind}:${JSON.stringify(input.payload)}`);
@@ -30,7 +30,7 @@ async function installActionBridge(page: Page, { ok = true }: { ok?: boolean } =
   }, ok);
 }
 
-const bridgeCalls = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: { calls: string[] } }).hibiE2E.calls);
+const bridgeCalls = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: { calls: string[] } }).pixanoE2E.calls);
 
 async function askForRemoteAction(page: Page) {
   await page.goto('/');
@@ -75,13 +75,13 @@ test('o companion apresenta a mesma confirmação e pode aprová-la pelo notch',
   await expect(page.getByRole('alert').getByRole('button', { name: 'Confirmar' })).toBeVisible();
 
   const presentation = await page.evaluate(() => {
-    const notch = (window as unknown as { hibiE2E: { notch: { kind: string; requestId: string; actions: { id: string; label: string }[] }[] } }).hibiE2E.notch;
+    const notch = (window as unknown as { pixanoE2E: { notch: { kind: string; requestId: string; actions: { id: string; label: string }[] }[] } }).pixanoE2E.notch;
     return notch.find((entry) => entry.kind === 'confirmation') ?? null;
   });
   expect(presentation).not.toBeNull();
   expect(presentation!.actions.map((action) => action.id)).toEqual(['confirm', 'cancel']);
 
-  await page.evaluate((requestId) => (window as unknown as { hibiE2E: { companionConfirm: (id: string) => void } }).hibiE2E.companionConfirm(requestId), presentation!.requestId);
+  await page.evaluate((requestId) => (window as unknown as { pixanoE2E: { companionConfirm: (id: string) => void } }).pixanoE2E.companionConfirm(requestId), presentation!.requestId);
   await expect(page.getByText('Ação enviada para slack: slack.post')).toBeVisible();
   expect(await bridgeCalls(page)).toEqual(['prepare:slack:slack.post:{"channel":"#geral","text":"reunião às 10h"}', 'execute:action-1:confirm-1']);
 });

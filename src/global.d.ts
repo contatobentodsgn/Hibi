@@ -5,19 +5,19 @@ import type { ImportCandidate } from './integrations/imports';
 import type { AiNormalizedUsage, AiProviderRequest, AiProviderStreamEvent } from './ai/contracts';
 import type { ConnectorSettings, IntegrationAuditEvent, IntegrationAuthorization, IntegrationExecutionResult, IntegrationImportTarget, IntegrationStatus, NotionDataSourceDiscovery, PreparedIntegrationAction } from './integrations/contracts';
 import type { NotchDisplayState, NotchTestResult } from './ui/notch-display';
-import type { TabyBarContent } from './ui/taby-bar-content';
+import type { AssistantBarContent } from './ui/assistant-bar-content';
 
 declare global {
   interface Window {
-    hibiBar?: {
-      current: () => Promise<TabyBarContent | null>;
+    pixanoBar?: {
+      current: () => Promise<AssistantBarContent | null>;
       submit: (text: string) => Promise<boolean>;
       voice: (command: 'start' | 'stop') => Promise<boolean>;
       action: (requestId: string, actionId: string) => Promise<boolean>;
       close: () => Promise<boolean>;
-      onContent: (callback: (content: TabyBarContent | null) => void) => () => void;
+      onContent: (callback: (content: AssistantBarContent | null) => void) => () => void;
     };
-    hibiDesktop?: {
+    pixanoDesktop?: {
       info: () => Promise<{ name: string; version: string; localOnly: boolean }>;
       getOpenAtLogin?: () => Promise<boolean>;
       setOpenAtLogin?: (enabled: boolean) => Promise<boolean>;
@@ -104,12 +104,12 @@ declare global {
       downloadUpdate?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
       installUpdate?: () => Promise<{ status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }>;
       onUpdateState?: (callback: (state: { status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'current' | 'error' | 'disabled'; version: string | null; error: string | null; percent?: number }) => void) => () => void;
-      getTabyShortcut?: () => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled' }>;
-      setTabyShortcut?: (accelerator: string | null) => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled'; error?: 'invalid' }>;
+      getAssistantShortcut?: () => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled' }>;
+      setAssistantShortcut?: (accelerator: string | null) => Promise<{ accelerator: string | null; status: 'active' | 'taken' | 'disabled'; error?: 'invalid' }>;
       onBarSubmit?: (callback: (text: string) => void) => () => void;
       onBarVoice?: (callback: (command: 'start' | 'stop') => void) => () => void;
       onBarClosed?: (callback: (requestId: string) => void) => () => void;
-      onTabyShortcut?: (callback: (request: { listen: boolean; background: boolean }) => void) => () => void;
+      onAssistantShortcut?: (callback: (request: { listen: boolean; background: boolean }) => void) => () => void;
       speakLocalVoice?: (text: string) => Promise<{ status: string; spoken: boolean }>;
       getVoiceSettings?: () => Promise<{ shortcutVoice: 'off' | 'window' | 'notch'; spokenReplies: boolean }>;
       setVoiceSettings?: (patch: { shortcutVoice?: 'off' | 'window' | 'notch'; spokenReplies?: boolean }) => Promise<{ shortcutVoice: 'off' | 'window' | 'notch'; spokenReplies: boolean; error?: 'invalid' }>;

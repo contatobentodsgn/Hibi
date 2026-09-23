@@ -1,7 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import type { Task } from '../../../domain/models';
 import { EntityDetailsPanel } from '../components/EntityDetailsPanel';
-import { HibiTag, type HibiTagTone } from '../components/HibiTag';
+import { PixanoTag, type PixanoTagTone } from '../components/PixanoTag';
 
 /** O painel de uma tarefa fica separado da lista para que Agenda e Lembretes reutilizem o mesmo padrão na U09/U08. */
 export function TaskDetailsPanel({ task, trigger, isOpen, onOpenChange, deadline, deadlineTone, children }: Readonly<{
@@ -10,7 +10,7 @@ export function TaskDetailsPanel({ task, trigger, isOpen, onOpenChange, deadline
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   deadline: string;
-  deadlineTone: HibiTagTone;
+  deadlineTone: PixanoTagTone;
   children: ReactNode;
 }>) {
   return <EntityDetailsPanel
@@ -18,7 +18,7 @@ export function TaskDetailsPanel({ task, trigger, isOpen, onOpenChange, deadline
     isOpen={isOpen}
     onOpenChange={onOpenChange}
     title={task.title}
-    tag={<HibiTag tone={deadlineTone}>{deadline}</HibiTag>}
+    tag={<PixanoTag tone={deadlineTone}>{deadline}</PixanoTag>}
     facts={[
       { label: 'Pasta', value: task.folder?.trim() || 'Sem pasta' },
       { label: 'Duração', value: `${task.durationMinutes} min` },

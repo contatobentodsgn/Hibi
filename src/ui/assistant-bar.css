@@ -1,0 +1,25 @@
+html:has(.assistant-bar), html:has(.assistant-bar) body { background: transparent; margin: 0; min-width: 0; overflow: hidden; }
+html:has(.assistant-bar) #root { margin: 0; padding: 0; width: 100vw; height: 100vh; }
+.assistant-bar { box-sizing: border-box; width: 100vw; min-height: 52px; max-height: 100vh; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 18px; border: 1px solid var(--hibi-edge); border-radius: 26px; background: var(--hibi-paper); color: var(--hibi-ink); font: 500 14px/1.35 var(--hibi-font); box-shadow: var(--hibi-shadow); }
+.assistant-bar[data-mode=hidden] { display: none; }
+.assistant-bar[data-mode=reply], .assistant-bar[data-mode=confirmation], .assistant-bar[data-mode=notice] { align-items: flex-start; border-radius: 22px; padding: 12px 10px 12px 18px; }
+.assistant-bar-field { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; }
+.assistant-bar-field::placeholder, .assistant-bar-hint { color: var(--hibi-ink-muted); }
+.assistant-bar-text { flex: 1; min-width: 0; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.assistant-bar-reply { white-space: pre-wrap; overflow-y: auto; max-height: calc(100vh - 24px); overflow-wrap: anywhere; }
+.assistant-bar-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.assistant-bar-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 999px; background: var(--hibi-action); color: var(--hibi-action-ink); cursor: pointer; }
+.assistant-bar-pill { border: 0; border-radius: 999px; padding: 7px 14px; background: color-mix(in srgb, var(--hibi-ink) 10%, transparent); color: var(--hibi-ink); font: 600 13px var(--hibi-font); cursor: pointer; }
+.assistant-bar-pill.is-primary { background: var(--hibi-action); color: var(--hibi-action-ink); }
+.assistant-bar-icon:focus-visible, .assistant-bar-pill:focus-visible { outline: 3px solid var(--hibi-accent); outline-offset: 2px; }
+.assistant-bar-pulse { width: 10px; height: 10px; border-radius: 999px; background: #e0473c; animation: assistant-bar-pulse 1.1s ease-in-out infinite; }
+.assistant-bar-dots { display: flex; gap: 4px; padding-right: 10px; }
+.assistant-bar-dots i { width: 6px; height: 6px; border-radius: 999px; background: var(--hibi-ink); animation: assistant-bar-dot 1s ease-in-out infinite; }
+.assistant-bar-dots i:nth-child(2) { animation-delay: .15s; } .assistant-bar-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes assistant-bar-pulse { 50% { opacity: .35; transform: scale(.8); } }
+@keyframes assistant-bar-dot { 50% { opacity: .25; transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .assistant-bar-pulse, .assistant-bar-dots i { animation: none; } }
+:root[data-theme="dark"] .assistant-bar { border-color: var(--hibi-edge); }
+/* Mais estreita, a confirmação não cabe numa linha: o texto em cima, os botões embaixo, à direita. */
+.assistant-bar[data-mode=confirmation] { flex-direction: column; align-items: stretch; gap: 8px; }
+.assistant-bar[data-mode=confirmation] .assistant-bar-actions { justify-content: flex-end; }

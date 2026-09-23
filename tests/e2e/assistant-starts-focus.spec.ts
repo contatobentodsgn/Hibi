@@ -9,7 +9,7 @@ const pedirAoAssistente = async (page: Page, frase: string) => {
 
 // Antes, o pedido só abria a tela de Foco e o notch anunciava "Sessão de foco iniciada": o relógio
 // ficava parado, os lembretes não eram segurados e nada entrava nas estatísticas.
-test('"iniciar foco" pelo Taby começa uma sessão de verdade', async ({ page }) => {
+test('"iniciar foco" pelo Assistant começa uma sessão de verdade', async ({ page }) => {
   await page.goto('/');
   await pedirAoAssistente(page, 'iniciar foco');
 

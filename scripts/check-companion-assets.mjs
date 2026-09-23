@@ -7,7 +7,7 @@ const registryPath = join(projectRoot, 'src/assets/companion-assets.ts');
 const assetRoot = resolve(projectRoot, 'public/companion-assets');
 
 const registrySource = await readFile(registryPath, 'utf8');
-const registeredPaths = [...registrySource.matchAll(/(?:video|image)\('([^']+)'\)/g)].map(([, path]) => path);
+const registeredPaths = [...registrySource.matchAll(/\b(?:video|image)\('([^']+)'/g)].map(([, path]) => path);
 const failures = [];
 
 if (registeredPaths.length === 0) {

@@ -46,8 +46,8 @@ test('assistant conversation history stays within its sidebar instead of overlap
   }, { timestamp, title: 'Uma conversa com um título suficientemente longo para forçar a largura intrínseca da sidebar' });
   await page.goto('/');
   await nav(page).getByRole('button', { name: 'Assistente', exact: true }).click();
-  const history = page.locator('.taby-screen__history');
-  const heading = page.locator('.taby-screen__history-heading');
+  const history = page.locator('.assistant-screen__history');
+  const heading = page.locator('.assistant-screen__history-heading');
   await expect(heading).toBeVisible();
   const widths = await Promise.all([history.evaluate((element) => element.getBoundingClientRect().right), heading.evaluate((element) => element.getBoundingClientRect().right)]);
   expect(widths[1]).toBeLessThanOrEqual(widths[0]);

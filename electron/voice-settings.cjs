@@ -2,9 +2,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 /**
- * Como o Taby usa a voz além do botão Falar.
+ * Como o Assistant usa a voz além do botão Falar.
  *
- * - `shortcutVoice`: o que o atalho global faz com a voz. `off` só abre o Taby, como sempre; `window`
+ * - `shortcutVoice`: o que o atalho global faz com a voz. `off` só abre o Assistant, como sempre; `window`
  *   abre e já começa a ouvir; `notch` ouve sem abrir a janela, com o que foi ouvido e a resposta no notch.
  * - `spokenReplies`: ler em voz alta a resposta de um pedido feito por voz. Nasce desligado: falar sem ser
  *   chamado surpreende quem está numa sala com outras pessoas.

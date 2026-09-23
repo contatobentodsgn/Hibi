@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const KEY = 'NSSpeechRecognitionUsageDescription';
-const TEXT = 'Hibi recognises your speech on this Mac to type what you dictate.';
+const TEXT = 'Pixano recognises your speech on this Mac to type what you dictate.';
 const PLIST_BUDDY = '/usr/libexec/PlistBuddy';
 
 /** `.../Electron.app/Contents/Info.plist` → `.../Electron.app` */

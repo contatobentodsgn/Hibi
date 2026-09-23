@@ -2,7 +2,7 @@ import { AlertTriangle, CalendarSync, CheckCircle2, Cloud, RefreshCw, Send, Shie
 import { Button, Card } from '@heroui/react';
 import type { CalendarSyncConflict, CalendarSyncState } from '../../calendar-sync';
 import type { ReadonlyAgendaEvent } from '../../external-calendar-events';
-import { HibiTag } from '../components/HibiTag';
+import { PixanoTag } from '../components/PixanoTag';
 import './external-calendar-panel.css';
 
 type CalendarChanges = Readonly<{
@@ -35,9 +35,9 @@ export function ExternalCalendarPanel({ state, events, changes, onRefresh, onSen
     </div>
 
     <div className="external-calendar-panel__sources">{state.sources.map((source) => <Card key={source.id} className="external-calendar-panel__source"><Cloud size={17} /><div><strong>{source.label}</strong><span>{sourceState(source.state)}{source.lastSyncedAt ? ` · ${source.lastSyncedAt.slice(0, 10)} ${time(source.lastSyncedAt)}` : ''}</span></div></Card>)}</div>
-    {state.calendars.length > 0 && <div className="external-calendar-panel__calendars" aria-label="Calendários selecionados">{state.calendars.map((calendar) => <HibiTag key={calendar.id} tone={calendar.mode === 'bidirectional' ? 'lavender' : 'neutral'}><CalendarSync size={12} />{calendar.label} · {modeLabel(calendar.mode)}</HibiTag>)}</div>}
+    {state.calendars.length > 0 && <div className="external-calendar-panel__calendars" aria-label="Calendários selecionados">{state.calendars.map((calendar) => <PixanoTag key={calendar.id} tone={calendar.mode === 'bidirectional' ? 'lavender' : 'neutral'}><CalendarSync size={12} />{calendar.label} · {modeLabel(calendar.mode)}</PixanoTag>)}</div>}
 
-    {events.length > 0 && <Card className="external-calendar-panel__events"><div className="external-calendar-panel__section-title"><div><h3>O que já está no seu dia</h3><p>Eventos externos aparecem como contexto, não como blocos editáveis do Pixano.</p></div><HibiTag tone="neutral"><ShieldCheck size={12} />Somente leitura</HibiTag></div><ul>{events.map((event) => <li key={`${event.source}-${event.startsAt}-${event.title}`}><span className="external-calendar-panel__event-time">{`${time(event.startsAt)}–${time(event.endsAt)}`}</span><div><strong>{event.title}</strong><span>{event.source}</span></div></li>)}</ul></Card>}
+    {events.length > 0 && <Card className="external-calendar-panel__events"><div className="external-calendar-panel__section-title"><div><h3>O que já está no seu dia</h3><p>Eventos externos aparecem como contexto, não como blocos editáveis do Pixano.</p></div><PixanoTag tone="neutral"><ShieldCheck size={12} />Somente leitura</PixanoTag></div><ul>{events.map((event) => <li key={`${event.source}-${event.startsAt}-${event.title}`}><span className="external-calendar-panel__event-time">{`${time(event.startsAt)}–${time(event.endsAt)}`}</span><div><strong>{event.title}</strong><span>{event.source}</span></div></li>)}</ul></Card>}
 
     {hasWork && <div className="external-calendar-panel__work">
       {changes.outgoing.length > 0 && <Card><div className="external-calendar-panel__section-title"><div><h3>Alterado no Pixano</h3><p>Revise cada envio antes de publicar no calendário.</p></div><Send size={17} /></div><ul>{changes.outgoing.map((change) => <li key={`${change.calendarId}-${change.localId}`}><span>{change.summary}</span><Button size="sm" variant="secondary" onPress={() => onSendChange(change)}>Revisar envio</Button></li>)}</ul></Card>}

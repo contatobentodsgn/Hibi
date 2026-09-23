@@ -1,13 +1,13 @@
 const { normalizeAccelerator } = require('./shortcut-settings.cjs');
 
 /**
- * O atalho global que chama o Taby.
+ * O atalho global que chama o Assistant.
  *
  * Dois estados que a tela precisa distinguir, e por isso não são exceção:
  * `disabled`, quem desligou de propósito, e `taken`, quando outro app já ficou com a tecla — aí o
  * atalho escolhido continua salvo, para a pessoa ver qual é e trocar, em vez de sumir sem explicação.
  */
-function createTabyShortcut({ globalShortcut, settings, onTrigger }) {
+function createAssistantShortcut({ globalShortcut, settings, onTrigger }) {
   if (!globalShortcut || !settings || typeof onTrigger !== 'function') throw new Error('A global shortcut manager needs Electron, settings and a handler.');
   let registered = null;
   let status = 'disabled';
@@ -61,4 +61,4 @@ function createTabyShortcut({ globalShortcut, settings, onTrigger }) {
   };
 }
 
-module.exports = { createTabyShortcut };
+module.exports = { createAssistantShortcut };

@@ -47,7 +47,7 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
     "O acesso ao Calendário nunca é solicitado silenciosamente.",
   );
   const refresh = async () => {
-    const snapshot = await window.hibiDesktop?.getCalendarSyncState?.();
+    const snapshot = await window.pixanoDesktop?.getCalendarSyncState?.();
     const state = snapshot ? labelCalendarSources(snapshot) : undefined;
     const next = state?.sources.find((entry) => entry.provider === "apple");
     if (next) setSource(next);
@@ -57,7 +57,7 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
   // Ler os calendários bidirecionais atualiza, no processo principal, o horário que cada evento vinculado tem
   // agora. Só depois disso a lista sabe o que mudou do lado de lá. Sem acesso, a lista sai do que já se sabe.
   const refreshChanges = async (state: CalendarSyncState) => {
-    const bridge = window.hibiDesktop;
+    const bridge = window.pixanoDesktop;
     if (!bridge?.listCalendarSyncChanges) return;
     const calendars = state.calendars
       .filter((calendar) => calendar.mode === "bidirectional")
@@ -72,9 +72,9 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
   };
   const sendChange = async (change: CalendarChanges["outgoing"][number]) => {
     const block = blocks.find((entry) => entry.id === change.localId);
-    if (!block || !window.hibiDesktop?.prepareCalendarUpdate) return;
+    if (!block || !window.pixanoDesktop?.prepareCalendarUpdate) return;
     try {
-      const action = await window.hibiDesktop.prepareCalendarUpdate({
+      const action = await window.pixanoDesktop.prepareCalendarUpdate({
         calendarId: change.calendarId,
         block: { id: block.id, title: block.title, startsAt: block.start, endsAt: block.end, allDay: false },
       });
@@ -87,13 +87,13 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
   };
   const bringChange = async (change: CalendarChanges["incoming"][number]) => {
     const block = blocks.find((entry) => entry.id === change.localId);
-    if (!block || !onMoveBlock || !window.hibiDesktop?.acknowledgeCalendarIncoming) return;
+    if (!block || !onMoveBlock || !window.pixanoDesktop?.acknowledgeCalendarIncoming) return;
     if (!onMoveBlock(block.id, change.start, change.end)) {
       setNotice(`“${change.summary}” não pôde ser movido no Pixano: o horário que veio do calendário não é válido.`);
       return;
     }
     try {
-      await window.hibiDesktop.acknowledgeCalendarIncoming({
+      await window.pixanoDesktop.acknowledgeCalendarIncoming({
         calendarId: change.calendarId,
         block: { id: block.id, title: block.title, startsAt: change.start, endsAt: change.end, allDay: false },
       });
@@ -111,13 +111,13 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
     void refresh().catch(() => undefined);
   }, []);
   const requestAccess = async () => {
-    if (!window.hibiDesktop?.requestAppleCalendarAccess) {
+    if (!window.pixanoDesktop?.requestAppleCalendarAccess) {
       setNotice("Disponível no app Pixano para macOS.");
       return;
     }
     setBusy(true);
     try {
-      await window.hibiDesktop.requestAppleCalendarAccess();
+      await window.pixanoDesktop.requestAppleCalendarAccess();
       await refresh();
       setNotice(
         "Acesso ao Calendário concedido. Seus calendários podem ser selecionados abaixo.",
@@ -138,12 +138,12 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
       await requestAccess();
       return;
     }
-    if (!window.hibiDesktop?.authorizeIntegration) {
+    if (!window.pixanoDesktop?.authorizeIntegration) {
       setNotice("A conexão Google está disponível no app desktop.");
       return;
     }
     try {
-      await window.hibiDesktop.authorizeIntegration("google-calendar");
+      await window.pixanoDesktop.authorizeIntegration("google-calendar");
       await refresh();
       setNotice("Google Calendar conectado.");
     } catch {
@@ -155,7 +155,7 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
     choice: "keep-calendar" | "keep-hibi",
   ) => {
     try {
-      const result = await window.hibiDesktop?.resolveCalendarConflict?.({
+      const result = await window.pixanoDesktop?.resolveCalendarConflict?.({
         id: conflict.id,
         choice,
       });
@@ -185,11 +185,11 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
   const confirmResolution = async () => {
     if (
       !pendingResolution ||
-      !window.hibiDesktop?.executeApprovedCalendarPublish
+      !window.pixanoDesktop?.executeApprovedCalendarPublish
     )
       return;
     try {
-      await window.hibiDesktop.executeApprovedCalendarPublish({
+      await window.pixanoDesktop.executeApprovedCalendarPublish({
         actionId: pendingResolution.id,
         confirmationId: pendingResolution.confirmationId,
       });
@@ -210,14 +210,14 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
   const preparePublication = async () => {
     const block = blocks.find((entry) => entry.id === selectedBlockId);
     const calendarId = selectedCalendarId || destinations[0]?.id;
-    if (!block || !calendarId || !window.hibiDesktop?.prepareCalendarPublish) {
+    if (!block || !calendarId || !window.pixanoDesktop?.prepareCalendarPublish) {
       setNotice(
         "Escolha um bloco e um calendário bidirecional antes de continuar.",
       );
       return;
     }
     try {
-      const action = await window.hibiDesktop.prepareCalendarPublish({
+      const action = await window.pixanoDesktop.prepareCalendarPublish({
         calendarId,
         block: {
           id: block.id,
@@ -270,7 +270,7 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
           void connectSource(entry);
         }}
         onChangeMode={(calendar, mode) => {
-          void window.hibiDesktop
+          void window.pixanoDesktop
             ?.saveCalendarSyncMode?.({ id: calendar.id, mode })
             .then((snapshot) => setSyncState(labelCalendarSources(snapshot)))
             .catch(() =>

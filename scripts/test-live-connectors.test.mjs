@@ -5,34 +5,34 @@ import { createIntegrationManager } from '../electron/integrations.cjs'
 import { createNotionConnector } from '../electron/connectors/notion.cjs'
 
 const base = {
-  HIBI_LIVE_CONNECTOR_TEST: '1',
-  HIBI_LIVE_CONNECTOR_ID: 'slack',
-  HIBI_LIVE_CONNECTOR_ENDPOINT: 'https://sandbox.example.test/api/',
-  HIBI_LIVE_CONNECTOR_TOKEN: 'token-secreto',
-  HIBI_LIVE_CONNECTOR_ALLOW_HOSTS: 'sandbox.example.test',
+  PIXANO_LIVE_CONNECTOR_TEST: '1',
+  PIXANO_LIVE_CONNECTOR_ID: 'slack',
+  PIXANO_LIVE_CONNECTOR_ENDPOINT: 'https://sandbox.example.test/api/',
+  PIXANO_LIVE_CONNECTOR_TOKEN: 'token-secreto',
+  PIXANO_LIVE_CONNECTOR_ALLOW_HOSTS: 'sandbox.example.test',
 }
 
 test('recusa tráfego real sem opt-in explícito, conector conhecido e allowlist de host', () => {
-  assert.throws(() => readLiveConnectorConfig({ ...base, HIBI_LIVE_CONNECTOR_TEST: undefined }), /HIBI_LIVE_CONNECTOR_TEST=1/)
-  assert.throws(() => readLiveConnectorConfig({ ...base, HIBI_LIVE_CONNECTOR_ID: 'desconhecido' }), /HIBI_LIVE_CONNECTOR_ID/)
-  assert.throws(() => readLiveConnectorConfig({ ...base, HIBI_LIVE_CONNECTOR_ENDPOINT: 'https://fora.example.test/api/' }), /allowlist/)
-  assert.throws(() => readLiveConnectorConfig({ ...base, HIBI_LIVE_CONNECTOR_ENDPOINT: 'http://sandbox.example.test/api/' }), /allowlist/)
-  assert.throws(() => readLiveConnectorConfig({ ...base, HIBI_LIVE_CONNECTOR_TOKEN: undefined }), /token/)
+  assert.throws(() => readLiveConnectorConfig({ ...base, PIXANO_LIVE_CONNECTOR_TEST: undefined }), /PIXANO_LIVE_CONNECTOR_TEST=1/)
+  assert.throws(() => readLiveConnectorConfig({ ...base, PIXANO_LIVE_CONNECTOR_ID: 'desconhecido' }), /PIXANO_LIVE_CONNECTOR_ID/)
+  assert.throws(() => readLiveConnectorConfig({ ...base, PIXANO_LIVE_CONNECTOR_ENDPOINT: 'https://fora.example.test/api/' }), /allowlist/)
+  assert.throws(() => readLiveConnectorConfig({ ...base, PIXANO_LIVE_CONNECTOR_ENDPOINT: 'http://sandbox.example.test/api/' }), /allowlist/)
+  assert.throws(() => readLiveConnectorConfig({ ...base, PIXANO_LIVE_CONNECTOR_TOKEN: undefined }), /token/)
 })
 
 test('aceita uma configuração de sandbox sem devolver o token', () => {
-  const config = readLiveConnectorConfig({ ...base, HIBI_LIVE_CONNECTOR_TARGETS: 'C1, C2' })
+  const config = readLiveConnectorConfig({ ...base, PIXANO_LIVE_CONNECTOR_TARGETS: 'C1, C2' })
   assert.deepEqual(config, { connectorId: 'slack', endpoint: 'https://sandbox.example.test/api/', host: 'sandbox.example.test', targets: [{ id: 'C1' }, { id: 'C2' }], write: null })
   assert.equal(JSON.stringify(config).includes('token-secreto'), false)
 })
 
 test('a leitura autorizada não autoriza escrita por si só', () => {
   assert.equal(readLiveConnectorConfig(base).write, null)
-  assert.throws(() => readLiveConnectorConfig({ ...base, HIBI_LIVE_CONNECTOR_WRITE_TEST: '1' }), /WRITE_KIND/)
-  assert.throws(() => readLiveConnectorConfig({ ...base, HIBI_LIVE_CONNECTOR_WRITE_TEST: '1', HIBI_LIVE_CONNECTOR_WRITE_KIND: 'slack.post' }), /WRITE_PAYLOAD as JSON/)
-  assert.throws(() => readLiveConnectorConfig({ ...base, HIBI_LIVE_CONNECTOR_WRITE_TEST: '1', HIBI_LIVE_CONNECTOR_WRITE_KIND: 'slack.post', HIBI_LIVE_CONNECTOR_WRITE_PAYLOAD: '[]' }), /JSON object/)
+  assert.throws(() => readLiveConnectorConfig({ ...base, PIXANO_LIVE_CONNECTOR_WRITE_TEST: '1' }), /WRITE_KIND/)
+  assert.throws(() => readLiveConnectorConfig({ ...base, PIXANO_LIVE_CONNECTOR_WRITE_TEST: '1', PIXANO_LIVE_CONNECTOR_WRITE_KIND: 'slack.post' }), /WRITE_PAYLOAD as JSON/)
+  assert.throws(() => readLiveConnectorConfig({ ...base, PIXANO_LIVE_CONNECTOR_WRITE_TEST: '1', PIXANO_LIVE_CONNECTOR_WRITE_KIND: 'slack.post', PIXANO_LIVE_CONNECTOR_WRITE_PAYLOAD: '[]' }), /JSON object/)
 
-  const config = readLiveConnectorConfig({ ...base, HIBI_LIVE_CONNECTOR_WRITE_TEST: '1', HIBI_LIVE_CONNECTOR_WRITE_KIND: 'slack.post', HIBI_LIVE_CONNECTOR_WRITE_PAYLOAD: '{"channel":"#geral","text":"oi"}' })
+  const config = readLiveConnectorConfig({ ...base, PIXANO_LIVE_CONNECTOR_WRITE_TEST: '1', PIXANO_LIVE_CONNECTOR_WRITE_KIND: 'slack.post', PIXANO_LIVE_CONNECTOR_WRITE_PAYLOAD: '{"channel":"#geral","text":"oi"}' })
   assert.deepEqual(config.write, { kind: 'slack.post', payload: { channel: '#geral', text: 'oi' } })
 })
 
@@ -47,7 +47,7 @@ test('o relatório de leitura traz contagens e nenhum conteúdo importado', asyn
     return { ok: true, status: 200, headers: { get: () => null }, json: async () => responses[key] ?? {} }
   }
 
-  const report = await runLiveConnectorTest({ ...base, HIBI_LIVE_CONNECTOR_TARGETS: 'C1' }, fetchStub)
+  const report = await runLiveConnectorTest({ ...base, PIXANO_LIVE_CONNECTOR_TARGETS: 'C1' }, fetchStub)
   assert.equal(report.connection.ok, true)
   assert.deepEqual(report.importRead, { count: 1, kinds: ['task'], withRevision: 1 })
   assert.equal(report.write.attempted, false)
@@ -66,13 +66,13 @@ test('a escrita real só acontece com o segundo opt-in e não ecoa a mensagem en
     if (String(url).includes('chat.postMessage')) { sent.push(init.body); return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ ok: true, id: 'remote-1' }) } }
     return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ ok: true, team: 'Estúdio', items: [], channels: [] }) }
   }
-  const write = { HIBI_LIVE_CONNECTOR_WRITE_KIND: 'slack.post', HIBI_LIVE_CONNECTOR_WRITE_PAYLOAD: '{"channel":"#geral","text":"mensagem privada"}' }
+  const write = { PIXANO_LIVE_CONNECTOR_WRITE_KIND: 'slack.post', PIXANO_LIVE_CONNECTOR_WRITE_PAYLOAD: '{"channel":"#geral","text":"mensagem privada"}' }
 
   const readOnly = await runLiveConnectorTest({ ...base, ...write }, fetchStub)
   assert.deepEqual(readOnly.write, { attempted: false })
   assert.deepEqual(sent, [])
 
-  const withWrite = await runLiveConnectorTest({ ...base, ...write, HIBI_LIVE_CONNECTOR_WRITE_TEST: '1' }, fetchStub)
+  const withWrite = await runLiveConnectorTest({ ...base, ...write, PIXANO_LIVE_CONNECTOR_WRITE_TEST: '1' }, fetchStub)
   assert.deepEqual(withWrite.write, { attempted: true, kind: 'slack.post', ok: true, status: 200, receivedRemoteId: true })
   assert.equal(sent.length, 1)
   assert.equal(JSON.stringify(withWrite).includes('mensagem privada'), false)
@@ -114,20 +114,20 @@ const fakeNotion = ({ seed = [] } = {}) => {
 }
 
 const notionBase = {
-  HIBI_LIVE_CONNECTOR_TEST: '1',
-  HIBI_LIVE_CONNECTOR_ID: 'notion',
-  HIBI_LIVE_CONNECTOR_ENDPOINT: 'https://api.notion.test/v1/',
-  HIBI_LIVE_CONNECTOR_TOKEN: 'token-secreto',
-  HIBI_LIVE_CONNECTOR_ALLOW_HOSTS: 'api.notion.test',
-  HIBI_LIVE_CONNECTOR_TARGETS: 'source-1',
+  PIXANO_LIVE_CONNECTOR_TEST: '1',
+  PIXANO_LIVE_CONNECTOR_ID: 'notion',
+  PIXANO_LIVE_CONNECTOR_ENDPOINT: 'https://api.notion.test/v1/',
+  PIXANO_LIVE_CONNECTOR_TOKEN: 'token-secreto',
+  PIXANO_LIVE_CONNECTOR_ALLOW_HOSTS: 'api.notion.test',
+  PIXANO_LIVE_CONNECTOR_TARGETS: 'source-1',
 }
-const lifecycleEnv = { ...notionBase, HIBI_LIVE_CONNECTOR_WRITE_TEST: '1', HIBI_LIVE_NOTION_LIFECYCLE: '1', HIBI_LIVE_NOTION_DATA_SOURCE: 'source-1' }
+const lifecycleEnv = { ...notionBase, PIXANO_LIVE_CONNECTOR_WRITE_TEST: '1', PIXANO_LIVE_NOTION_LIFECYCLE: '1', PIXANO_LIVE_NOTION_DATA_SOURCE: 'source-1' }
 
 test('o ciclo de vida do Notion é um terceiro opt-in, acima da leitura e da escrita', () => {
   assert.equal(readNotionLifecycleConfig(notionBase), null)
-  assert.throws(() => readNotionLifecycleConfig({ ...notionBase, HIBI_LIVE_NOTION_LIFECYCLE: '1' }), /WRITE_TEST=1/)
-  assert.throws(() => readNotionLifecycleConfig({ ...notionBase, HIBI_LIVE_NOTION_LIFECYCLE: '1', HIBI_LIVE_CONNECTOR_WRITE_TEST: '1' }), /HIBI_LIVE_NOTION_DATA_SOURCE/)
-  assert.throws(() => readNotionLifecycleConfig({ ...lifecycleEnv, HIBI_LIVE_CONNECTOR_ID: 'slack' }), /HIBI_LIVE_CONNECTOR_ID=notion/)
+  assert.throws(() => readNotionLifecycleConfig({ ...notionBase, PIXANO_LIVE_NOTION_LIFECYCLE: '1' }), /WRITE_TEST=1/)
+  assert.throws(() => readNotionLifecycleConfig({ ...notionBase, PIXANO_LIVE_NOTION_LIFECYCLE: '1', PIXANO_LIVE_CONNECTOR_WRITE_TEST: '1' }), /PIXANO_LIVE_NOTION_DATA_SOURCE/)
+  assert.throws(() => readNotionLifecycleConfig({ ...lifecycleEnv, PIXANO_LIVE_CONNECTOR_ID: 'slack' }), /PIXANO_LIVE_CONNECTOR_ID=notion/)
   assert.deepEqual(readNotionLifecycleConfig(lifecycleEnv), { dataSourceId: 'source-1' })
 })
 

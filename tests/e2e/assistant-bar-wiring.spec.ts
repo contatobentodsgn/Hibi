@@ -18,7 +18,7 @@ async function installBridge(page: Page) {
       finish: (ended) => { finishListen?.({ status: 'ready', locale: 'pt-BR', error: null, reason: null, ended }); finishListen = null; },
     };
     (window as unknown as { wiringE2E: Log }).wiringE2E = log;
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       onBarSubmit: on('submit'), onBarVoice: on('voice'), onBarClosed: on('closed'), onLocalVoiceText: on('text'),
       listenLocalVoice: () => { calls.push('listen'); return new Promise((resolve) => { finishListen = resolve; }); },
       stopLocalVoice: async () => { calls.push('stop'); log.finish('stopped'); return { status: 'ready' }; },
@@ -33,7 +33,7 @@ const e2e = (page: Page) => ({
   run: (name: 'submit' | 'voice' | 'closed' | 'say' | 'finish', value: string) => page.evaluate(([method, arg]) => (window as unknown as { wiringE2E: Record<string, (value: string) => void> }).wiringE2E[method]!(arg), [name, value] as const),
 });
 
-test('o texto enviado pela barra vira pedido ao Taby, e o notch passa a pensar', async ({ page }) => {
+test('o texto enviado pela barra vira pedido ao Assistant, e o notch passa a pensar', async ({ page }) => {
   await installBridge(page);
   await e2e(page).run('submit', 'crie uma tarefa revisar contrato');
   // O pedido chegou ao turno: primeiro o "pensando", depois a confirmação da tarefa.

@@ -28,16 +28,16 @@ NSString *StringFromValue(const Napi::Value &value) {
   return [NSString stringWithUTF8String:value.As<Napi::String>().Utf8Value().c_str()];
 }
 
-@interface HibiNotchPanel : NSPanel
+@interface PixanoNotchPanel : NSPanel
 @end
-@implementation HibiNotchPanel
+@implementation PixanoNotchPanel
 // Um cartão passivo nunca recebe foco: sem isto o NSPanel aceitaria virar janela-chave e roubaria
 // o teclado do app em primeiro plano.
 - (BOOL)canBecomeKeyWindow { return NO; }
 - (BOOL)canBecomeMainWindow { return NO; }
 @end
 
-@interface HibiNotchContentView : NSView
+@interface PixanoNotchContentView : NSView
 @property(nonatomic, copy) NSString *message;
 @property(nonatomic) CGFloat facePhase;
 @property(nonatomic, strong) AVQueuePlayer *animationPlayer;
@@ -53,7 +53,7 @@ NSString *StringFromValue(const Napi::Value &value) {
 - (void)advanceFace:(NSTimer *)timer;
 @end
 
-@implementation HibiNotchContentView
+@implementation PixanoNotchContentView
 - (instancetype)initWithFrame:(NSRect)frame {
   self = [super initWithFrame:frame];
   if (self) {
@@ -61,7 +61,7 @@ NSString *StringFromValue(const Napi::Value &value) {
     self.layer.backgroundColor = NSColor.blackColor.CGColor;
     self.shapeMask = [CAShapeLayer layer];
     self.layer.mask = self.shapeMask;
-    self.message = @"Hibi";
+    self.message = @"Pixano";
     self.facePhase = 0.0;
   }
   return self;
@@ -149,7 +149,7 @@ NSString *StringFromValue(const Napi::Value &value) {
 }
 - (BOOL)isAnimatingAsset { return self.animationLayer != nil; }
 - (void)setPresentationMessage:(NSString *)message {
-  self.message = message.length > 0 ? message : @"Hibi";
+  self.message = message.length > 0 ? message : @"Pixano";
   [self setNeedsDisplay:YES];
 }
 - (BOOL)isAccessibilityElement { return YES; }
@@ -183,8 +183,8 @@ NSScreen *ScreenForDisplayId(uint64_t displayId) {
   return NSScreen.screens.firstObject;
 }
 
-HibiNotchContentView *HostContentView() {
-  return [gPanel.contentView isKindOfClass:HibiNotchContentView.class] ? (HibiNotchContentView *)gPanel.contentView : nil;
+PixanoNotchContentView *HostContentView() {
+  return [gPanel.contentView isKindOfClass:PixanoNotchContentView.class] ? (PixanoNotchContentView *)gPanel.contentView : nil;
 }
 
 BOOL PositionHost(uint64_t displayId);
@@ -192,7 +192,7 @@ BOOL PositionHost(uint64_t displayId);
 BOOL EnsureHost() {
   if (gPanel) return YES;
   NSRect frame = NSMakeRect(0, 0, kHostWidth * gScale, kPassiveHeight * gScale);
-  HibiNotchPanel *panel = [[HibiNotchPanel alloc] initWithContentRect:frame styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel backing:NSBackingStoreBuffered defer:NO];
+  PixanoNotchPanel *panel = [[PixanoNotchPanel alloc] initWithContentRect:frame styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel backing:NSBackingStoreBuffered defer:NO];
   panel.opaque = NO;
   panel.backgroundColor = NSColor.clearColor;
   panel.hasShadow = NO;
@@ -201,7 +201,7 @@ BOOL EnsureHost() {
   panel.hidesOnDeactivate = NO;
   panel.level = NSScreenSaverWindowLevel + 1;
   panel.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary | NSWindowCollectionBehaviorTransient | NSWindowCollectionBehaviorIgnoresCycle;
-  panel.contentView = [[HibiNotchContentView alloc] initWithFrame:frame];
+  panel.contentView = [[PixanoNotchContentView alloc] initWithFrame:frame];
   gPanel = panel;
   gScreenObserver = [[NSNotificationCenter defaultCenter] addObserverForName:NSApplicationDidChangeScreenParametersNotification object:NSApp queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
     if (gPanel && gDisplayId) PositionHost(gDisplayId.unsignedLongLongValue);
@@ -220,7 +220,7 @@ BOOL PositionHost(uint64_t displayId) {
   NSRect frame = NSMakeRect(NSMidX(screen.frame) - width / 2.0, NSMaxY(screen.frame) - height, width, height);
   [gPanel setLevel:NSScreenSaverWindowLevel + 1];
   [gPanel setFrame:frame display:YES animate:NO];
-  HibiNotchContentView *view = HostContentView();
+  PixanoNotchContentView *view = HostContentView();
   [view applyTopInset:inset];
   [view setNeedsDisplay:YES];
   gDisplayId = @(displayId);
@@ -290,10 +290,10 @@ Napi::Value ShowHost(const Napi::CallbackInfo& info) {
   // teclado, que este painel não aceita, e vai para a overlay Electron — `notch-window.cjs` já a
   // encaminha para lá; esta recusa é a segunda tranca, do lado de cá da ponte.
   if (actionsValue.Length() > 0) return Napi::Boolean::New(info.Env(), false);
-  NSString *message = presentation.Has("text") && presentation.Get("text").IsString() ? StringFromValue(presentation.Get("text")) : @"Hibi";
+  NSString *message = presentation.Has("text") && presentation.Get("text").IsString() ? StringFromValue(presentation.Get("text")) : @"Pixano";
   NSString *animationPath = presentation.Has("animationPath") && presentation.Get("animationPath").IsString() ? StringFromValue(presentation.Get("animationPath")) : nil;
   gRequestId = requestId;
-  HibiNotchContentView *view = HostContentView();
+  PixanoNotchContentView *view = HostContentView();
   [view setPresentationMessage:message];
   [view setAnimationPath:animationPath];
   uint64_t displayId = static_cast<uint64_t>(info[1].As<Napi::Number>().Int64Value());
@@ -312,7 +312,7 @@ Napi::Value RepositionHost(const Napi::CallbackInfo& info) {
   return Napi::Boolean::New(info.Env(), PositionHost(static_cast<uint64_t>(info[0].As<Napi::Number>().Int64Value())));
 }
 Napi::Value DestroyHost(const Napi::CallbackInfo& info) { [gFaceTimer invalidate]; gFaceTimer = nil; if (gPanel) { [gPanel orderOut:nil]; [gPanel close]; gPanel = nil; } if (gScreenObserver) { [[NSNotificationCenter defaultCenter] removeObserver:gScreenObserver]; gScreenObserver = nil; } gRequestId = nil; gDisplayId = nil; return Napi::Boolean::New(info.Env(), true); }
-Napi::Value HostDiagnostics(const Napi::CallbackInfo& info) { Napi::Object result = Napi::Object::New(info.Env()); result.Set("available", Napi::Boolean::New(info.Env(), true)); result.Set("created", Napi::Boolean::New(info.Env(), gPanel != nil)); result.Set("visible", Napi::Boolean::New(info.Env(), gPanel != nil && gPanel.isVisible)); if (gDisplayId) result.Set("displayId", Napi::Number::New(info.Env(), gDisplayId.unsignedLongLongValue)); if (gRequestId) result.Set("requestId", Napi::String::New(info.Env(), gRequestId.UTF8String)); HibiNotchContentView *view = HostContentView(); result.Set("animatingAsset", Napi::Boolean::New(info.Env(), [view isAnimatingAsset])); if (gPanel) { NSRect frame = gPanel.frame; Napi::Object rect = Napi::Object::New(info.Env()); rect.Set("x", Napi::Number::New(info.Env(), frame.origin.x)); rect.Set("y", Napi::Number::New(info.Env(), frame.origin.y)); rect.Set("width", Napi::Number::New(info.Env(), frame.size.width)); rect.Set("height", Napi::Number::New(info.Env(), frame.size.height)); result.Set("frame", rect); result.Set("occluded", Napi::Boolean::New(info.Env(), (gPanel.occlusionState & NSWindowOcclusionStateVisible) == 0)); result.Set("activeSpace", Napi::Boolean::New(info.Env(), gPanel.onActiveSpace)); } return result; }
+Napi::Value HostDiagnostics(const Napi::CallbackInfo& info) { Napi::Object result = Napi::Object::New(info.Env()); result.Set("available", Napi::Boolean::New(info.Env(), true)); result.Set("created", Napi::Boolean::New(info.Env(), gPanel != nil)); result.Set("visible", Napi::Boolean::New(info.Env(), gPanel != nil && gPanel.isVisible)); if (gDisplayId) result.Set("displayId", Napi::Number::New(info.Env(), gDisplayId.unsignedLongLongValue)); if (gRequestId) result.Set("requestId", Napi::String::New(info.Env(), gRequestId.UTF8String)); PixanoNotchContentView *view = HostContentView(); result.Set("animatingAsset", Napi::Boolean::New(info.Env(), [view isAnimatingAsset])); if (gPanel) { NSRect frame = gPanel.frame; Napi::Object rect = Napi::Object::New(info.Env()); rect.Set("x", Napi::Number::New(info.Env(), frame.origin.x)); rect.Set("y", Napi::Number::New(info.Env(), frame.origin.y)); rect.Set("width", Napi::Number::New(info.Env(), frame.size.width)); rect.Set("height", Napi::Number::New(info.Env(), frame.size.height)); result.Set("frame", rect); result.Set("occluded", Napi::Boolean::New(info.Env(), (gPanel.occlusionState & NSWindowOcclusionStateVisible) == 0)); result.Set("activeSpace", Napi::Boolean::New(info.Env(), gPanel.onActiveSpace)); } return result; }
 Napi::Value Teardown(const Napi::CallbackInfo& info) { DestroyHost(info); return info.Env().Undefined(); }
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
