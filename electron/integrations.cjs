@@ -253,7 +253,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
       const result = await connector.discoverDataSource({ credential, databaseId, request: safeFetchFor(connector) });
       if (!boundedText(result?.databaseId, 240) || !boundedText(result?.dataSourceId, 240)) throw new Error('Integration returned an invalid data source.');
-      const safe = { databaseId: result.databaseId, dataSourceId: result.dataSourceId, label: boundedText(result?.label, 240) ? result.label : 'Hibi Tasks' };
+      const safe = { databaseId: result.databaseId, dataSourceId: result.dataSourceId, label: boundedText(result?.label, 240) ? result.label : 'Pixano Tasks' };
       appendAudit({ action: 'discover-data-source', connectorId: id, detail: 'Discovered one data source.' });
       return safe;
     },

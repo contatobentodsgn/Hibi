@@ -4,10 +4,11 @@ import { NotchOverlay, notchMediaFor } from '../NotchOverlay';
 import { readFileSync } from 'node:fs';
 
 describe('NotchOverlay', () => {
-  it('uses only semantic companion assets and has an accessible dormant surface', () => {
-    expect(notchMediaFor('thinking').url).toContain('searching_loop.mp4');
-    expect(notchMediaFor('confirmation').url).toContain('confirmation.mp4');
-    expect(notchMediaFor('unrecognised').url).toContain('idle_01_loop.mp4');
+  it('uses only Pixano cat mascot clips and has an accessible dormant surface', () => {
+    expect(notchMediaFor('thinking').url).toBe('/mascot/idle_curious.mp4');
+    expect(notchMediaFor('confirmation').url).toBe('/mascot/listening.mp4');
+    expect(notchMediaFor('result').url).toBe('/mascot/happy_1.mp4');
+    expect(notchMediaFor('unrecognised').url).toBe('/mascot/idle.mp4');
     expect(renderToStaticMarkup(<NotchOverlay />)).toContain('aria-live="polite"');
   });
 
@@ -15,7 +16,7 @@ describe('NotchOverlay', () => {
     const markup = renderToStaticMarkup(<NotchOverlay initialPresentation={{ requestId: 'confirm-1', kind: 'confirmation', text: 'Criar tarefa?', interaction: 'capture', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] }} />);
     expect(markup).toContain('role="dialog"');
     expect(markup).toContain('aria-modal="true"');
-    expect(markup).toContain('aria-label="Hibi confirmation"');
+    expect(markup).toContain('aria-label="Pixano confirmation"');
     expect(markup).toContain('autofocus');
     expect(markup).toContain('Confirmar');
     expect(markup).toContain('Cancelar');

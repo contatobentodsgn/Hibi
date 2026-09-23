@@ -14,7 +14,7 @@ function resolveTrayIcon({ root = path.join(__dirname, '..'), exists = existsSyn
 }
 
 /**
- * O Hibi na barra de menus.
+ * O Pixano na barra de menus.
  *
  * O notch fica sempre à vista, e a janela é só mais uma superfície: fechá-la esconde, não encerra.
  * Sem um lugar fixo para reabrir, quem fechasse a janela ficaria sem caminho de volta — por isso o
@@ -27,13 +27,13 @@ function createAppTray({ Tray, Menu, nativeImage, iconPath = resolveTrayIcon(), 
   image?.setTemplateImage?.(true);
   const tray = new Tray(image ?? iconPath);
   const items = [
-    { label: labels.open ?? 'Abrir Hibi', click: () => onOpen() },
-    { label: labels.taby ?? 'Perguntar ao Taby', click: () => (onTaby ?? onOpen)() },
+    { label: labels.open ?? 'Abrir Pixano', click: () => onOpen() },
+    { label: labels.taby ?? 'Abrir assistente', click: () => (onTaby ?? onOpen)() },
     { label: labels.hide ?? 'Ocultar janela', click: () => onHide?.() },
     { type: 'separator' },
-    { label: labels.quit ?? 'Sair do Hibi', click: () => onQuit() },
+    { label: labels.quit ?? 'Sair do Pixano', click: () => onQuit() },
   ];
-  tray.setToolTip(labels.tooltip ?? 'Hibi');
+  tray.setToolTip(labels.tooltip ?? 'Pixano');
   tray.setContextMenu(Menu.buildFromTemplate(items));
   // Clicar no ícone abre a janela; o menu continua no clique com o botão direito.
   tray.on?.('click', () => onOpen());

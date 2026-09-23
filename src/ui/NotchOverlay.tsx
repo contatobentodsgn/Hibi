@@ -1,9 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { companionAssets } from '../assets/companion-assets';
+import { mascotAnimationFor } from './mascot-animation';
 import './notch-overlay.css';
 
 export type OverlayPresentation = { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' };
-export const notchMediaFor = (kind: string) => ({ idle: companionAssets.animations.notch.idle01Loop, listening: companionAssets.animations.notch.listeningLoop, thinking: companionAssets.animations.notch.searchingLoop, acting: companionAssets.animations.notch.creatingTaskLoop, result: companionAssets.animations.notch.tabyResponseReadyLoop, confirmation: companionAssets.animations.notch.confirmation, error: companionAssets.animations.notch.disappointed, reminder: companionAssets.animations.notch.waiting01 } as const)[kind as 'idle'] ?? companionAssets.animations.notch.idle01Loop;
+export const notchMediaFor = (kind: string) => ({
+  idle: mascotAnimationFor('idle'),
+  listening: mascotAnimationFor('listening'),
+  thinking: mascotAnimationFor('thinking'),
+  acting: mascotAnimationFor('working'),
+  result: mascotAnimationFor('result'),
+  confirmation: mascotAnimationFor('confirmation'),
+  error: mascotAnimationFor('error'),
+  reminder: mascotAnimationFor('reminder'),
+} as const)[kind as 'idle'] ?? mascotAnimationFor('idle');
 
 export function NotchOverlay({ initialPresentation = null }: { initialPresentation?: OverlayPresentation | null }) {
   const [presentation, setPresentation] = useState<OverlayPresentation | null>(initialPresentation);
@@ -18,7 +27,7 @@ export function NotchOverlay({ initialPresentation = null }: { initialPresentati
   if (!presentation) return <main className="notch-overlay" aria-live="polite" />;
   const media = notchMediaFor(presentation.kind);
   const interactive = presentation.actions.length > 0;
-  return <main className="notch-overlay" role={interactive ? 'dialog' : 'status'} aria-modal={interactive || undefined} aria-live={interactive ? undefined : 'polite'} aria-label={interactive ? 'Hibi confirmation' : `Hibi ${presentation.kind}`} data-interaction={presentation.interaction}>
+  return <main className="notch-overlay" role={interactive ? 'dialog' : 'status'} aria-modal={interactive || undefined} aria-live={interactive ? undefined : 'polite'} aria-label={interactive ? 'Pixano confirmation' : `Pixano ${presentation.kind}`} data-interaction={presentation.interaction}>
     <video src={media.url} autoPlay muted loop playsInline aria-hidden="true" />
     {presentation.text && <p>{presentation.text}</p>}
     {presentation.actions.length > 0 && <div className="notch-overlay-actions">

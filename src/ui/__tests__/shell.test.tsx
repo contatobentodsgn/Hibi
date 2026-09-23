@@ -16,7 +16,7 @@ describe('shell', () => {
     const markup = shell('home')
     const labels = [...markup.matchAll(/<li><button[^>]*>.*?<span class="leading-none">([^<]+)<\/span>/g)].map((match) => match[1])
     // A barra larga e o menu compacto listam os mesmos destinos.
-    expect(labels).toEqual(['Hoje', 'Agenda', 'Tarefas', 'Notas', 'Taby'])
+    expect(labels).toEqual(['Hoje', 'Agenda', 'Tarefas', 'Notas', 'Assistente'])
     expect(markup).toContain('aria-label="Navegação principal"')
     expect(markup).toContain('aria-label="Comandos"')
     expect(markup).toContain('aria-label="Mais seções"')

@@ -42,7 +42,7 @@ async function openIntegrations(page: Page) {
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Integrations', exact: true }).click();
 }
-const changesBox = (page: Page) => page.getByLabel('Alterações entre o Hibi e o calendário');
+const changesBox = (page: Page) => page.getByLabel('Alterações entre o Pixano e o calendário');
 
 test('um evento movido no calendário é trazido para o Hibi com um clique, e o vínculo é avisado', async ({ page }) => {
   await installCalendarBridge(page, { outgoing: [], incoming: [{ localId: 'e2e-aula', calendarId: 'apple:casa', summary: 'Aula', start: '2026-09-21T14:00:00', end: '2026-09-21T15:30:00' }] });
@@ -54,9 +54,9 @@ test('um evento movido no calendário é trazido para o Hibi com um clique, e o 
   expect(log.indexOf('read')).toBeLessThan(log.indexOf('changes'));
   expect(await block(page, 'e2e-aula')).toMatchObject({ start: '2026-09-21T09:00:00' });
 
-  await changesBox(page).getByRole('button', { name: 'Trazer para o Hibi' }).click();
+  await changesBox(page).getByRole('button', { name: 'Trazer para o Pixano' }).click();
 
-  await expect(page.getByText('“Aula” agora está em 21/09 14:00–15:30 no Hibi, como no calendário.')).toBeVisible();
+  await expect(page.getByText('“Aula” agora está em 21/09 14:00–15:30 no Pixano, como no calendário.')).toBeVisible();
   await expect.poll(() => block(page, 'e2e-aula')).toMatchObject({ start: '2026-09-21T14:00:00', end: '2026-09-21T15:30:00' });
   expect(await calls(page)).toContain('acknowledge:apple:casa:e2e-aula:2026-09-21T14:00:00:2026-09-21T15:30:00');
   await expect(changesBox(page)).toHaveCount(0);
@@ -65,7 +65,7 @@ test('um evento movido no calendário é trazido para o Hibi com um clique, e o 
 test('um bloco editado no Hibi é enviado ao calendário só depois da confirmação', async ({ page }) => {
   await installCalendarBridge(page, { outgoing: [{ localId: 'e2e-aula', calendarId: 'apple:casa', summary: 'Aula' }], incoming: [] });
   await openIntegrations(page);
-  await expect(changesBox(page)).toContainText('“Aula” mudou no Hibi.');
+  await expect(changesBox(page)).toContainText('“Aula” mudou no Pixano.');
 
   await changesBox(page).getByRole('button', { name: 'Enviar ao calendário' }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'Confirmar atualização' })).toBeVisible();
@@ -73,7 +73,7 @@ test('um bloco editado no Hibi é enviado ao calendário só depois da confirma�
   expect(await calls(page)).toContain('prepare-update:apple:casa:e2e-aula:2026-09-21T09:00:00:2026-09-21T10:00:00');
 
   await page.getByRole('alert').filter({ hasText: 'Confirmar atualização' }).getByRole('button', { name: 'Confirmar' }).click();
-  await expect(page.getByText('O evento foi atualizado com a versão do Hibi.')).toBeVisible();
+  await expect(page.getByText('O evento foi atualizado com a versão do Pixano.')).toBeVisible();
   expect(await calls(page)).toContain('execute:action-1:confirm-1');
   await expect(changesBox(page)).toHaveCount(0);
 });
@@ -93,7 +93,7 @@ test('trazer um horário que cai sobre uma demanda move o bloco normalmente: div
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
   await page.getByRole('button', { name: 'Integrations', exact: true }).click();
 
-  await changesBox(page).getByRole('button', { name: 'Trazer para o Hibi' }).click();
+  await changesBox(page).getByRole('button', { name: 'Trazer para o Pixano' }).click();
 
   await expect.poll(() => block(page, 'e2e-aula')).toMatchObject({ start: '2026-09-21T11:00:00', end: '2026-09-21T12:00:00' });
   expect(await calls(page)).toContain('acknowledge:apple:casa:e2e-aula:2026-09-21T11:00:00:2026-09-21T12:00:00');

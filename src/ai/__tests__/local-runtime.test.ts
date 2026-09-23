@@ -35,7 +35,7 @@ describe('local Hibi tool registry', () => {
 
     const result = await runtime.runTurn({ message: 'qual a minha agenda hoje?', surface: 'desktop' });
 
-    expect(result.provider).toMatchObject({ id: 'heuristic', label: 'Hibi local heuristic', fallback: true });
+    expect(result.provider).toMatchObject({ id: 'heuristic', label: 'Pixano local heuristic', fallback: true });
   });
 
   it('creates a conflict-free schedule block after confirmation', async () => {

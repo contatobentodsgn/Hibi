@@ -1,5 +1,5 @@
 import React, { useSyncExternalStore } from 'react';
-import { companionAssets } from '../assets/companion-assets';
+import { mascotAnimationFor } from './mascot-animation';
 
 import type { FocusLoopAnimationId } from '../../electron/focus-presence.mjs';
 
@@ -8,14 +8,14 @@ import type { FocusLoopAnimationId } from '../../electron/focus-presence.mjs';
 export type CompanionState = 'working' | 'idle' | 'completed' | 'reminder' | FocusLoopAnimationId;
 type CompanionVideo = { readonly kind: 'video'; readonly url: string };
 const stateAssets = {
-  working: companionAssets.animations.notch.workingLoop,
-  idle: companionAssets.animations.notch.idle01Loop,
-  completed: companionAssets.animations.notch.taskCompleted,
-  reminder: companionAssets.animations.notch.waiting01,
-  working_laptop_bored_loop: companionAssets.animations.notch.workingLaptopBoredLoop,
-  working_laptop_normal_loop: companionAssets.animations.notch.workingLaptopNormalLoop,
-  working_laptop_excited_loop: companionAssets.animations.notch.workingLaptopExcitedLoop,
-  listening_music_loop: companionAssets.animations.notch.listeningMusicLoop,
+  working: mascotAnimationFor('working'),
+  idle: mascotAnimationFor('idle'),
+  completed: mascotAnimationFor('completed'),
+  reminder: mascotAnimationFor('reminder'),
+  working_laptop_bored_loop: mascotAnimationFor('focus-bored'),
+  working_laptop_normal_loop: mascotAnimationFor('focus-normal'),
+  working_laptop_excited_loop: mascotAnimationFor('focus-excited'),
+  listening_music_loop: mascotAnimationFor('focus-music'),
 } satisfies Record<CompanionState, CompanionVideo>;
 type Fallback = { kind: 'fallback'; symbol: string };
 export type CompanionAnimationSource = CompanionVideo | Fallback;

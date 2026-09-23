@@ -23,7 +23,7 @@ import type { ThemePreference, TintPreference } from '../../theme';
 
 const COPY = {
   pt: {
-    title: 'Galeria de componentes', subtitle: 'Controles da nova UI com os tokens do Hibi.',
+    title: 'Galeria de componentes', subtitle: 'Controles da nova UI com os tokens do Pixano.',
     theme: 'Tema', system: 'Sistema', light: 'Claro', dark: 'Escuro', tint: 'Tom', language: 'Idioma', long: 'Textos longos',
     actions: 'Ações', primary: 'Salvar', secondary: 'Cancelar', tertiary: 'Mais tarde', ghost: 'Detalhes', danger: 'Excluir',
     disabled: 'Indisponível', pending: 'Salvando', add: 'Adicionar',
@@ -46,12 +46,12 @@ const COPY = {
     common: 'Diálogos, detalhes e estados (U05)', dayTitle: 'Um dia de cada vez.', daySubtitle: 'Quinta-feira, 17 de setembro. Vamos com calma.',
     ideaTitle: 'O começo de uma ideia.', ideaText: 'Escolha por onde começar.', ideaOptions: 'O que criar', aTask: 'Uma tarefa', aNote: 'Uma nota', aBlock: 'Um tempo na agenda',
     weekLink: 'Ver tarefas da semana', emptyTitle: 'Nada pendente por aqui.', emptyText: 'Quando surgir algo, aparece aqui.', createTask: 'Criar tarefa',
-    taskDetails: 'Detalhes da tarefa', taskTitle: 'Refinar a identidade do Hibi', dueToday: 'Vence hoje', folderLabel: 'Pasta', deadline: 'Prazo', today: 'Hoje',
+    taskDetails: 'Detalhes da tarefa', taskTitle: 'Refinar a identidade do Pixano', dueToday: 'Vence hoje', folderLabel: 'Pasta', deadline: 'Prazo', today: 'Hoje',
     durationLabel: 'Duração', minutes60: '60 min', category: 'Categoria', taskText: 'Rever cores, tipografia e o tom dos estados vazios.',
     complete: 'Concluir', openInTasks: 'Abrir em Tarefas', chosen: 'Escolhido', shortcut: 'Atalho', completed: 'Concluída', nothingYet: 'Nada escolhido ainda.',
   },
   en: {
-    title: 'Component gallery', subtitle: 'New UI controls with Hibi tokens.',
+    title: 'Component gallery', subtitle: 'New UI controls with Pixano tokens.',
     theme: 'Theme', system: 'System', light: 'Light', dark: 'Dark', tint: 'Tint', language: 'Language', long: 'Long texts',
     actions: 'Actions', primary: 'Save', secondary: 'Cancel', tertiary: 'Later', ghost: 'Details', danger: 'Delete',
     disabled: 'Unavailable', pending: 'Saving', add: 'Add',
@@ -74,7 +74,7 @@ const COPY = {
     common: 'Dialogs, details and states (U05)', dayTitle: 'One day at a time.', daySubtitle: 'Thursday, 17 September. One thing at a time.',
     ideaTitle: 'The start of an idea.', ideaText: 'Choose where to begin.', ideaOptions: 'What to create', aTask: 'A task', aNote: 'A note', aBlock: 'Some time on the agenda',
     weekLink: 'See the week\'s tasks', emptyTitle: 'Nothing pending here.', emptyText: 'When something comes up, it shows up here.', createTask: 'Create task',
-    taskDetails: 'Task details', taskTitle: 'Refine the Hibi identity', dueToday: 'Due today', folderLabel: 'Folder', deadline: 'Deadline', today: 'Today',
+    taskDetails: 'Task details', taskTitle: 'Refine the Pixano identity', dueToday: 'Due today', folderLabel: 'Folder', deadline: 'Deadline', today: 'Today',
     durationLabel: 'Duration', minutes60: '60 min', category: 'Category', taskText: 'Revisit colours, type and the tone of the empty states.',
     complete: 'Complete', openInTasks: 'Open in Tasks', chosen: 'Chosen', shortcut: 'Shortcut', completed: 'Completed', nothingYet: 'Nothing chosen yet.',
   },

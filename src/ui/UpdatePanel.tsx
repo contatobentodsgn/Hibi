@@ -29,7 +29,7 @@ export function UpdatePanel() {
   };
 
   const titulo = state.status === 'disabled' ? 'Nenhuma origem de atualização configurada'
-    : state.status === 'available' ? `Hibi ${state.version ?? ''} disponível`
+    : state.status === 'available' ? `Pixano ${state.version ?? ''} disponível`
     : state.status === 'downloaded' ? 'Reinicie para aplicar'
     : state.status === 'downloading' ? `Baixando ${state.percent ?? 0}%`
     : state.status === 'current' ? 'Você está na versão mais recente'

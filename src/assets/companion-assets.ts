@@ -1,42 +1,39 @@
 const companionAssetUrl = (path: string) => `/companion-assets/${path}` as const;
 
-export type CompanionAssetKind = 'image' | 'video';
-type BaseCompanionAsset = { readonly kind: CompanionAssetKind; readonly url: string };
-export type CompanionAsset = BaseCompanionAsset & { readonly id: string; readonly label: string };
+export type CompanionAsset = { readonly kind: 'image'; readonly url: string; readonly id: string; readonly label: string };
 
-const video = (path: string) => ({ kind: 'video' as const, url: companionAssetUrl(path) });
-const image = (path: string) => ({ kind: 'image' as const, url: companionAssetUrl(path) });
+const image = (path: string, id: string, label: string): CompanionAsset => ({
+  kind: 'image', url: companionAssetUrl(path), id, label,
+});
 
-const humanize = (key: string) => key.replace(/[A-Z]/g, (letter) => ` ${letter}`).replace(/^./, (letter) => letter.toUpperCase());
-
-type Decorated<T> = T extends BaseCompanionAsset
-  ? T & Pick<CompanionAsset, 'id' | 'label'>
-  : T extends object
-    ? { [K in keyof T]: Decorated<T[K]> }
-    : T;
-
-const decorate = <T>(value: T, path: readonly string[] = []): Decorated<T> => {
-  if (value && typeof value === 'object' && 'kind' in value && 'url' in value) {
-    const asset = value as BaseCompanionAsset;
-    return { ...asset, id: path.join('.'), label: humanize(path.at(-1) ?? '') } as Decorated<T>;
-  }
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, decorate(child, [...path, key])])) as Decorated<T>;
-  }
-  return value as Decorated<T>;
-};
-
-const notch = {
-  angry01Loop: video('animations/notch/angry_01_loop.mp4'), angry02Loop: video('animations/notch/angry_02_loop.mp4'), basketballDunk: video('animations/notch/basketball_dunk.mp4'), basketballThrow: video('animations/notch/basketball_throw.mp4'), blush: video('animations/notch/blush.mp4'), boxing: video('animations/notch/boxing.mp4'), breakStart: video('animations/notch/break_start.mp4'), busyLoop: video('animations/notch/busy_loop.mp4'), calendarIn: video('animations/notch/calendar_in.mp4'), calendarLoop: video('animations/notch/calendar_loop.mp4'), circle: video('animations/notch/circle.mp4'), claudeIn: video('animations/notch/claude_in.mp4'), claudeLoop: video('animations/notch/claude_loop.mp4'), codexIn: video('animations/notch/codex_in.mp4'), codexLoop: video('animations/notch/codex_loop.mp4'), confirmation: video('animations/notch/confirmation.mp4'), copyPaste: video('animations/notch/copy_paste.mp4'), creatingTaskLoop: video('animations/notch/creating_task_loop.mp4'), dayPlanned: video('animations/notch/day_planned.mp4'), delete01: video('animations/notch/delete_01.mp4'), disappointed: video('animations/notch/disappointed.mp4'), dizzyLoop: video('animations/notch/dizzy_loop.mp4'), drinkWater: video('animations/notch/drink_water.mp4'), f1Car: video('animations/notch/f1_car.mp4'), fishingLong: video('animations/notch/fishing_long.mp4'), fishingShort: video('animations/notch/fishing_short.mp4'), flowerGrow: video('animations/notch/flower_grow.mp4'), helloAnnoyed: video('animations/notch/hello_annoyed.mp4'), helloDisappointed: video('animations/notch/hello_disappointed.mp4'), idle01Loop: video('animations/notch/idle_01_loop.mp4'), idle02Loop: video('animations/notch/idle_02_loop.mp4'), idleVariationLoop: video('animations/notch/idle_variation_loop.mp4'), listeningIn: video('animations/notch/listening_in.mp4'), listeningLoop: video('animations/notch/listening_loop.mp4'), listeningMusicLoop: video('animations/notch/listening_music_loop.mp4'), lockin: video('animations/notch/lockin.mp4'), love01: video('animations/notch/love_01.mp4'), no: video('animations/notch/no.mp4'), perfectDay01: video('animations/notch/perfect_day_01.mp4'), perfectDay01Simple: video('animations/notch/perfect_day_01_simple.mp4'), perfectDay02: video('animations/notch/perfect_day_02.mp4'), perfectDay03: video('animations/notch/perfect_day_03.mp4'), postureCheck: video('animations/notch/posture_check.mp4'), relaxing01Loop: video('animations/notch/relaxing_01_loop.mp4'), relaxingCouchIn: video('animations/notch/relaxing_couch_in.mp4'), relaxingCouchLoop: video('animations/notch/relaxing_couch_loop.mp4'), review: video('animations/notch/review.mp4'), searchingLoop: video('animations/notch/searching_loop.mp4'), sleepingLoop: video('animations/notch/sleeping_loop.mp4'), square: video('animations/notch/square.mp4'), startup: video('animations/notch/startup.mp4'), stretching: video('animations/notch/stretching.mp4'), tabyResponseReadyIn: video('animations/notch/taby_response_ready_in.mp4'), tabyResponseReadyLoop: video('animations/notch/taby_response_ready_loop.mp4'), talkingDefaultLoop: video('animations/notch/talking_default_loop.mp4'), talkingManLoop: video('animations/notch/talking_man_loop.mp4'), taskCompleted: video('animations/notch/task_completed.mp4'), taskCreated: video('animations/notch/task_created.mp4'), taskPage: video('animations/notch/task_page.mp4'), thumbsUp: video('animations/notch/thumbs_up.mp4'), trophy: video('animations/notch/trophy.mp4'), turnOffReddit: video('animations/notch/turn_off_reddit.mp4'), turnOffScroll: video('animations/notch/turn_off_scroll.mp4'), turnOffTv: video('animations/notch/turn_off_tv.mp4'), waiting01: video('animations/notch/waiting_01.mp4'), workingIn: video('animations/notch/working_in.mp4'), workingLaptopBoredLoop: video('animations/notch/working_laptop_bored_loop.mp4'), workingLaptopExcitedLoop: video('animations/notch/working_laptop_excited_loop.mp4'), workingLaptopIn: video('animations/notch/working_laptop_in.mp4'), workingLaptopLoop: video('animations/notch/working_laptop_loop.mp4'), workingLaptopNormalLoop: video('animations/notch/working_laptop_normal_loop.mp4'), workingLoop: video('animations/notch/working_loop.mp4'), workspacesIn: video('animations/notch/workspaces_in.mp4'), workspacesLoop: video('animations/notch/workspaces_loop.mp4'), wow: video('animations/notch/wow.mp4'), yeah: video('animations/notch/yeah.mp4'),
+export const companionAssets = {
+  icons: {
+    icon: image('icons/icon.ico', 'icons.icon', 'Pixano Icon'),
+    iconMac: image('icons/icon.icns', 'icons.iconMac', 'Pixano Mac Icon'),
+    catFaviconFace: image('icons/taby-favicon-face.svg', 'icons.catFaviconFace', 'Cat Favicon'),
+    catFaviconFull: image('icons/taby-favicon-full.svg', 'icons.catFaviconFull', 'Cat App Icon'),
+    catMarkApp: image('icons/taby-mark-app.svg', 'icons.catMarkApp', 'Cat Mark'),
+    trayIcon: image('icons/tray-icon.png', 'icons.trayIcon', 'Tray Icon'),
+    trayTemplate: image('icons/tray-template.png', 'icons.trayTemplate', 'Tray Template'),
+    trayTemplate22: image('icons/tray-template-22.png', 'icons.trayTemplate22', 'Tray Template 22'),
+    trayTemplate2x: image('icons/tray-template@2x.png', 'icons.trayTemplate2x', 'Tray Template 2x'),
+    trayTemplate3x: image('icons/tray-template@3x.png', 'icons.trayTemplate3x', 'Tray Template 3x'),
+    trayTemplatePreview: image('icons/tray-template-preview.png', 'icons.trayTemplatePreview', 'Tray Template Preview'),
+    trayTemplateSvg: image('icons/tray-template.svg', 'icons.trayTemplateSvg', 'Tray Template SVG'),
+  },
+  updates: {
+    homeTintBlue: image('updates/0.1.7/home-tint-blue.png', 'updates.homeTintBlue', 'Home Tint Blue'),
+    homeTintDefault: image('updates/0.1.7/home-tint-default.png', 'updates.homeTintDefault', 'Home Tint Default'),
+    homeTintGrey: image('updates/0.1.7/home-tint-grey.png', 'updates.homeTintGrey', 'Home Tint Grey'),
+    homeTintLavender: image('updates/0.1.7/home-tint-lavender.png', 'updates.homeTintLavender', 'Home Tint Lavender'),
+    homeTintRose: image('updates/0.1.7/home-tint-rose.png', 'updates.homeTintRose', 'Home Tint Rose'),
+    homeTintSage: image('updates/0.1.7/home-tint-sage.png', 'updates.homeTintSage', 'Home Tint Sage'),
+    homeTintWarm: image('updates/0.1.7/home-tint-warm.png', 'updates.homeTintWarm', 'Home Tint Warm'),
+    reportIssue: image('updates/0.2.1/report-issue.gif', 'updates.reportIssue', 'Report Issue'),
+  },
 } as const;
 
-export const companionAssets = decorate({
-  animations: { notch }, status: { searchingLoop: image('animations/status/searching_loop.webp') },
-  icons: { icon: image('icons/icon.ico'), iconMac: image('icons/icon.icns'), tabyFaviconFace: image('icons/taby-favicon-face.svg'), tabyFaviconFull: image('icons/taby-favicon-full.svg'), tabyMarkApp: image('icons/taby-mark-app.svg'), trayIcon: image('icons/tray-icon.png'), trayTemplate: image('icons/tray-template.png'), trayTemplate22: image('icons/tray-template-22.png'), trayTemplate2x: image('icons/tray-template@2x.png'), trayTemplate3x: image('icons/tray-template@3x.png'), trayTemplatePreview: image('icons/tray-template-preview.png'), trayTemplateSvg: image('icons/tray-template.svg') },
-  updates: { homeTintBlue: image('updates/0.1.7/home-tint-blue.png'), homeTintDefault: image('updates/0.1.7/home-tint-default.png'), homeTintGrey: image('updates/0.1.7/home-tint-grey.png'), homeTintLavender: image('updates/0.1.7/home-tint-lavender.png'), homeTintRose: image('updates/0.1.7/home-tint-rose.png'), homeTintSage: image('updates/0.1.7/home-tint-sage.png'), homeTintWarm: image('updates/0.1.7/home-tint-warm.png'), reportIssue: image('updates/0.2.1/report-issue.gif') },
-} as const);
-
 export const companionAssetList = [
-  ...Object.values(companionAssets.animations.notch), companionAssets.status.searchingLoop,
-  ...Object.values(companionAssets.icons), ...Object.values(companionAssets.updates),
+  ...Object.values(companionAssets.icons),
+  ...Object.values(companionAssets.updates),
 ] satisfies readonly CompanionAsset[];

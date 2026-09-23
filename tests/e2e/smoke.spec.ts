@@ -21,15 +21,15 @@ test('navega pelo calendário e abre comandos', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Paleta de comandos' })).toBeVisible();
 });
 
-test('todas as seções principais são navegáveis', async ({ page }) => {
+test('destinos diários e seções de uso recorrente são navegáveis', async ({ page }) => {
   await page.goto('/');
-  for (const section of ['Hoje', 'Agenda', 'Tarefas', 'Notas', 'Taby', 'Ajustes']) {
+  for (const section of ['Hoje', 'Agenda', 'Tarefas', 'Notas', 'Assistente', 'Ajustes']) {
     await go(page, section);
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('.shell-content')).toBeVisible();
   }
-  for (const section of ['Foco', 'Lembretes', 'Hábitos', 'Metas', 'Revisão', 'Estatísticas', 'Ajuda', 'Eventos', 'Feedback', 'Atualizações', 'Hardware']) {
+  for (const section of ['Foco', 'Lembretes', 'Hábitos', 'Metas', 'Revisão', 'Estatísticas']) {
     await goMore(page, section);
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('.shell-content')).toBeVisible();
   }
 });
 
@@ -61,7 +61,7 @@ test('captura rápida da Home abre a paleta de comandos', async ({ page }) => {
 test('filtro de pasta funciona em Tarefas e Notas', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Tarefas');
-  const chip = page.getByRole('button', { name: /^Pasta · Bento \d+$/ });
+  const chip = page.getByRole('button', { name: /^Pastas · Bento \d+$/ });
   await chip.click();
   await expect(chip).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.task-row').first()).toBeVisible();
@@ -69,11 +69,11 @@ test('filtro de pasta funciona em Tarefas e Notas', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Pasta · Todas' })).toBeVisible();
 });
 
-test('+ New note leva o foco para o formulário de nota nova', async ({ page }) => {
+test('Nova nota leva o foco para o formulário de nota nova', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Notas');
-  await page.getByRole('button', { name: '+ New note' }).click();
-  await expect(page.getByRole('form', { name: 'Create note' }).getByLabel('Title')).toBeFocused();
+  await page.getByRole('button', { name: 'Nova nota' }).click();
+  await expect(page.getByRole('form', { name: 'Create note' }).getByLabel('Título')).toBeFocused();
 });
 
 test('o diálogo de nova tarefa mantém o rascunho enquanto permanece aberto', async ({ page }) => {
@@ -158,7 +158,7 @@ test('restaura um backup completo pela interface sem incluir dados do Keychain',
   await go(page, 'Ajustes');
   await page.getByRole('button', { name: 'Data', exact: true }).click();
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByLabel('Choose Hibi workspace backup').setInputFiles({ name: 'hibi-workspace-backup.json', mimeType: 'application/json', buffer: Buffer.from(backup) });
+  await page.getByLabel('Choose Pixano workspace backup').setInputFiles({ name: 'hibi-workspace-backup.json', mimeType: 'application/json', buffer: Buffer.from(backup) });
   await expect(page.getByText('Workspace restored from hibi-workspace-backup.json.')).toBeVisible();
   await go(page, 'Tarefas');
   await expect(page.getByText('Tarefa restaurada')).toBeVisible();
@@ -309,22 +309,22 @@ test('filtros do Day exibem blocos fixos e pausas', async ({ page }) => {
 test('updates e hardware são acessíveis pela paleta', async ({ page }) => {
   await page.goto('/');
   await openCommands(page);
-  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/hardware');
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao assistente' }).fill('/hardware');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Hardware' })).toBeVisible();
   await openCommands(page);
-  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/events');
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao assistente' }).fill('/events');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Instrumentation' })).toBeVisible();
   await openCommands(page);
-  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/updates');
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao assistente' }).fill('/updates');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Updates' })).toBeVisible();
 });
 
 test('assistente local responde sobre a agenda', async ({ page }) => {
   await page.goto('/');
-  await go(page, 'Taby');
+  await go(page, 'Assistente');
   const input = page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
   await input.fill('qual a agenda de hoje?');
   await page.getByRole('button', { name: 'Send' }).click();
@@ -333,7 +333,7 @@ test('assistente local responde sobre a agenda', async ({ page }) => {
 
 test('assistente confirma uma mudança antes de criar uma tarefa local', async ({ page }) => {
   await page.goto('/');
-  await go(page, 'Taby');
+  await go(page, 'Assistente');
   const input = page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
   await input.fill('crie uma tarefa: Revisar briefing');
   await page.getByRole('button', { name: 'Send' }).click();

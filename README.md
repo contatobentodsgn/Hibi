@@ -1,4 +1,4 @@
-# Hibi
+# Pixano
 
 Aplicativo desktop local para organizar tarefas, blocos de agenda e lembretes.
 

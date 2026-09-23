@@ -30,7 +30,7 @@ async function installNotionConfirmationBridge(page: Page) {
     const operationsByAction = new Map<string, { key: string }[]>();
 
     let settings: Record<string, unknown> = {
-      endpoint: '', clientId: '', targets: [{ id: 'source-1', label: 'Hibi Tasks' }],
+      endpoint: '', clientId: '', targets: [{ id: 'source-1', label: 'Pixano Tasks' }],
       notion: {
         workspaceLabel: "Kizuna Std's Notion", parentPageId: 'page-kizuna', databaseId: 'db-1', dataSourceId: 'source-1',
         lastSyncAt: '', lastSummary: { imported: 0, pushed: 0, updated: 0, skipped: 0, failed: 0, conflicts: 0 }, checkpoints: [],
@@ -54,7 +54,7 @@ async function installNotionConfirmationBridge(page: Page) {
       getWebhookStatus: async () => ({ running: false, hasSecret: false }),
       getConnectorSettings: async () => JSON.parse(JSON.stringify(settings)),
       saveConnectorSettings: async (_id: string, patch: Record<string, unknown>) => { settings = { ...settings, ...patch }; return JSON.parse(JSON.stringify(settings)); },
-      listIntegrationImportTargets: async () => [{ id: 'source-1', label: 'Hibi Tasks' }],
+      listIntegrationImportTargets: async () => [{ id: 'source-1', label: 'Pixano Tasks' }],
       // Uma tarefa que só existe no Notion: é ela que a aprovação precisa criar aqui, e é a ausência
       // dela no workspace que prova que a confirmação segurou a mudança.
       listIntegrationImportCandidates: async () => { if (readsBroken) throw new Error('Notion is unreachable.'); return [{ remoteId: 'page-remote-1', title: 'Tarefa só do Notion', kind: 'task', revision: remoteRevision }]; },

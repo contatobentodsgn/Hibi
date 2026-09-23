@@ -5,8 +5,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const DEFAULT_TARGET_DIR = path.join(homedir(), 'Applications');
-const APP_NAME = 'Hibi.app';
-const BUILT_APP = 'dist/mac-arm64/Hibi.app';
+const APP_NAME = 'Pixano.app';
+const BUILT_APP = 'dist/mac-arm64/Pixano.app';
 
 /** Substituir o pacote de um app aberto deixa a janela viva sobre arquivos que não existem mais. */
 export function appIsRunning({ targetPath, run = execSync } = {}) {
@@ -35,7 +35,7 @@ export function installApp({
 } = {}) {
   const targetPath = path.join(targetDir, APP_NAME);
   if (isRunning({ targetPath })) {
-    return { status: 'running', targetPath, message: `Feche o Hibi antes de instalar: ${targetPath} está aberto.` };
+    return { status: 'running', targetPath, message: `Feche o Pixano antes de instalar: ${targetPath} está aberto.` };
   }
   const env = { ...process.env, CSC_IDENTITY_AUTO_DISCOVERY: 'false', HIBI_LOCAL_INSTALL: '1' };
   run('npm', ['run', 'build'], { cwd: projectRoot, env });
@@ -45,7 +45,7 @@ export function installApp({
   run('mkdir', ['-p', targetDir]);
   run('rm', ['-rf', targetPath]);
   run('cp', ['-R', built, targetPath]);
-  log(`Hibi instalado em ${targetPath}.`);
+  log(`Pixano instalado em ${targetPath}.`);
   return { status: 'installed', targetPath };
 }
 

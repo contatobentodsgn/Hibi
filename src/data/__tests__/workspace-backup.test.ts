@@ -9,6 +9,7 @@ describe('workspace backups', () => {
     const seed = createSeedData();
     seed.notes.push({ id: 'note-backup', title: 'Context', content: 'Keep this', createdAt: '2026-09-08T10:00:00.000Z', updatedAt: '2026-09-08T10:00:00.000Z' });
     const backup = createWorkspaceBackup(seed, { language: 'pt', twentyFourHour: true }, '2026-09-08T10:00:00.000Z');
+    expect(backup.app).toBe('Pixano');
     const restored = parseWorkspaceBackup(JSON.stringify(backup), createSeedData());
     expect(restored.data).toEqual(seed);
     expect(restored.preferences).toEqual({ language: 'pt', twentyFourHour: true, focus: DEFAULT_FOCUS_SETTINGS });
@@ -17,7 +18,7 @@ describe('workspace backups', () => {
 
   it('rejects malformed or incompatible files before anything can be restored', () => {
     expect(() => parseWorkspaceBackup('{', createSeedData())).toThrow('valid JSON');
-    expect(() => parseWorkspaceBackup(JSON.stringify({ app: 'Other', version: 1 }), createSeedData())).toThrow('compatible Hibi');
+    expect(() => parseWorkspaceBackup(JSON.stringify({ app: 'Other', version: 1 }), createSeedData())).toThrow('compatible Pixano');
   });
 
   it('round-trips the activity ledger as a version 2 backup', () => {
@@ -36,6 +37,7 @@ describe('workspace backups', () => {
     const { activity, ...dataWithoutActivity } = seed;
     const legacy = { app: 'Hibi', version: 1, exportedAt: '2026-09-08T10:00:00.000Z', data: dataWithoutActivity, preferences: { language: 'pt', twentyFourHour: true } };
     const restored = parseWorkspaceBackup(JSON.stringify(legacy), createSeedData());
+    expect(restored.app).toBe('Pixano');
     expect(restored.version).toBe(2);
     expect(restored.data.activity).toEqual([]);
     expect(restored.preferences).toEqual({ language: 'pt', twentyFourHour: true, focus: DEFAULT_FOCUS_SETTINGS });
@@ -65,7 +67,7 @@ describe('workspace backups', () => {
   it('rejects a future backup version', () => {
     const seed = createSeedData();
     const future = { app: 'Hibi', version: 3, exportedAt: '2026-09-08T10:00:00.000Z', data: seed, preferences: { language: 'pt', twentyFourHour: true } };
-    expect(() => parseWorkspaceBackup(JSON.stringify(future), createSeedData())).toThrow('compatible Hibi');
+    expect(() => parseWorkspaceBackup(JSON.stringify(future), createSeedData())).toThrow('compatible Pixano');
   });
 
   it('exposes WORKSPACE_BACKUP_VERSION as 2', () => {

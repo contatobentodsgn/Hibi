@@ -16,7 +16,7 @@ export type WorkspacePreferences = {
 };
 
 export type WorkspaceBackup = {
-  app: 'Hibi';
+  app: 'Pixano';
   version: typeof WORKSPACE_BACKUP_VERSION;
   exportedAt: string;
   data: StudyData;
@@ -25,7 +25,7 @@ export type WorkspaceBackup = {
 
 // Backups na versão 1 não tinham o ledger de atividade; o tipo aceita `data` sem esse campo.
 type WorkspaceBackupV1Input = {
-  app: 'Hibi';
+  app: 'Pixano' | 'Hibi';
   version: 1;
   exportedAt: string;
   data: Omit<StudyData, 'activity'> & { activity?: StudyData['activity'] };
@@ -39,15 +39,15 @@ const SUPPORTED_INPUT_VERSIONS = [1, 2] as const;
 export type WorkspacePreferencesInput = Omit<WorkspacePreferences, 'focus'> & { focus?: FocusSettings };
 
 export function createWorkspaceBackup(data: StudyData, preferences: WorkspacePreferencesInput, exportedAt = new Date().toISOString()): WorkspaceBackup {
-  return { app: 'Hibi', version: WORKSPACE_BACKUP_VERSION, exportedAt, data: JSON.parse(JSON.stringify(data)) as StudyData, preferences: { ...preferences, focus: sanitizeFocusSettings(preferences.focus) } };
+  return { app: 'Pixano', version: WORKSPACE_BACKUP_VERSION, exportedAt, data: JSON.parse(JSON.stringify(data)) as StudyData, preferences: { ...preferences, focus: sanitizeFocusSettings(preferences.focus) } };
 }
 
 export function parseWorkspaceBackup(json: string, seed: StudyData): WorkspaceBackup {
   let parsed: unknown;
   try { parsed = JSON.parse(json); } catch { throw new Error('The selected file is not valid JSON.'); }
-  if (!parsed || typeof parsed !== 'object') throw new Error('The selected file is not a Hibi backup.');
+  if (!parsed || typeof parsed !== 'object') throw new Error('The selected file is not a Pixano backup.');
   const backup = parsed as Partial<WorkspaceBackup | WorkspaceBackupV1Input>;
-  if (backup.app !== 'Hibi' || !(SUPPORTED_INPUT_VERSIONS as readonly number[]).includes(backup.version as number) || typeof backup.exportedAt !== 'string' || !backup.data || !backup.preferences) throw new Error('This file is not a compatible Hibi workspace backup.');
+  if ((backup.app !== 'Pixano' && backup.app !== 'Hibi') || !(SUPPORTED_INPUT_VERSIONS as readonly number[]).includes(backup.version as number) || typeof backup.exportedAt !== 'string' || !backup.data || !backup.preferences) throw new Error('This file is not a compatible Pixano workspace backup.');
   if (backup.preferences.language !== 'pt' && backup.preferences.language !== 'en') throw new Error('The backup has an unsupported language preference.');
   if (typeof backup.preferences.twentyFourHour !== 'boolean') throw new Error('The backup has an invalid time format preference.');
   // Um ajuste de Foco ausente ou corrompido cai no padrão: nenhum backup válido é recusado por causa

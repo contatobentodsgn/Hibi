@@ -18,7 +18,7 @@ import { NavigationPreferencesProvider } from './ui/shell/NavigationPreferencesP
 
 const root = document.getElementById('root');
 
-if (!root) throw new Error('Hibi renderer root was not found');
+if (!root) throw new Error('Pixano renderer root was not found');
 
 const overlay = new URLSearchParams(window.location.search).get('overlay');
 // A galeria da nova UI (U02) e a prévia da navegação (U03) existem só no desenvolvimento: no build de

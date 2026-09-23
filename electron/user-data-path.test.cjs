@@ -25,6 +25,17 @@ test('a fresh install goes straight to the named folder', () => {
   assert.deepEqual(notices, []);
 });
 
+test('an explicit isolated data path bypasses legacy migration without touching either profile', () => {
+  const appData = appDataWith({ [LEGACY_FOLDER]: 'perfil em uso' }, { workspaces: [LEGACY_FOLDER] });
+  const isolated = path.join(os.tmpdir(), 'pixano-validation-profile');
+
+  const resolved = resolveUserDataPath({ appData, override: isolated });
+
+  assert.equal(resolved, isolated);
+  assert.equal(read(path.join(appData, LEGACY_FOLDER, 'marca.txt')), 'perfil em uso');
+  assert.equal(fs.existsSync(path.join(appData, APP_FOLDER)), false);
+});
+
 test('the old folder is moved into place, with every file intact', () => {
   const appData = appDataWith({ [LEGACY_FOLDER]: 'trabalho da pessoa' }, { workspaces: [LEGACY_FOLDER] });
   const notices = [];
@@ -37,8 +48,20 @@ test('the old folder is moved into place, with every file intact', () => {
   assert.deepEqual(notices.map((notice) => notice.kind), ['migrated']);
 });
 
-test('uma pasta com o nome do app mas sem workspace é posta de lado, e a antiga com dados entra', () => {
+test('migrates the original package-derived folder to Pixano and preserves its files', () => {
+  const legacyFolder = 'hibi-study-replica';
+  const appData = appDataWith({ [legacyFolder]: 'perfil antigo' }, { workspaces: [legacyFolder] });
+
+  const resolved = resolveUserDataPath({ appData });
+
+  assert.equal(resolved, path.join(appData, 'Pixano'));
+  assert.equal(read(path.join(resolved, 'marca.txt')), 'perfil antigo');
+  assert.equal(fs.existsSync(path.join(appData, legacyFolder)), false);
+});
+
+test('uma pasta Pixano vazia é posta de lado, e o perfil antigo com dados entra', () => {
   const appData = appDataWith({ [APP_FOLDER]: 'build antigo', [LEGACY_FOLDER]: 'trabalho de hoje' }, { workspaces: [LEGACY_FOLDER] });
+  fs.rmSync(path.join(appData, APP_FOLDER, 'marca.txt'));
   const notices = [];
 
   const resolved = resolveUserDataPath({ appData, now: () => new Date('2026-09-17T12:00:00Z'), onNotice: (notice) => notices.push(notice) });
@@ -46,7 +69,8 @@ test('uma pasta com o nome do app mas sem workspace é posta de lado, e a antiga
   assert.equal(resolved, path.join(appData, APP_FOLDER));
   assert.equal(read(path.join(resolved, 'marca.txt')), 'trabalho de hoje');
   const aside = fs.readdirSync(appData).find((entry) => entry.startsWith(`${APP_FOLDER}.superseded-`));
-  assert.equal(read(path.join(appData, String(aside), 'marca.txt')), 'build antigo', 'the older folder must survive under another name');
+  assert.ok(aside, 'the empty Pixano folder must be preserved under another name');
+  assert.equal(fs.existsSync(path.join(appData, String(aside))), true);
   assert.deepEqual(notices.map((notice) => notice.kind), ['superseded', 'migrated']);
 });
 
@@ -64,7 +88,7 @@ test('a pasta do app com dados nunca é trocada, mesmo que a antiga pareça mais
 });
 
 test('a move that fails keeps the app on the folder it already had', () => {
-  const appData = appDataWith({ [LEGACY_FOLDER]: 'trabalho da pessoa' });
+  const appData = appDataWith({ [LEGACY_FOLDER]: 'trabalho da pessoa' }, { workspaces: [LEGACY_FOLDER] });
   const notices = [];
   const failing = { ...fs, renameSync: () => { throw new Error('read-only volume'); } };
 

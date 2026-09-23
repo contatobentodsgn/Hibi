@@ -53,7 +53,7 @@ const installMascotPlacement = (page: Page, sharesDisplay: boolean) => page.addI
   let listener: ((state: { sharesDisplay: boolean }) => void) | null = null;
   (window as unknown as { hibiE2E: unknown }).hibiE2E = { move(shares: boolean) { current = shares; listener?.({ sharesDisplay: shares }); } };
   (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
-    info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
+    info: async () => ({ name: 'Pixano', version: '0.1.0', localOnly: true }),
     getNotchWindowPlacement: async () => ({ sharesDisplay: current }),
     onNotchWindowPlacementChanged: (callback: (state: { sharesDisplay: boolean }) => void) => { listener = callback; return () => { listener = null; }; },
   };
@@ -110,7 +110,7 @@ test('com o armazenamento recusado, a posição vale na sessão e o aviso diz qu
   await expect(page.getByRole('status').filter({ hasText: 'Não deu para guardar' })).toHaveCount(0);
   await choose(page, 'Menu de navegação', 'Inferior');
   expect(await notchBottom(page)).toBe(900 - 8);
-  await expect(page.getByRole('status').filter({ hasText: 'Não deu para guardar a posição: ela vale até você fechar o Hibi.' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Não deu para guardar a posição: ela vale até você fechar o Pixano.' })).toBeVisible();
 });
 
 test('as quatro combinações de tema e posição funcionam', async ({ page }) => {
@@ -169,7 +169,7 @@ test('a Aparência não mexe no monitor do mascote do notch', async ({ page }) =
     const calls: (number | null)[] = [];
     (window as unknown as { hibiE2E: { calls: (number | null)[] } }).hibiE2E = { calls };
     (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
-      info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
+      info: async () => ({ name: 'Pixano', version: '0.1.0', localOnly: true }),
       listNotchDisplays: async () => ({ preference: { displayId: 7, displayLabel: display.label }, resolvedDisplayId: 7, reason: 'preferred', displays: [display] }),
       setNotchDisplay: async (displayId: number | null) => { calls.push(displayId); return { preference: { displayId, displayLabel: display.label }, resolvedDisplayId: 7, reason: 'preferred', displays: [display] }; },
       onNotchDisplaysChanged: () => () => undefined,
@@ -191,7 +191,7 @@ test('na automática, o Hibi abre com a barra onde ela ficou da última vez, sem
   await page.addInitScript(() => {
     localStorage.setItem('hibi.ui.mascot-shares-display.v1', 'true');
     (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
-      info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
+      info: async () => ({ name: 'Pixano', version: '0.1.0', localOnly: true }),
       getNotchWindowPlacement: () => new Promise((resolve) => { setTimeout(() => resolve({ sharesDisplay: true }), 300); }),
       onNotchWindowPlacementChanged: () => () => undefined,
     };
@@ -244,7 +244,7 @@ test('quando a barra troca de borda, a pílula do destino atual vai junto, e ent
   expect(drift).toBeLessThan(1);
 
   // Trocar de destino continua animado: no quadro seguinte ao clique, a pílula ainda viaja.
-  const target = nav(page).getByRole('button', { name: 'Taby', exact: true });
+  const target = nav(page).getByRole('button', { name: 'Assistente', exact: true });
   await target.click();
   const offset = await target.evaluate((button) => new Promise<number>((resolve) => requestAnimationFrame(() => {
     const pill = button.querySelector(':scope > span:first-child')!.getBoundingClientRect();

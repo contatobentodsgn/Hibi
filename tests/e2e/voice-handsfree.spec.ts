@@ -39,11 +39,11 @@ const voice = (page: Page) => ({
   shortcut: (request: { listen: boolean; background: boolean }) => page.evaluate((value) => (window as unknown as { voiceE2E: Log }).voiceE2E.shortcut(value), request),
 });
 const campo = (page: Page) => page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
-const openTaby = async (page: Page) => { await page.goto('/'); await page.getByRole('button', { name: 'Taby', exact: true }).click(); };
+const openAssistant = async (page: Page) => { await page.goto('/'); await page.getByRole('button', { name: 'Assistente', exact: true }).click(); };
 
 test('falar e parar de falar envia o pedido sozinho, sem apertar Enviar', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await page.getByRole('button', { name: 'Falar' }).click();
   expect(await voice(page).calls()).toContain('listen:true');
 
@@ -58,7 +58,7 @@ test('falar e parar de falar envia o pedido sozinho, sem apertar Enviar', async 
 
 test('a escuta leva ao reconhecedor os nomes que já estão no Hibi', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await page.getByRole('button', { name: 'Falar' }).click();
 
   const pedido = (await voice(page).calls()).find((call) => call.startsWith('vocabulary:')) ?? 'vocabulary:[]';
@@ -70,7 +70,7 @@ test('a escuta leva ao reconhecedor os nomes que já estão no Hibi', async ({ p
 
 test('o que soa como um nome do Hibi chega escrito como no Hibi', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await page.getByRole('button', { name: 'Falar' }).click();
 
   // O reconhecedor às vezes escreve "cabrito"; os dados de exemplo têm "Kabrito Post 01".
@@ -80,7 +80,7 @@ test('o que soa como um nome do Hibi chega escrito como no Hibi', async ({ page 
 
 test('parar pelo botão deixa o texto no campo para editar, sem enviar', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await page.getByRole('button', { name: 'Falar' }).click();
   await voice(page).say('crie uma tarefa rascunho');
   await page.getByRole('button', { name: 'Parar voz' }).click();
@@ -92,7 +92,7 @@ test('parar pelo botão deixa o texto no campo para editar, sem enviar', async (
 
 test('sem nenhuma palavra, a tela diz que não ouviu nada', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await page.getByRole('button', { name: 'Falar' }).click();
   await voice(page).finish('no-speech');
   await expect(page.getByText('Não ouvi nada. Aperte Falar e diga o pedido.')).toBeVisible();

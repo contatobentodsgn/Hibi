@@ -43,7 +43,7 @@ describe('mensagem do teste do notch', () => {
 
   it('usa as mensagens fixas de ocupado, interrompido e falha', () => {
     expect(notchTestMessage({ outcome: 'busy', displayId: null, displayLabel: '' }, pt)).toBe('Há uma confirmação pendente no notch. Responda a ela e teste de novo.');
-    expect(notchTestMessage({ outcome: 'interrupted', displayId: 2, displayLabel: 'LG ULTRAWIDE' }, pt)).toBe('O teste foi interrompido por outro aviso do Taby.');
+    expect(notchTestMessage({ outcome: 'interrupted', displayId: 2, displayLabel: 'LG ULTRAWIDE' }, pt)).toBe('O teste foi interrompido por outro aviso do mascote.');
     expect(notchTestMessage({ outcome: 'failed', displayId: null, displayLabel: '' }, en)).toBe('Could not show the test in the notch.');
   });
 });

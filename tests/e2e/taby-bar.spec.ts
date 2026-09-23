@@ -23,12 +23,12 @@ async function openBar(page: Page, initial: Content | null) {
 }
 const calls = (page: Page) => page.evaluate(() => (window as unknown as { barE2E: BarLog }).barE2E.calls);
 const push = (page: Page, content: Content | null) => page.evaluate((value) => (window as unknown as { barE2E: BarLog }).barE2E.push(value), content);
-const bar = (page: Page) => page.getByRole('main', { name: 'Barra do Taby' });
+const bar = (page: Page) => page.getByRole('main', { name: 'Barra do assistente' });
 const input: Content = { requestId: 'taby-bar-input', mode: 'input', kind: 'input', text: null, actions: [] };
 
 test('aberta pelo atalho, a barra recebe o texto; o botão troca de falar para enviar quando há texto', async ({ page }) => {
   await openBar(page, input);
-  const campo = page.getByRole('textbox', { name: 'Pergunte ao Taby ou peça uma ação' });
+  const campo = page.getByRole('textbox', { name: 'Pergunte ao assistente ou peça uma ação' });
   await expect(campo).toBeFocused();
   await expect(bar(page).getByRole('button', { name: 'Falar' })).toBeVisible();
 
@@ -59,7 +59,7 @@ test('falar pela barra: o ditado aparece nela, e parar vai para a voz', async ({
 
 test('enquanto o Taby pensa, o pedido continua na barra; a resposta toma o lugar dele', async ({ page }) => {
   await openBar(page, input);
-  await page.getByRole('textbox', { name: 'Pergunte ao Taby ou peça uma ação' }).fill('quais são minhas tarefas?');
+  await page.getByRole('textbox', { name: 'Pergunte ao assistente ou peça uma ação' }).fill('quais são minhas tarefas?');
   await page.keyboard.press('Enter');
   await push(page, { requestId: 'turn-1', mode: 'thinking', kind: 'thinking', text: 'quais são minhas tarefas?', actions: [] });
   await expect(bar(page)).toContainText('quais são minhas tarefas?');
@@ -73,7 +73,7 @@ test('enquanto o Taby pensa, o pedido continua na barra; a resposta toma o lugar
 test('uma confirmação fica na barra com os botões dela, e Esc cancela em vez de fechar', async ({ page }) => {
   const confirmacao: Content = { requestId: 'c-1', mode: 'confirmation', kind: 'confirmation', text: 'Criar a tarefa "revisar contrato"?', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] };
   await openBar(page, confirmacao);
-  const dialogo = page.getByRole('dialog', { name: 'Barra do Taby' });
+  const dialogo = page.getByRole('dialog', { name: 'Barra do assistente' });
   await expect(dialogo).toContainText('Criar a tarefa');
   await page.keyboard.press('Escape');
   expect(await calls(page)).toEqual(['action:c-1:cancel']);
@@ -94,7 +94,7 @@ test('um Esc no instante em que a confirmação aparece cancela, não fecha', as
   });
   const confirmacao: Content = { requestId: 'c-2', mode: 'confirmation', kind: 'confirmation', text: 'Apagar o lembrete?', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] };
   await openBar(page, confirmacao);
-  await expect(page.getByRole('dialog', { name: 'Barra do Taby' })).toContainText('Apagar o lembrete?');
+  await expect(page.getByRole('dialog', { name: 'Barra do assistente' })).toContainText('Apagar o lembrete?');
   await expect.poll(() => calls(page)).toEqual(['action:c-2:cancel']);
 });
 

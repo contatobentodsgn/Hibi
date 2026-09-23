@@ -10,13 +10,13 @@ test('constrói, empacota e põe o app onde o Finder acha', () => {
 
   const result = installApp({ projectRoot: '/repo/', targetDir: '/Users/x/Applications', run, exists: () => true, isRunning: () => false, log: () => {} });
 
-  assert.deepEqual(result, { status: 'installed', targetPath: '/Users/x/Applications/Hibi.app' });
+  assert.deepEqual(result, { status: 'installed', targetPath: '/Users/x/Applications/Pixano.app' });
   assert.deepEqual(calls.map(({ file, args }) => [file, ...args].join(' ')), [
     'npm run build',
     'npx electron-builder --mac dir',
     'mkdir -p /Users/x/Applications',
-    'rm -rf /Users/x/Applications/Hibi.app',
-    `cp -R ${path.join('/repo/', 'dist/mac-arm64/Hibi.app')} /Users/x/Applications/Hibi.app`,
+    'rm -rf /Users/x/Applications/Pixano.app',
+    `cp -R ${path.join('/repo/', 'dist/mac-arm64/Pixano.app')} /Users/x/Applications/Pixano.app`,
   ]);
 });
 
@@ -37,7 +37,7 @@ test('recusa trocar o pacote de um app aberto, que ficaria com a janela sobre ar
   const result = installApp({ targetDir: '/Users/x/Applications', run, exists: () => true, isRunning: () => true, log: () => {} });
 
   assert.equal(result.status, 'running');
-  assert.match(result.message, /Feche o Hibi/);
+  assert.match(result.message, /Feche o Pixano/);
   assert.deepEqual(calls, [], 'nada pode rodar antes disso');
 });
 
@@ -57,9 +57,9 @@ test('o alvo padrão é a pasta de aplicativos da pessoa, não a do sistema', ()
 
 test('só considera aberto o app do caminho de destino', () => {
   const comandos = [];
-  const run = (command) => { comandos.push(command); if (!command.includes('/Users/x/Applications/Hibi.app')) throw new Error('nada encontrado'); };
+  const run = (command) => { comandos.push(command); if (!command.includes('/Users/x/Applications/Pixano.app')) throw new Error('nada encontrado'); };
 
-  assert.equal(appIsRunning({ targetPath: '/Users/x/Applications/Hibi.app', run }), true);
-  assert.equal(appIsRunning({ targetPath: '/outro/Hibi.app', run }), false);
+  assert.equal(appIsRunning({ targetPath: '/Users/x/Applications/Pixano.app', run }), true);
+  assert.equal(appIsRunning({ targetPath: '/outro/Pixano.app', run }), false);
   assert.match(comandos[0], /pgrep -f/);
 });

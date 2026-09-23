@@ -101,7 +101,7 @@ test('o Notion descobre a fonte de dados de uma base', async () => {
   assert.equal(requests[0].url, 'https://api.notion.com/v1/databases/db-1');
 });
 
-test('cria a base Hibi Tasks sob a página Kizuna com o esquema exato', async () => {
+test('cria a base Pixano Tasks sob a página Kizuna com o esquema compatível', async () => {
   let sent;
   const connector = createNotionConnector({ request: async (url, init) => { sent = { url, body: JSON.parse(init.body) }; return new Response(JSON.stringify({ id: 'db-1' }), { status: 200 }); } });
   const prepared = connector.prepareWrite({ kind: 'notion.database.create', payload: { parentPageId: 'dd22241d14e14b298e6802525af7d2a7' } });
@@ -109,7 +109,7 @@ test('cria a base Hibi Tasks sob a página Kizuna com o esquema exato', async ()
 
   assert.ok(sent.url.endsWith('/databases'));
   assert.equal(sent.body.parent.page_id, 'dd22241d14e14b298e6802525af7d2a7');
-  assert.equal(sent.body.title[0].text.content, 'Hibi Tasks');
+  assert.equal(sent.body.title[0].text.content, 'Pixano Tasks');
   assert.deepEqual(Object.keys(sent.body.initial_data_source.properties), ['Name', 'Status', 'Start', 'Duration minutes', 'Description', 'Hibi ID', 'Hibi updated at']);
 });
 
@@ -153,7 +153,7 @@ test('traduz credencial, permissão e limite do Notion em falhas acionáveis', a
   ];
   const connector = createNotionConnector({ request: async () => responses.shift() });
   await assert.rejects(connector.testConnection({ credential: 'token' }), /Reconnect/);
-  await assert.rejects(connector.discoverDataSource({ credential: 'token', databaseId: 'db-1' }), /Share the database/);
+  await assert.rejects(connector.discoverDataSource({ credential: 'token', databaseId: 'db-1' }), /Share it with the Pixano integration/);
   await assert.rejects(connector.fetchImports({ credential: 'token', targets: [{ id: 'source-1' }] }), /7 seconds/);
 });
 

@@ -43,12 +43,12 @@ export function offlineBrainLanguage(request: AiProviderRequest): 'pt' | 'en' {
 export function buildOfflineBrainPrompt(request: AiProviderRequest): string {
   const language = offlineBrainLanguage(request) === 'pt' ? 'Brazilian Portuguese' : 'English'
   const sections = [
-    `You are Taby, the assistant inside the Hibi app. Always reply in ${language}, short and direct, in at most 4 sentences. Never invent events, tasks or data that are not listed below. You cannot create, schedule, change or delete anything: never say that you did or that you will. If the user asks for an action, say you could not do it from here.`,
+    `You are Pixano, a local assistant. Always reply in ${language}, short and direct, in at most 4 sentences. Never invent events, tasks or data that are not listed below. You cannot create, schedule, change or delete anything: never say that you did or that you will. If the user asks for an action, say you could not do it from here.`,
     `Now: ${request.currentTime}`,
   ]
   const evidence = newestWithin(request.contextEvidence.map((item) => `- ${item.label}: ${clip(item.content, 300)}`), MAX_EVIDENCE_CHARS)
   if (evidence.length) sections.push(`Context:\n${evidence.join('\n')}`)
-  const transcript = newestWithin(request.recentTranscript.map((entry) => `${entry.role === 'user' ? 'User' : 'Taby'}: ${clip(entry.content, 400)}`), MAX_TRANSCRIPT_CHARS)
+  const transcript = newestWithin(request.recentTranscript.map((entry) => `${entry.role === 'user' ? 'User' : 'Pixano'}: ${clip(entry.content, 400)}`), MAX_TRANSCRIPT_CHARS)
   if (transcript.length) sections.push(`Recent conversation:\n${transcript.join('\n')}`)
   const fixed = sections.join('\n\n')
   const suffix = '\n/no_think'
@@ -63,7 +63,7 @@ export function cleanOfflineBrainReply(text: string): string {
 
 // O modelo pequeno às vezes promete o que não pode fazer: "Marquei uma reunião amanhã às 15h" sem
 // nenhum bloco criado. Quem só conversa não pode dizer que agiu — a resposta vira a verdade, com o
-// jeito de pedir que o Taby entende.
+// jeito de pedir que o assistente entende.
 const ACTION_CLAIM = /\b(marquei|agendei|criei|adicionei|anotei|salvei|reservei|removi|apaguei|exclu[íi]|cancelei|coloquei|lembrarei|vou\s+(?:te\s+|lhe\s+)?(?:lembrar|marcar|agendar|criar|adicionar|anotar|salvar|ligar|avisar)|(?:est[áa]|ficou)\s+(?:marcad|agendad|criad|salv)[ao]|I(?:'ve| have)?\s+(?:scheduled|created|added|booked|saved|set)|I(?:'ll| will)\s+(?:remind|schedule|create|add|book))\b/iu
 
 export function honestOfflineBrainReply(reply: string, language: 'pt' | 'en'): string {
@@ -136,7 +136,7 @@ function abortError(): DOMException {
  */
 export class OfflineBrainProvider implements AiProvider {
   readonly id = 'offline-brain'
-  readonly label = 'Hibi offline brain'
+  readonly label = 'Pixano offline assistant'
 
   private async understand(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal | null> {
     if (!this.tools.fromIntent || !this.bridge.runLocalModel || !looksLikeRequest(request.message)) return null

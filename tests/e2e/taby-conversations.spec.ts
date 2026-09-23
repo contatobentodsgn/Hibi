@@ -6,14 +6,14 @@ const list = (page: Page) => page.getByRole('region', { name: 'Conversas' });
 // A montagem inicial do React precisa terminar antes de qualquer atalho ou clique; mesma cautela
 // que `foundation.spec.ts` já toma. As asserções são sobre a mensagem do usuário, gravada antes de
 // o modelo responder: esperar a resposta amarraria o teste à latência do provedor local.
-const openTaby = async (page: Page) => {
+const openAssistant = async (page: Page) => {
   await expect(dock(page)).toBeVisible();
-  await dock(page).getByRole('button', { name: 'Taby', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Assistente', exact: true }).click();
 };
 
 test('uma conversa do Taby sobrevive ao recarregar e pode ser apagada', async ({ page }) => {
   await page.goto('/');
-  await openTaby(page);
+  await openAssistant(page);
   await page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' }).fill('quais tarefas vencem hoje?');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(list(page)).toContainText('quais tarefas vencem hoje?');
@@ -22,7 +22,7 @@ test('uma conversa do Taby sobrevive ao recarregar e pode ser apagada', async ({
   await expect(status).toContainText('Response ready');
 
   await page.reload();
-  await openTaby(page);
+  await openAssistant(page);
   await expect(list(page)).toContainText('quais tarefas vencem hoje?');
 
   await page.keyboard.press('Meta+K');

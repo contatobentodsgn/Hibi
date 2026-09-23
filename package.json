@@ -1,5 +1,5 @@
 {
-  "name": "hibi-study-replica",
+  "name": "pixano",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -26,7 +26,7 @@
   },
   "build": {
     "appId": "com.hibi.study",
-    "productName": "Hibi",
+    "productName": "Pixano",
     "asar": true,
     "files": [
       "dist/**/*",
@@ -56,10 +56,10 @@
       "entitlements": "electron/entitlements.mac.plist",
       "entitlementsInherit": "electron/entitlements.mac.plist",
       "extendInfo": {
-        "NSCalendarsUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose.",
-        "NSCalendarsFullAccessUsageDescription": "Hibi needs calendar access to show meetings and add the schedule blocks you choose.",
-        "NSMicrophoneUsageDescription": "Hibi needs the microphone to turn what you say into text on this Mac.",
-        "NSSpeechRecognitionUsageDescription": "Hibi recognises your speech on this Mac to type what you dictate.",
+        "NSCalendarsUsageDescription": "Pixano needs calendar access to show meetings and add the schedule blocks you choose.",
+        "NSCalendarsFullAccessUsageDescription": "Pixano needs calendar access to show meetings and add the schedule blocks you choose.",
+        "NSMicrophoneUsageDescription": "Pixano needs the microphone to turn what you say into text on this Mac.",
+        "NSSpeechRecognitionUsageDescription": "Pixano recognises your speech on this Mac to type what you dictate.",
         "LSUIElement": true,
         "CFBundleIconName": "Hibi"
       },

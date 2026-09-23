@@ -60,7 +60,7 @@ test('confirmação levantada na página Taby não é descartada ao abrir e fech
   await page.goto('/');
   // Mesma cautela do askTaby: esperar a barra hidratar antes de qualquer atalho ou clique.
   await expect(dock(page)).toBeVisible();
-  await dock(page).getByRole('button', { name: 'Taby', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Assistente', exact: true }).click();
   await page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' }).fill('crie uma tarefa: Revisar briefing');
   await page.keyboard.press('Enter');
   const pageConfirmation = page.getByRole('alert');

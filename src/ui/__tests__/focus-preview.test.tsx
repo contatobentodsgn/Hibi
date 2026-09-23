@@ -98,7 +98,7 @@ describe('Ajustes › Foco › presença', () => {
     expect(markup).toContain('aria-label="Tempo de inatividade"');
     expect(markup).toContain('aria-label="Quando você se afastar"');
     expect(markup).toContain('aria-label="Animação durante o foco"');
-    expect(markup).toContain('aria-label="Timeout de tela do Taby"');
+    expect(markup).toContain('aria-label="Tempo limite da tela do mascote"');
     expect(markup).toContain('Perguntar se ainda estou aqui');
     expect(markup).toContain('Pausar e não contar o tempo ausente');
     expect(markup).toContain('Continuar contando, inclusive o tempo ausente');
@@ -108,11 +108,11 @@ describe('Ajustes › Foco › presença', () => {
   });
 
   // O timeout de tela não tem o que governar neste Mac: a tela precisa dizer isso sem ambiguidade.
-  it('diz que o timeout de tela só vale com o Taby conectado, e que ele não está', () => {
+  it('diz que o timeout de tela só vale com o mascote conectado, e que ele não está', () => {
     const markup = panelWith(DEFAULT_FOCUS_SETTINGS);
 
-    expect(markup).toContain('Só vale com o dispositivo Taby conectado. Neste Mac não muda nada');
-    expect(markup).toContain('Taby não conectado');
+    expect(markup).toContain('Esta opção se aplica ao mascote conectado. Neste Mac');
+    expect(markup).toContain('Mascote não conectado');
   });
 
   // `after 1 minutes` é o defeito do original.

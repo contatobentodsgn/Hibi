@@ -91,8 +91,8 @@ describe('loop do foco pelo humor', () => {
   });
 
   it('cada loop de humor é um vídeo do registro de assets, e o movimento reduzido continua valendo', () => {
-    expect(companionAnimationForState(resolveFocusLoopAnimationId('focus', 'bored'))).toMatchObject({ kind: 'video', url: '/companion-assets/animations/notch/working_laptop_bored_loop.mp4' });
-    expect(companionAnimationForState(resolveFocusLoopAnimationId('focus', 'excited'))).toMatchObject({ kind: 'video', url: '/companion-assets/animations/notch/working_laptop_excited_loop.mp4' });
+    expect(companionAnimationForState(resolveFocusLoopAnimationId('focus', 'bored'))).toMatchObject({ kind: 'video', url: '/mascot/idle_curious.mp4' });
+    expect(companionAnimationForState(resolveFocusLoopAnimationId('focus', 'excited'))).toMatchObject({ kind: 'video', url: '/mascot/happy_2.mp4' });
     expect(companionAnimationForState(resolveFocusLoopAnimationId('focus', 'excited'), true)).toEqual({ kind: 'fallback', symbol: '●' });
   });
 });

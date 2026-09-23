@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 const dock = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
 const openDataTab = async (page: Page) => {
   await dock(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Data', exact: true }).click();
+  await page.getByRole('button', { name: /^Dados/ }).click();
 };
 
 type Point = { id: number; label: string; createdAt: string; bytes: number };
@@ -49,14 +49,14 @@ test('sem nenhum ponto, o app de desktop diz que ainda não há, e não manda ab
   await openDataTab(page);
 
   await expect(page.getByText('Nenhum ponto de restauração ainda.', { exact: false })).toBeVisible();
-  await expect(page.getByText('ficam no app de desktop do Hibi', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('ficam no app de desktop do Pixano', { exact: false })).toHaveCount(0);
 });
 
 test('fora do app de desktop, a tela diz onde os pontos existem', async ({ page }) => {
   await page.goto('/');
   await openDataTab(page);
 
-  await expect(page.getByText('ficam no app de desktop do Hibi', { exact: false })).toBeVisible();
+  await expect(page.getByText('ficam no app de desktop do Pixano', { exact: false })).toBeVisible();
 });
 
 test('uma restauração que falha avisa sem apagar da tela os pontos que continuam existindo', async ({ page }) => {

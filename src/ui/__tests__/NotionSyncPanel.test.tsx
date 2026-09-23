@@ -13,7 +13,7 @@ describe('NotionSyncPanel', () => {
   it('shows workspace, database, last sync, counts and sync control', () => {
     const markup = renderToStaticMarkup(<NotionSyncPanel connected settings={configured} localTasks={[]} onSaveSettings={async () => configured} onApply={() => []} onEvent={() => undefined} />)
     expect(markup).toContain("Kizuna Std&#x27;s Notion")
-    expect(markup).toContain('Hibi Tasks')
+    expect(markup).toContain('Notion task database')
     expect(markup).toContain('Last sync')
     expect(markup).toContain('1 imported')
     expect(markup).toContain('2 pushed')
@@ -22,7 +22,7 @@ describe('NotionSyncPanel', () => {
 
   it('shows safe setup when the dedicated database is not configured', () => {
     const markup = renderToStaticMarkup(<NotionSyncPanel connected settings={{ endpoint: '', clientId: '', targets: [] }} localTasks={[]} onSaveSettings={async (patch) => ({ endpoint: '', clientId: '', targets: [], ...patch })} onApply={() => []} onEvent={() => undefined} />)
-    expect(markup).toContain('Prepare Hibi Tasks')
+    expect(markup).toContain('Prepare Pixano Tasks')
     expect(markup).toContain('Kizuna')
     expect(markup).toContain('requires confirmation')
   })

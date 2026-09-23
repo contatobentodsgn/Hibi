@@ -256,7 +256,7 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
       quit: () => { captured.quitCalls = (captured.quitCalls ?? 0) + 1; },
       focus: () => { captured.appFocuses = (captured.appFocuses ?? 0) + 1; },
       requestSingleInstanceLock: () => singleInstance,
-      getName: () => 'Hibi',
+      getName: () => 'Pixano',
       dock: { hide: () => { captured.dockHidden = true; }, isVisible: () => captured.dockHidden !== true },
       whenReady: () => ({ then: (callback) => { readyPromise = Promise.resolve().then(callback); return readyPromise; } }),
     },
@@ -489,7 +489,7 @@ test("aponta a pasta de dados para o nome do app, movendo a antiga uma vez só",
   } });
   t.after(() => harness.cleanup());
 
-  const chosen = path.join(harness.appData, "Hibi");
+  const chosen = path.join(harness.appData, "Pixano");
   assert.equal(harness.paths.get("userData"), chosen, "o app precisa abrir a pasta com o nome dele");
   assert.equal(fs.readFileSync(path.join(chosen, "notch-settings.json"), "utf8"), '{"size":"normal"}', "os ajustes de quem já usava precisam vir junto");
   assert.equal(fs.existsSync(path.join(harness.appData, "hibi-study-replica")), false);
@@ -499,7 +499,7 @@ test("uma instalação nova abre a pasta do app sem nada para mover", async (t) 
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.equal(harness.paths.get("userData"), path.join(harness.appData, "Hibi"));
+  assert.equal(harness.paths.get("userData"), path.join(harness.appData, "Pixano"));
 });
 
 // O atalho abre a barra do Taby embaixo do notch, para digitar ou falar sem sair do app em que se está:
@@ -552,7 +552,7 @@ test("com a voz no notch, o Taby da barra de menus continua só abrindo a janela
   const janela = harness.mainWindow();
   const showsAntes = janela.shows ?? 0;
 
-  harness.trayCalls.itens.find((item) => /Taby/.test(item.label ?? "")).click();
+  harness.trayCalls.itens.find((item) => /assistente/i.test(item.label ?? "")).click();
 
   assert.equal(janela.shows, showsAntes + 1);
   assert.deepEqual(janela.sent.filter(([channel]) => channel === "hibi:shortcut:taby").at(-1), ["hibi:shortcut:taby"]);
@@ -665,7 +665,7 @@ test("o ícone da barra de menus traz a janela de volta depois de escondida", as
   t.after(() => harness.cleanup());
   const janela = harness.mainWindow();
   janela.close();
-  const abrir = harness.trayCalls.itens.find((item) => item.label === "Abrir Hibi");
+  const abrir = harness.trayCalls.itens.find((item) => item.label === "Abrir Pixano");
 
   abrir.click();
 
@@ -677,7 +677,7 @@ test("sair pelo ícone deixa a janela fechar de verdade e tira o ícone da barra
   const harness = await loadMain();
   const janela = harness.mainWindow();
 
-  harness.trayCalls.itens.find((item) => item.label === "Sair do Hibi").click();
+  harness.trayCalls.itens.find((item) => item.label === "Sair do Pixano").click();
   const evento = janela.close();
 
   assert.equal(evento.defaultPrevented, false);
@@ -809,7 +809,7 @@ test("hibi:info devolve a versão do app e não vaza caminhos locais", async (t)
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.deepEqual(await harness.invoke("hibi:info"), { name: "Hibi Study Replica", version: "1.2.3-test", localOnly: true });
+  assert.deepEqual(await harness.invoke("hibi:info"), { name: "Pixano", version: "1.2.3-test", localOnly: true });
 });
 
 test("hibi:login-item converte qualquer payload do renderer em booleano", async (t) => {

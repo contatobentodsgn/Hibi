@@ -11,6 +11,8 @@ describe('exportação ICS', () => {
 
     expect(ics).toContain('DTSTART:20260911T080000');
     expect(ics).toContain('DTEND:20260911T090000');
+    expect(ics).toContain('PRODID:-//Pixano//EN');
+    expect(ics).toContain('UID:b1@hibi');
     expect(stamps(ics)).toHaveLength(2);
     for (const stamp of stamps(ics)) expect(stamp).toMatch(/^\d{8}T\d{6}$/);
   });

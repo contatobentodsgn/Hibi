@@ -10,13 +10,13 @@ describe('SettingsView locale', () => {
     const markup = renderToStaticMarkup(<LocaleProvider initialLanguage="pt"><SettingsWorkspace data={createSeedData()} onEvent={() => undefined} onReset={() => undefined} /></LocaleProvider>);
 
     expect(markup).toContain('Formato de hora');
-    expect(markup).toContain('Inicie o Hibi automaticamente');
+    expect(markup).toContain('Inicie o Pixano automaticamente');
     expect(markup).toContain('Idioma da interface');
     expect(markup).not.toContain('Interface language');
     expect(markup).not.toContain('>Language<');
     expect(markup).not.toContain('Time format');
     expect(markup).not.toContain('Launch at login');
     expect(markup).not.toContain('Use clear, exact times across calendar and reminders');
-    expect(markup).not.toContain('Open Hibi automatically when this Mac starts');
+    expect(markup).not.toContain('Open Pixano automatically when this Mac starts');
   });
 });

@@ -32,7 +32,7 @@ test('cada destino, Ajustes e cada item do Mais abrem a tela real, e a trilha di
     { name: 'Agenda', via: 'bar', marked: 'Agenda', path: 'Agenda', screen: (p) => p.locator('.agenda-screen') },
     { name: 'Tarefas', via: 'bar', marked: 'Tarefas', path: 'Tarefas', screen: (p) => p.locator('.tasks-screen') },
     { name: 'Notas', via: 'bar', marked: 'Notas', path: 'Notas', screen: (p) => p.getByRole('heading', { level: 1, name: 'Notes' }) },
-    { name: 'Taby', via: 'bar', marked: 'Taby', path: 'Taby', screen: (p) => p.getByRole('heading', { level: 1, name: 'Local assistant' }) },
+    { name: 'Assistant', via: 'bar', marked: 'Assistant', path: 'Assistant', screen: (p) => p.getByRole('heading', { level: 1, name: 'Local assistant' }) },
     { name: 'Hoje', via: 'bar', marked: 'Hoje', path: 'Hoje', screen: (p) => p.locator('.today-screen') },
     { name: 'Ajustes', via: 'bar', marked: 'Ajustes', path: 'Ajustes', screen: (p) => p.getByRole('heading', { level: 1, name: 'Settings' }) },
     { name: 'Foco', via: 'more', marked: null, path: 'Foco', screen: (p) => p.locator('.focus-view') },
@@ -196,7 +196,7 @@ test('com "Reduzir movimento", a pílula do destino atual troca de lugar sem ani
   await page.addInitScript(() => localStorage.setItem('hibi-motion', 'reduce'));
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
-  const target = nav(page).getByRole('button', { name: 'Taby', exact: true });
+  const target = nav(page).getByRole('button', { name: 'Assistant', exact: true });
   await target.click();
   // No quadro seguinte ao clique, a pílula já está inteira no destino novo (com animação, ainda viajaria).
   const offset = await target.evaluate((button) => new Promise<number>((resolve) => requestAnimationFrame(() => {
@@ -212,7 +212,7 @@ test('com "Reduzir movimento", a pílula do destino atual troca de lugar sem ani
 const ZINC_950 = 'oklch(0.141 0.005 285.823)';
 const ZINC_200 = 'oklch(0.92 0.004 286.32)';
 for (const [system, hibi, expected] of [['dark', 'light', ZINC_950], ['light', 'dark', ZINC_200]] as const) {
-  test.describe(`macOS ${system}, Hibi ${hibi}`, () => {
+test.describe(`macOS ${system}, Pixano ${hibi}`, () => {
     test.use({ colorScheme: system });
     test('a barra segue o tema do Hibi, não o do sistema', async ({ page }) => {
       await page.addInitScript((value) => localStorage.setItem('hibi-theme', value), hibi);

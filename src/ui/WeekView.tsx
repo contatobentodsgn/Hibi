@@ -50,7 +50,7 @@ export function WeekView({ data, onEvent, onCreateBlock, onDeleteBlock }: Props)
     setImportNotice([count('calendar.ics.imported', events.length), skippedAllDay > 0 ? count('calendar.ics.skippedAllDay', skippedAllDay) : '', skippedInvalid > 0 ? count('calendar.ics.skippedInvalid', skippedInvalid) : ''].filter(Boolean).join(' '));
     onEvent('import', file.name, `${events.length} imported · ${skippedAllDay} all-day skipped · ${skippedInvalid} invalid skipped`);
   };
-  const exportIcs = () => { const url = URL.createObjectURL(new Blob([toIcsCalendar(data.blocks)], { type: 'text/calendar' })); const link = document.createElement('a'); link.href = url; link.download = 'hibi-calendar.ics'; link.click(); URL.revokeObjectURL(url); onEvent('export', 'Exported calendar ICS', 'pass'); };
+  const exportIcs = () => { const url = URL.createObjectURL(new Blob([toIcsCalendar(data.blocks)], { type: 'text/calendar' })); const link = document.createElement('a'); link.href = url; link.download = 'pixano-calendar.ics'; link.click(); URL.revokeObjectURL(url); onEvent('export', 'Exported calendar ICS', 'pass'); };
   const shortDay = (date: string) => { const day = names[localNoon(date).getDay()]; return `${day[0]}${day.slice(1).toLowerCase()} ${date.slice(8, 10)}`; };
   const rangeLabel = `${shortDay(days[0])} — ${shortDay(days[6])}`;
   const monthLabel = localNoon(weekStart).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();

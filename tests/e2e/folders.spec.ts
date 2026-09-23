@@ -135,7 +135,7 @@ test('"Sem pasta" abre, mas não oferece renomeação; esc volta aos comandos', 
   await expect(palette(page).getByText(/^Renomear/)).toHaveCount(0);
 
   await page.keyboard.press('Escape');
-  await expect(field(page)).toHaveAttribute('placeholder', 'Digite um comando ou pergunte ao Taby');
+  await expect(field(page)).toHaveAttribute('placeholder', 'Digite um comando ou pergunte ao assistente');
   await expect(palette(page).locator('#command-day')).toBeVisible();
 
   await field(page).fill('/folder');

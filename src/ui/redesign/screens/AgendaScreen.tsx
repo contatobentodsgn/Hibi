@@ -205,7 +205,7 @@ export function AgendaScreen({
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = "hibi-calendar.ics";
+    link.download = "pixano-calendar.ics";
     link.click();
     URL.revokeObjectURL(url);
     onEvent("export", t("agenda.exported"), "pass");
@@ -302,7 +302,7 @@ export function AgendaScreen({
           },
         }),
       );
-      setCalendarNotice(`“${change.summary}” foi trazido para o Hibi.`);
+      setCalendarNotice(`“${change.summary}” foi trazido para o Pixano.`);
     } catch {
       setCalendarNotice(t("agenda.calendarUpdateFailed"));
     }

@@ -39,13 +39,16 @@ const { createVoiceSettings } = require('./voice-settings.cjs');
 const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
 const { resolveUserDataPath } = require('./user-data-path.cjs');
+const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
 
-// O Electron nomeia a pasta de dados pelo `name` do pacote (`hibi-study-replica`), e o app se chama
-// Hibi. Quem já usou uma versão anterior tem os dados na pasta antiga: ela é movida uma vez, e nada
+// Pixano usa uma pasta de dados própria; perfis Hibi antigos são migrados sem descartar cópias.
+// Quem já usou uma versão anterior tem os dados na pasta antiga: ela é movida uma vez, e nada
 // é apagado — se houver duas, a que ficou para trás é renomeada ao lado.
 app.setPath('userData', resolveUserDataPath({
   appData: app.getPath('appData'),
-  onNotice: (notice) => console.log(`[hibi] pasta de dados (${notice.kind}): ${notice.path}${notice.error ? ` — ${notice.error}` : ''}`),
+  // Native validation can use a throwaway profile without migrating or opening real user data.
+  override: isDev ? process.env.PIXANO_DEV_USER_DATA_DIR : undefined,
+  onNotice: (notice) => console.log(`[pixano] pasta de dados (${notice.kind}): ${notice.path}${notice.error ? ` — ${notice.error}` : ''}`),
 }));
 
 // Duas cópias do app abertas ao mesmo tempo desenham dois notches, cada um obedecendo aos próprios
@@ -114,7 +117,6 @@ let voiceSettings;
 let updateService;
 let appTray;
 let quitting = false;
-const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
 const MAX_AI_STREAM_DELTA = 8000;
 const MAX_AI_STREAM_DELAY = 60_000;
 const MAX_AI_STREAM_TEXT = 240;
@@ -224,8 +226,8 @@ function attachNotchLifecycle({ displayService, powerService, manager, onDisplay
 // `en`, e receber um aviso em português no momento em que algo quebrou não ajuda quem usa em inglês.
 function rendererRecoveryPrompt(locale) {
   return typeof locale === 'string' && locale.toLowerCase().startsWith('pt')
-    ? { title: 'Hibi', message: 'O Hibi encontrou um problema ao carregar a interface.', detail: 'Você pode tentar de novo ou encerrar o app. Seus dados continuam salvos.', buttons: ['Tentar de novo', 'Encerrar'] }
-    : { title: 'Hibi', message: 'Hibi ran into a problem loading its interface.', detail: 'You can try again or quit the app. Your data is still saved.', buttons: ['Try again', 'Quit'] };
+    ? { title: 'Pixano', message: 'O Pixano encontrou um problema ao carregar a interface.', detail: 'Você pode tentar de novo ou encerrar o app. Seus dados continuam salvos.', buttons: ['Tentar de novo', 'Encerrar'] }
+    : { title: 'Pixano', message: 'Pixano ran into a problem loading its interface.', detail: 'You can try again or quit the app. Your data is still saved.', buttons: ['Try again', 'Quit'] };
 }
 
 // Uma falha do renderer é recuperada automaticamente uma vez. Se ela se repetir antes de a janela
@@ -323,7 +325,7 @@ function replaceAiRuntime(runtime) {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 820, minWidth: 960, minHeight: 620,
-    title: "Hibi", backgroundColor: "#f3f2ef",
+    title: "Pixano", backgroundColor: "#f3f2ef",
     // Os botões do macOS (14 px) ficam dentro da superfície arredondada, a 12 px da moldura de 8 px, e no
     // eixo dos itens da barra de navegação do topo (8 px de moldura + metade dos 36 px do item = 26).
     titleBarStyle: "hiddenInset", trafficLightPosition: { x: 20, y: 19 },
@@ -411,7 +413,7 @@ app.whenReady().then(async () => {
   idleEscalation = createIdleEscalation({ onState: showIdleMascot });
   notchTest = createNotchTest({ manager: notchWindow });
   detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('hibi:notch:displays-changed') });
-  ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
+  ipcMain.handle("hibi:info", () => ({ name: "Pixano", version: app.getVersion(), localOnly: true }));
   ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
   ipcMain.handle("hibi:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });
   // O contexto de foco (janela da sessão em andamento e ajustes) chega junto das entradas: o portão
@@ -424,7 +426,7 @@ app.whenReady().then(async () => {
   ipcMain.handle("hibi:focus:watch-presence", (_event, request) => presenceMonitor.watch(request));
   ipcMain.handle("hibi:notifications:test", () => {
     if (!Notification.isSupported()) return false;
-    const notification = new Notification({ title: "Hibi", body: "Native notifications are working." });
+    const notification = new Notification({ title: "Pixano", body: "Native notifications are working." });
     notification.show();
     return true;
   });
@@ -639,7 +641,7 @@ app.whenReady().then(async () => {
   // inicialização é a prova visual de que o notch físico está coberto, e nasce na tela com câmera.
   // Só barra de menus: sem ícone no Dock e sem ⌘Tab. O menu do app continua montado porque é ele
   // que carrega ⌘C, ⌘V, ⌘Z e ⌘A dentro dos campos.
-  Menu.setApplicationMenu(Menu.buildFromTemplate(buildAppMenuTemplate({ appName: app.getName?.() ?? 'Hibi' })));
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildAppMenuTemplate({ appName: app.getName?.() ?? 'Pixano' })));
   hideFromDock({ app });
   appTray = createAppTray({ Tray, Menu, nativeImage, onOpen: summonWindow, onTaby: openTaby, onHide: () => mainWindow?.hide(), onQuit: () => { quitting = true; app.quit(); } });
   tabyShortcut.apply();

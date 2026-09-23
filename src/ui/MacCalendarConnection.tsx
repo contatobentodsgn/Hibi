@@ -89,7 +89,7 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
     const block = blocks.find((entry) => entry.id === change.localId);
     if (!block || !onMoveBlock || !window.hibiDesktop?.acknowledgeCalendarIncoming) return;
     if (!onMoveBlock(block.id, change.start, change.end)) {
-      setNotice(`“${change.summary}” não pôde ser movido no Hibi: o horário que veio do calendário não é válido.`);
+      setNotice(`“${change.summary}” não pôde ser movido no Pixano: o horário que veio do calendário não é válido.`);
       return;
     }
     try {
@@ -100,7 +100,7 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
       // A lista do processo principal só vê o bloco movido quando o workspace chega lá; até lá ela o daria
       // como editado aqui. O item sai da lista, e a próxima leitura já vem certa.
       setChanges((current) => ({ ...current, incoming: current.incoming.filter((entry) => entry !== change) }));
-      setNotice(`“${change.summary}” agora está em ${when(change.start, change.end)} no Hibi, como no calendário.`);
+      setNotice(`“${change.summary}” agora está em ${when(change.start, change.end)} no Pixano, como no calendário.`);
       onEvent("calendar-incoming", change.summary, "pass");
     } catch {
       setNotice("O bloco foi movido, mas o vínculo não foi atualizado. Sincronize de novo.");
@@ -112,7 +112,7 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
   }, []);
   const requestAccess = async () => {
     if (!window.hibiDesktop?.requestAppleCalendarAccess) {
-      setNotice("Disponível no app Hibi para macOS.");
+      setNotice("Disponível no app Pixano para macOS.");
       return;
     }
     setBusy(true);
@@ -165,7 +165,7 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
       }
       if (result.resolved) {
         await refresh();
-        setNotice("O vínculo foi removido. O bloco Hibi permanece local.");
+        setNotice("O vínculo foi removido. O bloco Pixano permanece local.");
         onEvent("calendar-conflict", conflict.summary, "keep-calendar");
         return;
       }
@@ -195,7 +195,7 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
       });
       setPendingResolution(null);
       await refresh();
-      setNotice("O evento foi atualizado com a versão do Hibi.");
+      setNotice("O evento foi atualizado com a versão do Pixano.");
       onEvent("calendar-conflict", "keep-hibi", "pass");
     } catch {
       setNotice(
@@ -290,19 +290,19 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
         <div>
           <strong>Publicar bloco</strong>
           <span>
-            Envie uma demanda do Hibi para um calendário bidirecional somente
+            Envie um bloco do Pixano para um calendário bidirecional somente
             após confirmar.
           </span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <select
-            aria-label="Bloco Hibi para publicar"
+            aria-label="Bloco Pixano para publicar"
             value={selectedBlockId}
             onChange={(event) => setSelectedBlockId(event.target.value)}
             disabled={blocks.length === 0}
           >
             {blocks.length === 0 ? (
-              <option value="">Sem blocos no calendário Hibi</option>
+              <option value="">Sem blocos no calendário do Pixano</option>
             ) : (
               blocks.map((block) => (
                 <option key={block.id} value={block.id}>
@@ -337,21 +337,21 @@ export function MacCalendarConnection({ onEvent, blocks = [], onMoveBlock }: Pro
         </div>
       </div>
       {(changes.outgoing.length > 0 || changes.incoming.length > 0) && (
-        <div className="setting-row" aria-label="Alterações entre o Hibi e o calendário" style={{ alignItems: "flex-start" }}>
+        <div className="setting-row" aria-label="Alterações entre o Pixano e o calendário" style={{ alignItems: "flex-start" }}>
           <div>
             <strong>Alterações para sincronizar</strong>
             <span>O que mudou de um lado só desde a última sincronização. Nada é enviado nem movido sem o seu clique.</span>
             <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
               {changes.outgoing.map((change) => (
                 <li key={`out-${change.calendarId}-${change.localId}`}>
-                  “{change.summary}” mudou no Hibi.{" "}
+                  “{change.summary}” mudou no Pixano.{" "}
                   <button className="outline" onClick={() => void sendChange(change)}>Enviar ao calendário</button>
                 </li>
               ))}
               {changes.incoming.map((change) => (
                 <li key={`in-${change.calendarId}-${change.localId}`}>
                   “{change.summary}” foi para {when(change.start, change.end)} no calendário.{" "}
-                  <button className="outline" disabled={!onMoveBlock} onClick={() => void bringChange(change)}>Trazer para o Hibi</button>
+                  <button className="outline" disabled={!onMoveBlock} onClick={() => void bringChange(change)}>Trazer para o Pixano</button>
                 </li>
               ))}
             </ul>

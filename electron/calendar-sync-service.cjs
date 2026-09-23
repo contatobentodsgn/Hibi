@@ -195,7 +195,7 @@ function createCalendarSyncService({
 
   async function preparePublishFor(calendarId, block, extra = {}) {
     if (modeFor(calendarId) !== "bidirectional")
-      throw new Error("Choose bidirectional mode before publishing a Hibi block.");
+      throw new Error("Choose bidirectional mode before publishing a Pixano block.");
     const fingerprint = extra.fingerprint ?? blockFingerprint(block);
     if (calendarId.startsWith("google:")) {
       if (typeof integrations.prepareAction !== "function")
@@ -249,7 +249,7 @@ function createCalendarSyncService({
 
   async function prepareUpdateFor(calendarId, block, link, expectedRevision, extra = {}) {
     if (modeFor(calendarId) !== "bidirectional")
-      throw new Error("Choose bidirectional mode before editing a Hibi block.");
+      throw new Error("Choose bidirectional mode before editing a Pixano block.");
     const entry = {
       kind: "update",
       hibiCalendarId: calendarId,
@@ -465,11 +465,11 @@ function createCalendarSyncService({
       if (!isCalendarId(safe.calendarId) || !block) throw new Error("Calendar block is invalid.");
       requireSettings();
       const found = list("links").find((entry) => entry?.localId === block.id && entry?.calendarId === safe.calendarId);
-      if (!found) throw new Error("This Hibi block is not linked to the selected calendar.");
+      if (!found) throw new Error("This Pixano block is not linked to the selected calendar.");
       const remoteStart = toInstant(found.remoteStartsAt);
       const remoteEnd = toInstant(found.remoteEndsAt);
       if (!remoteStart || !remoteEnd || toInstant(block.startsAt)?.getTime() !== remoteStart.getTime() || toInstant(block.endsAt)?.getTime() !== remoteEnd.getTime())
-        throw new Error("The Hibi block does not match the calendar event.");
+        throw new Error("The Pixano block does not match the calendar event.");
       saveState({
         // Pelo par bloco e calendário, não pela identidade do objeto: o arquivo de configurações devolve
         // uma cópia nova a cada leitura, e a comparação por identidade nunca achava o vínculo.
@@ -497,7 +497,7 @@ function createCalendarSyncService({
         (entry) => entry?.localId === block.id && entry?.calendarId === safe.calendarId,
       );
       if (!link)
-        throw new Error("This Hibi block is not linked to the selected calendar.");
+        throw new Error("This Pixano block is not linked to the selected calendar.");
       return prepareUpdateFor(safe.calendarId, block, link, link.remoteRevision);
     },
     async resolveConflict(input) {
@@ -522,7 +522,7 @@ function createCalendarSyncService({
             allDay: local.allDay === true,
           });
         if (!link || !block)
-          throw new Error("The Hibi block for this conflict is unavailable.");
+          throw new Error("The Pixano block for this conflict is unavailable.");
         const extra = {
           resolvesConflictId: conflict.id,
           fingerprint: blockFingerprint(local),

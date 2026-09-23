@@ -308,16 +308,16 @@ test('os ajustes de presença sobrevivem a recarregar, e o loop escolhido toca d
   await page.getByLabel('Quando você se afastar').selectOption('pause');
   await page.getByLabel('Tempo de inatividade').selectOption('10');
   await page.getByLabel('Animação durante o foco').selectOption('music');
-  await page.getByLabel('Timeout de tela do Taby').selectOption('300');
-  await expect(page.getByText('Só vale com o dispositivo Taby conectado.')).toBeVisible();
-  await expect(page.getByText('Taby não conectado')).toBeVisible();
+  await page.getByLabel('Tempo limite da tela do mascote').selectOption('300');
+  await expect(page.getByText('Esta opção se aplica ao mascote conectado.')).toBeVisible();
+  await expect(page.getByText('Mascote não conectado')).toBeVisible();
 
   await page.reload();
   await openFocusSettings(page);
   await expect(page.getByLabel('Quando você se afastar')).toHaveValue('pause');
   await expect(page.getByLabel('Tempo de inatividade')).toHaveValue('10');
   await expect(page.getByLabel('Animação durante o foco')).toHaveValue('music');
-  await expect(page.getByLabel('Timeout de tela do Taby')).toHaveValue('300');
+  await expect(page.getByLabel('Tempo limite da tela do mascote')).toHaveValue('300');
 
   // "Continuar contando" desliga o tempo de inatividade, que não governaria nada.
   await page.getByLabel('Quando você se afastar').selectOption('keep');

@@ -27,7 +27,7 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
     let notionSettings: Record<string, unknown> = configured ? {
       endpoint: '',
       clientId: '',
-      targets: [{ id: 'source-1', label: 'Hibi Tasks' }],
+      targets: [{ id: 'source-1', label: 'Pixano Tasks' }],
       notion: {
         workspaceLabel: "Kizuna Std's Notion",
         parentPageId: 'page-kizuna',
@@ -49,7 +49,7 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
     };
 
     (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
-      info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
+      info: async () => ({ name: 'Pixano', version: '0.1.0', localOnly: true }),
       listIntegrationStatus: async () => [
         { id: 'notion', label: 'Notion', capabilities: ['import', 'write', 'sync'], state: 'connected', hasCredential: true },
       ],
@@ -60,7 +60,7 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
         notionSettings = { ...notionSettings, ...patch };
         return JSON.parse(JSON.stringify(notionSettings));
       },
-      listIntegrationImportTargets: async () => [{ id: 'source-1', label: 'Hibi Tasks' }],
+      listIntegrationImportTargets: async () => [{ id: 'source-1', label: 'Pixano Tasks' }],
       // Uma tarefa que só existe no Notion, para a prévia nunca ficar vazia.
       listIntegrationImportCandidates: async () => [
         { remoteId: 'page-remote-1', title: 'Tarefa só do Notion', kind: 'task', revision: 'v1' },
@@ -82,7 +82,7 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
           : { key: operation.key, ok: true, remoteId: `page-${operation.key}`, revision: `rev-${operation.key}` });
         return { ok: items.every((item) => item.ok), items };
       },
-      discoverNotionDataSource: async (databaseId: string) => ({ databaseId, dataSourceId: 'source-created', label: 'Hibi Tasks' }),
+      discoverNotionDataSource: async (databaseId: string) => ({ databaseId, dataSourceId: 'source-created', label: 'Pixano Tasks' }),
       showNotch: async (presentation: { requestId: string; text: string }) => {
         recorded.notch.push({ requestId: presentation.requestId, text: presentation.text });
         return true;
@@ -187,9 +187,9 @@ test('a base criada no setup fica utilizável na mesma sessão', async ({ page }
   await openIntegrations(page);
   await expect(page.getByRole('region', { name: 'Notion sync setup' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Prepare Hibi Tasks' }).click();
+  await page.getByRole('button', { name: 'Prepare Pixano Tasks' }).click();
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
-  await expect(page.getByText('Hibi Tasks is ready inside Kizuna.')).toBeVisible();
+  await expect(page.getByText('Pixano Tasks is ready inside Kizuna.')).toBeVisible();
 
   // Sem recarregar nem sair da tela: a sincronização precisa achar a base recém-criada.
   await page.getByRole('button', { name: 'Sync now' }).click();

@@ -27,7 +27,7 @@ const NO_ELECTRON = 'binário do Electron não instalado (ELECTRON_SKIP_BINARY_D
 // Os números do contrato passivo, afirmados aqui contra o frame real em vez de por regex no fonte.
 const HOST_WIDTH = 264;
 const PASSIVE_HEIGHT = 167;
-const IDLE_ANIMATION = path.resolve(__dirname, '../../public/companion-assets/animations/notch/idle_01_loop.mp4');
+const IDLE_ANIMATION = path.resolve(__dirname, '../../public/mascot/idle.mp4');
 // O painel nasce centralizado e colado no topo físico, cobrindo a faixa da câmera.
 const expectedFrame = (screen) => ({
   x: screen.frame.x + screen.frame.width / 2 - HOST_WIDTH / 2,

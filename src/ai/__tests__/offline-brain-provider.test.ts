@@ -18,7 +18,7 @@ const request = (overrides: Partial<AiProviderRequest> = {}): AiProviderRequest 
 
 const tools = (toolCalls: { name: string; arguments: Record<string, unknown> }[] = []): AiProvider => ({
   id: 'local-tools',
-  label: 'Hibi local tools',
+  label: 'Pixano local tools',
   generate: async () => ({ reply: 'Posso ajudar com tarefas.', toolCalls, notchPresentation: null, providerMetadata: { model: 'local-tool-provider' } }),
 });
 
@@ -29,7 +29,7 @@ describe('offline brain provider', () => {
 
     expect(proposal.reply).toBe('Faça pausas curtas.');
     expect(proposal.toolCalls).toEqual([]);
-    expect(proposal.providerMetadata).toMatchObject({ providerId: 'offline-brain', provider: 'Hibi offline brain', model: 'qwen3-1.7b' });
+    expect(proposal.providerMetadata).toMatchObject({ providerId: 'offline-brain', provider: 'Pixano offline assistant', model: 'qwen3-1.7b' });
     expect(runLocalModel.mock.calls[0]![0].requestId).toMatch(/^[A-Za-z0-9_-]{1,80}$/);
   });
 
@@ -38,7 +38,7 @@ describe('offline brain provider', () => {
     const proposal = await new OfflineBrainProvider({ runLocalModel }, tools([{ name: 'task.create', arguments: { title: 'x' } }])).generate(request(), new AbortController().signal);
 
     expect(proposal.toolCalls).toHaveLength(1);
-    expect(proposal.providerMetadata).toMatchObject({ providerId: 'local-tools', provider: 'Hibi local tools' });
+    expect(proposal.providerMetadata).toMatchObject({ providerId: 'local-tools', provider: 'Pixano local tools' });
     expect(runLocalModel).not.toHaveBeenCalled();
   });
 
@@ -100,7 +100,7 @@ describe('offline brain provider', () => {
     const result = await createLocalHibiRuntime(repository, {}, brain).runTurn({ message: 'me dá uma dica para focar', surface: 'desktop' });
 
     expect(result.reply).toBe('Respire fundo.');
-    expect(result.provider).toMatchObject({ id: 'offline-brain', label: 'Hibi offline brain', model: 'qwen3-1.7b' });
+    expect(result.provider).toMatchObject({ id: 'offline-brain', label: 'Pixano offline assistant', model: 'qwen3-1.7b' });
   });
 });
 

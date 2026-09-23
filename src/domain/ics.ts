@@ -20,9 +20,11 @@ const unescapeText = (value: string) => value.replace(/\\([\\;,nN])/g, (_, char:
 
 export function toIcsCalendar(blocks: readonly ScheduleBlock[]): string {
   const events = blocks
+    // O domínio do UID fica legado para que uma reexportação do mesmo bloco continue identificável
+    // em calendários que já receberam arquivos da versão Hibi.
     .map((block) => `BEGIN:VEVENT\nUID:${block.id}@hibi\nDTSTART:${toIcsStamp(block.start)}\nDTEND:${toIcsStamp(block.end)}\nSUMMARY:${escapeText(block.title)}\nEND:VEVENT`)
     .join('\n');
-  return `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Hibi//EN\n${events}\nEND:VCALENDAR`;
+  return `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Pixano//EN\n${events}\nEND:VCALENDAR`;
 }
 
 export type IcsEvent = Readonly<{ title: string; start: string; end: string }>;

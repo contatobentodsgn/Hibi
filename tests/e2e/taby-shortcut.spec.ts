@@ -39,7 +39,7 @@ test('a pessoa escolhe a combinação em Ajustes, e o pedido chega ao sistema', 
   await page.goto('/');
   await openSettings(page);
 
-  const select = page.getByLabel('Atalho do Taby');
+  const select = page.getByLabel('Atalho do assistente');
   await expect(select).toHaveValue('Command+Shift+Space');
   await expect(page.getByText('Valendo neste Mac')).toBeVisible();
 

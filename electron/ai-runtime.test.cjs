@@ -39,7 +39,7 @@ test('uses capped exponential retry delays with deterministic jitter', () => {
   assert.equal(retryDelayFor(2, () => 0.5), 1500);
   assert.equal(retryDelayFor(99, () => 1), 4000);
 });
-test('enforces provider response size and cancellation', async () => { const oversized = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', fetchImpl: async () => ({ ok: true, headers: { get: () => '1048577' }, text: async () => '' }) }); await assert.rejects(() => oversized.generate({ message: 'x' }), /1 MiB/); const runtime = createMainAiRuntime(); const response = await runtime.run({ message: 'hi', surface: 'desktop' }); assert.equal(response.providerLabel, 'Hibi local heuristic'); });
+test('enforces provider response size and cancellation', async () => { const oversized = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', fetchImpl: async () => ({ ok: true, headers: { get: () => '1048577' }, text: async () => '' }) }); await assert.rejects(() => oversized.generate({ message: 'x' }), /1 MiB/); const runtime = createMainAiRuntime(); const response = await runtime.run({ message: 'hi', surface: 'desktop' }); assert.equal(response.providerLabel, 'Pixano local assistant'); });
 test('bounds streamed SSE bodies before parsing their events', async () => {
   const client = createTestClient({ endpoint: 'https://api.example.test', apiKey: 'sk-secret', model: 'm', fetchImpl: async () => ({ ok: true, status: 200, headers: { get: () => null }, body: { getReader: () => ({ read: async () => ({ done: false, value: Buffer.alloc(1024 * 1024 + 1) }), cancel: async () => {} }) } }) });
 

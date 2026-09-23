@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
-const pedirAoTaby = async (page: Page, frase: string) => {
-  await page.getByRole('button', { name: 'Taby', exact: true }).click();
+const pedirAoAssistente = async (page: Page, frase: string) => {
+  await page.getByRole('button', { name: 'Assistente', exact: true }).click();
   await page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' }).fill(frase);
   await page.getByRole('button', { name: 'Send' }).click();
   await page.getByRole('alert').getByRole('button', { name: 'Confirmar' }).click();
@@ -11,7 +11,7 @@ const pedirAoTaby = async (page: Page, frase: string) => {
 // ficava parado, os lembretes não eram segurados e nada entrava nas estatísticas.
 test('"iniciar foco" pelo Taby começa uma sessão de verdade', async ({ page }) => {
   await page.goto('/');
-  await pedirAoTaby(page, 'iniciar foco');
+  await pedirAoAssistente(page, 'iniciar foco');
 
   await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
   // O relógio anda: a sessão de 25 minutos já passou do primeiro segundo.
@@ -28,7 +28,7 @@ test('"iniciar foco" pelo Taby começa uma sessão de verdade', async ({ page })
 
 test('abrir a tela de Foco depois, sem pedido, não inicia nada sozinho', async ({ page }) => {
   await page.goto('/');
-  await pedirAoTaby(page, 'iniciar foco');
+  await pedirAoAssistente(page, 'iniciar foco');
   await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
   await page.getByRole('button', { name: 'Pause session' }).click();
 

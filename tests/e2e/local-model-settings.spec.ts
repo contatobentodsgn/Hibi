@@ -46,7 +46,7 @@ test('quem ainda não tem o cérebro offline encontra e baixa o modelo na aba de
 
   await page.evaluate(() => (window as unknown as { hibiE2E: { finish: () => void } }).hibiE2E.finish());
   await expect(panel).toContainText('Pronto neste Mac');
-  await expect(panel).toContainText('O Taby responde suas perguntas com este modelo');
+  await expect(panel).toContainText('O assistente responde suas perguntas com este modelo');
   expect(await page.evaluate(() => (window as unknown as { hibiE2E: { recorded: { downloads: number } } }).hibiE2E.recorded.downloads)).toBe(1);
 });
 

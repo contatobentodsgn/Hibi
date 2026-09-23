@@ -1,9 +1,11 @@
 const fsDefault = require('node:fs');
 const path = require('node:path');
 
-/** The app is called Hibi everywhere except in the folder Electron derives from the package name. */
-const APP_FOLDER = 'Hibi';
-const LEGACY_FOLDER = 'hibi-study-replica';
+/** Pixano é o nome visível; estes dois diretórios são preservados como caminhos de migração. */
+const APP_FOLDER = 'Pixano';
+const LEGACY_FOLDER = 'Hibi';
+const LEGACY_PACKAGE_FOLDER = 'hibi-study-replica';
+const LEGACY_FOLDERS = [LEGACY_FOLDER, LEGACY_PACKAGE_FOLDER];
 
 function exists(fs, target) {
   try {
@@ -13,34 +15,44 @@ function exists(fs, target) {
   }
 }
 
-/**
- * Uma pasta "tem dados" quando guarda um workspace: o banco, ou o armazenamento local de antes dele.
- * A data da pasta não serve: ela muda quando um arquivo é criado dentro dela, não quando o banco é
- * regravado — e um app antigo que recriasse a pasta legada a faria parecer a mais nova.
- */
+/** Any non-empty app-data folder is user state; this includes pre-database preferences. */
 function hasWorkspace(fs, folder) {
-  return exists(fs, path.join(folder, 'workspace.db')) || exists(fs, path.join(folder, 'Local Storage'));
+  if (exists(fs, path.join(folder, 'workspace.db')) || exists(fs, path.join(folder, 'Local Storage'))) return true;
+  try {
+    return fs.readdirSync(folder).length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Decide qual pasta guarda os dados desta pessoa e move a antiga para o lugar uma vez.
- *
- * A regra de ouro: **a pasta com o nome do app, tendo dados, nunca é trocada.** Antes, a escolha
- * comparava a data das pastas, e qualquer build antigo (ou a branch de outra pessoa rodando em
- * desenvolvimento) que recriasse `hibi-study-replica` a fazia parecer mais nova: na abertura seguinte
- * a pasta verdadeira era posta de lado e o app abria vazio. A pasta antiga só entra quando a do app
- * não tem workspace nenhum — e nada é apagado: quem perde a disputa é renomeado ao lado.
+ * Move the first usable legacy profile into Pixano once. Never overwrite or delete a profile:
+ * an empty Pixano directory is preserved beside the migrated one, and any other legacy directory
+ * remains untouched for manual recovery if it also contains data.
  */
-function resolveUserDataPath({ appData, fs = fsDefault, now = () => new Date(), onNotice = () => {} } = {}) {
+function resolveUserDataPath({ appData, override, fs = fsDefault, now = () => new Date(), onNotice = () => {} } = {}) {
+  if (override !== undefined) {
+    if (typeof override !== 'string' || !path.isAbsolute(override)) throw new TypeError('The explicit user-data path must be absolute.');
+    return path.normalize(override);
+  }
+
   const target = path.join(appData, APP_FOLDER);
-  const legacy = path.join(appData, LEGACY_FOLDER);
   const hasTarget = exists(fs, target);
-  const hasLegacy = exists(fs, legacy);
+  const legacyPaths = LEGACY_FOLDERS.map((folder) => path.join(appData, folder));
+  const hasLegacy = legacyPaths.some((folder) => exists(fs, folder));
   if (!hasLegacy) return target;
-  if (hasTarget && (hasWorkspace(fs, target) || !hasWorkspace(fs, legacy))) {
-    onNotice({ kind: 'kept', path: target, other: legacy });
+
+  if (hasTarget && hasWorkspace(fs, target)) {
+    onNotice({ kind: 'kept', path: target, other: legacyPaths.find((folder) => exists(fs, folder)) });
     return target;
   }
+
+  const source = legacyPaths.find((folder) => exists(fs, folder) && hasWorkspace(fs, folder));
+  if (!source) {
+    if (hasTarget) onNotice({ kind: 'kept', path: target, other: legacyPaths.find((folder) => exists(fs, folder)) });
+    return target;
+  }
+
   try {
     if (hasTarget) {
       const supersededAt = now().toISOString().replace(/[:.]/g, '-');
@@ -48,13 +60,13 @@ function resolveUserDataPath({ appData, fs = fsDefault, now = () => new Date(), 
       fs.renameSync(target, aside);
       onNotice({ kind: 'superseded', path: aside });
     }
-    fs.renameSync(legacy, target);
-    onNotice({ kind: 'migrated', path: target, other: legacy });
+    fs.renameSync(source, target);
+    onNotice({ kind: 'migrated', path: target, other: source });
     return target;
   } catch (error) {
-    onNotice({ kind: 'failed', path: legacy, error: error instanceof Error ? error.message : String(error) });
-    return exists(fs, legacy) ? legacy : target;
+    onNotice({ kind: 'failed', path: source, error: error instanceof Error ? error.message : String(error) });
+    return exists(fs, source) ? source : target;
   }
 }
 
-module.exports = { resolveUserDataPath, APP_FOLDER, LEGACY_FOLDER };
+module.exports = { resolveUserDataPath, APP_FOLDER, LEGACY_FOLDER, LEGACY_PACKAGE_FOLDER };

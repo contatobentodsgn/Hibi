@@ -248,7 +248,7 @@ export function AiSettings({
             if (local) setApiKey("");
           }}
         >
-          <option value="local">Hibi local</option>
+          <option value="local">Pixano local</option>
           <option value="openai-compatible">OpenAI-compatible</option>
         </select>
       </Setting>
@@ -693,7 +693,7 @@ export function SettingsWorkspace({
       new Blob(
         [
           JSON.stringify(
-            { exportedAt: new Date().toISOString(), app: "Hibi", data },
+            { exportedAt: new Date().toISOString(), app: "Pixano", data },
             null,
             2,
           ),
@@ -703,7 +703,7 @@ export function SettingsWorkspace({
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = "hibi-support-bundle.json";
+    link.download = "pixano-support-bundle.json";
     link.click();
     URL.revokeObjectURL(url);
     onEvent("export", "Exported support bundle", "pass");
@@ -721,7 +721,7 @@ export function SettingsWorkspace({
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = "hibi-workspace-backup.json";
+    link.download = "pixano-workspace-backup.json";
     link.click();
     URL.revokeObjectURL(url);
     setBackupNotice(
@@ -816,7 +816,7 @@ export function SettingsWorkspace({
     <div className="view settings-view">
       <div className="view-heading">
         <div>
-          <p className="eyebrow">HIBI STUDY REPLICA</p>
+          <p className="eyebrow">PIXANO</p>
           <h1>Settings</h1>
           <p className="muted">
             Local preferences · {data.tasks.length} tasks ·{" "}
@@ -836,12 +836,12 @@ export function SettingsWorkspace({
                 onEvent("navigation", `Settings · ${item}`);
               }}
             >
-              {item}
+              {item === "Taby" ? "Assistant" : item}
             </button>
           ))}
         </aside>
         <section className="settings-card">
-          <h2 className="settings-section-title">{tab}</h2>
+          <h2 className="settings-section-title">{tab === "Taby" ? "Assistant" : tab}</h2>
           {tab === "General" && (
             <>
               <ShortcutSettings onEvent={onEvent} />
@@ -1002,7 +1002,7 @@ export function SettingsWorkspace({
                   </button>
                   <input
                     ref={importRef}
-                    aria-label="Choose Hibi workspace backup"
+                    aria-label="Choose Pixano workspace backup"
                     type="file"
                     accept="application/json,.json"
                     onChange={(event) => void importWorkspace(event)}
@@ -1081,7 +1081,7 @@ export function SettingsWorkspace({
           {tab === "About" && (
             <>
               <p className="muted">
-                Hibi is an offline-first personal planning workspace.
+                Pixano is an offline-first personal planning workspace.
               </p>
               <div className="settings-divider" />
               <h3 className="eyebrow">INTEGRATION STATUS</h3>

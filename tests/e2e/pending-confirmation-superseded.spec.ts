@@ -21,7 +21,7 @@ const registro = (page: Page) => page.evaluate(() => (window as unknown as { hib
 test('perguntar de novo com uma confirmação pendente tira o cartão dela do notch', async ({ page }) => {
   await instalarNotch(page);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Taby', exact: true }).click();
+  await page.getByRole('button', { name: 'Assistente', exact: true }).click();
   const campo = page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
 
   await campo.fill('crie uma tarefa: revisar roteiro');

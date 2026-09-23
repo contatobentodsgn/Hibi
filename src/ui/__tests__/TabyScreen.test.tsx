@@ -31,7 +31,7 @@ describe('TabyScreen', () => {
   it('keeps a safe provider boundary visible instead of implying external access', () => {
     const markup = renderToStaticMarkup(<LocaleProvider initialLanguage="pt"><TabyScreen data={createSeedData()} turn={turn} conversations={conversations} /></LocaleProvider>);
     expect(markup).toContain('Ferramentas locais e confirmações explícitas.');
-    expect(markup).toContain('External AI');
+    expect(markup).toContain('IA externa');
   });
 
   it('localizes the empty conversation and assistant status in Portuguese', () => {

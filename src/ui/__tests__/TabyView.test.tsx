@@ -44,6 +44,9 @@ describe('TabyView capability boundaries', () => {
     expect(markup).toContain('External AI');
     expect(markup).toContain('Hardware');
     expect(markup).toContain('O modo local não usa rede');
+    expect(markup).toContain('Pixano local tools');
+    expect(markup).not.toContain('Hibi local tools');
+    expect(markup).not.toContain('TABY · LOCAL TOOLS');
   });
 
   it('builds a capture presentation with only confirm and cancel actions', () => {

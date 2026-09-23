@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-test('Taby conversation rows and titles stay inside the history sidebar', async ({ page }) => {
+test('assistant conversation rows and titles stay inside the history sidebar', async ({ page }) => {
   const timestamp = '2026-09-23T12:00:00.000Z';
   const title = 'Uma conversa com um título suficientemente longo para forçar a largura intrínseca da sidebar';
   await page.addInitScript(({ timestamp, title }) => {
     localStorage.setItem('hibi-conversations', JSON.stringify([{ id: 'long-history-title', title, createdAt: timestamp, updatedAt: timestamp, messages: [{ role: 'user', text: title, at: timestamp }] }]));
   }, { timestamp, title });
   await page.goto('/');
-  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Taby', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Assistente', exact: true }).click();
 
   const bounds = await page.locator('.taby-screen__history').evaluate((history) => {
     const historyRight = history.getBoundingClientRect().right;
