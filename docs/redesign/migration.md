@@ -10,6 +10,13 @@ Cada view antiga só pode ser removida depois de `rg` confirmar que não há con
 - A paleta e a navegação principal continuam sendo o acesso oficial às rotas secundárias.
 - `legacy-surface` permanece somente nas telas ainda não migradas visualmente, evitando uma remoção ampla sem evidência. Os painéis de integração seguem compartilhados dentro da área de Ajustes, sem consumidor direto no App legado.
 - A galeria técnica não foi adicionada ao menu diário.
+- O bundle web usa chunks separados para HeroUI, ícones, motion e superfícies redesign; no build final o maior chunk JavaScript ficou em 362 kB, abaixo do limite de aviso de 500 kB.
+
+## Validação nativa pendente de ambiente
+
+- O build nativo do notch, do helper de voz e do renderer passou nesta máquina.
+- Os testes reais de EventKit/Google/Notion e do provedor de IA exigem os opt-ins `HIBI_LIVE_*`, endpoints allowlisted e credenciais fornecidas pelo usuário; sem esses valores, a execução correta é permanecer bloqueada, sem simular sucesso.
+- Spaces e sleep/wake exigem interação com uma sessão macOS real e continuam como validação manual de release.
 
 ## Reversão
 
