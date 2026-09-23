@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const openTaskCreateDialog = async (page: import('@playwright/test').Page) => {
-  await page.getByRole('button', { name: 'Nova tarefa', exact: true }).click();
+  await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
 };
 
@@ -12,7 +12,7 @@ test('a criação rápida de Tarefas cria a tarefa, e ela sobrevive a recarregar
   await openTaskCreateDialog(page);
   const campo = page.getByRole('textbox', { name: 'Título da tarefa' });
   await campo.fill('Tarefa criada pelo formulário rápido');
-  await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Criar tarefa', exact: true }).click();
 
   await expect(page.getByText('Tarefa criada pelo formulário rápido')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -26,14 +26,14 @@ test('a criação rápida de Tarefas cria a tarefa, e ela sobrevive a recarregar
 test('uma tarefa criada com a pasta filtrada nasce nessa pasta e aparece na lista', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
-  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pasta · Bento \d+$/ }).click();
+  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pastas · Bento \d+$/ }).click();
 
   await openTaskCreateDialog(page);
   await page.getByRole('textbox', { name: 'Título da tarefa' }).fill('Tarefa da pasta filtrada');
-  await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Criar tarefa', exact: true }).click();
 
   await expect(page.getByText('Tarefa da pasta filtrada')).toBeVisible();
-  await expect(page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pasta · Bento \d+$/ })).toBeVisible();
+  await expect(page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pastas · Bento \d+$/ })).toBeVisible();
 });
 
 test('a tarefa rápida nasce na pasta filtrada, qualquer que seja, e em "Sem pasta" nasce sem pasta', async ({ page }) => {
@@ -46,19 +46,19 @@ test('a tarefa rápida nasce na pasta filtrada, qualquer que seja, e em "Sem pas
   await page.reload();
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
 
-  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pasta · Clientes \d+$/ }).click();
+  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pastas · Clientes \d+$/ }).click();
   await openTaskCreateDialog(page);
   await page.getByRole('textbox', { name: 'Título da tarefa' }).fill('Contrato do cliente');
-  await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Concluir Contrato do cliente' })).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Criar tarefa', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Concluir tarefa Contrato do cliente' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Hoje', exact: true }).click();
   await page.getByRole('button', { name: 'Tarefas', exact: true }).click();
-  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pasta · Sem pasta \d+$/ }).click();
+  await page.getByLabel('Filtros de tarefas').getByRole('button', { name: /^Pastas · Sem pasta \d+$/ }).click();
   await openTaskCreateDialog(page);
   await page.getByRole('textbox', { name: 'Título da tarefa' }).fill('Ideia sem pasta');
-  await page.getByRole('button', { name: 'Criar tarefa', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Concluir Ideia sem pasta' })).toBeVisible();
+  await page.getByRole('dialog').getByRole('button', { name: 'Criar tarefa', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Concluir tarefa Ideia sem pasta' })).toBeVisible();
 
   const pastas = await page.evaluate(() => {
     const data = JSON.parse(window.localStorage.getItem('hibi-study-data') ?? '{}') as { tasks: { title: string; folder?: string }[] };
