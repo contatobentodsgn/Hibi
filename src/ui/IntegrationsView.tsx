@@ -10,6 +10,8 @@ function OAuthClientSecretField({ label, saved, value, onChange, onSave, onClear
   return <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input aria-label={`${label} client secret`} type="password" autoComplete="new-password" placeholder="Client credential" value={value} onChange={(event) => onChange(event.target.value)} /><button className="outline" onClick={onSave}>Save client credential</button><span aria-live="polite">{saved ? 'Saved' : 'Not saved'}</span>{saved && <button className="outline" onClick={onClear}>Clear client credential</button>}</div>
 }
 
+export const IntegrationsView = IntegrationsWorkspace;
+
 type Props = Readonly<{ onEvent: (action: string, detail: string, result?: string) => void; localRecords?: readonly LocalImportRecord[]; localTasks?: readonly Task[]; localBlocks?: readonly ScheduleBlock[]; onApplyImport?: (candidate: ImportCandidate, decision: ImportDecision, localId?: string, connectorId?: string) => void; onApplyNotion?: (mutations: readonly NotionLocalMutation[]) => readonly Task[]; onMoveBlock?: (id: string, start: string, end: string) => boolean }>
 const initial: readonly IntegrationStatus[] = [
   { id: 'notion', label: 'Notion', capabilities: ['import', 'write', 'sync'], state: 'disconnected', hasCredential: false },
@@ -22,7 +24,7 @@ const initial: readonly IntegrationStatus[] = [
 const EMPTY_SETTINGS: ConnectorSettings = { endpoint: '', clientId: '', targets: [], authorizationUrl: '', tokenUrl: '' }
 const auditTimestamp = (value: string) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value) ? `${value.slice(0, 10)} ${value.slice(11, 16)}` : value
 
-export function IntegrationsView({ onEvent, localRecords = [], localTasks = [], localBlocks = [], onApplyImport, onApplyNotion, onMoveBlock }: Props) {
+export function IntegrationsWorkspace({ onEvent, localRecords = [], localTasks = [], localBlocks = [], onApplyImport, onApplyNotion, onMoveBlock }: Props) {
   const [status, setStatus] = useState<readonly IntegrationStatus[]>(initial)
   const [audit, setAudit] = useState<readonly IntegrationAuditEvent[]>([])
   const [preview, setPreview] = useState<readonly ImportPreviewItem[]>([])
