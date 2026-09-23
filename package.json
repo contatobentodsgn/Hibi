@@ -61,7 +61,7 @@
         "NSMicrophoneUsageDescription": "Pixano needs the microphone to turn what you say into text on this Mac.",
         "NSSpeechRecognitionUsageDescription": "Pixano recognises your speech on this Mac to type what you dictate.",
         "LSUIElement": true,
-        "CFBundleIconName": "Hibi"
+        "CFBundleIconName": "Pixano"
       },
       "binaries": [
         "Contents/Resources/native/voice/build/hibi-voice"

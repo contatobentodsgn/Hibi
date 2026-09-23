@@ -18,5 +18,8 @@ describe('SettingsView locale', () => {
     expect(markup).not.toContain('Launch at login');
     expect(markup).not.toContain('Use clear, exact times across calendar and reminders');
     expect(markup).not.toContain('Open Pixano automatically when this Mac starts');
+    expect(markup).toContain('Assistant');
+    expect(markup).not.toContain('Taby');
+    expect(markup).not.toContain('Hibi');
   });
 });
