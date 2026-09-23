@@ -1,7 +1,7 @@
 export type ThemePreference = 'system' | 'light' | 'dark'
 export type ResolvedTheme = 'light' | 'dark'
-// Os quatro tons do preview aprovado ("Um toque de cor"). Lavanda é o padrão.
-export type TintPreference = 'lavender' | 'blue' | 'mint' | 'peach'
+// Dez acentos para personalização; Lavanda mantém o padrão do preview aprovado.
+export type TintPreference = 'lavender' | 'blue' | 'teal' | 'mint' | 'forest' | 'amber' | 'coral' | 'rose' | 'plum' | 'graphite'
 export type ContrastPreference = 'normal' | 'more'
 export type MotionPreference = 'system' | 'reduce'
 
@@ -10,8 +10,8 @@ export const TINT_STORAGE_KEY = 'hibi-tint'
 export const CONTRAST_STORAGE_KEY = 'hibi-contrast'
 export const MOTION_STORAGE_KEY = 'hibi-motion'
 
-// Os cinco tons de antes viram o mais próximo do preview, para ninguém perder a escolha feita.
-const PREVIOUS_TINTS: Readonly<Record<string, TintPreference>> = { aurora: 'lavender', iris: 'lavender', ocean: 'blue', moss: 'mint', rose: 'peach' }
+// Preferências antigas continuam válidas ou migram para o acento moderno mais próximo.
+const PREVIOUS_TINTS: Readonly<Record<string, TintPreference>> = { aurora: 'lavender', iris: 'plum', ocean: 'blue', moss: 'forest', peach: 'coral' }
 
 export type ThemeHost = Readonly<{
   storage: Pick<Storage, 'getItem' | 'setItem'>
@@ -20,7 +20,7 @@ export type ThemeHost = Readonly<{
 }>
 
 export const isThemePreference = (value: unknown): value is ThemePreference => value === 'system' || value === 'light' || value === 'dark'
-export const isTintPreference = (value: unknown): value is TintPreference => value === 'lavender' || value === 'blue' || value === 'mint' || value === 'peach'
+export const isTintPreference = (value: unknown): value is TintPreference => value === 'lavender' || value === 'blue' || value === 'teal' || value === 'mint' || value === 'forest' || value === 'amber' || value === 'coral' || value === 'rose' || value === 'plum' || value === 'graphite'
 export const isContrastPreference = (value: unknown): value is ContrastPreference => value === 'normal' || value === 'more'
 export const isMotionPreference = (value: unknown): value is MotionPreference => value === 'system' || value === 'reduce'
 

@@ -45,17 +45,23 @@
   .hibi-ui .appearance-position__surface > i { display: block; height: 12px; border-radius: 4px; margin-bottom: 6px; background: var(--hibi-paper); }
   .hibi-ui .appearance-position__surface > div { display: flex; gap: 6px; }
   .hibi-ui .appearance-position__surface > div > i { display: block; width: 50%; height: 30px; border-radius: 5px; background: var(--hibi-paper); }
-  .hibi-ui .appearance-position__surface > div > i:first-child { background: var(--hibi-lavender); }
+  .hibi-ui .appearance-position__surface > div > i:first-child { background: var(--hibi-accent-soft); }
 
   /* Escolhida: o contorno do acento, como no preview. Foco pelo teclado: um anel a mais, sem confundir com a escolha. */
   .hibi-ui .radio__content[data-selected="true"] .appearance-thumb { outline: 2px solid var(--hibi-accent); outline-offset: 3px; }
   .hibi-ui .radio__content[data-focus-visible="true"] .appearance-thumb { box-shadow: 0 0 0 6px color-mix(in oklab, var(--hibi-accent) 35%, transparent); }
 
   .hibi-ui .appearance-swatch { width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; gap: 0; }
-  .hibi-ui .appearance-swatch--lavender { background: var(--hibi-lavender); color: var(--hibi-lavender-ink); }
-  .hibi-ui .appearance-swatch--blue { background: var(--hibi-blue); color: var(--hibi-blue-ink); }
-  .hibi-ui .appearance-swatch--mint { background: var(--hibi-mint); color: var(--hibi-mint-ink); }
-  .hibi-ui .appearance-swatch--peach { background: var(--hibi-peach); color: var(--hibi-peach-ink); }
+  .hibi-ui .appearance-swatch--lavender { --swatch: #8a76bd; background: var(--swatch); color: white; }
+  .hibi-ui .appearance-swatch--blue { --swatch: #4d79a8; background: var(--swatch); color: white; }
+  .hibi-ui .appearance-swatch--teal { --swatch: #328d84; background: var(--swatch); color: white; }
+  .hibi-ui .appearance-swatch--mint { --swatch: #4d9368; background: var(--swatch); color: white; }
+  .hibi-ui .appearance-swatch--forest { --swatch: #497451; background: var(--swatch); color: white; }
+  .hibi-ui .appearance-swatch--amber { --swatch: #bd841f; background: var(--swatch); color: #211807; }
+  .hibi-ui .appearance-swatch--coral { --swatch: #c56751; background: var(--swatch); color: white; }
+  .hibi-ui .appearance-swatch--rose { --swatch: #bd5f7d; background: var(--swatch); color: white; }
+  .hibi-ui .appearance-swatch--plum { --swatch: #8960a5; background: var(--swatch); color: white; }
+  .hibi-ui .appearance-swatch--graphite { --swatch: #626a78; background: var(--swatch); color: white; }
   .hibi-ui .appearance-swatch[data-selected="true"] { outline: 1.5px solid currentColor; outline-offset: 3px; }
   .hibi-ui .appearance-swatch[data-focus-visible="true"] { box-shadow: 0 0 0 6px color-mix(in oklab, currentColor 30%, transparent); }
 }

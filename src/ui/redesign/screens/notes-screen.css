@@ -23,7 +23,7 @@
   .notes-screen__note-copy span { color: var(--hibi-ink-muted); font-size: 10px; }
   .notes-screen__row-actions { display: flex; flex: 0 0 auto; gap: 3px; }
   .notes-screen__summary { padding: 25px; }
-  .notes-screen__summary-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; background: var(--hibi-lavender); color: var(--hibi-accent); }
+  .notes-screen__summary-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 13px; background: var(--hibi-accent-soft); color: var(--hibi-accent); }
   .notes-screen__summary h2 { margin-top: 20px; font-size: 18px; font-weight: 600; letter-spacing: -.04em; }
   .notes-screen__summary p { margin-top: 8px; color: var(--hibi-ink-muted); font-size: 12px; line-height: 1.55; }
   .notes-screen__summary strong { display: block; margin-top: 30px; font-size: 34px; font-weight: 550; letter-spacing: -.06em; }

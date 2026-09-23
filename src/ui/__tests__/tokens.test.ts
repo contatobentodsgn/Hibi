@@ -48,14 +48,23 @@ describe('tokens.css', () => {
     expect(aliases['--amber']).toBe('var(--cat-important-soft)')
   })
 
-  it.each(['blue', 'mint', 'lavender'])('mantém categoria estável e texto legível no tint %s', (tint) => {
-    for (const themeName of ['light', 'dark'] as const) {
-      const tinted = block(css, `:root[data-theme="${themeName}"][data-tint="${tint}"]`)
-      const base = themeName === 'light' ? light : dark
+  it.each(['lavender', 'blue', 'teal', 'mint', 'forest', 'amber', 'coral', 'rose', 'plum', 'graphite'])('mantém categoria estável e texto legível no tint %s', (tint) => {
+    const lightTint = block(css, `:root[data-tint="${tint}"]`)
+    const darkTint = block(css, `:root[data-theme="dark"][data-tint="${tint}"]`)
+    for (const [themeName, tinted, base] of [['light', lightTint, light], ['dark', darkTint, dark]] as const) {
       expect(tinted['--accent']).toMatch(/^#[0-9a-f]{6}$/)
       expect(tinted['--cat-work']).toBeUndefined()
       expect(tinted['--cat-break']).toBeUndefined()
-      expect(contrastRatio(base['--text-on-accent']!, tinted['--accent']!), `${tint} ${themeName}: texto sobre acento`).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(tinted['--text-on-accent']!, tinted['--accent']!), `${tint} ${themeName}: texto sobre acento`).toBeGreaterThanOrEqual(4.5)
     }
+  })
+
+  it('define acento para as dez preferências em claro e escuro', () => {
+    const redesignCss = readFileSync(new URL('../redesign/theme.css', import.meta.url), 'utf8')
+    for (const tint of ['lavender', 'blue', 'teal', 'mint', 'forest', 'amber', 'coral', 'rose', 'plum', 'graphite']) {
+      expect(redesignCss).toContain(`:root[data-tint="${tint}"] { --hibi-accent:`)
+      expect(redesignCss).toContain(`:root[data-theme="dark"][data-tint="${tint}"] { --hibi-accent:`)
+    }
+    expect(redesignCss).toContain('--hibi-accent-soft: color-mix(in srgb, var(--hibi-accent)')
   })
 })

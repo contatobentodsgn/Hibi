@@ -11,14 +11,14 @@
   .today-screen__commitment h2 { margin-top: 30px; max-width: 12ch; font-size: clamp(22px, 2.4vw, 29px); line-height: 1.03; letter-spacing: -.055em; }
   .today-screen__commitment p, .today-screen__focus-card p, .today-screen__rhythm-card > p { margin-top: 12px; color: var(--hibi-ink-muted); font-size: 12px; line-height: 1.5; }
   .today-screen__commitment-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--hibi-line); color: var(--hibi-ink-muted); font-size: 11px; }
-  .today-screen__icon { display: inline-flex; width: 43px; height: 43px; align-items: center; justify-content: center; border-radius: 50%; background: var(--hibi-lavender); color: var(--hibi-lavender-ink); }
+  .today-screen__icon { display: inline-flex; width: 43px; height: 43px; align-items: center; justify-content: center; border-radius: 50%; background: var(--hibi-accent-soft); color: var(--hibi-accent-soft-ink); }
   .today-screen__focus-card h2 { margin-top: 29px; font-size: 25px; line-height: 1.22; letter-spacing: -.05em; }
   .today-screen__focus-card p { max-width: 24ch; }
   .today-screen__focus-card .button { margin-top: auto; justify-content: flex-start; font-size: 11px; }
   .today-screen__focus-duration { margin-left: auto; color: #c2c2cb; font-size: 10px; }
   .today-screen__week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 38px; }
   .today-screen__week span { display: grid; place-items: center; gap: 6px; min-height: 71px; border-radius: 17px; background: var(--hibi-soft); color: var(--hibi-ink-muted); font-size: 9px; text-transform: lowercase; }
-  .today-screen__week span[data-current="true"] { background: var(--hibi-lavender); color: var(--hibi-lavender-ink); }
+  .today-screen__week span[data-current="true"] { background: var(--hibi-accent-soft); color: var(--hibi-accent-soft-ink); }
   .today-screen__week strong { color: var(--hibi-ink); font-size: 12px; font-weight: 500; }
   .today-screen__rhythm-footer { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--hibi-line); }
   .today-screen__rhythm-footer strong, .today-screen__rhythm-footer small { display: block; font-size: 11px; }
@@ -36,7 +36,7 @@
   .today-screen__progress-time { display: block; margin-top: 27px; font-size: 29px; letter-spacing: -.05em; }
   .today-screen__progress-card small { display: block; margin-top: 5px; color: var(--hibi-ink-muted); font-size: 10px; }
   .today-screen__bars { display: flex; align-items: end; gap: 10px; height: 78px; margin-top: 17px; }
-  .today-screen__bars span { flex: 1; min-height: 8px; border-radius: 4px; background: var(--hibi-lavender); }
+  .today-screen__bars span { flex: 1; min-height: 8px; border-radius: 4px; background: var(--hibi-accent-soft); }
   .today-screen__bars span[data-active="true"] { background: var(--hibi-accent); }
   .today-screen__shortcuts { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 22px; }
   @media (max-width: 980px) { .today-screen__top-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .today-screen__rhythm-card { grid-column: span 2; min-height: auto; } .today-screen__week { margin-top: 22px; } }

@@ -39,7 +39,7 @@ const COPY = {
     warningText: 'Conecte de novo em Ajustes.', failure: 'Não deu para salvar', failureText: 'Tente de novo em instantes.',
     progress: 'Progresso da meta', loading: 'Carregando', tabs: 'Visões', day: 'Dia', week: 'Semana', dayPanel: 'A visão do dia.', weekPanel: 'A visão da semana.',
     utilities: 'Utilitários da UI nova', utilitiesText: 'Classes do Tailwind valem aqui dentro, e não nas telas atuais.',
-    lavender: 'Lavanda', blue: 'Azul', mint: 'Menta', peach: 'Pêssego', contrast: 'Mais contraste', motion: 'Reduzir movimento',
+    lavender: 'Lavanda', blue: 'Azul', teal: 'Turquesa', mint: 'Menta', forest: 'Floresta', amber: 'Âmbar', coral: 'Coral', rose: 'Rosa', plum: 'Ameixa', graphite: 'Grafite', contrast: 'Mais contraste', motion: 'Reduzir movimento',
     reference: 'Peças do preview', createSomething: 'Criar algo', moment: 'Seu momento', momentTitle: 'Menos abas.\nMais presença.',
     momentText: 'Reserve um pouco de tempo para uma coisa importante.', enterFocus: 'Entrar em foco', next: 'A seguir · 10:00',
     design: 'Design', personal: 'Pessoal', work: 'Trabalho', tags: 'Etiquetas',
@@ -67,7 +67,7 @@ const COPY = {
     warningText: 'Reconnect it in Settings.', failure: 'Could not save', failureText: 'Try again in a moment.',
     progress: 'Goal progress', loading: 'Loading', tabs: 'Views', day: 'Day', week: 'Week', dayPanel: 'The day view.', weekPanel: 'The week view.',
     utilities: 'New UI utilities', utilitiesText: 'Tailwind classes apply in here, not in the current screens.',
-    lavender: 'Lavender', blue: 'Blue', mint: 'Mint', peach: 'Peach', contrast: 'More contrast', motion: 'Reduce motion',
+    lavender: 'Lavender', blue: 'Blue', teal: 'Teal', mint: 'Mint', forest: 'Forest', amber: 'Amber', coral: 'Coral', rose: 'Rose', plum: 'Plum', graphite: 'Graphite', contrast: 'More contrast', motion: 'Reduce motion',
     reference: 'Preview pieces', createSomething: 'Create something', moment: 'Your moment', momentTitle: 'Fewer tabs.\nMore presence.',
     momentText: 'Set aside a little time for one important thing.', enterFocus: 'Start focus', next: 'Next · 10:00',
     design: 'Design', personal: 'Personal', work: 'Work', tags: 'Tags',
@@ -81,7 +81,7 @@ const COPY = {
 } as const;
 
 const LONG = { pt: ' — com um texto bem mais comprido que o normal, para ver quebra de linha e alinhamento sem cortar nada', en: ' — with a much longer text than usual, to check line wrapping and alignment without clipping anything' } as const;
-const TINTS: readonly TintPreference[] = ['lavender', 'blue', 'mint', 'peach'];
+const TINTS: readonly TintPreference[] = ['lavender', 'blue', 'teal', 'mint', 'forest', 'amber', 'coral', 'rose', 'plum', 'graphite'];
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
 
 function Section({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {

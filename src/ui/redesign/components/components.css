@@ -16,7 +16,7 @@
     border-radius: 50%; background: var(--hibi-soft); color: var(--hibi-ink); cursor: pointer;
     transition: background var(--hibi-duration-control) var(--hibi-ease), transform var(--hibi-duration-control) var(--hibi-ease);
   }
-  .hibi-ui .hibi-round-link:hover { background: var(--hibi-lavender); transform: translate(1px, -1px); }
+  .hibi-ui .hibi-round-link:hover { background: var(--hibi-accent-soft); transform: translate(1px, -1px); }
   .hibi-ui .hibi-round-link:focus-visible { outline: 2px solid var(--hibi-accent); outline-offset: 4px; }
 
   /* O estado vazio: o círculo de ícone dos cartões do preview (`.icon-circle`), um título e o que fazer. */
@@ -47,7 +47,7 @@
     background: var(--hibi-soft); color: var(--hibi-ink); font-size: 13px; text-align: left; cursor: pointer;
     transition: background var(--hibi-duration-control) var(--hibi-ease);
   }
-  .hibi-ui .hibi-action-dialog__option:hover { background: var(--hibi-lavender); }
+  .hibi-ui .hibi-action-dialog__option:hover { background: var(--hibi-accent-soft); }
   .hibi-ui .hibi-action-dialog__option:focus-visible { outline: 2px solid var(--hibi-accent); outline-offset: 2px; }
   .hibi-ui .hibi-action-dialog__option > svg:last-child { margin-left: auto; }
 

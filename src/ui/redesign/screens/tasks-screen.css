@@ -20,7 +20,7 @@
   .tasks-screen__list li:last-child { border-bottom: 0; }
   .tasks-screen__check { display: grid; flex: 0 0 auto; place-items: center; width: 21px; height: 21px; border: 1px solid var(--hibi-edge); border-radius: 7px; color: transparent; cursor: pointer; transition: background var(--hibi-duration-control) var(--hibi-ease), border-color var(--hibi-duration-control) var(--hibi-ease); }
   .tasks-screen__check:hover { border-color: var(--hibi-accent); }
-  .tasks-screen__check[data-completed="true"] { border-color: var(--hibi-accent); background: var(--hibi-accent); color: white; }
+  .tasks-screen__check[data-completed="true"] { border-color: var(--hibi-accent); background: var(--hibi-accent); color: var(--hibi-accent-ink); }
   .tasks-screen__task-trigger.button { display: flex; flex: 1; align-items: center; justify-content: space-between; min-width: 0; min-height: 58px; padding: 8px 0; border-radius: 0; color: var(--hibi-ink); text-align: left; }
   .tasks-screen__task-trigger.button:hover { background: transparent; }
   .tasks-screen__task-copy { display: grid; gap: 6px; min-width: 0; padding-right: 15px; }

@@ -39,10 +39,13 @@ describe('tema', () => {
     expect(readTintPreference(host(false).storage)).toBe('lavender')
   })
 
-  // Os cinco tons de antes viram o mais próximo dos quatro do preview: ninguém perde a escolha feita.
-  it('converte o tom escolhido antes para o mais próximo do preview', () => {
+  it('reconhece as dez cores e converte preferências antigas sem perder a escolha', () => {
     const fake = host(false)
-    for (const [before, after] of [['aurora', 'lavender'], ['iris', 'lavender'], ['ocean', 'blue'], ['moss', 'mint'], ['rose', 'peach']] as const) {
+    for (const tint of ['lavender', 'blue', 'teal', 'mint', 'forest', 'amber', 'coral', 'rose', 'plum', 'graphite'] as const) {
+      fake.store.set(TINT_STORAGE_KEY, tint)
+      expect(readTintPreference(fake.storage), tint).toBe(tint)
+    }
+    for (const [before, after] of [['aurora', 'lavender'], ['iris', 'plum'], ['ocean', 'blue'], ['moss', 'forest'], ['peach', 'coral']] as const) {
       fake.store.set(TINT_STORAGE_KEY, before)
       expect(readTintPreference(fake.storage), before).toBe(after)
     }

@@ -22,7 +22,7 @@ const THEMES: readonly Readonly<{ key: ThemePreference; label: DictionaryKey; ic
   { key: 'dark', label: 'settings.theme.dark', icon: Moon },
   { key: 'system', label: 'settings.theme.system', icon: Monitor },
 ];
-const TINTS: readonly TintPreference[] = ['lavender', 'blue', 'mint', 'peach'];
+const TINTS: readonly TintPreference[] = ['lavender', 'blue', 'teal', 'mint', 'forest', 'amber', 'coral', 'rose', 'plum', 'graphite'];
 // Como Claro, Escuro e Sistema: as duas escolhas fixas e a que se ajusta sozinha (U04b), que segue o mascote.
 const POSITIONS: readonly Readonly<{ key: NavigationPreference; label: DictionaryKey; icon: LucideIcon }>[] = [
   { key: 'top', label: 'redesign.appearance.top', icon: PanelTop },

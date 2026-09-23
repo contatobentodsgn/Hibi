@@ -80,28 +80,32 @@ test('no tema escuro, o texto da nova UI é claro sobre o fundo escuro', async (
 
 // O preview aprovado ficava entre 4,0:1 e 4,3:1 no texto branco sobre o acento e no texto secundário.
 for (const theme of ['light', 'dark'] as const) {
-  for (const tint of ['lavender', 'blue', 'mint', 'peach']) {
+  for (const tint of ['lavender', 'blue', 'teal', 'mint', 'forest', 'amber', 'coral', 'rose', 'plum', 'graphite']) {
     test(`contraste de texto normal (4,5:1) no tema ${theme}, tom ${tint}`, async ({ page }) => {
       await gallery(page, theme, tint);
       const read = (selector: string) => page.locator(selector).first().evaluate((node) => ({ text: getComputedStyle(node).color, background: getComputedStyle(node).backgroundColor }));
       const primary = await read('.button--primary');
-      const root = await page.locator('[data-gallery]').evaluate((node) => { const style = getComputedStyle(node); return { ink: style.color, canvas: style.getPropertyValue('--hibi-canvas'), paper: style.getPropertyValue('--hibi-paper'), muted: style.getPropertyValue('--hibi-ink-muted'), accent: style.getPropertyValue('--hibi-accent') }; });
-      // O acento aparece como preenchimento com texto branco (chip, seleção) e como texto sobre o papel claro.
-      const ratios = await contrastOf(page, [[primary.text, primary.background], [root.ink, root.canvas], [root.ink, root.paper], [root.muted, root.canvas], [root.muted, root.paper], ['#ffffff', root.accent]]);
+      const root = await page.locator('[data-gallery]').evaluate((node) => {
+        const style = getComputedStyle(node);
+        const accentInk = style.getPropertyValue('--accent-foreground');
+        return { ink: style.color, canvas: style.getPropertyValue('--hibi-canvas'), paper: style.getPropertyValue('--hibi-paper'), muted: style.getPropertyValue('--hibi-ink-muted'), accent: style.getPropertyValue('--hibi-accent'), accentInk };
+      });
+      // O acento usa tinta branca no tema claro e tinta escura no tema escuro.
+      const ratios = await contrastOf(page, [[primary.text, primary.background], [root.ink, root.canvas], [root.ink, root.paper], [root.muted, root.canvas], [root.muted, root.paper], [root.accentInk, root.accent]]);
       for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5);
     });
   }
 }
 
-test('cada um dos quatro tons do preview vira um acento diferente na nova UI', async ({ page }) => {
+test('cada uma das dez cores vira um acento distinto na nova UI', async ({ page }) => {
   const accents = new Set<string>();
-  for (const tint of ['lavender', 'blue', 'mint', 'peach']) {
+  for (const tint of ['lavender', 'blue', 'teal', 'mint', 'forest', 'amber', 'coral', 'rose', 'plum', 'graphite']) {
     const tab = await page.context().newPage();
     await gallery(tab, 'light', tint);
     accents.add(await tab.locator('[data-gallery] .switch__control').first().evaluate((node) => getComputedStyle(node.closest('.hibi-ui')!).getPropertyValue('--hibi-accent').trim()));
     await tab.close();
   }
-  expect(accents.size).toBe(4);
+  expect(accents.size).toBe(10);
 });
 
 // No preview, a ação principal ("Entrar em foco") é o botão quase preto, e o acento fica nos detalhes.

@@ -90,16 +90,27 @@
   --bg-scrim: rgba(0, 0, 0, 0.68);
 }
 
-/* Tint troca somente a assinatura visual e o foco. Categorias continuam estáveis para que
-   trabalho, pausa, aprendizado e prioridade não mudem de significado com a preferência.
-   Os tons agora são os quatro do preview aprovado. Nestas telas, cada um usa o tom antigo mais próximo:
-   Lavanda o de Íris, Azul o de Oceano, Menta o de Musgo, e Pêssego fica no laranja padrão. */
-:root[data-theme="light"][data-tint="blue"] { --accent: #5fc4df; --accent-soft: #d8f5fb; --stroke-focus: #5fc4df; --text-hero: #19677d; }
-:root[data-theme="dark"][data-tint="blue"] { --accent: #5fc4df; --accent-soft: #183842; --stroke-focus: #8fdef0; --text-hero: #8fdef0; }
-:root[data-theme="light"][data-tint="mint"] { --accent: #9bd55d; --accent-soft: #e6f6cf; --stroke-focus: #7daf3e; --text-hero: #4b7220; }
-:root[data-theme="dark"][data-tint="mint"] { --accent: #9bd55d; --accent-soft: #2c421b; --stroke-focus: #b9e786; --text-hero: #b9e786; }
-:root[data-theme="light"][data-tint="lavender"] { --accent: #b7a4ff; --accent-soft: #ebe7ff; --stroke-focus: #8c78d9; --text-hero: #5e4bb0; }
-:root[data-theme="dark"][data-tint="lavender"] { --accent: #b7a4ff; --accent-soft: #342d56; --stroke-focus: #d2c8ff; --text-hero: #d2c8ff; }
+/* Tint troca assinatura visual/foco, sem mudar as cores semânticas de agenda e categorias. */
+:root[data-tint="lavender"] { --accent: #71609a; --accent-soft: #eee9fc; --text-on-accent: #ffffff; --stroke-focus: #71609a; --text-hero: #5e4b83; }
+:root[data-tint="blue"] { --accent: #3f6791; --accent-soft: #e4effb; --text-on-accent: #ffffff; --stroke-focus: #3f6791; --text-hero: #315475; }
+:root[data-tint="teal"] { --accent: #28766f; --accent-soft: #dff2ef; --text-on-accent: #ffffff; --stroke-focus: #28766f; --text-hero: #21635e; }
+:root[data-tint="mint"] { --accent: #387654; --accent-soft: #e3f2e8; --text-on-accent: #ffffff; --stroke-focus: #387654; --text-hero: #326b4d; }
+:root[data-tint="forest"] { --accent: #3e6e4f; --accent-soft: #e4efe6; --text-on-accent: #ffffff; --stroke-focus: #3e6e4f; --text-hero: #365f45; }
+:root[data-tint="amber"] { --accent: #93600d; --accent-soft: #f8edda; --text-on-accent: #ffffff; --stroke-focus: #93600d; --text-hero: #80530d; }
+:root[data-tint="coral"] { --accent: #a94f3d; --accent-soft: #f8e9e4; --text-on-accent: #ffffff; --stroke-focus: #a94f3d; --text-hero: #904434; }
+:root[data-tint="rose"] { --accent: #a44667; --accent-soft: #f7e7ed; --text-on-accent: #ffffff; --stroke-focus: #a44667; --text-hero: #8b3d59; }
+:root[data-tint="plum"] { --accent: #744e8e; --accent-soft: #f0e8f5; --text-on-accent: #ffffff; --stroke-focus: #744e8e; --text-hero: #65457a; }
+:root[data-tint="graphite"] { --accent: #555b66; --accent-soft: #e9ebef; --text-on-accent: #ffffff; --stroke-focus: #555b66; --text-hero: #4a505a; }
+:root[data-theme="dark"][data-tint="lavender"] { --accent: #c4b3f0; --accent-soft: #3a314e; --text-on-accent: #17171a; --stroke-focus: #c4b3f0; --text-hero: #d2c8ff; }
+:root[data-theme="dark"][data-tint="blue"] { --accent: #8db8e5; --accent-soft: #293d51; --text-on-accent: #17171a; --stroke-focus: #8db8e5; --text-hero: #b8d6f2; }
+:root[data-theme="dark"][data-tint="teal"] { --accent: #7cd1c2; --accent-soft: #203d3a; --text-on-accent: #17171a; --stroke-focus: #7cd1c2; --text-hero: #a1e1d5; }
+:root[data-theme="dark"][data-tint="mint"] { --accent: #90d2a9; --accent-soft: #2d4436; --text-on-accent: #17171a; --stroke-focus: #90d2a9; --text-hero: #acd1bc; }
+:root[data-theme="dark"][data-tint="forest"] { --accent: #a0d2a9; --accent-soft: #2c4031; --text-on-accent: #17171a; --stroke-focus: #a0d2a9; --text-hero: #b3dfba; }
+:root[data-theme="dark"][data-tint="amber"] { --accent: #f0c36d; --accent-soft: #493b20; --text-on-accent: #17171a; --stroke-focus: #f0c36d; --text-hero: #f0c36d; }
+:root[data-theme="dark"][data-tint="coral"] { --accent: #f0a18e; --accent-soft: #49322e; --text-on-accent: #17171a; --stroke-focus: #f0a18e; --text-hero: #f0a18e; }
+:root[data-theme="dark"][data-tint="rose"] { --accent: #eea0ba; --accent-soft: #49303a; --text-on-accent: #17171a; --stroke-focus: #eea0ba; --text-hero: #eea0ba; }
+:root[data-theme="dark"][data-tint="plum"] { --accent: #c5a0e0; --accent-soft: #3d3049; --text-on-accent: #17171a; --stroke-focus: #c5a0e0; --text-hero: #c5a0e0; }
+:root[data-theme="dark"][data-tint="graphite"] { --accent: #b9c2cf; --accent-soft: #363a42; --text-on-accent: #17171a; --stroke-focus: #b9c2cf; --text-hero: #b9c2cf; }
 
 /* "Mais contraste" (preview aprovado): textos secundários e contornos mais fortes. */
 :root[data-contrast="more"] { --text-secondary: #45433e; --text-tertiary: #4f4d47; --stroke-default: #a9a59c; --stroke-subtle: #c9c5bc; }

@@ -15,8 +15,8 @@ describe('Aparência (U04)', () => {
     for (const label of ['Claro', 'Escuro', 'Sistema', 'Superior', 'Inferior', 'Automática']) expect(markup).toMatch(new RegExp(`</svg>${label}<`))
     // O tom atual aparece na etiqueta, e cada amostra tem nome para o leitor de tela.
     expect(markup).toMatch(/class="hibi-tag">Lavanda</)
-    for (const tint of ['Lavanda', 'Azul', 'Menta', 'Pêssego']) expect(markup).toContain(`aria-label="${tint}"`)
-    expect(markup.match(/type="radio"/g)).toHaveLength(3 + 4 + 3)
+    for (const tint of ['Lavanda', 'Azul', 'Turquesa', 'Menta', 'Floresta', 'Âmbar', 'Coral', 'Rosa', 'Ameixa', 'Grafite']) expect(markup).toContain(`aria-label="${tint}"`)
+    expect(markup.match(/type="radio"/g)).toHaveLength(3 + 10 + 3)
     expect(markup.match(/role="switch"/g)).toHaveLength(2)
     // Sem preferência, o tema segue o sistema e a posição é a automática, que sem o mascote na tela fica em cima.
     expect(markup).toMatch(/value="system"[^>]*checked=""|checked=""[^>]*value="system"/)
@@ -29,6 +29,7 @@ describe('Aparência (U04)', () => {
     const markup = render(storage, 'en')
     expect(markup).toMatch(/value="bottom"[^>]*checked=""|checked=""[^>]*value="bottom"/)
     for (const text of ['Appearance', 'A touch of colour', 'Navigation menu', 'Reduce motion', 'More contrast']) expect(markup).toContain(`>${text}<`)
+    for (const tint of ['Lavender', 'Blue', 'Teal', 'Mint', 'Forest', 'Amber', 'Coral', 'Rose', 'Plum', 'Graphite']) expect(markup).toContain(`aria-label="${tint}"`)
     // Sem aviso a dar, as duas regiões de aviso continuam na página, vazias, esperando o texto.
     expect(markup.match(/<p role="status"[^>]*><\/p>/g)).toHaveLength(2)
   })

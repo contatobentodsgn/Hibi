@@ -7,13 +7,13 @@ async function openSettings(page: Page) {
   await nav(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
 }
 
-test('os quatro tons do preview aparecem, e o escolhido é aplicado e guardado', async ({ page }) => {
+test('as dez cores aparecem, e a escolhida é aplicada e guardada', async ({ page }) => {
   await openSettings(page);
   // "Um toque de cor", na Aparência da nova UI (U04): uma amostra por tom, com o nome para o leitor de tela.
   const options = page.getByRole('radiogroup', { name: 'Um toque de cor' });
   const names = await options.getByRole('radio').evaluateAll((inputs) => inputs.map((input) => input.getAttribute('aria-label') ?? input.closest('[aria-label]')?.getAttribute('aria-label')));
-  expect(names).toEqual(['Lavanda', 'Azul', 'Menta', 'Pêssego']);
-  // Sem escolha feita, o tom é Lavanda, o padrão do preview.
+  expect(names).toEqual(['Lavanda', 'Azul', 'Turquesa', 'Menta', 'Floresta', 'Âmbar', 'Coral', 'Rosa', 'Ameixa', 'Grafite']);
+  // Sem escolha feita, o tom é Lavanda, o padrão da interface.
   await expect(options.getByRole('radio', { name: 'Lavanda' })).toBeChecked();
 
   const blue = options.getByRole('radio', { name: 'Azul' });

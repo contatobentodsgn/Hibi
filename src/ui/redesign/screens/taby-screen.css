@@ -28,17 +28,17 @@
   .taby-screen__save-failure { padding: 11px 13px; border-radius: 12px; background: color-mix(in srgb, var(--hibi-peach) 45%, var(--hibi-paper)); color: var(--hibi-ink); font-size: 12px; }
   .taby-screen__messages { display: grid; gap: 16px; min-height: 450px; padding: 23px; }
   .taby-screen__assistant-intro { display: flex; gap: 10px; align-items: center; padding-bottom: 14px; border-bottom: 1px solid var(--hibi-line); }
-  .taby-screen__assistant-intro > span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--hibi-lavender); color: var(--hibi-accent); }
+  .taby-screen__assistant-intro > span { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 12px; background: var(--hibi-accent-soft); color: var(--hibi-accent); }
   .taby-screen__assistant-intro strong { font-size: 13px; }
   .taby-screen__assistant-intro p { margin-top: 3px; color: var(--hibi-ink-muted); font-size: 11px; }
   .taby-screen__messages ol { display: grid; gap: 13px; padding: 0; margin: 0; list-style: none; align-content: start; }
   .taby-screen__messages li { max-width: 82%; display: grid; gap: 5px; padding: 12px 14px; border-radius: 15px 15px 15px 4px; background: var(--hibi-soft); }
-  .taby-screen__messages li[data-role="user"] { justify-self: end; border-radius: 15px 15px 4px 15px; background: var(--hibi-lavender); }
+  .taby-screen__messages li[data-role="user"] { justify-self: end; border-radius: 15px 15px 4px 15px; background: var(--hibi-accent-soft); }
   .taby-screen__messages li > span, .taby-screen__messages li small { color: var(--hibi-ink-muted); font-size: 10px; font-weight: 600; }
   .taby-screen__messages li p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
   .taby-screen__turn { display: flex; gap: 9px; align-items: flex-start; padding: 13px; border-radius: 13px; background: var(--hibi-soft); color: var(--hibi-ink); }
   .taby-screen__turn small { display: block; margin-top: 4px; color: var(--hibi-ink-muted); font-size: 10px; }
-  .taby-screen__turn--confirmation { background: color-mix(in srgb, var(--hibi-lavender) 70%, var(--hibi-paper)); }
+  .taby-screen__turn--confirmation { background: color-mix(in srgb, var(--hibi-accent) 10%, var(--hibi-paper)); }
   .taby-screen__turn--failure { background: color-mix(in srgb, var(--hibi-peach) 45%, var(--hibi-paper)); }
   .taby-screen__turn p { margin-top: 5px; color: var(--hibi-ink-muted); font-size: 12px; line-height: 1.5; }
   .taby-screen__turn div > div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px; }

@@ -31,8 +31,10 @@
     --hibi-peach: #f8e9df;    --hibi-peach-ink: #876148;
     --hibi-mint: #e3f2e8;     --hibi-mint-ink: #3f7558;
     --hibi-shadow: 0 3px 4px -3px #16162712, 0 10px 26px -18px #16162720;
-    --hibi-accent: #7c6da1;
+    --hibi-accent: #71609a;
     --hibi-accent-ink: #ffffff;
+    --hibi-accent-soft: color-mix(in srgb, var(--hibi-accent) 13%, var(--hibi-paper));
+    --hibi-accent-soft-ink: var(--hibi-accent);
     /* Aliases usados por superfícies U11 e mantidos no mesmo token source of truth. */
     --hibi-purple: var(--hibi-accent);
     --hibi-surface: var(--hibi-paper);
@@ -151,6 +153,9 @@
     --hibi-blue: #293d51;     --hibi-blue-ink: #b3d2ea;
     --hibi-peach: #49382f;    --hibi-peach-ink: #e7c3aa;
     --hibi-mint: #2d4436;     --hibi-mint-ink: #acd1bc;
+    --hibi-accent-ink: #17171a;
+    --hibi-accent-soft: color-mix(in srgb, var(--hibi-accent) 22%, var(--hibi-paper));
+    --hibi-accent-soft-ink: var(--hibi-accent);
     --hibi-shadow: 0 3px 4px -3px #00000040, 0 10px 26px -18px #00000080;
   }
 
@@ -168,10 +173,28 @@
     --warning-soft-hover: color-mix(in oklab, var(--warning) 16%, transparent);
   }
 
-  /* Os tons do preview (Azul #5882ac, Menta #4d8765, Pêssego #a56e50), escurecidos o mínimo para 4,5:1. */
-  :root[data-tint="blue"] { --hibi-accent: #5279a0; }
-  :root[data-tint="mint"] { --hibi-accent: #498060; }
-  :root[data-tint="peach"] { --hibi-accent: #9d684c; }
+  /* Acentos de identidade. Tons escuros passam contraste sobre papel claro; no tema escuro,
+     cada um clareia o suficiente para foco e ícones continuarem visíveis. */
+  :root[data-tint="lavender"] { --hibi-accent: #71609a; }
+  :root[data-tint="blue"] { --hibi-accent: #3f6791; }
+  :root[data-tint="teal"] { --hibi-accent: #28766f; }
+  :root[data-tint="mint"] { --hibi-accent: #387654; }
+  :root[data-tint="forest"] { --hibi-accent: #3e6e4f; }
+  :root[data-tint="amber"] { --hibi-accent: #93600d; }
+  :root[data-tint="coral"] { --hibi-accent: #a94f3d; }
+  :root[data-tint="rose"] { --hibi-accent: #a44667; }
+  :root[data-tint="plum"] { --hibi-accent: #744e8e; }
+  :root[data-tint="graphite"] { --hibi-accent: #555b66; }
+  :root[data-theme="dark"][data-tint="lavender"] { --hibi-accent: #c4b3f0; }
+  :root[data-theme="dark"][data-tint="blue"] { --hibi-accent: #8db8e5; }
+  :root[data-theme="dark"][data-tint="teal"] { --hibi-accent: #7cd1c2; }
+  :root[data-theme="dark"][data-tint="mint"] { --hibi-accent: #90d2a9; }
+  :root[data-theme="dark"][data-tint="forest"] { --hibi-accent: #a0d2a9; }
+  :root[data-theme="dark"][data-tint="amber"] { --hibi-accent: #f0c36d; }
+  :root[data-theme="dark"][data-tint="coral"] { --hibi-accent: #f0a18e; }
+  :root[data-theme="dark"][data-tint="rose"] { --hibi-accent: #eea0ba; }
+  :root[data-theme="dark"][data-tint="plum"] { --hibi-accent: #c5a0e0; }
+  :root[data-theme="dark"][data-tint="graphite"] { --hibi-accent: #b9c2cf; }
 
   /* "Mais contraste", com os valores do preview. */
   :root[data-contrast="more"] { --hibi-ink-muted: #51515b; --hibi-line: #aaaab3; }
