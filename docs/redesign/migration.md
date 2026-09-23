@@ -2,7 +2,7 @@
 
 ## Regra de remoção
 
-Cada view antiga só pode ser removida depois de `rg` confirmar que não há consumidores em App, testes, renderers auxiliares ou rotas secundárias. A montagem normal já usa `SettingsWorkspace` e `StatsWorkspace`; os nomes `SettingsView` e `StatsView` permanecem apenas como aliases de compatibilidade para testes e APIs internas.
+Cada view antiga só pode ser removida depois de `rg` confirmar que não há consumidores em App, testes, renderers auxiliares ou rotas secundárias. A montagem normal e os testes agora usam `SettingsWorkspace`, `StatsWorkspace` e `IntegrationsWorkspace`; os aliases históricos foram removidos.
 
 ## Estado da oficialização
 
