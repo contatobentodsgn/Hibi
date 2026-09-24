@@ -548,6 +548,17 @@ test("com a voz no notch, o atalho ouve sem mostrar a janela, e a barra de menus
   assert.deepEqual(janela.sent.filter(([channel]) => channel === "pixano:shortcut:assistant").at(-1), ["pixano:shortcut:assistant", { listen: true, background: true }]);
 });
 
+test("o modo manual abre a janela para a pessoa revisar a transcrição, mesmo com o atalho configurado no notch", async (t) => {
+  const harness = await loadMain({ seedUserData: (userData) => fs.writeFileSync(path.join(userData, "voice-settings.json"), JSON.stringify({ shortcutVoice: "notch", spokenReplies: false, voiceSendMode: "manual" })) });
+  t.after(() => harness.cleanup());
+  const janela = harness.mainWindow();
+
+  harness.shortcuts.get("Command+Shift+Space")();
+
+  assert.equal(janela.shows, 1);
+  assert.deepEqual(janela.sent.filter(([channel]) => channel === "pixano:shortcut:assistant").at(-1), ["pixano:shortcut:assistant", { listen: true, background: false }]);
+});
+
 test("com a voz no notch, o Assistant da barra de menus continua só abrindo a janela", async (t) => {
   const harness = await loadMain({ seedUserData: (userData) => fs.writeFileSync(path.join(userData, "voice-settings.json"), JSON.stringify({ shortcutVoice: "notch", spokenReplies: false })) });
   t.after(() => harness.cleanup());
@@ -567,12 +578,12 @@ test("a resposta só é lida em voz alta com o ajuste ligado, e o ajuste recusa 
   assert.equal((await harness.invoke("pixano:local-voice:speak", "Olá")).spoken, false);
   assert.deepEqual(harness.voiceService.calls.filter(([name]) => name === "speak"), []);
 
-  assert.deepEqual(await harness.invoke("pixano:voice-settings:set", { spokenReplies: true }), { shortcutVoice: "off", spokenReplies: true });
+  assert.deepEqual(await harness.invoke("pixano:voice-settings:set", { spokenReplies: true }), { shortcutVoice: "off", spokenReplies: true, voiceSendMode: "pause" });
   assert.equal((await harness.invoke("pixano:local-voice:speak", "Olá")).spoken, true);
   assert.deepEqual(harness.voiceService.calls.filter(([name]) => name === "speak"), [["speak", "Olá"]]);
 
   assert.equal((await harness.invoke("pixano:voice-settings:set", { shortcutVoice: "sempre" })).error, "invalid");
-  assert.deepEqual(await harness.invoke("pixano:voice-settings:get"), { shortcutVoice: "off", spokenReplies: true });
+  assert.deepEqual(await harness.invoke("pixano:voice-settings:get"), { shortcutVoice: "off", spokenReplies: true, voiceSendMode: "pause" });
 });
 
 test("a escuta pedida com autoStop chega assim ao serviço, e sem ele não", async (t) => {

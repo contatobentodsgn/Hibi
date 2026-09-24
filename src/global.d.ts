@@ -113,8 +113,8 @@ declare global {
       onBarClosed?: (callback: (requestId: string) => void) => () => void;
       onAssistantShortcut?: (callback: (request: { listen: boolean; background: boolean }) => void) => () => void;
       speakLocalVoice?: (text: string) => Promise<{ status: string; spoken: boolean }>;
-      getVoiceSettings?: () => Promise<{ shortcutVoice: 'off' | 'window' | 'notch'; spokenReplies: boolean }>;
-      setVoiceSettings?: (patch: { shortcutVoice?: 'off' | 'window' | 'notch'; spokenReplies?: boolean }) => Promise<{ shortcutVoice: 'off' | 'window' | 'notch'; spokenReplies: boolean; error?: 'invalid' }>;
+      getVoiceSettings?: () => Promise<{ shortcutVoice: 'off' | 'window' | 'notch'; spokenReplies: boolean; voiceSendMode: 'pause' | 'manual' }>;
+      setVoiceSettings?: (patch: { shortcutVoice?: 'off' | 'window' | 'notch'; spokenReplies?: boolean; voiceSendMode?: 'pause' | 'manual' }) => Promise<{ shortcutVoice: 'off' | 'window' | 'notch'; spokenReplies: boolean; voiceSendMode: 'pause' | 'manual'; error?: 'invalid' }>;
       onCompanionPresentation?: (callback: (presentation: { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' }) => void) => () => void;
       onCompanionAction?: (callback: (action: { requestId: string; actionId: 'confirm' | 'cancel' }) => void) => () => void;
       onNotificationTriggered?: (callback: (entry: NotificationEntry) => void) => () => void;
