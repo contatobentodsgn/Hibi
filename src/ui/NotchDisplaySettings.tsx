@@ -21,6 +21,7 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   const [saveFailed, setSaveFailed] = useState(false);
   const [testing, setTesting] = useState(false);
   const [notice, setNotice] = useState('');
+  const [sharesDisplay, setSharesDisplay] = useState(false);
   const [size, setSize] = useState<'normal' | 'compact'>('normal');
   // Leituras e gravações disputam o mesmo estado: uma resposta só vale se nenhuma requisição mais nova começou depois dela.
   const sequence = useRef(0);
@@ -46,7 +47,10 @@ export function NotchDisplaySettings({ onEvent }: Props) {
     refresh();
     void bridge.getNotchSize?.().then((value) => { if (value?.size === 'compact' || value?.size === 'normal') setSize(value.size); }).catch(() => undefined);
     const unsubscribe = bridge.onNotchDisplaysChanged?.(refresh) ?? (() => undefined);
-    return () => { active = false; unsubscribe(); };
+    const applyPlacement = (placement: { sharesDisplay: boolean }) => setSharesDisplay(placement?.sharesDisplay === true);
+    void bridge.getNotchWindowPlacement?.().then(applyPlacement).catch(() => undefined);
+    const unsubscribePlacement = bridge.onNotchWindowPlacementChanged?.(applyPlacement) ?? (() => undefined);
+    return () => { active = false; unsubscribe(); unsubscribePlacement(); };
   }, []);
 
   // Sem nenhuma leitura boa ainda, a linha ficaria travada até um monitor mudar; voltar à janela tenta de novo.
@@ -100,6 +104,8 @@ export function NotchDisplaySettings({ onEvent }: Props) {
   const fallback = state && disconnectedPreference(state) ? fillDisplay(t('settings.notch.fallback'), resolvedNotchDisplay(state)?.label ?? t('settings.notch.unknownDisplay')) : undefined;
   // Precedência da nota da linha: falha ao salvar > falha ao ler > aviso de desconectado.
   const rowNote = saveFailed ? t('settings.notch.saveFailed') : loadFailed ? t('settings.notch.loadFailed') : fallback;
+  const resolvedLabel = state ? resolvedNotchDisplay(state)?.label ?? t('settings.notch.unknownDisplay') : '';
+  const placementMessage = sharesDisplay ? t('settings.notch.placement.shared') : fillDisplay(t('settings.notch.placement.separate'), resolvedLabel);
   return <>
     <Row title={t('settings.notch.size.title')} detail={t('settings.notch.size.detail')}>
       <select aria-label={t('settings.notch.size.title')} value={size} onChange={(event) => void chooseSize(event.target.value === 'compact' ? 'compact' : 'normal')}>
@@ -112,6 +118,12 @@ export function NotchDisplaySettings({ onEvent }: Props) {
       <select aria-label={t('settings.notch.title')} aria-describedby={rowNote ? NOTE_ID : undefined} disabled={!state || testing} value={state ? selectedNotchValue(state) : AUTO_NOTCH_VALUE} onChange={(event) => void choose(event.target.value)}>
         {options.map((option) => <option key={option.value} value={option.value} disabled={option.disabled}>{option.label}</option>)}
       </select>
+    </Row>
+    <Row title={t('settings.notch.placement.title')} detail={t('settings.notch.placement.detail')}>
+      <span className="setting-value" role="status" aria-live="polite">
+        {state ? fillDisplay(t('settings.notch.placement.display'), resolvedLabel) : t('settings.notch.placement.unknown')}
+        {state && <> · {placementMessage}</>}
+      </span>
     </Row>
     <Row title={t('settings.notch.test.title')} detail={t('settings.notch.test.detail')}>
       <div>

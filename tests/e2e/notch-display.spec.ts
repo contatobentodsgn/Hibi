@@ -15,6 +15,7 @@ type PixanoE2E = {
   releaseList: () => void;
   recoverList: () => void;
   notifyChanged: () => void;
+  setSharesDisplay: (value: boolean) => void;
 };
 // Lida pelo script de inicialização: as leituras falham desde a abertura, antes de qualquer `page.evaluate`,
 // até `recoverList()`. Uma falha única não basta: em dev o efeito roda duas vezes e descarta a primeira resposta.
@@ -36,6 +37,7 @@ async function installBridge(page: Page) {
     let displays = [lg, internal];
     let preference: { displayId: number | null; displayLabel: string } = { displayId: null, displayLabel: '' };
     let changed: (() => void) | null = null;
+    let sharesDisplay = false;
     const recorded = { setDisplay: [] as (number | null)[], tests: [] as string[] };
     let failListUntilRecovered = false;
     try { failListUntilRecovered = window.localStorage.getItem(failListAtStartKey) === '1'; window.localStorage.removeItem(failListAtStartKey); } catch { /* sem storage nesta origem */ }
@@ -54,6 +56,7 @@ async function installBridge(page: Page) {
       recorded,
       disconnectInternal() { displays = [lg]; changed?.(); },
       notifyChanged() { changed?.(); },
+      setSharesDisplay(value: boolean) { sharesDisplay = value; },
       failNext(kind: 'list' | 'set' | 'test') { failing[kind] = true; },
       holdTest() { holdNextTest = true; },
       releaseTest() { releaseHeldTest?.(); releaseHeldTest = null; },
@@ -95,6 +98,12 @@ async function installBridge(page: Page) {
         return result;
       },
       onNotchDisplaysChanged: (callback: () => void) => { changed = callback; return () => { changed = null; }; },
+      getNotchWindowPlacement: async () => ({ sharesDisplay }),
+      onNotchWindowPlacementChanged: (callback: (state: { sharesDisplay: boolean }) => void) => {
+        const listener = () => callback({ sharesDisplay });
+        window.addEventListener('pixano-e2e-placement', listener);
+        return () => window.removeEventListener('pixano-e2e-placement', listener);
+      },
     };
   }, FAIL_LIST_AT_START_KEY);
 }
@@ -117,6 +126,15 @@ test.describe('com o bridge do desktop', () => {
     await expect(select).toHaveValue('2');
     await expect(select.locator('option').first()).toHaveText('Automático · LG ULTRAWIDE');
     expect((await readRecorded(page)).setDisplay).toEqual([2]);
+  });
+
+  test('mostra monitor efetivo e explica quando o mascote compartilha a tela da janela', async ({ page }) => {
+    await expect(page.getByRole('status').filter({ hasText: 'O mascote aparece em Color LCD' })).toBeVisible();
+    await page.evaluate(() => {
+      (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.setSharesDisplay(true);
+      window.dispatchEvent(new Event('pixano-e2e-placement'));
+    });
+    await expect(page.getByRole('status').filter({ hasText: 'na mesma tela da janela do Pixano' })).toBeVisible();
   });
 
   test('"Testar notch" mostra o resultado com o monitor usado', async ({ page }) => {
