@@ -27,5 +27,7 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: false,
   },
-  use: { baseURL, headless: true },
+  // O guia só interrompe o primeiro uso numa instalação nova. Os cenários existentes partem de um
+  // workspace já configurado; o spec do próprio guia sobrescreve este estado e testa a primeira execução.
+  use: { baseURL, headless: true, storageState: { cookies: [], origins: [{ origin: baseURL, localStorage: [{ name: 'pixano-first-run-guide.v1', value: '{"status":"completed","step":4}' }] }] } },
 });
