@@ -37,4 +37,10 @@ describe('NotesScreen', () => {
     expect(markup).toContain('Criar nota em Sem notas');
     expect(markup).not.toContain('Plano da semana');
   });
+
+  it('uses singular agreement for one local note', () => {
+    const markup = renderToStaticMarkup(<LocaleProvider initialLanguage="pt"><NotesScreen data={{ ...data, notes: data.notes.slice(0, 1) }} onCreate={noop} onUpdate={noop} onDelete={noop} /></LocaleProvider>);
+
+    expect(markup).toContain('1 nota local · sem perder o fio');
+  });
 });

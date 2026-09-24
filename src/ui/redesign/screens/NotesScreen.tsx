@@ -57,7 +57,7 @@ export function NotesScreen({ data, onCreate, onUpdate, onDelete, initialFolder 
   };
 
   return <PixanoUiRoot className="notes-screen">
-    <SectionHeader title={t('notes.title')} subtitle={`${data.notes.length} nota${data.notes.length === 1 ? '' : 's'} locais · sem perder o fio`} actions={<Button variant="primary" onPress={() => { setDraft(emptyDraft(folder && folder !== NO_FOLDER ? folder : 'Bento')); setCreateOpen(true); }}><Plus size={17} aria-hidden="true" />Nova nota</Button>} />
+    <SectionHeader title={t('notes.title')} subtitle={`${data.notes.length} nota${data.notes.length === 1 ? '' : 's'} loca${data.notes.length === 1 ? 'l' : 'is'} · sem perder o fio`} actions={<Button variant="primary" onPress={() => { setDraft(emptyDraft(folder && folder !== NO_FOLDER ? folder : 'Bento')); setCreateOpen(true); }}><Plus size={17} aria-hidden="true" />Nova nota</Button>} />
     <div className="notes-screen__toolbar">
       <label className="notes-screen__search"><Search size={16} aria-hidden="true" /><span className="sr-only">Pesquisar notas</span><input aria-label="Pesquisar notas" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar notas" /></label>
       <div className="notes-screen__filters" aria-label="Pastas de notas">
