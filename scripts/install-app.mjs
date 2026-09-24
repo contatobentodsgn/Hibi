@@ -1,4 +1,5 @@
 import { execFileSync, execSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -43,8 +44,34 @@ export function installApp({
   const built = path.join(projectRoot, BUILT_APP);
   if (!exists(built)) return { status: 'missing-build', targetPath, message: `O empacotamento não deixou nada em ${built}.` };
   run('mkdir', ['-p', targetDir]);
-  run('rm', ['-rf', targetPath]);
-  run('cp', ['-R', built, targetPath]);
+  const stagingPath = path.join(targetDir, `.Pixano.app.install-${randomUUID()}`);
+  const backupPath = path.join(targetDir, `.Pixano.app.backup-${randomUUID()}`);
+  let previousMoved = false;
+  let replacementMoved = false;
+  try {
+    run('cp', ['-R', built, stagingPath]);
+    run('codesign', ['--force', '--deep', '--sign', '-', '--timestamp=none', stagingPath]);
+    run('codesign', ['--verify', '--deep', '--strict', stagingPath]);
+    if (exists(targetPath)) {
+      run('mv', [targetPath, backupPath]);
+      previousMoved = true;
+    }
+    run('mv', [stagingPath, targetPath]);
+    replacementMoved = true;
+  } catch (error) {
+    try {
+      if (replacementMoved) run('rm', ['-rf', targetPath]);
+      if (previousMoved) run('mv', [backupPath, targetPath]);
+      run('rm', ['-rf', stagingPath]);
+    } catch (restoreError) {
+      return { status: 'failed', targetPath, message: `A instalação falhou (${error.message}) e a restauração também falhou (${restoreError.message}). A versão anterior pode estar em ${backupPath}.` };
+    }
+    return { status: 'failed', targetPath, message: `A instalação falhou e a versão anterior foi preservada: ${error.message}` };
+  }
+  if (previousMoved) {
+    try { run('rm', ['-rf', backupPath]); }
+    catch { log(`A versão anterior foi mantida em ${backupPath}.`); }
+  }
   log(`Pixano instalado em ${targetPath}.`);
   return { status: 'installed', targetPath };
 }

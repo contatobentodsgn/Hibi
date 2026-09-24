@@ -5,19 +5,44 @@ import { installApp, appIsRunning, DEFAULT_TARGET_DIR } from './install-app.mjs'
 
 const recorder = () => { const calls = []; return { calls, run: (file, args, options) => { calls.push({ file, args, env: options?.env }); } }; };
 
-test('constrói, empacota e põe o app onde o Finder acha', () => {
+test('constrói, empacota, prepara em staging e troca o app sem apagar a versão anterior primeiro', () => {
   const { calls, run } = recorder();
 
   const result = installApp({ projectRoot: '/repo/', targetDir: '/Users/x/Applications', run, exists: () => true, isRunning: () => false, log: () => {} });
 
   assert.deepEqual(result, { status: 'installed', targetPath: '/Users/x/Applications/Pixano.app' });
-  assert.deepEqual(calls.map(({ file, args }) => [file, ...args].join(' ')), [
+  assert.deepEqual(calls.slice(0, 3).map(({ file, args }) => [file, ...args].join(' ')), [
     'npm run build',
     'npx electron-builder --mac dir',
     'mkdir -p /Users/x/Applications',
-    'rm -rf /Users/x/Applications/Pixano.app',
-    `cp -R ${path.join('/repo/', 'dist/mac-arm64/Pixano.app')} /Users/x/Applications/Pixano.app`,
   ]);
+  assert.deepEqual(calls[3].args.slice(0, 2), ['-R', path.join('/repo/', 'dist/mac-arm64/Pixano.app')]);
+  assert.match(calls[3].args[2], /^\/Users\/x\/Applications\/.Pixano\.app\.install-/);
+  assert.deepEqual(calls[4], { file: 'codesign', args: ['--force', '--deep', '--sign', '-', '--timestamp=none', calls[3].args[2]], env: undefined });
+  assert.deepEqual(calls[5], { file: 'codesign', args: ['--verify', '--deep', '--strict', calls[3].args[2]], env: undefined });
+  assert.equal(calls[6].file, 'mv');
+  assert.equal(calls[6].args[0], '/Users/x/Applications/Pixano.app');
+  assert.match(calls[6].args[1], /^\/Users\/x\/Applications\/.Pixano\.app\.backup-/);
+  assert.deepEqual(calls[7].args, [calls[3].args[2], '/Users/x/Applications/Pixano.app']);
+  assert.deepEqual(calls[8].args, ['-rf', calls[6].args[1]]);
+});
+
+test('restaura o app anterior se a troca do staging falhar', () => {
+  const calls = [];
+  const target = '/Users/x/Applications/Pixano.app';
+  let oldAppExists = true;
+  const run = (file, args) => {
+    calls.push({ file, args });
+    if (file === 'mv' && args[0] === target) oldAppExists = false;
+    if (file === 'mv' && args[1] === target && args[0].includes('.install-')) throw new Error('rename failed');
+    if (file === 'mv' && args[1] === target) oldAppExists = true;
+  };
+
+  const result = installApp({ targetDir: '/Users/x/Applications', run, exists: (file) => file.endsWith('/Pixano.app') || file.includes('dist/mac-arm64'), isRunning: () => false, log: () => {} });
+
+  assert.equal(result.status, 'failed');
+  assert.equal(oldAppExists, true);
+  assert.ok(calls.some(({ file, args }) => file === 'mv' && args[0].includes('.backup-') && args[1] === target), 'the previous bundle is moved back into place');
 });
 
 test('não empacota assinatura de distribuição nem exige notarização para a própria máquina', () => {

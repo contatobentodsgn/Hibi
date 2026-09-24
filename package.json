@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "desktop": "npm run native:build && node scripts/start-desktop.mjs",
-    "desktop:production": "npm run build && HIBI_PRODUCTION=1 electron electron/main.cjs",
+    "desktop:production": "npm run build && PIXANO_PRODUCTION=1 electron electron/main.cjs",
     "native:build": "npm --prefix native/notch run build && node scripts/build-voice.mjs",
     "build": "npm run native:build && tsc --noEmit && vite build",
     "check:companion-assets": "node scripts/check-companion-assets.mjs",

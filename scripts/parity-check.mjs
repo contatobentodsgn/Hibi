@@ -48,6 +48,7 @@ const files = {
   policy: await read('src/ai/policy.ts'),
   companion: await read('src/companion/reducer.ts'),
   geometry: await read('electron/notch-geometry.cjs'),
+  package: await read('package.json'),
 };
 
 const routes = await load('src/ui/shell/routes.ts');
@@ -68,6 +69,7 @@ const checks = [
   ['desktop: notifications bridge', files.preload.includes('syncNotifications') && files.main.includes('pixano:notifications:sync'), 'native notification IPC'],
   ['desktop: launch at login', files.preload.includes('setOpenAtLogin') && files.main.includes('setLoginItemSettings'), 'login item IPC'],
   ['desktop: production bundle', files.main.includes('PIXANO_PRODUCTION') && files.main.includes('loadFile'), 'offline production launch'],
+  ['desktop: production command', /"desktop:production"\s*:\s*"[^"]*PIXANO_PRODUCTION=1 electron electron\/main\.cjs"/.test(files.package), 'production script sets the flag read by Electron'],
   ['app: local persistence', files.app.includes('hibi-study-data') && files.app.includes('repository.exportJson'), 'local repository persistence'],
   ['app: reminder scheduling', files.app.includes('editReminderSchedule') && files.app.includes('createReminder'), 'reminder create/edit actions'],
   // `referenceDate(data)` saiu em c372d81 de propósito: as quatro telas queriam hoje, não o bloco mais
