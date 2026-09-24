@@ -24,6 +24,6 @@ describe('ExternalCalendarPanel', () => {
     expect(markup).toContain('Reunião de cliente');
     expect(markup).toContain('Preparar proposta');
     expect(markup).toContain('Recriar no calendário');
-    expect(markup).toContain('Manter apenas no Hibi');
+    expect(markup).toContain('Manter apenas no Pixano');
   });
 });

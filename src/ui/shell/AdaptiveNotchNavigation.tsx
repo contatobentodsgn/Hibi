@@ -3,7 +3,7 @@ import type { ComponentType, KeyboardEvent, ReactNode } from 'react';
 import { LayoutGroup, motion } from 'motion/react';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { HibiUiRoot } from '../redesign/components/HibiUiRoot';
+import { PixanoUiRoot } from '../redesign/components/PixanoUiRoot';
 import { useThemePreference } from '../theme-context';
 import { nextFocusIndex } from './routes';
 
@@ -20,7 +20,7 @@ import { nextFocusIndex } from './routes';
  * - Setas, Home e End movem o foco entre os botões da barra, como no dock antigo; Escape fecha o menu
  *   compacto e devolve o foco ao botão que o abriu.
  * - Camadas: a moldura e a superfície ficam fora de `.hibi-ui`, porque o conteúdo das telas atuais mora
- *   dentro delas e perderia o próprio CSS lá dentro. Só a barra fica em `HibiUiRoot`, numa camada com
+ *   dentro delas e perderia o próprio CSS lá dentro. Só a barra fica em `PixanoUiRoot`, numa camada com
  *   `z-index: 4` (o dock antigo usava 4 e os modais das telas atuais usam 5): um modal continua cobrindo a
  *   navegação.
  * - A barra vem antes do conteúdo na árvore, como no preview: o Tab e o leitor de tela chegam aos destinos
@@ -371,7 +371,7 @@ export function AdaptiveNotchNavigation({
   }, [wide]);
 
   // Qualquer navegação fecha o menu compacto: pelos destinos dele, pelo Mais, por Ajustes, pela paleta ou pelo
-  // atalho do Taby (o dock antigo fazia o mesmo). Fecha no mesmo render da tela nova, sem um quadro com o menu
+  // atalho do Assistant (o dock antigo fazia o mesmo). Fecha no mesmo render da tela nova, sem um quadro com o menu
   // aberto por cima dela.
   const [menuPage, setMenuPage] = useState(pageKey);
   if (menuPage !== pageKey) {
@@ -518,7 +518,7 @@ export function AdaptiveNotchNavigation({
       <div className="notch-surface relative flex h-full w-full flex-col rounded-none md:rounded-2xl bg-(--hibi-canvas) text-(--hibi-ink) antialiased transition-colors duration-200">
         {/* A barra vem antes da área de rolagem na árvore, como no preview (ver o comentário em notch.css); o
             `z-index` da camada a põe por cima dela. */}
-        <HibiUiRoot className="notch-layer pointer-events-none absolute inset-0 z-[4] rounded-[inherit]">
+        <PixanoUiRoot className="notch-layer pointer-events-none absolute inset-0 z-[4] rounded-[inherit]">
           {/* O que rola por baixo da faixa de arrastar some sob a cor da superfície (ver o comentário do topo). */}
           <div aria-hidden="true" className="notch-scroll-edge absolute inset-0 overflow-hidden rounded-[inherit]">
             <div className="absolute top-0 left-0 h-11 bg-linear-to-b from-(--hibi-canvas) from-70% to-transparent" style={{ right: gutter }} />
@@ -655,7 +655,7 @@ export function AdaptiveNotchNavigation({
               </div>
             </div>
           </nav>
-        </HibiUiRoot>
+        </PixanoUiRoot>
 
         <div ref={viewportRef} className={cn('notch-viewport relative w-full h-full overflow-y-auto overflow-x-hidden rounded-[inherit]', isBottom ? 'pt-3 pb-17.5' : 'pt-17.5 pb-3')}>
           {children}

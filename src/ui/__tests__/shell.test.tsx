@@ -16,7 +16,7 @@ describe('shell', () => {
     const markup = shell('home')
     const labels = [...markup.matchAll(/<li><button[^>]*>.*?<span class="leading-none">([^<]+)<\/span>/g)].map((match) => match[1])
     // A barra larga e o menu compacto listam os mesmos destinos.
-    expect(labels).toEqual(['Hoje', 'Agenda', 'Tarefas', 'Notas', 'Taby'])
+    expect(labels).toEqual(['Hoje', 'Agenda', 'Tarefas', 'Notas', 'Assistente'])
     expect(markup).toContain('aria-label="Navegação principal"')
     expect(markup).toContain('aria-label="Comandos"')
     expect(markup).toContain('aria-label="Mais seções"')
@@ -74,7 +74,7 @@ describe('shell', () => {
       home: 'home', habits: 'home', goals: 'home', stats: 'home', review: 'home',
       agenda: 'agenda', day: 'agenda', week: 'agenda',
       tasks: 'tasks', reminders: 'tasks',
-      notes: 'notes', taby: 'taby',
+      notes: 'notes', assistant: 'assistant',
       focus: null, break: null,
       settings: 'settings', help: 'settings', feedback: 'settings', instrumentation: 'settings', updates: 'settings', hardware: 'settings',
     }
@@ -82,22 +82,22 @@ describe('shell', () => {
   })
 
   it('mounts every rebuilt screen, including Review, on the redesigned surface', () => {
-    const redesigned: NavKey[] = ['home', 'tasks', 'agenda', 'day', 'week', 'focus', 'break', 'taby', 'notes', 'reminders', 'habits', 'goals', 'review', 'stats', 'settings']
+    const redesigned: NavKey[] = ['home', 'tasks', 'agenda', 'day', 'week', 'focus', 'break', 'assistant', 'notes', 'reminders', 'habits', 'goals', 'review', 'stats', 'settings']
     const legacy: NavKey[] = ['help', 'feedback', 'instrumentation', 'updates', 'hardware']
     for (const route of redesigned) expect(isRedesignRoute(route), route).toBe(true)
     for (const route of legacy) expect(isRedesignRoute(route), route).toBe(false)
   })
 
   it('deixa toda rota alcançável: pela barra, pelo Mais ou pelo botão de Ajustes', () => {
-    expect(DESTINATIONS.map((item) => item.key)).toEqual(['home', 'agenda', 'tasks', 'notes', 'taby'])
+    expect(DESTINATIONS.map((item) => item.key)).toEqual(['home', 'agenda', 'tasks', 'notes', 'assistant'])
     expect(MORE_ITEMS.map((item) => item.key)).toEqual(['focus', 'reminders', 'habits', 'goals', 'review', 'stats'])
     const reachable = new Set<NavKey>([...DESTINATIONS.map((item) => item.key), ...MORE_ITEMS.map((item) => item.key), 'settings', 'help', 'feedback', 'instrumentation', 'updates', 'hardware'])
     // Dia e Semana são modos da Agenda; a pausa é um modo do Foco.
-    for (const route of Object.keys({ home: 0, tasks: 0, agenda: 0, focus: 0, taby: 0, notes: 0, reminders: 0, habits: 0, goals: 0, review: 0, stats: 0, settings: 0, help: 0, feedback: 0, instrumentation: 0, updates: 0, hardware: 0 }) as NavKey[]) expect(reachable.has(route), route).toBe(true)
+    for (const route of Object.keys({ home: 0, tasks: 0, agenda: 0, focus: 0, assistant: 0, notes: 0, reminders: 0, habits: 0, goals: 0, review: 0, stats: 0, settings: 0, help: 0, feedback: 0, instrumentation: 0, updates: 0, hardware: 0 }) as NavKey[]) expect(reachable.has(route), route).toBe(true)
   })
 
   it('marca a própria página do lugar como página, e uma tela dentro dele como a seção', () => {
-    for (const route of ['home', 'agenda', 'day', 'week', 'tasks', 'notes', 'taby', 'settings'] as const) expect(ariaCurrentFor(route), route).toBe('page')
+    for (const route of ['home', 'agenda', 'day', 'week', 'tasks', 'notes', 'assistant', 'settings'] as const) expect(ariaCurrentFor(route), route).toBe('page')
     for (const route of ['habits', 'goals', 'stats', 'review', 'reminders', 'help', 'feedback', 'instrumentation', 'updates', 'hardware'] as const) expect(ariaCurrentFor(route), route).toBe('true')
   })
 

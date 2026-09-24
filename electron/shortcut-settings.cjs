@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-/** Chamar o Taby de qualquer lugar é o ponto do atalho, então ele nasce ligado. */
+/** Chamar o Assistant de qualquer lugar é o ponto do atalho, então ele nasce ligado. */
 const DEFAULT_ACCELERATOR = 'Command+Shift+Space';
 const MODIFIERS = new Set(['Command', 'Control', 'Option', 'Shift']);
 const KEYS = /^([A-Z0-9]|Space|Tab|Return|Escape|F[1-9]|F1[0-2])$/;

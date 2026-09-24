@@ -1,5 +1,6 @@
-import React, { useSyncExternalStore } from 'react';
-import { companionAssets } from '../assets/companion-assets';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import { mascotAnimationFor } from './mascot-animation';
+import { idleMascotAnimationAt, nextIdleMascotStageIn } from './mascot-motion';
 
 import type { FocusLoopAnimationId } from '../../electron/focus-presence.mjs';
 
@@ -8,21 +9,29 @@ import type { FocusLoopAnimationId } from '../../electron/focus-presence.mjs';
 export type CompanionState = 'working' | 'idle' | 'completed' | 'reminder' | FocusLoopAnimationId;
 type CompanionVideo = { readonly kind: 'video'; readonly url: string };
 const stateAssets = {
-  working: companionAssets.animations.notch.workingLoop,
-  idle: companionAssets.animations.notch.idle01Loop,
-  completed: companionAssets.animations.notch.taskCompleted,
-  reminder: companionAssets.animations.notch.waiting01,
-  working_laptop_bored_loop: companionAssets.animations.notch.workingLaptopBoredLoop,
-  working_laptop_normal_loop: companionAssets.animations.notch.workingLaptopNormalLoop,
-  working_laptop_excited_loop: companionAssets.animations.notch.workingLaptopExcitedLoop,
-  listening_music_loop: companionAssets.animations.notch.listeningMusicLoop,
+  working: mascotAnimationFor('working'),
+  idle: mascotAnimationFor('idle'),
+  completed: mascotAnimationFor('completed'),
+  reminder: mascotAnimationFor('reminder'),
+  working_laptop_bored_loop: mascotAnimationFor('focus-bored'),
+  working_laptop_normal_loop: mascotAnimationFor('focus-normal'),
+  working_laptop_excited_loop: mascotAnimationFor('focus-excited'),
+  listening_music_loop: mascotAnimationFor('focus-music'),
 } satisfies Record<CompanionState, CompanionVideo>;
 type Fallback = { kind: 'fallback'; symbol: string };
 export type CompanionAnimationSource = CompanionVideo | Fallback;
 const fallbackSymbols: Record<CompanionState, string> = { working: '●', idle: '○', completed: '✓', reminder: '!', working_laptop_bored_loop: '●', working_laptop_normal_loop: '●', working_laptop_excited_loop: '●', listening_music_loop: '♪' };
 
-export function companionAnimationForState(state: CompanionState, reducedMotion = false): CompanionAnimationSource {
-  return reducedMotion ? { kind: 'fallback', symbol: fallbackSymbols[state] } : stateAssets[state];
+export function companionAnimationForState(state: CompanionState, reducedMotion = false, idleElapsedMs = 0): CompanionAnimationSource {
+  return companionAnimationForElapsedState(state, idleElapsedMs, reducedMotion);
+}
+
+export function companionAnimationForElapsedState(state: CompanionState, idleElapsedMs: number, reducedMotion = false): CompanionAnimationSource {
+  const idleState = state === 'idle' ? idleMascotAnimationAt(idleElapsedMs) : null;
+  const source = idleState ? mascotAnimationFor(idleState) : stateAssets[state];
+  if (!reducedMotion) return source;
+  const symbol = idleState ? '○' : fallbackSymbols[state];
+  return { kind: 'fallback', symbol };
 }
 
 const motionQuery = '(prefers-reduced-motion: reduce)';
@@ -36,8 +45,22 @@ const getMotionPreference = () => typeof window !== 'undefined' && window.matchM
 
 export function CompanionAnimation({ state, label = 'Companion animation' }: { state: CompanionState; label?: string }) {
   const reducedMotion = useSyncExternalStore(subscribeToMotionPreference, getMotionPreference, () => true);
-  const source = companionAnimationForState(state, reducedMotion);
+  const [idleElapsedMs, setIdleElapsedMs] = useState(0);
+  useEffect(() => {
+    if (state !== 'idle' || reducedMotion) { setIdleElapsedMs(0); return; }
+    const startedAt = performance.now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const advance = () => {
+      const elapsed = performance.now() - startedAt;
+      setIdleElapsedMs(elapsed);
+      const nextStageIn = nextIdleMascotStageIn(elapsed);
+      if (nextStageIn !== null) timer = setTimeout(advance, nextStageIn);
+    };
+    timer = setTimeout(advance, nextIdleMascotStageIn(0) ?? 30_000);
+    return () => { if (timer !== undefined) clearTimeout(timer); };
+  }, [state, reducedMotion]);
+  const source = companionAnimationForElapsedState(state, idleElapsedMs, reducedMotion);
   return <div className="companion-animation" aria-label={label} style={{ width: 96, height: 72, margin: '18px auto 0', display: 'grid', placeItems: 'center', overflow: 'hidden', borderRadius: 18, background: '#171717' }}>
-    {source.kind === 'video' ? <video className="companion-animation-video" src={source.url} autoPlay muted loop playsInline aria-hidden="true" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span className="companion-animation-fallback" aria-hidden="true">{source.symbol}</span>}
+    {source.kind === 'video' ? <video key={source.url} className="companion-animation-video" src={source.url} autoPlay muted loop playsInline aria-hidden="true" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span className="companion-animation-fallback" aria-hidden="true">{source.symbol}</span>}
   </div>;
 }

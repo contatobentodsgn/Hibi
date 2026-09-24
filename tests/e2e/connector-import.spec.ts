@@ -5,8 +5,8 @@ async function installImportBridge(page: Page) {
     const settings: Record<string, { endpoint: string; clientId: string; targets: { id: string; label: string }[] }> = {};
     const calls: string[] = [];
     const entry = (id: string) => settings[id] ?? (settings[id] = { endpoint: '', clientId: '', targets: [] });
-    (window as unknown as { hibiE2E: unknown }).hibiE2E = { calls, settings };
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoE2E: unknown }).pixanoE2E = { calls, settings };
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
       listIntegrationStatus: async () => [{ id: 'slack', label: 'Slack', capabilities: ['import', 'write', 'sync'], state: 'connected', hasCredential: true }],
       listIntegrationAudit: async () => [],
@@ -31,7 +31,7 @@ async function installImportBridge(page: Page) {
 async function openIntegrations(page: Page) {
   await page.goto('/');
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
   await expect(page.getByRole('region', { name: 'Integrations' })).toBeVisible();
 }
 
@@ -63,7 +63,7 @@ test('lê do conector para a prévia sem importar nada antes da decisão', async
 
   await slack.getByRole('button', { name: 'Read for import' }).click();
   await expect(page.getByText('1 items read from slack; nothing has been imported yet.')).toBeVisible();
-  expect(await page.evaluate(() => (window as unknown as { hibiE2E: { calls: string[] } }).hibiE2E.calls)).toEqual(['import:slack:C1']);
+  expect(await page.evaluate(() => (window as unknown as { pixanoE2E: { calls: string[] } }).pixanoE2E.calls)).toEqual(['import:slack:C1']);
 
   // O item aparece como novo e o workspace segue intocado até aplicar.
   await expect(page.getByText('Reunião de segunda')).toBeVisible();
@@ -85,7 +85,7 @@ test('aplicar a decisão cria a tarefa e uma segunda leitura reconhece a duplica
 
   // A referência remota precisa ter gravado o conector, senão o item voltaria como novo.
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
   const reopened = page.locator('[data-connector="slack"]');
   await reopened.getByRole('button', { name: 'Configure' }).click();
   await reopened.getByRole('button', { name: 'Read for import' }).click();

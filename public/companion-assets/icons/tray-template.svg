@@ -6,7 +6,7 @@
   the file previews sensibly in Finder, but only alpha is what AppKit
   renders.
 
-  Geometry from taby-favicon-square.svg (the canonical brand mark).
+  Geometry from pixano-cat-full.svg (the canonical mascot mark).
   viewBox is cropped to the face frame's bounding box plus a half-stroke
   of breathing room — this lets the face fill the full menu-bar height
   rather than leaving empty padding above/below.

@@ -3,11 +3,11 @@ import { createMainAiRuntime } from '../electron/ai-runtime.cjs'
 const bounded = (value, maximum) => typeof value === 'string' && value.trim() && value.length <= maximum
 
 export function readLiveProviderConfig(environment = process.env) {
-  if (environment.HIBI_LIVE_PROVIDER_TEST !== '1') throw new Error('Set HIBI_LIVE_PROVIDER_TEST=1 to permit a real provider test.')
-  const endpoint = environment.HIBI_LIVE_PROVIDER_ENDPOINT
-  const model = environment.HIBI_LIVE_PROVIDER_MODEL
-  const apiKey = environment.HIBI_LIVE_PROVIDER_KEY
-  const allowed = (environment.HIBI_LIVE_PROVIDER_ALLOW_HOSTS ?? '').split(',').map((value) => value.trim().toLowerCase()).filter(Boolean)
+  if (environment.PIXANO_LIVE_PROVIDER_TEST !== '1') throw new Error('Set PIXANO_LIVE_PROVIDER_TEST=1 to permit a real provider test.')
+  const endpoint = environment.PIXANO_LIVE_PROVIDER_ENDPOINT
+  const model = environment.PIXANO_LIVE_PROVIDER_MODEL
+  const apiKey = environment.PIXANO_LIVE_PROVIDER_KEY
+  const allowed = (environment.PIXANO_LIVE_PROVIDER_ALLOW_HOSTS ?? '').split(',').map((value) => value.trim().toLowerCase()).filter(Boolean)
   if (!bounded(endpoint, 2_048) || !bounded(model, 240) || !bounded(apiKey, 8_192) || allowed.length === 0) throw new Error('Live provider test requires endpoint, model, key, and allowlisted host.')
   let url
   try { url = new URL(endpoint) } catch { throw new Error('Live provider endpoint is invalid.') }
@@ -31,7 +31,7 @@ const failureCode = (events, error) => {
 export async function runLiveProviderTest(environment = process.env, overrides = {}) {
   const { cancelAfterMs, ...runtimeOverrides } = overrides
   const safe = readLiveProviderConfig(environment)
-  const runtime = createMainAiRuntime({ config: { endpoint: safe.endpoint, model: safe.model, apiKey: environment.HIBI_LIVE_PROVIDER_KEY }, ...runtimeOverrides })
+  const runtime = createMainAiRuntime({ config: { endpoint: safe.endpoint, model: safe.model, apiKey: environment.PIXANO_LIVE_PROVIDER_KEY }, ...runtimeOverrides })
   const events = []
   const onEvent = (event) => events.push(event)
   const report = (extra) => ({ endpointHost: safe.host, model: safe.model, provider: null, eventTypes: events.map((event) => event.type), usage: null, cancelled: false, ...extra })

@@ -10,7 +10,7 @@ import { soundKey } from './voice-vocabulary';
  * para as 16h", "já fiz a academia", "apaga o lembrete do banco", "deixa isso pra amanhã".
  *
  * O código acha a coisa pelo nome, calcula o novo horário e monta a proposta; a pessoa confirma antes de
- * qualquer escrita. Quando o nome bate com mais de uma coisa, ou com nenhuma, o Taby pergunta em vez de
+ * qualquer escrita. Quando o nome bate com mais de uma coisa, ou com nenhuma, o Assistant pergunta em vez de
  * escolher sozinho.
  */
 
@@ -165,7 +165,7 @@ export function entityProposal(repository: LocalRepository, command: EntityComma
   }
 
   if (command.action === 'delete') {
-    // Uma reunião marcada pelo Taby tem uma tarefa gêmea, com prazo no início dela: as duas saem juntas.
+    // Uma reunião marcada pelo Assistant tem uma tarefa gêmea, com prazo no início dela: as duas saem juntas.
     const twin = item.kind === 'block' && item.isHard ? repository.listTasks().find((task) => task.title === item.title && task.deadline === item.start) : undefined;
     const calls: AiToolCall[] = [{ name: `${item.kind}.delete`, arguments: { id: item.id } }, ...(twin ? [{ name: 'task.delete', arguments: { id: twin.id } }] : [])];
     const where = ` ${FROM_KIND[item.kind]}${twin ? ' e das tarefas' : ''}`;

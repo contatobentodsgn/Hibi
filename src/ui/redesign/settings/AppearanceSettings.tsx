@@ -8,8 +8,8 @@ import { useThemePreference } from '../../theme-context';
 import { isThemePreference, isTintPreference, type ThemePreference, type TintPreference } from '../../theme';
 import { useNavigationPreferences } from '../../shell/NavigationPreferencesProvider';
 import { parseNavigationPreference, type NavigationPreference } from '../../shell/navigation-preferences';
-import { HibiTag } from '../components/HibiTag';
-import { HibiUiRoot } from '../components/HibiUiRoot';
+import { PixanoTag } from '../components/PixanoTag';
+import { PixanoUiRoot } from '../components/PixanoUiRoot';
 import './appearance-settings.css';
 
 // `framed`: montada dentro das telas atuais, que ficam claras nos dois temas, a seção leva o próprio canvas
@@ -81,7 +81,7 @@ export function AppearanceSettings({ onEvent, framed = false }: Props) {
   ];
 
   return (
-    <HibiUiRoot className={framed ? 'appearance-settings rounded-[24px] bg-(--hibi-canvas) p-6' : 'appearance-settings'}>
+    <PixanoUiRoot className={framed ? 'appearance-settings rounded-[24px] bg-(--hibi-canvas) p-6' : 'appearance-settings'}>
       <section aria-labelledby={ids.title}>
         <header className="mb-[21px]">
           <h2 id={ids.title} className="text-[21px] font-[560] tracking-[-0.025em]">{t('redesign.appearance.title')}</h2>
@@ -120,7 +120,7 @@ export function AppearanceSettings({ onEvent, framed = false }: Props) {
                 <h3 id={ids.tint} className={heading}>{t('redesign.appearance.tint')}</h3>
                 <p className={detail}>{t('redesign.appearance.tintDetail')}</p>
               </div>
-              <HibiTag>{t(`tint.${tint}`)}</HibiTag>
+              <PixanoTag>{t(`tint.${tint}`)}</PixanoTag>
             </div>
             <RadioGroup
               aria-labelledby={ids.tint}
@@ -183,6 +183,6 @@ export function AppearanceSettings({ onEvent, framed = false }: Props) {
           </Card>
         </div>
       </section>
-    </HibiUiRoot>
+    </PixanoUiRoot>
   );
 }

@@ -59,31 +59,33 @@ test('uma sugestão dispensada continua dispensada depois de reabrir o app', asy
   })()`);
   await openMore(page, 'Revisão');
   const sugestao = page.locator('[data-review-suggestion="missing_schedule:e2e-prazo"]');
-  await sugestao.getByRole('button', { name: 'Dismiss missing schedule' }).click();
+  await sugestao.getByRole('button', { name: /Dispensar tarefas abertas sem agenda/ }).click();
   await expect(sugestao).toHaveCount(0);
 
   await page.reload();
   await openMore(page, 'Revisão');
-  await expect(page.getByRole('region', { name: 'Review suggestions' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Sugestões' })).toBeVisible();
   await expect(sugestao).toHaveCount(0);
 });
 
 test('uma meta concluída volta a andar quando o alvo aumenta', async ({ page }) => {
   await openMore(page, 'Metas');
-  await page.getByLabel('New goal title').fill('Ler livros');
+  await page.getByRole('button', { name: 'Nova meta' }).click();
+  await page.getByLabel('Nome da meta').fill('Ler livros');
   await page.locator('#new-goal-target').fill('3');
-  await page.getByRole('button', { name: 'Add goal' }).click();
-  for (let i = 0; i < 3; i += 1) await page.getByRole('button', { name: 'Advance Ler livros' }).click();
-  const linha = page.locator('.goal-row').filter({ hasText: 'Ler livros' });
-  await expect(linha.getByText('Complete', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Criar meta' }).click();
+  const linha = page.locator('.goal-item').filter({ hasText: 'Ler livros' });
+  for (let i = 0; i < 3; i += 1) await linha.getByRole('button', { name: '+1' }).click();
+  await expect(linha.getByText('Concluída', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Edit Ler livros' }).click();
-  await page.getByRole('form', { name: 'Edit Ler livros' }).getByLabel('Target').fill('5');
-  await page.getByRole('form', { name: 'Edit Ler livros' }).getByRole('button', { name: 'Save' }).click();
+  await linha.getByRole('button', { name: 'Editar Ler livros' }).click();
+  const form = page.getByRole('form', { name: 'Editar Ler livros' });
+  await form.getByLabel('Alvo de Ler livros').fill('5');
+  await form.getByRole('button', { name: 'Salvar' }).click();
 
   await expect(linha).toContainText('3 / 5');
-  await expect(linha.getByText('Complete', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Advance Ler livros' })).toBeEnabled();
+  await expect(linha.getByText('Concluída', { exact: true })).toHaveCount(0);
+  await expect(linha.getByRole('button', { name: '+1' })).toBeEnabled();
 });
 
 test('"Review spacing" abre a edição do lembrete que pode ser afastado', async ({ page }) => {

@@ -22,7 +22,7 @@ describe('LocalModelSettings', () => {
 
   it('com a ponte, começa sem prometer nada antes de saber o estado', () => {
     // A leitura do estado é assíncrona: a primeira pintura não pode dizer "pronto" por otimismo.
-    (globalThis as { window?: unknown }).window = { hibiDesktop: { getLocalModelState: async () => ({ status: 'ready', modelId: 'qwen3', sizeBytes: 1834426016, error: null }) } };
+    (globalThis as { window?: unknown }).window = { pixanoDesktop: { getLocalModelState: async () => ({ status: 'ready', modelId: 'qwen3', sizeBytes: 1834426016, error: null }) } };
 
     const markup = render();
 

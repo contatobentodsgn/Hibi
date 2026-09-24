@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { normalizeSpokenCommand, parseSpokenTime, takeSpokenDay } from '../spoken-command';
-import { createLocalHibiRuntime, LocalToolProvider } from '../local-runtime';
+import { createLocalAssistantRuntime, LocalToolProvider } from '../local-runtime';
 import { OfflineBrainProvider } from '../offline-brain-provider';
 import { LocalRepository } from '../../data/local-repository';
 import { createSeedData } from '../../data/seed-data';
@@ -47,16 +47,16 @@ describe('parseSpokenTime', () => {
 
 describe('normalizeSpokenCommand', () => {
   it('tira o chamamento e a pontuação que a ditação acrescenta', () => {
-    expect(normalizeSpokenCommand('Taby, crie uma tarefa revisar roteiro.')).toBe('crie uma tarefa revisar roteiro');
-    expect(normalizeSpokenCommand('Ei Taby crie uma nota ideias')).toBe('crie uma nota ideias');
-    // A ditação costuma ouvir "Taby" como outra palavra: o que importa é o verbo que vem depois.
+    expect(normalizeSpokenCommand('Assistant, crie uma tarefa revisar roteiro.')).toBe('crie uma tarefa revisar roteiro');
+    expect(normalizeSpokenCommand('Ei Assistant crie uma nota ideias')).toBe('crie uma nota ideias');
+    // A ditação costuma ouvir "Assistant" como outra palavra: o que importa é o verbo que vem depois.
     expect(normalizeSpokenCommand('Hebe, crie um lembrete beber água')).toBe('crie um lembrete beber água');
     expect(normalizeSpokenCommand('por favor, crie uma tarefa x')).toBe('crie uma tarefa x');
   });
 
   it('não mexe numa frase que não é comando', () => {
     expect(normalizeSpokenCommand('Hibi Study é um app')).toBe('Hibi Study é um app');
-    expect(normalizeSpokenCommand('Taby, qual a minha agenda hoje?')).toBe('Taby, qual a minha agenda hoje');
+    expect(normalizeSpokenCommand('Assistant, qual a minha agenda hoje?')).toBe('Assistant, qual a minha agenda hoje');
   });
 });
 
@@ -77,10 +77,10 @@ describe('takeSpokenDay', () => {
   });
 });
 
-describe('comandos ditados no Taby', () => {
+describe('comandos ditados no Assistant', () => {
   const pedir = async (message: string) => {
     // Agenda vazia: os comandos são o assunto aqui, não os horários que a seed já ocupa.
-    const runtime = createLocalHibiRuntime(new LocalRepository({ ...createSeedData(), blocks: [] }));
+    const runtime = createLocalAssistantRuntime(new LocalRepository({ ...createSeedData(), blocks: [] }));
     return runtime.runTurn({ message, surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
   };
   const chamada = async (message: string) => (await pedir(message)).confirmation?.calls[0];
@@ -101,8 +101,8 @@ describe('comandos ditados no Taby', () => {
     expect(await chamada('Crie um bloco estudar das 14h às 15h')).toMatchObject({ name: 'block.create', arguments: { title: 'estudar', start: '2026-09-18T14:00:00', end: '2026-09-18T15:00:00' } });
   });
 
-  it('chamar o Taby pelo nome cria a tarefa, em vez de listar as que existem', async () => {
-    expect(await chamada('Taby, crie uma tarefa revisar roteiro.')).toMatchObject({ name: 'task.create', arguments: { title: 'revisar roteiro' } });
+  it('chamar o Assistant pelo nome cria a tarefa, em vez de listar as que existem', async () => {
+    expect(await chamada('Assistant, crie uma tarefa revisar roteiro.')).toMatchObject({ name: 'task.create', arguments: { title: 'revisar roteiro' } });
   });
 
   it('o ponto final da ditação não vai para o título', async () => {
@@ -113,7 +113,7 @@ describe('comandos ditados no Taby', () => {
   // vou ligar para o banco às 15h" sem criar lembrete nenhum.
   it('"me lembra de…" e as outras formas faladas criam o lembrete', async () => {
     const esperado = { name: 'reminder.create', arguments: { title: 'ligar para o banco', at: '2026-09-18T15:00:00' } };
-    expect(await chamada('Taby, me lembra de ligar para o banco às 15h.')).toMatchObject(esperado);
+    expect(await chamada('Assistant, me lembra de ligar para o banco às 15h.')).toMatchObject(esperado);
     expect(await chamada('Me lembre de ligar para o banco às 3 da tarde')).toMatchObject(esperado);
     expect(await chamada('Lembre-me de ligar para o banco às 15h')).toMatchObject(esperado);
     expect(await chamada('Hebe, lembrar de ligar para o banco às 15h')).toMatchObject(esperado);
@@ -126,19 +126,19 @@ describe('comandos ditados no Taby', () => {
   });
 
   it('"lembretes de hoje" continua sendo uma consulta, não um lembrete novo', async () => {
-    expect(normalizeSpokenCommand('Taby, lembretes de hoje')).not.toMatch(/^crie/);
-    expect(await chamada('Taby, lembretes de hoje')).toBeUndefined();
+    expect(normalizeSpokenCommand('Assistant, lembretes de hoje')).not.toMatch(/^crie/);
+    expect(await chamada('Assistant, lembretes de hoje')).toBeUndefined();
   });
 
   it('o foco começa no imperativo também', async () => {
-    for (const frase of ['Inicie o foco', 'Taby, começa um foco.', 'inicia uma sessão de foco', 'comece o foco agora'])
+    for (const frase of ['Inicie o foco', 'Assistant, começa um foco.', 'inicia uma sessão de foco', 'comece o foco agora'])
       expect(await chamada(frase), frase).toMatchObject({ name: 'focus.start' });
   });
 
   // Visto no app: estes pedidos iam para o cérebro offline, que dizia "marquei" sem marcar nada.
   it('marcar uma reunião vira uma reunião (agenda, tarefas e calendário), no dia dito, com uma hora de duração', async () => {
     expect(await chamada('Marque uma reunião para mim amanhã às 15h00')).toMatchObject({ name: 'meeting.create', arguments: { title: 'Reunião', start: '2026-09-19T15:00:00', end: '2026-09-19T16:00:00' } });
-    expect(await chamada('Taby, agende uma reunião com a Ana hoje às 3 da tarde.')).toMatchObject({ arguments: { title: 'Reunião com a Ana', start: '2026-09-18T15:00:00', end: '2026-09-18T16:00:00' } });
+    expect(await chamada('Assistant, agende uma reunião com a Ana hoje às 3 da tarde.')).toMatchObject({ arguments: { title: 'Reunião com a Ana', start: '2026-09-18T15:00:00', end: '2026-09-18T16:00:00' } });
     expect(await chamada('marque um compromisso depois de amanhã das 14h às 16h30')).toMatchObject({ arguments: { title: 'Compromisso', start: '2026-09-20T14:00:00', end: '2026-09-20T16:30:00' } });
   });
 
@@ -160,7 +160,7 @@ describe('comandos ditados no Taby', () => {
   it('uma reunião sobre uma demanda é marcada, e a pergunta conta o que já está no horário', async () => {
     const repository = new LocalRepository({ ...createSeedData(), blocks: [] });
     repository.createBlock({ title: 'Kabrito Post 05', start: '2026-09-19T15:00:00', end: '2026-09-19T16:00:00', category: 'work' });
-    const resultado = await createLocalHibiRuntime(repository).runTurn({ message: 'Marque uma reunião para mim amanhã às 15h', surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
+    const resultado = await createLocalAssistantRuntime(repository).runTurn({ message: 'Marque uma reunião para mim amanhã às 15h', surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
     expect(resultado.confirmation?.calls[0]).toMatchObject({ name: 'meeting.create' });
     expect(resultado.reply).toBe('No mesmo horário: "Kabrito Post 05". Marcar "Reunião" em 19/09, das 15:00 às 16:00, na agenda, nas tarefas e no calendário conectado?');
   });
@@ -168,7 +168,7 @@ describe('comandos ditados no Taby', () => {
   it('sobre outro compromisso, a pergunta avisa em destaque, e confirmar marca mesmo assim', async () => {
     const repository = new LocalRepository({ ...createSeedData(), blocks: [] });
     repository.createBlock({ title: 'Almoço', start: '2026-09-19T12:00:00', end: '2026-09-19T14:00:00', category: 'break', isHard: true });
-    const runtime = createLocalHibiRuntime(repository);
+    const runtime = createLocalAssistantRuntime(repository);
     const resultado = await runtime.runTurn({ message: 'Marque uma reunião amanhã ao meio-dia', surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
     expect(resultado.reply).toMatch(/^Atenção: no mesmo horário já tem o compromisso "Almoço"\. Marcar/);
     await runtime.confirm(resultado.confirmation!);
@@ -194,7 +194,7 @@ it('o cérebro offline não responde por cima da pergunta sobre o horário', asy
   let chamadas = 0;
   const brain = new OfflineBrainProvider({ runLocalModel: async ({ requestId }) => { chamadas += 1; return { requestId, status: 'complete', text: 'Beba água!' }; } }, new LocalToolProvider(repository));
 
-  const resultado = await createLocalHibiRuntime(repository, {}, brain).runTurn({ message: 'Crie um lembrete tomar água às depois do almoço', surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
+  const resultado = await createLocalAssistantRuntime(repository, {}, brain).runTurn({ message: 'Crie um lembrete tomar água às depois do almoço', surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
 
   expect(resultado.reply).toMatch(/Não entendi o horário/);
   expect(chamadas).toBe(0);
@@ -204,7 +204,7 @@ it('o cérebro offline não responde por cima da pergunta sobre o horário', asy
 describe('uma reunião confirmada vai para a agenda, as tarefas e o calendário', () => {
   const marcar = async (calendar?: { publish: (block: { id: string; title: string }) => Promise<string | null> }, blocks: unknown[] = []) => {
     const repository = new LocalRepository({ ...createSeedData(), blocks: blocks as never });
-    const runtime = createLocalHibiRuntime(repository, calendar ? { calendar } : {});
+    const runtime = createLocalAssistantRuntime(repository, calendar ? { calendar } : {});
     const turno = await runtime.runTurn({ message: 'Marque uma reunião com a Ana amanhã às 9h00 da manhã', surface: 'desktop', now: new Date('2026-09-18T10:00:00') });
     return { repository, turno, confirmar: () => runtime.confirm(turno.confirmation!) };
   };

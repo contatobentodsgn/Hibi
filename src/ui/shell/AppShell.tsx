@@ -15,7 +15,7 @@ export type { NavKey } from './routes'
 type Props = Readonly<{ active: NavKey; onNavigate: (key: NavKey) => void; onOpenCommands: () => void; position?: NotchPosition; children: React.ReactNode }>
 
 // Os ícones dos destinos no preview aprovado.
-const ICONS: Readonly<Record<DestinationKey, typeof House>> = { home: House, agenda: CalendarDays, tasks: CheckCheck, notes: Feather, taby: Sparkles }
+const ICONS: Readonly<Record<DestinationKey, typeof House>> = { home: House, agenda: CalendarDays, tasks: CheckCheck, notes: Feather, assistant: Sparkles }
 
 export function AppShell({ active, onNavigate, onOpenCommands, position, children }: Props) {
   const t = useT()

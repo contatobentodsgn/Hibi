@@ -3,9 +3,9 @@ import { Check, Flame, Pencil, Plus, Trash2 } from "lucide-react";
 import type { Habit, StudyData } from "../../../domain/models";
 import { todayKey } from "../../../domain/date-context";
 import { progressFor, streakFor } from "../../progress-rhythm";
-import { HibiEmptyState } from "../components/HibiEmptyState";
+import { PixanoEmptyState } from "../components/PixanoEmptyState";
 import { ActionDialog } from "../components/ActionDialog";
-import { HibiUiRoot } from "../components/HibiUiRoot";
+import { PixanoUiRoot } from "../components/PixanoUiRoot";
 import { SectionHeader } from "../components/SectionHeader";
 import { useT } from "../../../i18n/LocaleProvider";
 import "./rhythm-screens.css";
@@ -71,7 +71,7 @@ export function HabitsScreen({
     ...data.habits.map((habit) => streakFor(habit, today)),
   );
   return (
-    <HibiUiRoot className="rhythm-screen habits-screen">
+    <PixanoUiRoot className="rhythm-screen habits-screen">
       <SectionHeader
         title={t("habits.title")}
         subtitle={t("habits.subtitle").replace(
@@ -165,7 +165,7 @@ export function HabitsScreen({
           <span>{today}</span>
         </header>
         {data.habits.length === 0 ? (
-          <HibiEmptyState
+          <PixanoEmptyState
             icon={Flame}
             tone="mint"
             title={t("habits.empty")}
@@ -335,6 +335,6 @@ export function HabitsScreen({
           </div>
         </ActionDialog>
       )}
-    </HibiUiRoot>
+    </PixanoUiRoot>
   );
 }

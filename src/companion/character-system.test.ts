@@ -4,12 +4,12 @@ import {
   EARS_STATES,
   EYES_STATES,
   FX_STATES,
-  HIBI_PRESETS,
+  PIXANO_PRESETS,
   TAIL_STATES,
   PROP_STATES,
-  DEFAULT_HIBI_VIEW_MODEL,
-  normalizeHibiViewModel,
-  resolveHibiComposition,
+  DEFAULT_PIXANO_VIEW_MODEL,
+  normalizePixanoViewModel,
+  resolvePixanoComposition,
 } from './character-system';
 
 describe('Hibi character system contract', () => {
@@ -23,17 +23,17 @@ describe('Hibi character system contract', () => {
   });
 
   it('provides a safe default view model and named presets', () => {
-    expect(DEFAULT_HIBI_VIEW_MODEL.mode).toBe('companion');
-    expect(DEFAULT_HIBI_VIEW_MODEL.intensity).toBe(1);
-    expect(HIBI_PRESETS.deep_focus.isFocused).toBe(true);
-    expect(HIBI_PRESETS.perfect_session.celebration).toBe('large');
+    expect(DEFAULT_PIXANO_VIEW_MODEL.mode).toBe('companion');
+    expect(DEFAULT_PIXANO_VIEW_MODEL.intensity).toBe(1);
+    expect(PIXANO_PRESETS.deep_focus.isFocused).toBe(true);
+    expect(PIXANO_PRESETS.perfect_session.celebration).toBe('large');
   });
 
   it('normalizes values and resolves composition constraints', () => {
-    const model = normalizeHibiViewModel({ ...DEFAULT_HIBI_VIEW_MODEL, intensity: 99 as never, progress: -2, body: 'body_07_back', propPrimary: 'prop_04_laptop' });
+    const model = normalizePixanoViewModel({ ...DEFAULT_PIXANO_VIEW_MODEL, intensity: 99 as never, progress: -2, body: 'body_07_back', propPrimary: 'prop_04_laptop' });
     expect(model.intensity).toBe(4);
     expect(model.progress).toBe(0);
-    expect(resolveHibiComposition(model).eyesVisible).toBe(false);
-    expect(resolveHibiComposition({ ...model, body: 'body_05_side_left' }).eyes).toBe('eyes_30_looking_sideways');
+    expect(resolvePixanoComposition(model).eyesVisible).toBe(false);
+    expect(resolvePixanoComposition({ ...model, body: 'body_05_side_left' }).eyes).toBe('eyes_30_looking_sideways');
   });
 });

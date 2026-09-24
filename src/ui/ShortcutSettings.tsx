@@ -8,7 +8,7 @@ type VoiceState = { shortcutVoice: VoiceMode; spokenReplies: boolean };
 const VOICE_MODES: readonly VoiceMode[] = ['off', 'window', 'notch'];
 
 /**
- * O atalho global do Taby, em Configurações › Geral.
+ * O atalho global do Assistant, em Configurações › Geral.
  *
  * A escolha é uma lista, não uma captura de teclas: o que o Electron aceita registrar é um conjunto
  * pequeno, e uma captura livre convida a combinações que o sistema recusa — a pessoa apertaria a
@@ -16,24 +16,24 @@ const VOICE_MODES: readonly VoiceMode[] = ['off', 'window', 'notch'];
  */
 export function ShortcutSettings({ onEvent }: { onEvent: (action: string, detail: string, result?: string) => void }) {
   const t = useT();
-  const bridge = typeof window === 'undefined' ? undefined : window.hibiDesktop;
+  const bridge = typeof window === 'undefined' ? undefined : window.pixanoDesktop;
   const [state, setState] = useState<ShortcutState | null>(null);
   const [voice, setVoice] = useState<VoiceState | null>(null);
 
   useEffect(() => {
-    if (!bridge?.getTabyShortcut) return () => undefined;
+    if (!bridge?.getAssistantShortcut) return () => undefined;
     let active = true;
-    void bridge.getTabyShortcut().then((value) => { if (active) setState(value); }).catch(() => undefined);
+    void bridge.getAssistantShortcut().then((value) => { if (active) setState(value); }).catch(() => undefined);
     void bridge.getVoiceSettings?.().then((value) => { if (active) setVoice(value); }).catch(() => undefined);
     return () => { active = false; };
   }, [bridge]);
 
-  if (!bridge?.getTabyShortcut) {
+  if (!bridge?.getAssistantShortcut) {
     return <div className="setting-row"><div><strong>{t('shortcut.title')}</strong><span>{t('shortcut.desktopOnly')}</span></div></div>;
   }
 
   const escolher = async (value: string) => {
-    const next = await bridge.setTabyShortcut?.(value === 'off' ? null : value).catch(() => null);
+    const next = await bridge.setAssistantShortcut?.(value === 'off' ? null : value).catch(() => null);
     if (!next) return;
     setState(next);
     onEvent('edit', t('shortcut.title'), next.status === 'active' ? 'pass' : 'fail');

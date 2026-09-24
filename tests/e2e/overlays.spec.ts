@@ -6,7 +6,7 @@ const palette = (page: Page) => page.getByRole('dialog', { name: 'Paleta de coma
 
 const openTaskCreateModal = async (page: Page) => {
   await go(page, 'Tarefas');
-  await page.getByRole('button', { name: 'Nova tarefa' }).click();
+  await page.getByRole('button', { name: 'Criar tarefa', exact: true }).first().click();
 };
 
 test('⌘K não abre a paleta por cima do modal de nova tarefa', async ({ page }) => {

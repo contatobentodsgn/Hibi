@@ -35,7 +35,7 @@ export class ElectronConfiguredProvider implements AiProvider {
   readonly id = 'electron-configured'
   readonly label = 'Configured AI'
 
-  constructor(private readonly bridge: DesktopBridge = window.hibiDesktop ?? {}, private readonly local?: AiProvider) {}
+  constructor(private readonly bridge: DesktopBridge = window.pixanoDesktop ?? {}, private readonly local?: AiProvider) {}
 
   async generate(request: AiProviderRequest, signal: AbortSignal): Promise<AiProviderProposal> {
     const { onStreamEvent, ...bridgeRequest } = request

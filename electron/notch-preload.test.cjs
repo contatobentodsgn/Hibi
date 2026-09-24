@@ -33,9 +33,9 @@ const loadNotchPreload = () => {
 
 test('expõe ao notch somente os quatro canais que a overlay usa', () => {
   const { exposed } = loadNotchPreload();
-  assert.deepEqual(Object.keys(exposed), ['hibiDesktop']);
+  assert.deepEqual(Object.keys(exposed), ['pixanoDesktop']);
   assert.deepEqual(
-    Object.keys(exposed.hibiDesktop).sort(),
+    Object.keys(exposed.pixanoDesktop).sort(),
     ['getNotchPresentation', 'hideNotch', 'onCompanionPresentation', 'resolveNotchAction'],
   );
 });
@@ -52,25 +52,25 @@ test('não expõe IA, integrações, OAuth, webhook, API local nem a apresentaç
     'showNotch', 'testNotch', 'setNotchDisplay', 'onLocalApiConfirmation',
   ];
   for (const name of forbidden) {
-    assert.equal(exposed.hibiDesktop[name], undefined, `${name} não deve existir no preload do notch`);
+    assert.equal(exposed.pixanoDesktop[name], undefined, `${name} não deve existir no preload do notch`);
   }
 });
 
 test('cada função fala com o canal correspondente', () => {
   const { exposed, channels } = loadNotchPreload();
-  void exposed.hibiDesktop.getNotchPresentation();
-  void exposed.hibiDesktop.hideNotch('req-1');
-  void exposed.hibiDesktop.resolveNotchAction('req-1', 'confirm');
-  exposed.hibiDesktop.onCompanionPresentation(() => {});
+  void exposed.pixanoDesktop.getNotchPresentation();
+  void exposed.pixanoDesktop.hideNotch('req-1');
+  void exposed.pixanoDesktop.resolveNotchAction('req-1', 'confirm');
+  exposed.pixanoDesktop.onCompanionPresentation(() => {});
   assert.deepEqual(
     channels.map((entry) => entry.channel),
-    ['hibi:notch:current', 'hibi:notch:hide', 'hibi:notch:action', 'hibi:companion:presentation'],
+    ['pixano:notch:current', 'pixano:notch:hide', 'pixano:notch:action', 'pixano:companion:presentation'],
   );
 });
 
 test('assinar a apresentação devolve um cancelador', () => {
   const { exposed } = loadNotchPreload();
-  assert.equal(typeof exposed.hibiDesktop.onCompanionPresentation(() => {}), 'function');
+  assert.equal(typeof exposed.pixanoDesktop.onCompanionPresentation(() => {}), 'function');
 });
 
 test('a janela do notch é criada com o preload dedicado, não com o do app', () => {

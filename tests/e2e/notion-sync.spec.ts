@@ -27,7 +27,7 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
     let notionSettings: Record<string, unknown> = configured ? {
       endpoint: '',
       clientId: '',
-      targets: [{ id: 'source-1', label: 'Hibi Tasks' }],
+      targets: [{ id: 'source-1', label: 'Pixano Tasks' }],
       notion: {
         workspaceLabel: "Kizuna Std's Notion",
         parentPageId: 'page-kizuna',
@@ -39,7 +39,7 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
       },
     } : { endpoint: '', clientId: '', targets: [] };
 
-    (window as unknown as { hibiE2E: unknown }).hibiE2E = {
+    (window as unknown as { pixanoE2E: unknown }).pixanoE2E = {
       recorded,
       // Dispara a ação do notch sobre a última confirmação apresentada.
       notchAction(actionId: 'confirm' | 'cancel') {
@@ -48,8 +48,8 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
       },
     };
 
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
-      info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
+      info: async () => ({ name: 'Pixano', version: '0.1.0', localOnly: true }),
       listIntegrationStatus: async () => [
         { id: 'notion', label: 'Notion', capabilities: ['import', 'write', 'sync'], state: 'connected', hasCredential: true },
       ],
@@ -60,7 +60,7 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
         notionSettings = { ...notionSettings, ...patch };
         return JSON.parse(JSON.stringify(notionSettings));
       },
-      listIntegrationImportTargets: async () => [{ id: 'source-1', label: 'Hibi Tasks' }],
+      listIntegrationImportTargets: async () => [{ id: 'source-1', label: 'Pixano Tasks' }],
       // Uma tarefa que só existe no Notion, para a prévia nunca ficar vazia.
       listIntegrationImportCandidates: async () => [
         { remoteId: 'page-remote-1', title: 'Tarefa só do Notion', kind: 'task', revision: 'v1' },
@@ -82,7 +82,7 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
           : { key: operation.key, ok: true, remoteId: `page-${operation.key}`, revision: `rev-${operation.key}` });
         return { ok: items.every((item) => item.ok), items };
       },
-      discoverNotionDataSource: async (databaseId: string) => ({ databaseId, dataSourceId: 'source-created', label: 'Hibi Tasks' }),
+      discoverNotionDataSource: async (databaseId: string) => ({ databaseId, dataSourceId: 'source-created', label: 'Pixano Tasks' }),
       showNotch: async (presentation: { requestId: string; text: string }) => {
         recorded.notch.push({ requestId: presentation.requestId, text: presentation.text });
         return true;
@@ -97,13 +97,13 @@ async function installNotionBridge(page: Page, options: BridgeOptions = {}) {
   }, [options.failFirstOperation ?? false, options.configured ?? true] as [boolean, boolean]);
 }
 
-const readRecorded = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: { recorded: Recorded } }).hibiE2E.recorded);
+const readRecorded = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: { recorded: Recorded } }).pixanoE2E.recorded);
 
 // Mesma rota que os outros specs de integrações usam: Ajustes tem botão próprio na barra.
 async function openIntegrations(page: Page) {
   await page.goto('/');
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
 }
 
 async function openNotionPanel(page: Page) {
@@ -159,7 +159,7 @@ test('confirmar pelo notch aplica o mesmo lote preparado', async ({ page }) => {
   expect(before.notch.length).toBe(1);
   expect(before.writes).toEqual([]);
 
-  await page.evaluate(() => (window as unknown as { hibiE2E: { notchAction: (id: string) => void } }).hibiE2E.notchAction('confirm'));
+  await page.evaluate(() => (window as unknown as { pixanoE2E: { notchAction: (id: string) => void } }).pixanoE2E.notchAction('confirm'));
   await expect(page.getByText(/Sync complete/)).toBeVisible();
 
   const recorded = await readRecorded(page);
@@ -173,7 +173,7 @@ test('cancelar pelo notch não escreve nada', async ({ page }) => {
   await previewChanges(page);
   await page.getByRole('button', { name: 'Review selected changes' }).click();
 
-  await page.evaluate(() => (window as unknown as { hibiE2E: { notchAction: (id: string) => void } }).hibiE2E.notchAction('cancel'));
+  await page.evaluate(() => (window as unknown as { pixanoE2E: { notchAction: (id: string) => void } }).pixanoE2E.notchAction('cancel'));
   await expect(page.getByText('Synchronization cancelled. No selected change was applied.')).toBeVisible();
 
   expect((await readRecorded(page)).writes).toEqual([]);
@@ -187,9 +187,9 @@ test('a base criada no setup fica utilizável na mesma sessão', async ({ page }
   await openIntegrations(page);
   await expect(page.getByRole('region', { name: 'Notion sync setup' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Prepare Hibi Tasks' }).click();
+  await page.getByRole('button', { name: 'Prepare Pixano Tasks' }).click();
   await page.getByRole('button', { name: 'Confirm', exact: true }).click();
-  await expect(page.getByText('Hibi Tasks is ready inside Kizuna.')).toBeVisible();
+  await expect(page.getByText('Pixano Tasks is ready inside Kizuna.')).toBeVisible();
 
   // Sem recarregar nem sair da tela: a sincronização precisa achar a base recém-criada.
   await page.getByRole('button', { name: 'Sync now' }).click();

@@ -21,7 +21,7 @@ function createLocalApiTokenStore({ keychain, account = TOKEN_ACCOUNT } = {}) {
 }
 
 function openApiDocument(origin = 'http://127.0.0.1') {
-  return { openapi: '3.1.0', info: { title: 'Hibi Local API', version: '1.0.0' }, servers: [{ url: origin }], paths: { '/v1/tasks': { get: { summary: 'List local tasks' }, post: { summary: 'Prepare task creation confirmation' } }, '/v1/reminders': { get: { summary: 'List local reminders' } }, '/v1/schedule': { get: { summary: 'List local schedule blocks' } } } };
+  return { openapi: '3.1.0', info: { title: 'Pixano Local API', version: '1.0.0' }, servers: [{ url: origin }], paths: { '/v1/tasks': { get: { summary: 'List local tasks' }, post: { summary: 'Prepare task creation confirmation' } }, '/v1/reminders': { get: { summary: 'List local reminders' } }, '/v1/schedule': { get: { summary: 'List local schedule blocks' } } } };
 }
 
 const timingSafeTokenMatch = (provided, expected) => {

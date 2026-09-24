@@ -6,10 +6,10 @@ import { findReviewIssues, type ReviewSuggestion } from '../domain/review';
 import { findFreeSlot } from '../domain/review-slot';
 import { useT } from '../i18n/LocaleProvider';
 import { readDismissedSuggestions, writeDismissedSuggestions } from './review-dismissals';
-import { HibiUiRoot } from './redesign/components/HibiUiRoot';
+import { PixanoUiRoot } from './redesign/components/PixanoUiRoot';
 import { SectionHeader } from './redesign/components/SectionHeader';
-import { HibiEmptyState } from './redesign/components/HibiEmptyState';
-import { HibiTag } from './redesign/components/HibiTag';
+import { PixanoEmptyState } from './redesign/components/PixanoEmptyState';
+import { PixanoTag } from './redesign/components/PixanoTag';
 import './review-suggestions.css';
 import './redesign/screens/review-screen.css';
 
@@ -49,15 +49,15 @@ export function ReviewView({ data, now = new Date(), onNavigate, onCreateBlock, 
     setScheduleNotice(t('reviewAction.scheduled').replace('{title}', () => task.title).replace('{when}', `${slot.start.slice(8, 10)}/${slot.start.slice(5, 7)} ${slot.start.slice(11, 16)}–${slot.end.slice(11, 16)}`));
   };
 
-  return <HibiUiRoot className="review-screen">
+  return <PixanoUiRoot className="review-screen">
     <SectionHeader title={t('review.title')} subtitle={t('review.subtitle')} />
     <div className="review-summary-grid">{rows.slice(0, 3).map(([label, count]) => <Card className="review-metric" key={label}><strong>{count}</strong><span>{label}</span></Card>)}</div>
-    <Card className="review-snapshot"><div className="review-card-heading"><div><HibiTag tone="lavender">{t('review.snapshot')}</HibiTag><h2>{t('review.snapshotTitle')}</h2></div><ClipboardCheck aria-hidden="true" size={22} /></div>{rows.map(([label, count, route]) => <div className="review-row" key={label}><div><strong>{label}</strong><span>{text('review.currentSnapshot', { count })}</span></div><Button variant="secondary" onPress={() => onNavigate(route)}>{t('review.open')}</Button></div>)}</Card>
-    <Card className="review-actions-card" aria-label={t('review.actions')}><div className="review-card-heading"><div><HibiTag tone="mint">{t('review.actions')}</HibiTag><h2>{t('review.actionsTitle')}</h2></div><Lightbulb aria-hidden="true" size={22} /></div><div className="review-action-grid"><div><strong>{text('review.unscheduled', { count: issues.unscheduledTaskCount })}</strong><span>{t('review.unscheduledDetail')}</span><Button variant="secondary" onPress={() => onNavigate('tasks')}>{t('review.reviewTasks')}</Button></div><div><strong>{text('review.duplicates', { count: issues.duplicateBlockCount })}</strong><span>{t('review.duplicatesDetail')}</span><Button variant="secondary" onPress={() => onNavigate('week')}>{t('review.reviewSchedule')}</Button></div></div></Card>
+    <Card className="review-snapshot"><div className="review-card-heading"><div><PixanoTag tone="lavender">{t('review.snapshot')}</PixanoTag><h2>{t('review.snapshotTitle')}</h2></div><ClipboardCheck aria-hidden="true" size={22} /></div>{rows.map(([label, count, route]) => <div className="review-row" key={label}><div><strong>{label}</strong><span>{text('review.currentSnapshot', { count })}</span></div><Button variant="secondary" onPress={() => onNavigate(route)}>{t('review.open')}</Button></div>)}</Card>
+    <Card className="review-actions-card" aria-label={t('review.actions')}><div className="review-card-heading"><div><PixanoTag tone="mint">{t('review.actions')}</PixanoTag><h2>{t('review.actionsTitle')}</h2></div><Lightbulb aria-hidden="true" size={22} /></div><div className="review-action-grid"><div><strong>{text('review.unscheduled', { count: issues.unscheduledTaskCount })}</strong><span>{t('review.unscheduledDetail')}</span><Button variant="secondary" onPress={() => onNavigate('tasks')}>{t('review.reviewTasks')}</Button></div><div><strong>{text('review.duplicates', { count: issues.duplicateBlockCount })}</strong><span>{t('review.duplicatesDetail')}</span><Button variant="secondary" onPress={() => onNavigate('week')}>{t('review.reviewSchedule')}</Button></div></div></Card>
     <section className="review-suggestions" aria-label={t('review.suggestions')}>
       <div className="review-suggestions-heading"><div><p className="eyebrow">{t('review.suggestionsEyebrow')}</p><h2>{t('review.suggestions')}</h2><p className="muted">{t('review.suggestionsDetail')}</p></div><div className="review-dismiss-actions">{duplicateSuggestions.length > 0 && <button className="outline" onClick={() => dismiss(duplicateSuggestions.map((suggestion) => suggestion.id))}>{t('review.dismissDuplicates')}</button>}{missingScheduleSuggestions.length > 0 && <button className="outline" onClick={() => dismiss(missingScheduleSuggestions.map((suggestion) => suggestion.id))}>{t('review.dismissMissing')}</button>}</div></div>
       {scheduleNotice && <p className="review-schedule-notice muted" role="status">{scheduleNotice}</p>}
       {suggestions.length === 0 ? <p className="review-empty" role="status">{t('review.empty')}</p> : <div className="review-suggestion-list">{suggestions.map((suggestion) => <article className="review-suggestion" key={suggestion.id} data-review-suggestion={suggestion.id} aria-label={suggestionTitle(suggestion, t)}><div className="review-suggestion-copy"><div className="review-suggestion-title"><strong>{suggestionTitle(suggestion, t)}</strong><span className="review-confidence">{text('review.confidence', { confidence: suggestion.confidence })}</span></div><p>{suggestion.evidence.join(' · ')}</p><small>{text('review.tasksInvolved', { count: suggestion.taskIds.length })}</small></div><div className="review-suggestion-actions">{suggestion.kind === 'missing_schedule' && onCreateBlock && <button className="primary" onClick={() => scheduleTask(suggestion)}>{t('reviewAction.schedule')}</button>}<button className="outline" onClick={() => onNavigate(suggestionRoute(suggestion))}>{suggestionAction(suggestion, t)}</button><button className="text-button" aria-label={`${t('review.dismiss')} ${suggestionTitle(suggestion, t).toLocaleLowerCase()}`} onClick={() => dismiss([suggestion.id])}>{t('review.dismiss')}</button></div></article>)}</div>}
     </section>
-  </HibiUiRoot>;
+  </PixanoUiRoot>;
 }

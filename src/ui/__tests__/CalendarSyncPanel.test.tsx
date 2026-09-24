@@ -25,7 +25,7 @@ describe('CalendarSyncPanel', () => {
     expect(markup).toContain('Última sincronização')
     expect(markup).toContain('1 evento precisa de revisão')
     expect(markup).toContain('aria-label="Manter calendário: 1 evento precisa de revisão"')
-    expect(markup).toContain('aria-label="Manter Hibi: 1 evento precisa de revisão"')
+    expect(markup).toContain('aria-label="Manter Pixano: 1 evento precisa de revisão"')
     expect(markup).toContain('aria-label="Modo de sincronização para Trabalho"')
   })
 })

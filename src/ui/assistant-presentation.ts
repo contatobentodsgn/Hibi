@@ -24,7 +24,7 @@ export const readingTimeMs = (text: string): number => Math.min(45_000, Math.max
 
 /**
  * O cartão do notch é pequeno. Em vez de espremer a resposta inteira, ele leva o começo dela — a
- * resposta completa fica na conversa do Taby, que é onde ela cabe.
+ * resposta completa fica na conversa do Assistant, que é onde ela cabe.
  */
 export const notchTextFor = (text: string, limit = 220): string => {
   const limpo = text.trim().replace(/\s+/g, ' ');

@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 
 const dock = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
 const palette = (page: Page) => page.getByRole('dialog', { name: 'Paleta de comandos' });
-const askTaby = async (page: Page, phrase: string) => {
+const askAssistant = async (page: Page, phrase: string) => {
   await page.goto('/');
   // A montagem inicial do React precisa terminar (e o listener de teclado com ela) antes que
   // Meta+K tenha efeito — sem essa espera, o atalho corre com a hidratação e a paleta não abre.
@@ -17,7 +17,7 @@ const openSettings = async (page: Page) => {
 };
 
 test('⌘K com frase pede confirmação e Confirmar executa no lugar', async ({ page }) => {
-  await askTaby(page, 'crie uma tarefa: Revisar briefing');
+  await askAssistant(page, 'crie uma tarefa: Revisar briefing');
   const alert = palette(page).getByRole('alert');
   await expect(alert.getByRole('button', { name: 'Confirmar' })).toBeVisible();
   await page.keyboard.press('Enter');
@@ -29,7 +29,7 @@ test('⌘K com frase pede confirmação e Confirmar executa no lugar', async ({ 
 });
 
 test('Cancelar no cartão da paleta não cria nada', async ({ page }) => {
-  await askTaby(page, 'crie uma tarefa: Revisar briefing');
+  await askAssistant(page, 'crie uma tarefa: Revisar briefing');
   await palette(page).getByRole('alert').getByRole('button', { name: 'Cancelar' }).click();
   await expect(palette(page).getByText('Ação cancelada.')).toBeVisible();
   await page.keyboard.press('Escape');
@@ -38,7 +38,7 @@ test('Cancelar no cartão da paleta não cria nada', async ({ page }) => {
 });
 
 test('Esc em dois tempos: primeiro cancela a confirmação, depois fecha', async ({ page }) => {
-  await askTaby(page, 'crie uma tarefa: Revisar briefing');
+  await askAssistant(page, 'crie uma tarefa: Revisar briefing');
   await expect(palette(page).getByRole('alert')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(palette(page)).toBeVisible();
@@ -48,7 +48,7 @@ test('Esc em dois tempos: primeiro cancela a confirmação, depois fecha', async
 });
 
 test('fechar a paleta com confirmação pendente cancela em vez de executar', async ({ page }) => {
-  await askTaby(page, 'crie uma tarefa: Revisar briefing');
+  await askAssistant(page, 'crie uma tarefa: Revisar briefing');
   await expect(palette(page).getByRole('alert')).toBeVisible();
   await page.mouse.click(10, 10);
   await expect(palette(page)).toHaveCount(0);
@@ -56,11 +56,11 @@ test('fechar a paleta com confirmação pendente cancela em vez de executar', as
   await expect(page.getByText('Revisar briefing')).toHaveCount(0);
 });
 
-test('confirmação levantada na página Taby não é descartada ao abrir e fechar a paleta', async ({ page }) => {
+test('confirmação levantada na página Assistant não é descartada ao abrir e fechar a paleta', async ({ page }) => {
   await page.goto('/');
-  // Mesma cautela do askTaby: esperar a barra hidratar antes de qualquer atalho ou clique.
+  // Mesma cautela do askAssistant: esperar a barra hidratar antes de qualquer atalho ou clique.
   await expect(dock(page)).toBeVisible();
-  await dock(page).getByRole('button', { name: 'Taby', exact: true }).click();
+  await dock(page).getByRole('button', { name: 'Assistente', exact: true }).click();
   await page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' }).fill('crie uma tarefa: Revisar briefing');
   await page.keyboard.press('Enter');
   const pageConfirmation = page.getByRole('alert');
@@ -80,7 +80,7 @@ test('confirmação levantada na página Taby não é descartada ao abrir e fech
 });
 
 test('⌘K responde consultas sem sair da tela', async ({ page }) => {
-  await askTaby(page, 'qual a agenda de hoje?');
+  await askAssistant(page, 'qual a agenda de hoje?');
   await expect(palette(page).getByText(/\d+ blocos na agenda/)).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Um dia de cada vez.' })).toBeVisible();
 });
@@ -102,7 +102,7 @@ test('tema manual sobrevive ao reload e o sistema volta a mandar em "Sistema"', 
 test('trocar o idioma troca a barra na hora e persiste', async ({ page }) => {
   await page.goto('/');
   await openSettings(page);
-  await page.getByRole('combobox', { name: 'Language' }).selectOption('en');
+  await page.getByRole('combobox', { name: 'Idioma' }).selectOption('en');
   await expect(page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('button', { name: 'Tasks', exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();

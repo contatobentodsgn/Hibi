@@ -24,7 +24,7 @@ describe('companion reducer', () => {
     });
     expect(result).toMatchObject({
       kind: 'result', priority: 50,
-      animation: { entry: 'taby_response_ready_in', loop: 'taby_response_ready_loop' },
+      animation: { entry: 'task_completed', loop: null },
       text: 'Ready', interaction: 'passthrough', expiresAtMs: 4_300,
     });
   });

@@ -50,7 +50,7 @@ import {
 export type SettingsTab =
   | "General"
   | "AI"
-  | "Taby"
+  | "Assistant"
   | "Integrations"
   | "Focus"
   | "Notifications"
@@ -169,7 +169,7 @@ export function AiSettings({
   const [notice, setNotice] = useState("Local assistant is active.");
   useEffect(() => {
     let active = true;
-    void window.hibiDesktop
+    void window.pixanoDesktop
       ?.getAiConfig?.()
       .then((saved) => {
         if (active) {
@@ -192,7 +192,7 @@ export function AiSettings({
   const usageSummary = usageSummaryFor(usage);
   const save = async () => {
     try {
-      const saved = await window.hibiDesktop?.saveAiConfig?.({
+      const saved = await window.pixanoDesktop?.saveAiConfig?.({
         provider: config.provider,
         endpoint: config.endpoint,
         model: config.model,
@@ -220,7 +220,7 @@ export function AiSettings({
   };
   const removeKey = async () => {
     try {
-      const saved = await window.hibiDesktop?.deleteAiKey?.();
+      const saved = await window.pixanoDesktop?.deleteAiKey?.();
       if (saved) {
         setConfig(saved);
         setNotice("API key removed from Keychain.");
@@ -248,7 +248,7 @@ export function AiSettings({
             if (local) setApiKey("");
           }}
         >
-          <option value="local">Hibi local</option>
+          <option value="local">Pixano local</option>
           <option value="openai-compatible">OpenAI-compatible</option>
         </select>
       </Setting>
@@ -422,9 +422,9 @@ export function FocusSettingsPanel({
       : minutes(Math.round(totalSeconds / 60));
   const withDuration = (key: DictionaryKey, totalSeconds: number) =>
     fillTemplate(t(key), { duration: duration(totalSeconds) });
-  // O timeout de tela só tem quem o honre com o Taby conectado. Hoje o adaptador de hardware está
+  // O timeout de tela só tem quem o honre com o Assistant conectado. Hoje o adaptador de hardware está
   // indisponível, e a tela diz isso em vez de fingir que o ajuste mudou alguma coisa.
-  const tabyConnected = getCurrentAdapterStatuses().some(
+  const assistantConnected = getCurrentAdapterStatuses().some(
     (adapter) => adapter.id === "hardware" && adapter.status === "available",
   );
   const watchesPresence = settings.awayBehavior !== "keep";
@@ -594,7 +594,7 @@ export function FocusSettingsPanel({
             onChange={(event) =>
               update(
                 { screenTimeoutSeconds: Number(event.target.value) },
-                `taby screen ${event.target.value}s`,
+                `assistant screen ${event.target.value}s`,
               )
             }
           >
@@ -604,7 +604,7 @@ export function FocusSettingsPanel({
               </option>
             ))}
           </select>
-          {!tabyConnected && (
+          {!assistantConnected && (
             <b className="pill amber">
               {t("focus.settings.screen.disconnected")}
             </b>
@@ -645,7 +645,7 @@ export function SettingsWorkspace({
   const [restorePointsNotice, setRestorePointsNotice] = useState("");
   const importRef = useRef<HTMLInputElement>(null);
   const desktopBridge =
-    typeof window === "undefined" ? undefined : window.hibiDesktop;
+    typeof window === "undefined" ? undefined : window.pixanoDesktop;
   const workspaceStore = React.useMemo(
     () =>
       typeof window === "undefined"
@@ -655,13 +655,13 @@ export function SettingsWorkspace({
           })
         : createWorkspaceStore({
             storage: window.localStorage,
-            database: createDesktopWorkspaceBackend(window.hibiDesktop),
+            database: createDesktopWorkspaceBackend(window.pixanoDesktop),
           }),
     [],
   );
   useEffect(() => {
     let active = true;
-    const bridge = window.hibiDesktop;
+    const bridge = window.pixanoDesktop;
     if (!bridge?.getOpenAtLogin) {
       setLaunchNotice(t("settings.launchAtLogin.available"));
       return () => {
@@ -693,7 +693,7 @@ export function SettingsWorkspace({
       new Blob(
         [
           JSON.stringify(
-            { exportedAt: new Date().toISOString(), app: "Hibi", data },
+            { exportedAt: new Date().toISOString(), app: "Pixano", data },
             null,
             2,
           ),
@@ -703,7 +703,7 @@ export function SettingsWorkspace({
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = "hibi-support-bundle.json";
+    link.download = "pixano-support-bundle.json";
     link.click();
     URL.revokeObjectURL(url);
     onEvent("export", "Exported support bundle", "pass");
@@ -721,7 +721,7 @@ export function SettingsWorkspace({
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = "hibi-workspace-backup.json";
+    link.download = "pixano-workspace-backup.json";
     link.click();
     URL.revokeObjectURL(url);
     setBackupNotice(
@@ -805,7 +805,7 @@ export function SettingsWorkspace({
   const tabs: readonly SettingsTab[] = [
     "General",
     "AI",
-    "Taby",
+    "Assistant",
     "Integrations",
     "Focus",
     "Notifications",
@@ -816,7 +816,7 @@ export function SettingsWorkspace({
     <div className="view settings-view">
       <div className="view-heading">
         <div>
-          <p className="eyebrow">HIBI STUDY REPLICA</p>
+          <p className="eyebrow">PIXANO</p>
           <h1>Settings</h1>
           <p className="muted">
             Local preferences · {data.tasks.length} tasks ·{" "}
@@ -836,12 +836,12 @@ export function SettingsWorkspace({
                 onEvent("navigation", `Settings · ${item}`);
               }}
             >
-              {item}
+              {item === "Assistant" ? "Assistant" : item}
             </button>
           ))}
         </aside>
         <section className="settings-card">
-          <h2 className="settings-section-title">{tab}</h2>
+          <h2 className="settings-section-title">{tab === "Assistant" ? "Assistant" : tab}</h2>
           {tab === "General" && (
             <>
               <ShortcutSettings onEvent={onEvent} />
@@ -885,7 +885,7 @@ export function SettingsWorkspace({
                   className={`toggle ${launchAtLogin ? "on" : ""}`}
                   aria-pressed={launchAtLogin}
                   onClick={async () => {
-                    const bridge = window.hibiDesktop;
+                    const bridge = window.pixanoDesktop;
                     if (!bridge?.setOpenAtLogin || !bridge.getOpenAtLogin) {
                       setLaunchNotice(t("settings.launchAtLogin.available"));
                       return;
@@ -928,7 +928,7 @@ export function SettingsWorkspace({
               <NotchDisplaySettings onEvent={onEvent} />
             </>
           )}
-          {(tab === "AI" || tab === "Taby") && (
+          {(tab === "AI" || tab === "Assistant") && (
             <>
               <AiSettings
                 onEvent={onEvent}
@@ -1002,7 +1002,7 @@ export function SettingsWorkspace({
                   </button>
                   <input
                     ref={importRef}
-                    aria-label="Choose Hibi workspace backup"
+                    aria-label="Choose Pixano workspace backup"
                     type="file"
                     accept="application/json,.json"
                     onChange={(event) => void importWorkspace(event)}
@@ -1081,7 +1081,7 @@ export function SettingsWorkspace({
           {tab === "About" && (
             <>
               <p className="muted">
-                Hibi is an offline-first personal planning workspace.
+                Pixano is an offline-first personal planning workspace.
               </p>
               <div className="settings-divider" />
               <h3 className="eyebrow">INTEGRATION STATUS</h3>

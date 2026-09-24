@@ -33,7 +33,7 @@ test('o fonte recusa apresentações com ações e não guarda mais o host inter
   assert.doesNotMatch(source, /addLocalMonitorForEventsMatchingMask|NSEventMaskKeyDown/);
   assert.doesNotMatch(source, /- \(void\)keyDown:/);
   assert.doesNotMatch(source, /makeFirstResponder|focusFirstAction/);
-  assert.doesNotMatch(source, /DispatchAction|HibiNotchActionTarget|NSButton/);
+  assert.doesNotMatch(source, /DispatchAction|PixanoNotchActionTarget|NSButton/);
   // O observador que sobrou é o de parâmetros de tela, e o destroy continua soltando ele.
   assert.match(source, /removeObserver:gScreenObserver/);
   assert.match(source, /- \(NSAccessibilityRole\)accessibilityRole \{ return NSAccessibilityGroupRole; \}/);

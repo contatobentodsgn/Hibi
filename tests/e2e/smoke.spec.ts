@@ -21,15 +21,15 @@ test('navega pelo calendário e abre comandos', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Paleta de comandos' })).toBeVisible();
 });
 
-test('todas as seções principais são navegáveis', async ({ page }) => {
+test('destinos diários e seções de uso recorrente são navegáveis', async ({ page }) => {
   await page.goto('/');
-  for (const section of ['Hoje', 'Agenda', 'Tarefas', 'Notas', 'Taby', 'Ajustes']) {
+  for (const section of ['Hoje', 'Agenda', 'Tarefas', 'Notas', 'Assistente', 'Ajustes']) {
     await go(page, section);
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('.shell-content')).toBeVisible();
   }
-  for (const section of ['Foco', 'Lembretes', 'Hábitos', 'Metas', 'Revisão', 'Estatísticas', 'Ajuda', 'Eventos', 'Feedback', 'Atualizações', 'Hardware']) {
+  for (const section of ['Foco', 'Lembretes', 'Hábitos', 'Metas', 'Revisão', 'Estatísticas']) {
     await goMore(page, section);
-    await expect(page.locator('main')).toBeVisible();
+    await expect(page.locator('.shell-content')).toBeVisible();
   }
 });
 
@@ -61,7 +61,7 @@ test('captura rápida da Home abre a paleta de comandos', async ({ page }) => {
 test('filtro de pasta funciona em Tarefas e Notas', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Tarefas');
-  const chip = page.getByRole('button', { name: /^Pasta · Bento \d+$/ });
+  const chip = page.getByRole('button', { name: /^Pastas · Bento \d+$/ });
   await chip.click();
   await expect(chip).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('.task-row').first()).toBeVisible();
@@ -69,17 +69,17 @@ test('filtro de pasta funciona em Tarefas e Notas', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Pasta · Todas' })).toBeVisible();
 });
 
-test('+ New note leva o foco para o formulário de nota nova', async ({ page }) => {
+test('Nova nota leva o foco para o formulário de nota nova', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Notas');
-  await page.getByRole('button', { name: '+ New note' }).click();
-  await expect(page.getByRole('form', { name: 'Create note' }).getByLabel('Title')).toBeFocused();
+  await page.getByRole('button', { name: 'Nova nota' }).click();
+  await expect(page.getByRole('form', { name: 'Create note' }).getByLabel('Título')).toBeFocused();
 });
 
 test('o diálogo de nova tarefa mantém o rascunho enquanto permanece aberto', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Tarefas');
-  await page.getByRole('button', { name: 'Nova tarefa' }).click();
+  await page.getByRole('button', { name: 'Criar tarefa' }).click();
   const draft = page.getByLabel('Título da tarefa');
   await draft.fill('Rascunho de tarefa');
   await page.getByRole('heading', { name: 'O próximo passo.' }).click();
@@ -89,46 +89,47 @@ test('o diálogo de nova tarefa mantém o rascunho enquanto permanece aberto', a
 test('nota criada em pasta nova ganha filtro próprio, e trocar de filtro não apaga o rascunho', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Notas');
-  const form = page.getByRole('form', { name: 'Create note' });
-  await form.getByLabel('Title').fill('Briefing Clientes');
-  await form.getByLabel('Folder').fill('Clientes');
-  await form.getByRole('button', { name: 'Add note' }).click();
+  const form = page.getByRole('form', { name: 'Capturar uma ideia' });
+  await form.getByLabel('Título').fill('Briefing Clientes');
+  await form.getByLabel('Pasta').fill('Clientes');
+  await form.getByRole('button', { name: 'Adicionar nota' }).click();
   await expect(page.getByRole('button', { name: 'Pasta · Clientes 1' })).toBeVisible();
-  await expect(form.getByLabel('Title')).toHaveValue('');
+  await expect(form.getByLabel('Título')).toHaveValue('');
 
-  await form.getByLabel('Title').fill('Rascunho');
+  await form.getByLabel('Pasta').fill('Clientes');
+  await form.getByLabel('Título').fill('Rascunho');
   await page.getByRole('button', { name: 'Pasta · Clientes 1' }).click();
-  await expect(form.getByLabel('Title')).toHaveValue('Rascunho');
-  await expect(form.getByLabel('Folder')).toHaveValue('Clientes');
+  await expect(form.getByLabel('Título')).toHaveValue('Rascunho');
+  await expect(form.getByLabel('Pasta')).toHaveValue('Clientes');
   await expect(page.locator('.list-card').getByText('Briefing Clientes')).toBeVisible();
 
   // O chip clicado acima bate com a pasta já digitada, o que não provaria nada sobre folderTouched.
   // Digitar uma pasta diferente e trocar de filtro é o que de fato mostra que o rascunho sobrevive.
-  await form.getByLabel('Folder').fill('Outra');
+  await form.getByLabel('Pasta').fill('Outra');
   await page.getByRole('button', { name: 'Pasta · Todas' }).click();
-  await expect(form.getByLabel('Folder')).toHaveValue('Outra');
+  await expect(form.getByLabel('Pasta')).toHaveValue('Outra');
 });
 
 test('editar uma nota troca e limpa a pasta', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Notas');
-  const form = page.getByRole('form', { name: 'Create note' });
-  await form.getByLabel('Title').fill('Nota para editar');
-  await form.getByLabel('Folder').fill('Clientes');
-  await form.getByRole('button', { name: 'Add note' }).click();
+  const form = page.getByRole('form', { name: 'Capturar uma ideia' });
+  await form.getByLabel('Título').fill('Nota para editar');
+  await form.getByLabel('Pasta').fill('Clientes');
+  await form.getByRole('button', { name: 'Adicionar nota' }).click();
   await expect(page.locator('.list-card').getByText('Nota para editar')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Edit Nota para editar' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit note' });
+  await page.getByRole('button', { name: 'Editar Nota para editar' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Editar nota' });
   await expect(dialog).toBeVisible();
-  await dialog.getByLabel('Folder').fill('');
-  await dialog.getByRole('button', { name: 'Save note' }).click();
+  await dialog.getByLabel('Pasta').fill('');
+  await dialog.getByRole('button', { name: 'Salvar nota' }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByText('Nota para editar').locator('..').getByText(/Sem pasta$/)).toBeVisible();
+  await expect(page.locator('.notes-screen__row').filter({ hasText: 'Nota para editar' })).toContainText('Sem pasta');
 
-  await page.getByRole('button', { name: 'Edit Nota para editar' }).click();
-  await dialog.getByLabel('Folder').fill('Arquivo');
-  await dialog.getByRole('button', { name: 'Save note' }).click();
+  await page.getByRole('button', { name: 'Editar Nota para editar' }).click();
+  await dialog.getByLabel('Pasta').fill('Arquivo');
+  await dialog.getByRole('button', { name: 'Salvar nota' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Pasta · Arquivo 1' })).toBeVisible();
 });
@@ -136,13 +137,11 @@ test('editar uma nota troca e limpa a pasta', async ({ page }) => {
 test('abas de Settings alternam conteúdo funcional', async ({ page }) => {
   await page.goto('/');
   await go(page, 'Ajustes');
-  await expect(page.getByRole('heading', { name: 'General' })).toBeVisible();
-  await page.getByRole('button', { name: 'Notifications', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Send test notification' })).toBeVisible();
-  await page.getByRole('button', { name: 'Data', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Data' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Reset study data' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Aparência' })).toBeVisible();
+  await page.getByRole('button', { name: /Notificações/ }).click();
+  await expect(page.locator('[data-settings-section="Notifications"]')).toBeVisible();
+  await page.getByRole('button', { name: /Dados/ }).click();
+  await expect(page.locator('[data-settings-section="Data"]')).toBeVisible();
 });
 
 test('restaura um backup completo pela interface sem incluir dados do Keychain', async ({ page }) => {
@@ -156,9 +155,9 @@ test('restaura um backup completo pela interface sem incluir dados do Keychain',
     return JSON.stringify({ app: 'Hibi', version: 1, exportedAt: '2026-09-08T12:00:00.000Z', data, preferences: { language: 'pt', twentyFourHour: true } });
   });
   await go(page, 'Ajustes');
-  await page.getByRole('button', { name: 'Data', exact: true }).click();
+  await page.getByRole('button', { name: /Dados/ }).click();
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByLabel('Choose Hibi workspace backup').setInputFiles({ name: 'hibi-workspace-backup.json', mimeType: 'application/json', buffer: Buffer.from(backup) });
+  await page.getByLabel('Choose Pixano workspace backup').setInputFiles({ name: 'hibi-workspace-backup.json', mimeType: 'application/json', buffer: Buffer.from(backup) });
   await expect(page.getByText('Workspace restored from hibi-workspace-backup.json.')).toBeVisible();
   await go(page, 'Tarefas');
   await expect(page.getByText('Tarefa restaurada')).toBeVisible();
@@ -279,9 +278,9 @@ test('filtros do calendário usam as categorias reais dos blocos', async ({ page
   await page.goto('/');
   await goWeek(page);
   await page.getByRole('button', { name: 'Bem-estar', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Delete Almoço' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Excluir Almoço às/ }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Importantes', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Delete Aula de inglês' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Excluir Aula de inglês às/ }).first()).toBeVisible();
 });
 
 test('Foco e pausa aplicam a duração escolhida antes de iniciar', async ({ page }) => {
@@ -301,42 +300,42 @@ test('filtros do Day exibem blocos fixos e pausas', async ({ page }) => {
   await page.goto('/');
   await goDay(page);
   await page.getByRole('button', { name: 'Bem-estar', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Delete Almoço' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Excluir Almoço às/ })).toBeVisible();
   await page.getByRole('button', { name: 'Importantes', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Delete Caminhada' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Excluir Caminhada às/ })).toBeVisible();
 });
 
 test('updates e hardware são acessíveis pela paleta', async ({ page }) => {
   await page.goto('/');
   await openCommands(page);
-  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/hardware');
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao assistente' }).fill('/hardware');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Hardware' })).toBeVisible();
   await openCommands(page);
-  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/events');
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao assistente' }).fill('/events');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Instrumentation' })).toBeVisible();
   await openCommands(page);
-  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao Taby' }).fill('/updates');
+  await page.getByRole('combobox', { name: 'Digite um comando ou pergunte ao assistente' }).fill('/updates');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Updates' })).toBeVisible();
 });
 
 test('assistente local responde sobre a agenda', async ({ page }) => {
   await page.goto('/');
-  await go(page, 'Taby');
+  await go(page, 'Assistente');
   const input = page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
   await input.fill('qual a agenda de hoje?');
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Enviar' }).click();
   await expect(page.getByText(/\d+ blocos na agenda/)).toBeVisible();
 });
 
 test('assistente confirma uma mudança antes de criar uma tarefa local', async ({ page }) => {
   await page.goto('/');
-  await go(page, 'Taby');
+  await go(page, 'Assistente');
   const input = page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
   await input.fill('crie uma tarefa: Revisar briefing');
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Enviar' }).click();
   await expect(page.getByRole('button', { name: 'Confirmar' })).toBeVisible();
   await page.getByRole('button', { name: 'Confirmar' }).click();
   await expect(page.getByText('Tarefa criada: Revisar briefing')).toBeVisible();

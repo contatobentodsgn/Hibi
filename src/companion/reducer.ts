@@ -37,7 +37,7 @@ const animationFor = (kind: CompanionKind, reducedMotion: boolean, reminderAnima
     thinking: { entry: null, loop: 'searching_loop' },
     acting: { entry: null, loop: 'creating_task_loop' },
     confirmation: { entry: 'confirmation', loop: null },
-    result: { entry: 'taby_response_ready_in', loop: 'taby_response_ready_loop' },
+    result: { entry: 'task_completed', loop: null },
     // O loop do foco é o ajuste "Animação durante o foco" no humor do momento, pela mesma regra da tela de Foco.
     focus: { entry: focusLoop === 'music' ? null : 'working_laptop_in', loop: resolveFocusLoopAnimationId(focusLoop, focusMood) },
     reminder: { entry: reminderAnimation ?? 'waiting_01', loop: null },

@@ -12,11 +12,11 @@ test('depois da meia-noite, sem recarregar, o hábito é marcado no dia novo', a
   await page.clock.install({ time: new Date(2026, 8, 7, 23, 59, 0) });
   await page.goto('/');
   await openMore(page, 'Hábitos');
-  await page.getByLabel('New habit title').fill('Ler');
-  await page.getByRole('button', { name: 'Add habit' }).click();
+  await page.getByLabel('Nome do hábito').fill('Ler');
+  await page.getByRole('button', { name: 'Adicionar', exact: true }).click();
 
   await page.clock.runFor(2 * 60_000);
-  await page.getByRole('button', { name: 'Complete Ler today' }).click();
+  await page.getByRole('button', { name: 'Marcar Ler hoje' }).click();
 
   await expect.poll(async () => (await stored(page)).habits.find((habit) => habit.title === 'Ler')?.completedDates).toEqual(['2026-09-08']);
 });

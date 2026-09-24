@@ -62,7 +62,7 @@ describe('paleta', () => {
   it('renderiza o diálogo em modo comando com rótulos do dicionário', () => {
     const markup = renderToStaticMarkup(<CommandPalette data={data} onClose={noop} onNavigate={noop} onEvent={noop} onRenameFolder={() => ({ ok: false, reason: 'missing' } as const)} turn={idleTurn} conversations={conversations} />)
     expect(markup).toContain('aria-label="Paleta de comandos"')
-    expect(markup).toContain('placeholder="Digite um comando ou pergunte ao Taby"')
+    expect(markup).toContain('placeholder="Digite um comando ou pergunte ao assistente"')
     expect(markup).toContain('Abrir agenda da semana')
     expect(markup).toContain('Acompanhar hábitos')
     expect(markup).not.toContain('role="alert"')

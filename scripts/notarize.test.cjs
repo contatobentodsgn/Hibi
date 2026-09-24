@@ -7,7 +7,7 @@ const semCredenciais = () => { for (const name of ['APPLE_ID', 'APPLE_APP_SPECIF
 
 test('um release sem credenciais falha alto, em vez de sair sem notarizar', async () => {
   semCredenciais();
-  delete process.env.HIBI_LOCAL_INSTALL;
+  delete process.env.PIXANO_LOCAL_INSTALL;
 
   await assert.rejects(() => notarize(contexto), /Notarization credentials are required/);
 });
@@ -16,11 +16,11 @@ test('um release sem credenciais falha alto, em vez de sair sem notarizar', asyn
 // impediria a pessoa de rodar o que ela mesma acabou de compilar.
 test('a instalação local passa sem notarizar', async () => {
   semCredenciais();
-  process.env.HIBI_LOCAL_INSTALL = '1';
+  process.env.PIXANO_LOCAL_INSTALL = '1';
   try {
     await notarize(contexto);
   } finally {
-    delete process.env.HIBI_LOCAL_INSTALL;
+    delete process.env.PIXANO_LOCAL_INSTALL;
   }
 });
 

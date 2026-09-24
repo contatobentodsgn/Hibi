@@ -22,7 +22,7 @@ type Props = Readonly<{
   conversations: ConversationsController
 }>
 
-// Um campo, várias vistas: "/" filtra comandos; uma frase vai para o Taby e confirma aqui mesmo;
+// Um campo, várias vistas: "/" filtra comandos; uma frase vai para o Assistant e confirma aqui mesmo;
 // `/folder` troca para a vista de pastas, onde o mesmo campo filtra e renomeia pastas.
 export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFolder, turn, conversations }: Props) {
   const t = useT()
@@ -34,9 +34,9 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
   const paletteRef = useRef<HTMLElement>(null)
   const turnRef = useRef(turn)
   turnRef.current = turn
-  // O turno é compartilhado com a página Taby (ver App.tsx); "submitted !== null" é o que distingue
+  // O turno é compartilhado com a página Assistant (ver App.tsx); "submitted !== null" é o que distingue
   // um turno que ESTA instância da paleta pediu de um turno levantado alhures (ex.: confirmação na
-  // página Taby enquanto a paleta está com o campo vazio). Precisa de ref porque o cleanup de
+  // página Assistant enquanto a paleta está com o campo vazio). Precisa de ref porque o cleanup de
   // unmount roda com deps `[]` e, sem isso, veria sempre o valor da montagem.
   const startedByThisRef = useRef(submitted !== null)
   startedByThisRef.current = submitted !== null
@@ -55,7 +55,7 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
 
   useEffect(() => { setSelectedIndex(0) }, [query, view.kind])
   // Fechar nunca executa nada: uma confirmação pendente é cancelada e um stream é parado — mas só
-  // quando o turno em voo foi pedido por ESTA instância. Um turno levantado pela página Taby (ou por
+  // quando o turno em voo foi pedido por ESTA instância. Um turno levantado pela página Assistant (ou por
   // uma montagem anterior da paleta) não é nosso para descartar: unmount aqui deve deixá-lo intacto.
   useEffect(() => () => { if (startedByThisRef.current) turnRef.current.dismiss() }, [])
 
@@ -109,7 +109,7 @@ export function CommandPalette({ data, onClose, onNavigate, onEvent, onRenameFol
     setQuery(outcome.query)
     setNotice(outcome.applied ? t('folders.renamed') : null)
   }
-  // A pergunta entra na mesma thread da tela Taby: o dono do histórico está acima das duas superfícies.
+  // A pergunta entra na mesma thread da tela Assistant: o dono do histórico está acima das duas superfícies.
   const send = () => { const message = query.trim(); if (!message) return; conversations.record({ role: 'user', text: message, at: new Date().toISOString() }); setSubmitted(message); setQuery(''); void turn.ask(message) }
 
   // Digitar "/" com um turno na tela é o usuário pedindo comandos de volta explicitamente.

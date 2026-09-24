@@ -13,7 +13,7 @@ describe('NotionSyncPanel', () => {
   it('shows workspace, database, last sync, counts and sync control', () => {
     const markup = renderToStaticMarkup(<NotionSyncPanel connected settings={configured} localTasks={[]} onSaveSettings={async () => configured} onApply={() => []} onEvent={() => undefined} />)
     expect(markup).toContain("Kizuna Std&#x27;s Notion")
-    expect(markup).toContain('Hibi Tasks')
+    expect(markup).toContain('Notion task database')
     expect(markup).toContain('Last sync')
     expect(markup).toContain('1 imported')
     expect(markup).toContain('2 pushed')
@@ -22,14 +22,14 @@ describe('NotionSyncPanel', () => {
 
   it('shows safe setup when the dedicated database is not configured', () => {
     const markup = renderToStaticMarkup(<NotionSyncPanel connected settings={{ endpoint: '', clientId: '', targets: [] }} localTasks={[]} onSaveSettings={async (patch) => ({ endpoint: '', clientId: '', targets: [], ...patch })} onApply={() => []} onEvent={() => undefined} />)
-    expect(markup).toContain('Prepare Hibi Tasks')
+    expect(markup).toContain('Prepare Pixano Tasks')
     expect(markup).toContain('Kizuna')
     expect(markup).toContain('requires confirmation')
   })
 
   it('builds only selected remote writes and never writes conflicts by default', () => {
     const task = { id: 'task-1', title: 'Local', durationMinutes: 60, category: 'work' as const, status: 'open' as const }
-    const conflict = buildNotionSyncPlan([task], [{ remoteId: 'page-1', revision: 'v2', hibiId: 'task-1', title: 'Remote', durationMinutes: 60 }], [])
+    const conflict = buildNotionSyncPlan([task], [{ remoteId: 'page-1', revision: 'v2', pixanoId: 'task-1', title: 'Remote', durationMinutes: 60 }], [])
     expect(notionOperationsForPlan(conflict, {}, 'source-1')).toEqual([])
     expect(notionOperationsForPlan(conflict, { [conflict.items[0].key]: 'keep-local' }, 'source-1')).toEqual([
       { key: conflict.items[0].key, kind: 'notion.page.update', payload: { id: 'page-1', task } },

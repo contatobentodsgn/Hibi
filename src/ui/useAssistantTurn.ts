@@ -35,7 +35,7 @@ const failureFor = (error: unknown): AiProviderFailure => {
 const provenanceOf = (result: AiRuntimeResult): AssistantProvenance => ({ provider: result.provider.label, ...(result.provider.model === undefined ? {} : { model: result.provider.model }), ...(result.provider.usage ? { totalTokens: result.provider.usage.totalTokens } : {}), ...(result.provider.fallback ? { fallback: true } : {}) });
 const assistantRequestId = () => `assistant-${crypto.randomUUID().replace(/[^A-Za-z0-9_-]/g, '')}`;
 
-// Um turno do assistente, do pedido à execução confirmada. A página Taby e a paleta usam o mesmo hook:
+// Um turno do assistente, do pedido à execução confirmada. A página Assistant e a paleta usam o mesmo hook:
 // o reducer decide as transições; aqui só se conversa com o runtime, o companion e a instrumentação.
 export function useAssistantTurn({ runtime, onEvent, onCompanionEvent, onCompanionError }: AssistantHost): AssistantTurnControls {
   const [state, dispatch] = useReducer(assistantTurnReducer, initialAssistantTurnState);
@@ -55,7 +55,7 @@ export function useAssistantTurn({ runtime, onEvent, onCompanionEvent, onCompani
     const current = stateRef.current;
     if (current.status !== 'confirmation') return;
     const { confirmation, requestId } = current;
-    void window.hibiDesktop?.hideNotch?.(confirmation.id);
+    void window.pixanoDesktop?.hideNotch?.(confirmation.id);
     if (actionId === 'cancel') {
       runtime.cancelConfirmation(confirmation);
       const text = 'Ação cancelada.';
@@ -79,7 +79,7 @@ export function useAssistantTurn({ runtime, onEvent, onCompanionEvent, onCompani
     }
   }, [runtime, onEvent, onCompanionEvent, onCompanionError]);
 
-  useEffect(() => window.hibiDesktop?.onCompanionAction?.((action) => {
+  useEffect(() => window.pixanoDesktop?.onCompanionAction?.((action) => {
     const current = stateRef.current;
     if (current.status === 'confirmation' && action.requestId === current.confirmation.id) void resolve(action.actionId);
   }) ?? (() => undefined), []);

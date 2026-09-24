@@ -5,7 +5,7 @@ const openSettings = async (page: Page) => {
   await dock(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
 };
 type Recorded = { setDisplay: (number | null)[]; tests: string[] };
-type HibiE2E = {
+type PixanoE2E = {
   recorded: Recorded;
   disconnectInternal: () => void;
   failNext: (kind: 'list' | 'set' | 'test') => void;
@@ -19,15 +19,15 @@ type HibiE2E = {
 // Lida pelo script de inicialização: as leituras falham desde a abertura, antes de qualquer `page.evaluate`,
 // até `recoverList()`. Uma falha única não basta: em dev o efeito roda duas vezes e descarta a primeira resposta.
 const FAIL_LIST_AT_START_KEY = 'hibi-e2e-fail-list-at-start';
-const readRecorded = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: { recorded: Recorded } }).hibiE2E.recorded);
+const readRecorded = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: { recorded: Recorded } }).pixanoE2E.recorded);
 const failNext = (page: Page, kind: 'list' | 'set' | 'test') =>
-  page.evaluate((k) => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.failNext(k), kind);
-const notifyChanged = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.notifyChanged());
-const holdTest = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.holdTest());
-const releaseTest = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.releaseTest());
-const holdList = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.holdList());
-const releaseList = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.releaseList());
-const recoverList = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.recoverList());
+  page.evaluate((k) => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.failNext(k), kind);
+const notifyChanged = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.notifyChanged());
+const holdTest = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.holdTest());
+const releaseTest = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.releaseTest());
+const holdList = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.holdList());
+const releaseList = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.releaseList());
+const recoverList = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.recoverList());
 
 async function installBridge(page: Page) {
   await page.addInitScript((failListAtStartKey) => {
@@ -50,7 +50,7 @@ async function installBridge(page: Page) {
       const resolved = preferred ?? displays.find((display) => display.hasCameraHousing) ?? displays.find((display) => display.primary)!;
       return { preference, resolvedDisplayId: resolved.id, reason: preferred ? 'preferred' : resolved.hasCameraHousing ? 'camera-housing' : 'primary', displays };
     };
-    (window as unknown as { hibiE2E: unknown }).hibiE2E = {
+    (window as unknown as { pixanoE2E: unknown }).pixanoE2E = {
       recorded,
       disconnectInternal() { displays = [lg]; changed?.(); },
       notifyChanged() { changed?.(); },
@@ -61,7 +61,7 @@ async function installBridge(page: Page) {
       releaseList() { releaseHeldList?.(); releaseHeldList = null; },
       recoverList() { failListUntilRecovered = false; },
     };
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
       listNotchDisplays: async () => {
         if (failListUntilRecovered || failing.list) { failing.list = false; throw new Error('falha simulada'); }
@@ -131,7 +131,7 @@ test.describe('com o bridge do desktop', () => {
     await select.selectOption('1');
     await expect(select).toHaveValue('1');
 
-    await page.evaluate(() => (window as unknown as { hibiE2E: { disconnectInternal: () => void } }).hibiE2E.disconnectInternal());
+    await page.evaluate(() => (window as unknown as { pixanoE2E: { disconnectInternal: () => void } }).pixanoE2E.disconnectInternal());
 
     await expect(select.locator('option')).toHaveText(['Automático · LG ULTRAWIDE', 'LG ULTRAWIDE · principal', 'Color LCD · desconectado']);
     await expect(select).toHaveValue('1');
@@ -247,7 +247,7 @@ test.describe('com o bridge do desktop', () => {
       const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!;
       setter.call(el, '1');
       el.dispatchEvent(new Event('change', { bubbles: true }));
-      (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.notifyChanged();
+      (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.notifyChanged();
     });
 
     await releaseList(page);

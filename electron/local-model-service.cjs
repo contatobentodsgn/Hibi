@@ -52,7 +52,7 @@ function createLocalModelService({ dataRoot, engineFactory } = {}) {
 /**
  * A pergunta ao cérebro offline, do jeito que o IPC a atende: carrega o modelo verificado se for
  * preciso e responde. Uma falha ao carregar (memória, binário nativo ausente, arquivo corrompido)
- * vira "indisponível" — e o Taby cai nas ferramentas locais — em vez de derrubar a pergunta.
+ * vira "indisponível" — e o Assistant cai nas ferramentas locais — em vez de derrubar a pergunta.
  */
 async function runWithVerifiedModel({ service, store, input }) {
   const requestId = typeof input?.requestId === 'string' ? input.requestId : null;

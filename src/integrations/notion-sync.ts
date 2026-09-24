@@ -3,7 +3,7 @@ import type { EntityStatus, Task } from '../domain/models'
 export type NotionTaskRecord = Readonly<{
   remoteId: string
   revision: string
-  hibiId?: string
+  pixanoId?: string
   title: string
   status?: EntityStatus
   deadline?: string
@@ -69,26 +69,26 @@ export function buildNotionSyncPlan(localTasks: readonly Task[], remoteTasks: re
   const localById = new Map(localTasks.map((task) => [task.id, task]))
   const localByRemote = new Map(localTasks.flatMap((task) => task.remoteRef?.connectorId === 'notion' ? [[task.remoteRef.remoteId, task] as const] : []))
   const checkpointByLocal = new Map(checkpoints.map((entry) => [entry.localId, entry]))
-  const remotesByHibiId = new Map<string, NotionTaskRecord[]>()
+  const remotesByPixanoId = new Map<string, NotionTaskRecord[]>()
   for (const remote of remoteTasks) {
-    if (!remote.hibiId) continue
-    const group = remotesByHibiId.get(remote.hibiId) ?? []
+    if (!remote.pixanoId) continue
+    const group = remotesByPixanoId.get(remote.pixanoId) ?? []
     group.push(remote)
-    remotesByHibiId.set(remote.hibiId, group)
+    remotesByPixanoId.set(remote.pixanoId, group)
   }
-  const duplicateRemoteIds = new Set([...remotesByHibiId.values()].filter((group) => group.length > 1).flatMap((group) => group.map((remote) => remote.remoteId)))
+  const duplicateRemoteIds = new Set([...remotesByPixanoId.values()].filter((group) => group.length > 1).flatMap((group) => group.map((remote) => remote.remoteId)))
   const matchedLocalIds = new Set<string>()
   const matchedRemoteIds = new Set<string>()
 
   for (const remote of remoteTasks) {
     if (duplicateRemoteIds.has(remote.remoteId)) {
-      const task = remote.hibiId ? localById.get(remote.hibiId) : undefined
+      const task = remote.pixanoId ? localById.get(remote.pixanoId) : undefined
       items.push({ key: `duplicate:${remote.remoteId}`, state: 'duplicate', remoteId: remote.remoteId, remote, ...(task ? { localId: task.id, local: task } : {}) })
       matchedRemoteIds.add(remote.remoteId)
       if (task) matchedLocalIds.add(task.id)
       continue
     }
-    const task = localByRemote.get(remote.remoteId) ?? (remote.hibiId ? localById.get(remote.hibiId) : undefined)
+    const task = localByRemote.get(remote.remoteId) ?? (remote.pixanoId ? localById.get(remote.pixanoId) : undefined)
     if (!task) continue
     matchedLocalIds.add(task.id)
     matchedRemoteIds.add(remote.remoteId)
@@ -148,7 +148,7 @@ export const notionRecordFromCandidate = (candidate: import('./imports').ImportC
       remoteId: candidate.remoteId,
       revision: candidate.revision,
       title: candidate.title,
-      ...(candidate.hibiId ? { hibiId: candidate.hibiId } : {}),
+      ...(candidate.pixanoId ? { pixanoId: candidate.pixanoId } : {}),
       ...(candidate.status ? { status: candidate.status } : {}),
       ...(candidate.deadline ? { deadline: candidate.deadline } : {}),
       ...(candidate.durationMinutes === undefined ? {} : { durationMinutes: candidate.durationMinutes }),
@@ -166,7 +166,7 @@ export const notionRecordFromCandidate = (candidate: import('./imports').ImportC
 export function staleNotionPlanKeys(plan: NotionSyncPlan, decisions: Readonly<Record<string, string>>, localTasks: readonly Task[], remoteNow: readonly NotionTaskRecord[]): string[] {
   const localById = new Map(localTasks.map((task) => [task.id, task]))
   const remoteById = new Map(remoteNow.map((record) => [record.remoteId, record]))
-  const linkedHibiIds = new Set(remoteNow.flatMap((record) => record.hibiId ? [record.hibiId] : []))
+  const linkedPixanoIds = new Set(remoteNow.flatMap((record) => record.pixanoId ? [record.pixanoId] : []))
   return plan.items.filter((item) => {
     if ((decisions[item.key] ?? 'skip') === 'skip') return false
     if (item.local) {
@@ -177,6 +177,6 @@ export function staleNotionPlanKeys(plan: NotionSyncPlan, decisions: Readonly<Re
       const current = remoteById.get(item.remote.remoteId)
       return !current || current.revision !== item.remote.revision
     }
-    return item.local !== undefined && linkedHibiIds.has(item.local.id)
+    return item.local !== undefined && linkedPixanoIds.has(item.local.id)
   }).map((item) => item.key)
 }

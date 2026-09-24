@@ -20,15 +20,15 @@ function electronFake() {
   };
 }
 
-test('o ícone abre, leva ao Taby, esconde e sai, nessa ordem', () => {
+test('o ícone abre, leva ao Assistant, esconde e sai, nessa ordem', () => {
   const chamadas = [];
   const { Tray, Menu, nativeImage, registrado } = electronFake();
-  createAppTray({ Tray, Menu, nativeImage, iconPath: '/icone.png', onOpen: () => chamadas.push('abrir'), onTaby: () => chamadas.push('taby'), onHide: () => chamadas.push('ocultar'), onQuit: () => chamadas.push('sair') });
+  createAppTray({ Tray, Menu, nativeImage, iconPath: '/icone.png', onOpen: () => chamadas.push('abrir'), onAssistant: () => chamadas.push('assistant'), onHide: () => chamadas.push('ocultar'), onQuit: () => chamadas.push('sair') });
 
   const rotulos = registrado.menu.template.map((item) => item.type ?? item.label);
-  assert.deepEqual(rotulos, ['Abrir Hibi', 'Perguntar ao Taby', 'Ocultar janela', 'separator', 'Sair do Hibi']);
+  assert.deepEqual(rotulos, ['Abrir Pixano', 'Abrir assistente', 'Ocultar janela', 'separator', 'Sair do Pixano']);
   for (const item of registrado.menu.template) item.click?.();
-  assert.deepEqual(chamadas, ['abrir', 'taby', 'ocultar', 'sair']);
+  assert.deepEqual(chamadas, ['abrir', 'assistant', 'ocultar', 'sair']);
 });
 
 test('clicar no ícone abre a janela, que é o caminho de volta depois de fechá-la', () => {
@@ -48,7 +48,7 @@ test('o ícone é marcado como template, para seguir o tema do sistema', () => {
 
   assert.equal(registrado.template, true);
   assert.equal(registrado.imagem.file, '/icone.png');
-  assert.equal(registrado.tooltip, 'Hibi');
+  assert.equal(registrado.tooltip, 'Pixano');
 });
 
 test('sem quem abrir ou sair, o ícone não é criado pela metade', () => {

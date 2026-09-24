@@ -81,7 +81,7 @@ test('mantém estados animados no overlay Electron para reproduzir o vídeo do g
 
   assert.deepEqual(response, { degraded: true, requestId: 'cat-result', host: 'electron' });
   assert.deepEqual(calls, []);
-  assert.ok(notch.calls.some(([name, channel]) => name === 'send' && channel === 'hibi:companion:presentation'));
+  assert.ok(notch.calls.some(([name, channel]) => name === 'send' && channel === 'pixano:companion:presentation'));
 });
 
 test('keeps action-bearing presentations out of the native visual host', () => {
@@ -216,7 +216,7 @@ test('uma confirmação passa ao addon o handle e os quatro números da posiçã
 
   const bounds = notch.calls.filter(([name]) => name === 'bounds').at(-1)[1];
   assert.deepEqual(placed.at(-1), [bounds.x, bounds.y, bounds.width, bounds.height]);
-  assert.ok(notch.calls.some(([name, channel]) => name === 'send' && channel === 'hibi:companion:presentation'));
+  assert.ok(notch.calls.some(([name, channel]) => name === 'send' && channel === 'pixano:companion:presentation'));
   assert.ok(notch.calls.some(([name]) => name === 'show'));
 });
 
@@ -226,7 +226,7 @@ test('uma falha na colocação nativa não impede a confirmação de aparecer', 
 
   manager.show(confirmation);
 
-  assert.ok(notch.calls.some(([name, channel]) => name === 'send' && channel === 'hibi:companion:presentation'));
+  assert.ok(notch.calls.some(([name, channel]) => name === 'send' && channel === 'pixano:companion:presentation'));
   assert.ok(notch.calls.some(([name]) => name === 'show'));
 });
 

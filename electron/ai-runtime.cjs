@@ -454,7 +454,7 @@ function createMainAiRuntime({ config = {}, fetchImpl, sleep, timeoutFactory, ra
       const turn = validateTurn(raw); active?.abort(); const controller = new AbortController(); active = controller;
       try {
         if (client) return await client.generate(turn, controller.signal, requestOptions);
-        return { content: JSON.stringify({ reply: 'I can help with your local tasks, schedule, notes, and reminders.', toolCalls: [], notchPresentation: null }), providerLabel: 'Hibi local heuristic', model: 'local-tool-provider' };
+        return { content: JSON.stringify({ reply: 'I can help with your local tasks, schedule, notes, and reminders.', toolCalls: [], notchPresentation: null }), providerLabel: 'Pixano local assistant', model: 'local-tool-provider' };
       } finally { if (active === controller) active = null; }
     },
     async testConnection() { if (!client) return; await client.testConnection(); },

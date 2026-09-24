@@ -253,7 +253,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
       if (!boundedText(credential, 8_192)) throw new Error('Integration credential is unavailable.');
       const result = await connector.discoverDataSource({ credential, databaseId, request: safeFetchFor(connector) });
       if (!boundedText(result?.databaseId, 240) || !boundedText(result?.dataSourceId, 240)) throw new Error('Integration returned an invalid data source.');
-      const safe = { databaseId: result.databaseId, dataSourceId: result.dataSourceId, label: boundedText(result?.label, 240) ? result.label : 'Hibi Tasks' };
+      const safe = { databaseId: result.databaseId, dataSourceId: result.dataSourceId, label: boundedText(result?.label, 240) ? result.label : 'Pixano Tasks' };
       appendAudit({ action: 'discover-data-source', connectorId: id, detail: 'Discovered one data source.' });
       return safe;
     },
@@ -274,7 +274,7 @@ function createIntegrationManager({ connectors = [], keychain, now = () => new D
         const status = ['open', 'paused', 'completed'].includes(candidate.status) ? candidate.status : undefined;
         const deadline = boundedText(candidate.deadline, 240) && !Number.isNaN(Date.parse(candidate.deadline)) ? candidate.deadline : undefined;
         const durationMinutes = Number.isFinite(candidate.durationMinutes) && candidate.durationMinutes >= 0 && candidate.durationMinutes <= 525_600 ? Math.round(candidate.durationMinutes) : undefined;
-        return [{ remoteId: candidate.remoteId, title: candidate.title.slice(0, 240), kind: candidate.kind === 'email' ? 'email' : 'task', ...(boundedText(candidate.revision, 240) ? { revision: candidate.revision } : {}), ...(boundedText(candidate.source, 240) ? { source: candidate.source } : {}), ...(boundedText(candidate.hibiId, 240) ? { hibiId: candidate.hibiId } : {}), ...(status ? { status } : {}), ...(deadline ? { deadline } : {}), ...(durationMinutes === undefined ? {} : { durationMinutes }), ...(boundedText(candidate.description, 2_000) ? { description: candidate.description } : {}) }];
+        return [{ remoteId: candidate.remoteId, title: candidate.title.slice(0, 240), kind: candidate.kind === 'email' ? 'email' : 'task', ...(boundedText(candidate.revision, 240) ? { revision: candidate.revision } : {}), ...(boundedText(candidate.source, 240) ? { source: candidate.source } : {}), ...(boundedText(candidate.pixanoId, 240) ? { pixanoId: candidate.pixanoId } : {}), ...(status ? { status } : {}), ...(deadline ? { deadline } : {}), ...(durationMinutes === undefined ? {} : { durationMinutes }), ...(boundedText(candidate.description, 2_000) ? { description: candidate.description } : {}) }];
       });
       appendAudit({ action: 'import-read', connectorId: id, detail: `Read ${candidates.length} items from ${targets.length} selected sources.` });
       return candidates;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createLocalHibiRuntime } from '../local-runtime';
+import { createLocalAssistantRuntime } from '../local-runtime';
 import { HeuristicAiProvider } from '../heuristic-provider';
 import { LocalRepository } from '../../data/local-repository';
 import { createSeedData } from '../../data/seed-data';
@@ -12,7 +12,7 @@ const providerFor = (toolCalls: readonly { name: string; arguments: Record<strin
 describe('local Hibi tool registry', () => {
   it('creates a task only after the runtime confirmation is approved', async () => {
     const repository = new LocalRepository(createSeedData());
-    const runtime = createLocalHibiRuntime(repository);
+    const runtime = createLocalAssistantRuntime(repository);
     const pending = await runtime.runTurn({ message: 'crie uma tarefa: revisar roteiro', surface: 'desktop', now: new Date('2026-09-07T09:00:00-03:00') });
     expect(repository.listTasks().some((task) => task.title === 'revisar roteiro')).toBe(false);
     if (!pending.confirmation) throw new Error('Expected confirmation');
@@ -21,7 +21,7 @@ describe('local Hibi tool registry', () => {
   });
 
   it('uses real read tools for schedule questions without requiring confirmation', async () => {
-    const runtime = createLocalHibiRuntime(new LocalRepository(createSeedData()));
+    const runtime = createLocalAssistantRuntime(new LocalRepository(createSeedData()));
     const result = await runtime.runTurn({ message: 'qual a minha agenda hoje?', surface: 'desktop' });
     expect(result.confirmation).toBeUndefined();
     expect(result.toolResults[0]?.summary).toContain('bloco');
@@ -31,15 +31,15 @@ describe('local Hibi tool registry', () => {
     const remoteFailure = Object.assign(new Error('temporary outage'), { failure: { code: 'unavailable' as const, retryable: true } });
     const remote: AiProvider = { id: 'remote', label: 'Configured remote', generate: async () => { throw remoteFailure; } };
     const fallback = new HeuristicAiProvider();
-    const runtime = createLocalHibiRuntime(new LocalRepository(createSeedData()), {}, remote, fallback, 'automatic');
+    const runtime = createLocalAssistantRuntime(new LocalRepository(createSeedData()), {}, remote, fallback, 'automatic');
 
     const result = await runtime.runTurn({ message: 'qual a minha agenda hoje?', surface: 'desktop' });
 
-    expect(result.provider).toMatchObject({ id: 'heuristic', label: 'Hibi local heuristic', fallback: true });
+    expect(result.provider).toMatchObject({ id: 'heuristic', label: 'Pixano local heuristic', fallback: true });
   });
 
   it('creates a conflict-free schedule block after confirmation', async () => {
-    const repository = new LocalRepository(createSeedData()); const runtime = createLocalHibiRuntime(repository);
+    const repository = new LocalRepository(createSeedData()); const runtime = createLocalAssistantRuntime(repository);
     const pending = await runtime.runTurn({ message: 'crie um bloco: revisar pauta das 22:00 às 23:00', surface: 'desktop', now: new Date('2026-09-07T09:00:00-03:00') });
     if (!pending.confirmation) throw new Error('Expected confirmation');
     await runtime.confirm(pending.confirmation);
@@ -47,7 +47,7 @@ describe('local Hibi tool registry', () => {
   });
 
   it('grava o bloco pedido em hora de parede, no dia local de quem perguntou', async () => {
-    const repository = new LocalRepository(createSeedData()); const runtime = createLocalHibiRuntime(repository);
+    const repository = new LocalRepository(createSeedData()); const runtime = createLocalAssistantRuntime(repository);
     // O runtime entrega `currentTime` em UTC (`toISOString`). "das 22:00 às 23:00" é o relógio de
     // quem pediu: fatiar o texto UTC punha o bloco no dia de Greenwich, que a leste e a oeste não é
     // o mesmo dia. O dia sai de `date-context`, e nada de offset é gravado.
@@ -63,7 +63,7 @@ describe('local Hibi tool registry', () => {
 
   it('normaliza para hora de parede o instante com fuso que vier de um provedor externo', async () => {
     const repository = new LocalRepository(createSeedData());
-    const runtime = createLocalHibiRuntime(repository, {}, providerFor([{ name: 'block.create', arguments: { title: 'importado', start: '2027-03-04T12:00:00Z', end: '2027-03-04T13:00:00Z', category: 'work' } }]));
+    const runtime = createLocalAssistantRuntime(repository, {}, providerFor([{ name: 'block.create', arguments: { title: 'importado', start: '2027-03-04T12:00:00Z', end: '2027-03-04T13:00:00Z', category: 'work' } }]));
 
     const pending = await runtime.runTurn({ message: 'Do it', surface: 'desktop' });
     if (!pending.confirmation) throw new Error('Expected confirmation');
@@ -76,7 +76,7 @@ describe('local Hibi tool registry', () => {
 
   it('updates a task only after an explicit confirmation', async () => {
     const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
-    const runtime = createLocalHibiRuntime(repository, {}, providerFor([{ name: 'task.update', arguments: { id: task.id, title: 'Updated by AI' } }]));
+    const runtime = createLocalAssistantRuntime(repository, {}, providerFor([{ name: 'task.update', arguments: { id: task.id, title: 'Updated by AI' } }]));
 
     const pending = await runtime.runTurn({ message: 'Rename it', surface: 'desktop' });
     expect(repository.getTask(task.id)?.title).toBe(task.title);
@@ -85,7 +85,7 @@ describe('local Hibi tool registry', () => {
     expect(repository.getTask(task.id)?.title).toBe('Updated by AI');
   });
 
-  const confirmTurn = async (runtime: ReturnType<typeof createLocalHibiRuntime>) => {
+  const confirmTurn = async (runtime: ReturnType<typeof createLocalAssistantRuntime>) => {
     const pending = await runtime.runTurn({ message: 'Do it', surface: 'desktop' });
     if (!pending.confirmation) throw new Error('Expected confirmation');
     await runtime.confirm(pending.confirmation);
@@ -95,7 +95,7 @@ describe('local Hibi tool registry', () => {
     const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
     repository.updateTask(task.id, { status: 'open' });
     const changes: Array<[Task, Task]> = [];
-    const runtime = createLocalHibiRuntime(repository, { onTaskStatusChanged: (before, after) => changes.push([before, after]) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'completed' } }]));
+    const runtime = createLocalAssistantRuntime(repository, { onTaskStatusChanged: (before, after) => changes.push([before, after]) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'completed' } }]));
 
     await confirmTurn(runtime);
 
@@ -112,7 +112,7 @@ describe('local Hibi tool registry', () => {
     const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
     repository.updateTask(task.id, { status: 'completed' });
     const changes: Array<[string | undefined, string | undefined]> = [];
-    const runtime = createLocalHibiRuntime(repository, { onTaskStatusChanged: (before, after) => changes.push([before.status, after.status]) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'open' } }]));
+    const runtime = createLocalAssistantRuntime(repository, { onTaskStatusChanged: (before, after) => changes.push([before.status, after.status]) }, providerFor([{ name: 'task.update', arguments: { id: task.id, status: 'open' } }]));
 
     await confirmTurn(runtime);
 
@@ -123,7 +123,7 @@ describe('local Hibi tool registry', () => {
     const repository = new LocalRepository(createSeedData()); const task = repository.listTasks()[0]!;
     repository.updateTask(task.id, { status: 'completed' });
     const changes: string[] = [];
-    const runtime = createLocalHibiRuntime(repository, { onTaskStatusChanged: (_before, after) => changes.push(after.id) }, providerFor([{ name: 'task.update', arguments: { id: task.id, title: 'Renamed', status: 'completed' } }]));
+    const runtime = createLocalAssistantRuntime(repository, { onTaskStatusChanged: (_before, after) => changes.push(after.id) }, providerFor([{ name: 'task.update', arguments: { id: task.id, title: 'Renamed', status: 'completed' } }]));
 
     await confirmTurn(runtime);
 
@@ -134,7 +134,7 @@ describe('local Hibi tool registry', () => {
   it('reports a block created through an approved AI action as a copy', async () => {
     const repository = new LocalRepository(createSeedData());
     const created: ScheduleBlock[] = [];
-    const runtime = createLocalHibiRuntime(repository, { onBlockCreated: (block) => created.push(block) }, providerFor([{ name: 'block.create', arguments: { title: 'revisar pauta', start: '2026-09-07T22:00:00-03:00', end: '2026-09-07T23:00:00-03:00', category: 'work' } }]));
+    const runtime = createLocalAssistantRuntime(repository, { onBlockCreated: (block) => created.push(block) }, providerFor([{ name: 'block.create', arguments: { title: 'revisar pauta', start: '2026-09-07T22:00:00-03:00', end: '2026-09-07T23:00:00-03:00', category: 'work' } }]));
 
     await confirmTurn(runtime);
 
@@ -148,7 +148,7 @@ describe('local Hibi tool registry', () => {
   it('reports a block deleted through an approved AI action', async () => {
     const repository = new LocalRepository(createSeedData()); const block = repository.listBlocks()[0]!;
     const deleted: ScheduleBlock[] = [];
-    const runtime = createLocalHibiRuntime(repository, { onBlockDeleted: (item) => deleted.push(item) }, providerFor([{ name: 'block.delete', arguments: { id: block.id } }]));
+    const runtime = createLocalAssistantRuntime(repository, { onBlockDeleted: (item) => deleted.push(item) }, providerFor([{ name: 'block.delete', arguments: { id: block.id } }]));
 
     await confirmTurn(runtime);
 
@@ -159,7 +159,7 @@ describe('local Hibi tool registry', () => {
   it('does not report block creation or deletion when an approved AI action updates a block', async () => {
     const repository = new LocalRepository(createSeedData()); const block = repository.listBlocks()[0]!;
     const reported: string[] = [];
-    const runtime = createLocalHibiRuntime(repository, { onBlockCreated: () => reported.push('created'), onBlockDeleted: () => reported.push('deleted') }, providerFor([{ name: 'block.update', arguments: { id: block.id, title: 'Bloco revisado' } }]));
+    const runtime = createLocalAssistantRuntime(repository, { onBlockCreated: () => reported.push('created'), onBlockDeleted: () => reported.push('deleted') }, providerFor([{ name: 'block.update', arguments: { id: block.id, title: 'Bloco revisado' } }]));
 
     await confirmTurn(runtime);
 
@@ -169,7 +169,7 @@ describe('local Hibi tool registry', () => {
 
   it('deletes a reminder only after an explicit confirmation', async () => {
     const repository = new LocalRepository(createSeedData()); const reminder = repository.listReminders()[0]!;
-    const runtime = createLocalHibiRuntime(repository, {}, providerFor([{ name: 'reminder.delete', arguments: { id: reminder.id } }]));
+    const runtime = createLocalAssistantRuntime(repository, {}, providerFor([{ name: 'reminder.delete', arguments: { id: reminder.id } }]));
 
     const pending = await runtime.runTurn({ message: 'Delete it', surface: 'desktop' });
     expect(repository.listReminders().some((item) => item.id === reminder.id)).toBe(true);
@@ -190,7 +190,7 @@ describe('local Hibi tool registry', () => {
       [`edite bloco: ${blockId} para Bloco revisado`, 'exclua bloco: Bloco revisado', () => repository.listBlocks().some((item) => item.title === 'Bloco revisado')],
       ['edite nota: Rascunho para Nota revisada', 'exclua nota: Nota revisada', () => repository.listNotes().some((item) => item.id === note.id && item.title === 'Nota revisada')],
     ];
-    const runtime = createLocalHibiRuntime(repository);
+    const runtime = createLocalAssistantRuntime(repository);
 
     for (const [edit, remove, exists] of cases) {
       const editPending = await runtime.runTurn({ message: edit, surface: 'desktop' });

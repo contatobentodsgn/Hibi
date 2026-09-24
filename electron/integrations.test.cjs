@@ -230,10 +230,10 @@ test('preserva apenas os campos mapeados de uma tarefa Notion importada', async 
   const manager = createIntegrationManager({ keychain: store, connectors: [{
     id: 'fixture', label: 'Fixture', allowedHosts: ['fixture.example.test'], capabilities: ['import'],
     async fetchImports() { return [{ id: 'page-1' }]; },
-    normalizeImport() { return { remoteId: 'page-1', revision: 'v1', hibiId: 'task-1', title: 'Mapped', status: 'paused', deadline: '2026-09-10T09:00:00-03:00', durationMinutes: 45, description: 'Safe description', kind: 'task', rawBody: 'private' }; },
+    normalizeImport() { return { remoteId: 'page-1', revision: 'v1', pixanoId: 'task-1', title: 'Mapped', status: 'paused', deadline: '2026-09-10T09:00:00-03:00', durationMinutes: 45, description: 'Safe description', kind: 'task', rawBody: 'private' }; },
   }] });
   const [candidate] = await manager.listImportCandidates('fixture', { targets: [{ id: 'source-1' }] });
-  assert.deepEqual(candidate, { remoteId: 'page-1', revision: 'v1', hibiId: 'task-1', title: 'Mapped', status: 'paused', deadline: '2026-09-10T09:00:00-03:00', durationMinutes: 45, description: 'Safe description', kind: 'task' });
+  assert.deepEqual(candidate, { remoteId: 'page-1', revision: 'v1', pixanoId: 'task-1', title: 'Mapped', status: 'paused', deadline: '2026-09-10T09:00:00-03:00', durationMinutes: 45, description: 'Safe description', kind: 'task' });
   assert.equal(JSON.stringify(candidate).includes('private'), false);
 });
 

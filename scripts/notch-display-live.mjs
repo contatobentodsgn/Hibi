@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const shots = process.argv[2];
 if (!shots) throw new Error('Informe a pasta das capturas de tela.');
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const launch = () => electron.launch({ cwd: root, args: ['electron/main.cjs'], env: { ...process.env, HIBI_PRODUCTION: '1' } });
+const launch = () => electron.launch({ cwd: root, args: ['electron/main.cjs'], env: { ...process.env, PIXANO_PRODUCTION: '1' } });
 const snapshot = (app) => app.evaluate(({ BrowserWindow, screen }) => ({
   displays: screen.getAllDisplays().map((display) => ({ id: display.id, label: display.label, bounds: display.bounds })),
   windows: BrowserWindow.getAllWindows().map((window) => ({ url: window.webContents.getURL(), bounds: window.getBounds(), visible: window.isVisible() })),
@@ -38,7 +38,7 @@ async function openGeneral(app) {
 async function choose(page, value) {
   await page.getByRole('combobox', { name: 'Monitor do notch' }).selectOption(value);
   return waitFor(async () => {
-    const state = await page.evaluate(() => window.hibiDesktop.listNotchDisplays());
+    const state = await page.evaluate(() => window.pixanoDesktop.listNotchDisplays());
     return (state.preference.displayId === null ? 'auto' : String(state.preference.displayId)) === value ? state : null;
   }, `a escolha ${value}`);
 }
@@ -52,14 +52,14 @@ async function runTest(app, page, value, tag) {
   await page.getByRole('button', { name: 'Testar notch' }).click();
   // Cartão passivo: o host nativo informa o monitor e o frame enquanto ele está visível.
   const passiveHost = await waitFor(async () => {
-    const host = (await page.evaluate(() => window.hibiDesktop.getNotchCapabilities())).host;
+    const host = (await page.evaluate(() => window.pixanoDesktop.getNotchCapabilities())).host;
     return host?.requestId?.startsWith('notch-test-passive-') && host.visible ? host : null;
   }, 'o cartão passivo', 30);
   const passiveShot = capture(target, `${shots}/notch-${tag}-passive.png`);
   // A overlay guarda no DOM os botões da confirmação anterior: só clica depois que o processo
   // principal informa a confirmação deste teste como ativa e a janela está visível.
   const presentation = await waitFor(async () => {
-    const current = await page.evaluate(() => window.hibiDesktop.getNotchPresentation());
+    const current = await page.evaluate(() => window.pixanoDesktop.getNotchPresentation());
     return current?.requestId?.startsWith('notch-test-confirm-') ? current : null;
   }, 'a confirmação', 60);
   await sleep(500);
@@ -95,7 +95,7 @@ async function moveMainWindow(app, displayId) {
   }, displayId);
 }
 async function restoreAutomatic(page) {
-  try { return (await page.evaluate(() => window.hibiDesktop.setNotchDisplay(null))).preference.displayId === null; } catch { return false; }
+  try { return (await page.evaluate(() => window.pixanoDesktop.setNotchDisplay(null))).preference.displayId === null; } catch { return false; }
 }
 
 const report = {};
@@ -103,7 +103,7 @@ let app = await launch();
 let page;
 try {
   page = await openGeneral(app);
-  const initial = await page.evaluate(() => window.hibiDesktop.listNotchDisplays());
+  const initial = await page.evaluate(() => window.pixanoDesktop.listNotchDisplays());
   report.initial = initial;
   const external = initial.displays.find((display) => !display.hasCameraHousing);
   const builtIn = initial.displays.find((display) => display.hasCameraHousing);
@@ -129,7 +129,7 @@ try {
   page = undefined;
   app = await launch();
   page = await openGeneral(app);
-  const afterRestart = await page.evaluate(() => window.hibiDesktop.listNotchDisplays());
+  const afterRestart = await page.evaluate(() => window.pixanoDesktop.listNotchDisplays());
   report.persistsAcrossRestart = afterRestart.preference.displayId === external.id && afterRestart.resolvedDisplayId === external.id;
 } catch (error) {
   report.error = error instanceof Error ? error.message : String(error);

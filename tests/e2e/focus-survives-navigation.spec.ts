@@ -13,7 +13,7 @@ test('trocar de tela não encerra a sessão de foco', async ({ page }) => {
   await page.goto('/');
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
-  await page.getByRole('button', { name: 'Start focus' }).click();
+  await page.getByRole('button', { name: 'Começar foco' }).click();
   await page.clock.runFor(60_000);
 
   await dock(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
@@ -24,7 +24,7 @@ test('trocar de tela não encerra a sessão de foco', async ({ page }) => {
   expect(await focusTypes(page)).toEqual(['focus.started']);
 
   await aviso.getByRole('button', { name: 'Voltar ao foco' }).click();
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toBeVisible();
   await expect(page.getByText('22:00', { exact: true })).toBeVisible();
   await expect(aviso).toHaveCount(0);
 });
@@ -34,7 +34,7 @@ test('a sessão que termina com outra tela aberta conta como concluída e o avis
   await page.goto('/');
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
-  await page.getByRole('button', { name: 'Start focus' }).click();
+  await page.getByRole('button', { name: 'Começar foco' }).click();
   await dock(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
   await page.clock.runFor(25 * 60_000 + 1_000);
 
@@ -46,8 +46,8 @@ test('a pausa de descanso continua encerrando a sessão pausada', async ({ page 
   await page.goto('/');
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
-  await page.getByRole('button', { name: 'Start focus' }).click();
-  await page.getByRole('button', { name: 'Pause session' }).click();
+  await page.getByRole('button', { name: 'Começar foco' }).click();
+  await page.getByRole('button', { name: 'Pausar sessão' }).click();
   await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
   await expect(page.getByRole('button', { name: 'Começar pausa' })).toBeVisible();
   await expect.poll(() => focusTypes(page)).toEqual(['focus.started', 'focus.paused', 'focus.cancelled']);
@@ -59,9 +59,9 @@ test('a sessão pausada também espera a volta, sem virar cancelada', async ({ p
   await page.goto('/');
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
-  await page.getByRole('button', { name: 'Start focus' }).click();
+  await page.getByRole('button', { name: 'Começar foco' }).click();
   await page.clock.runFor(60_000);
-  await page.getByRole('button', { name: 'Pause session' }).click();
+  await page.getByRole('button', { name: 'Pausar sessão' }).click();
 
   await dock(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Sessão de foco em andamento.' })).toBeVisible();

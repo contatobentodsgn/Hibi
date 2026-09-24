@@ -11,14 +11,14 @@ import './theme.css';
 import './ui/refined-ui.css';
 import './ui/tokens.css';
 import { NotchOverlay } from './ui/NotchOverlay';
-import { TabyBar } from './ui/TabyBar';
+import { AssistantBar } from './ui/AssistantBar';
 import { ThemeProvider } from './ui/theme-context';
 import { LocaleProvider } from './i18n/LocaleProvider';
 import { NavigationPreferencesProvider } from './ui/shell/NavigationPreferencesProvider';
 
 const root = document.getElementById('root');
 
-if (!root) throw new Error('Hibi renderer root was not found');
+if (!root) throw new Error('Pixano renderer root was not found');
 
 const overlay = new URLSearchParams(window.location.search).get('overlay');
 // A galeria da nova UI (U02) e a prévia da navegação (U03) existem só no desenvolvimento: no build de
@@ -27,6 +27,6 @@ const ComponentGallery = import.meta.env.DEV ? lazy(() => import('./ui/redesign/
 const NavigationPreview = import.meta.env.DEV ? lazy(() => import('./ui/redesign/preview/NavigationPreview').then((module) => ({ default: module.NavigationPreview }))) : null;
 createRoot(root).render(
   <React.StrictMode>
-    <ThemeProvider><LocaleProvider><NavigationPreferencesProvider>{overlay === 'notch' ? <NotchOverlay /> : overlay === 'bar' ? <TabyBar /> : overlay === 'ui-gallery' && ComponentGallery ? <Suspense fallback={null}><ComponentGallery /></Suspense> : overlay === 'ui-navigation' && NavigationPreview ? <Suspense fallback={null}><NavigationPreview /></Suspense> : <App />}</NavigationPreferencesProvider></LocaleProvider></ThemeProvider>
+    <ThemeProvider><LocaleProvider><NavigationPreferencesProvider>{overlay === 'notch' ? <NotchOverlay /> : overlay === 'bar' ? <AssistantBar /> : overlay === 'ui-gallery' && ComponentGallery ? <Suspense fallback={null}><ComponentGallery /></Suspense> : overlay === 'ui-navigation' && NavigationPreview ? <Suspense fallback={null}><NavigationPreview /></Suspense> : <App />}</NavigationPreferencesProvider></LocaleProvider></ThemeProvider>
   </React.StrictMode>,
 );

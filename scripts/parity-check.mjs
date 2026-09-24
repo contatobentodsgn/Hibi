@@ -35,7 +35,7 @@ const files = {
   home: await read('src/ui/HomeView.tsx'),
   day: await read('src/ui/DayView.tsx'),
   week: await read('src/ui/WeekView.tsx'),
-  taby: await read('src/ui/TabyView.tsx'),
+  assistant: await read('src/ui/AssistantView.tsx'),
   shell: await read('src/ui/shell/AppShell.tsx'),
   notchActions: await read('src/ui/shell/NotchActions.tsx'),
   paletteTurn: await read('src/ui/palette/PaletteTurn.tsx'),
@@ -48,6 +48,7 @@ const files = {
   policy: await read('src/ai/policy.ts'),
   companion: await read('src/companion/reducer.ts'),
   geometry: await read('electron/notch-geometry.cjs'),
+  package: await read('package.json'),
 };
 
 const routes = await load('src/ui/shell/routes.ts');
@@ -65,9 +66,10 @@ const checks = [
   ['navigation: focus', navigable.has('focus'), 'focus in the bar or the Mais menu'],
   ['navigation: notes/habits/goals/review', files.app.includes("case 'notes'") && files.app.includes("case 'habits'") && files.app.includes("case 'goals'") && files.app.includes("case 'review'"), 'data workspace routes'],
   ['commands: slash palette', commandRoute.get('/tasks') === 'tasks' && commandRoute.get('/reminders') === 'reminders', 'core slash commands open their routes'],
-  ['desktop: notifications bridge', files.preload.includes('syncNotifications') && files.main.includes('hibi:notifications:sync'), 'native notification IPC'],
+  ['desktop: notifications bridge', files.preload.includes('syncNotifications') && files.main.includes('pixano:notifications:sync'), 'native notification IPC'],
   ['desktop: launch at login', files.preload.includes('setOpenAtLogin') && files.main.includes('setLoginItemSettings'), 'login item IPC'],
-  ['desktop: production bundle', files.main.includes('HIBI_PRODUCTION') && files.main.includes('loadFile'), 'offline production launch'],
+  ['desktop: production bundle', files.main.includes('PIXANO_PRODUCTION') && files.main.includes('loadFile'), 'offline production launch'],
+  ['desktop: production command', /"desktop:production"\s*:\s*"[^"]*PIXANO_PRODUCTION=1 electron electron\/main\.cjs"/.test(files.package), 'production script sets the flag read by Electron'],
   ['app: local persistence', files.app.includes('hibi-study-data') && files.app.includes('repository.exportJson'), 'local repository persistence'],
   ['app: reminder scheduling', files.app.includes('editReminderSchedule') && files.app.includes('createReminder'), 'reminder create/edit actions'],
   // `referenceDate(data)` saiu em c372d81 de propósito: as quatro telas queriam hoje, não o bloco mais
@@ -77,8 +79,8 @@ const checks = [
   ['ai: provider-neutral contracts', files.aiContracts.includes('AiProvider') && files.aiContracts.includes('AiProviderProposal'), 'bounded AI provider contract'],
   ['ai: confirmation policy', files.policy.includes('Confirmation') && files.policy.includes('SHA-256'), 'single-use confirmation binding'],
   // A proveniência deixou de ser um rótulo fixo `Model:` e virou `provenanceLabel`, que junta provedor
-  // e modelo, exibido pelo Taby e pela paleta.
-  ['ai: secure configuration', files.aiConfig.includes('createMacKeychain') && files.aiConfig.includes('nativeKeychain') && files.preload.includes('saveAiConfig') && files.assistantTurn.includes('provenance.model') && files.taby.includes('provenanceLabel(') && files.paletteTurn.includes('provenanceLabel('), 'Keychain-backed provider configuration and model provenance'],
+  // e modelo, exibido pelo Assistant e pela paleta.
+  ['ai: secure configuration', files.aiConfig.includes('createMacKeychain') && files.aiConfig.includes('nativeKeychain') && files.preload.includes('saveAiConfig') && files.assistantTurn.includes('provenance.model') && files.assistant.includes('provenanceLabel(') && files.paletteTurn.includes('provenanceLabel('), 'Keychain-backed provider configuration and model provenance'],
   ['companion: deterministic state', files.companion.includes('reduceCompanion') && files.companion.includes('requestId'), 'stale event guard'],
   ['notch: documented fallback', files.geometry.includes('BASE_WIDTH = 392') && files.main.includes('createNotchWindowManager'), 'Electron fallback placement'],
 ];

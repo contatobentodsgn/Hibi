@@ -7,7 +7,7 @@ export type ToolExecutionResult = Readonly<{ summary: string; data?: Record<stri
 export type ToolValidator = (arguments_: Record<string, unknown>) => boolean;
 export type ToolExecutor = (arguments_: Record<string, unknown>, context: ToolExecutionContext) => Promise<ToolExecutionResult> | ToolExecutionResult;
 
-export interface HibiTool {
+export interface PixanoTool {
   readonly name: string;
   readonly description: string;
   readonly inputSchema: Record<string, unknown>;
@@ -19,15 +19,15 @@ export interface HibiTool {
 }
 
 export class ToolRegistry {
-  private readonly tools = new Map<string, HibiTool>();
+  private readonly tools = new Map<string, PixanoTool>();
 
-  register(tool: HibiTool): this {
+  register(tool: PixanoTool): this {
     if (this.tools.has(tool.name)) throw new Error(`Duplicate AI tool: ${tool.name}`);
     this.tools.set(tool.name, tool);
     return this;
   }
 
-  get(name: string): HibiTool | undefined { return this.tools.get(name); }
+  get(name: string): PixanoTool | undefined { return this.tools.get(name); }
   has(name: string): boolean { return this.tools.has(name); }
   schemas(): readonly AiToolSchema[] {
     return [...this.tools.values()].map(({ name, description, inputSchema }) => ({ name, description, inputSchema }));

@@ -9,8 +9,8 @@ async function installConnectorBridge(page: Page) {
     const calls: string[] = [];
     const entry = (id: string) => settings[id] ?? (settings[id] = { endpoint: '', clientId: '', targets: [], authorizationUrl: '', tokenUrl: '' });
     const state = (id: string, label: string, capabilities: string[]) => ({ id, label, capabilities, state: connected.has(id) ? 'connected' : 'disconnected', hasCredential: connected.has(id) });
-    (window as unknown as { hibiE2E: unknown }).hibiE2E = { settings, calls };
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoE2E: unknown }).pixanoE2E = { settings, calls };
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
       listIntegrationStatus: async () => [
         state('notion', 'Notion', ['import', 'write', 'sync']),
@@ -90,11 +90,11 @@ test('permite guardar e apagar a credencial de cliente OAuth sem exibir o valor'
 async function openIntegrations(page: Page) {
   await page.goto('/');
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
   await expect(page.getByRole('region', { name: 'Integrations' })).toBeVisible();
 }
 
-const bridgeCalls = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: { calls: string[] } }).hibiE2E.calls);
+const bridgeCalls = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: { calls: string[] } }).pixanoE2E.calls);
 
 test('autoriza um conector por OAuth somente depois do client id configurado', async ({ page }) => {
   await installConnectorBridge(page);
@@ -142,7 +142,7 @@ test('salva um endpoint HTTPS e recusa um endpoint inseguro', async ({ page }) =
   await endpoint.fill('https://mail.example.test/api');
   await endpoint.blur();
   await expect(page.getByText('Connector configuration saved on this Mac.')).toBeVisible();
-  expect(await page.evaluate(() => (window as unknown as { hibiE2E: { settings: Record<string, { endpoint: string }> } }).hibiE2E.settings.email.endpoint)).toBe('https://mail.example.test/api/');
+  expect(await page.evaluate(() => (window as unknown as { pixanoE2E: { settings: Record<string, { endpoint: string }> } }).pixanoE2E.settings.email.endpoint)).toBe('https://mail.example.test/api/');
 
   await endpoint.fill('http://mail.example.test/api');
   await endpoint.blur();
@@ -166,7 +166,7 @@ test('escolhe quais canais são importados e mantém a seleção', async ({ page
 
   await sources.getByRole('checkbox', { name: '#geral' }).check();
   await expect(page.getByText('1 selected · only these are imported')).toBeVisible();
-  expect(await page.evaluate(() => (window as unknown as { hibiE2E: { settings: Record<string, { targets: unknown[] }> } }).hibiE2E.settings.slack.targets)).toEqual([{ id: 'C1', label: '#geral' }]);
+  expect(await page.evaluate(() => (window as unknown as { pixanoE2E: { settings: Record<string, { targets: unknown[] }> } }).pixanoE2E.settings.slack.targets)).toEqual([{ id: 'C1', label: '#geral' }]);
 
   await sources.getByRole('checkbox', { name: '#geral' }).uncheck();
   await expect(page.getByText('Nothing selected yet; imports stay empty until you choose a source.')).toBeVisible();

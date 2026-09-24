@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 type CompanionAction = Readonly<{ requestId: string; actionId: 'confirm' | 'cancel' }>;
-type HibiE2E = {
+type PixanoE2E = {
   calls: string[];
   companionAction: (input: CompanionAction) => void;
   editRemotePage: () => void;
@@ -30,23 +30,23 @@ async function installNotionConfirmationBridge(page: Page) {
     const operationsByAction = new Map<string, { key: string }[]>();
 
     let settings: Record<string, unknown> = {
-      endpoint: '', clientId: '', targets: [{ id: 'source-1', label: 'Hibi Tasks' }],
+      endpoint: '', clientId: '', targets: [{ id: 'source-1', label: 'Pixano Tasks' }],
       notion: {
         workspaceLabel: "Kizuna Std's Notion", parentPageId: 'page-kizuna', databaseId: 'db-1', dataSourceId: 'source-1',
         lastSyncAt: '', lastSummary: { imported: 0, pushed: 0, updated: 0, skipped: 0, failed: 0, conflicts: 0 }, checkpoints: [],
       },
     };
 
-    const e2e: HibiE2E = {
+    const e2e: PixanoE2E = {
       calls,
       companionAction: (input) => companionListeners.forEach((listener) => listener(input)),
       // Alguém edita a página no Notion entre a prévia e a confirmação.
       editRemotePage: () => { remoteRevision = 'v2'; },
       breakReads: () => { readsBroken = true; },
     };
-    (window as unknown as { hibiE2E: HibiE2E }).hibiE2E = e2e;
+    (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E = e2e;
 
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
       listIntegrationStatus: async () => [{ id: 'notion', label: 'Notion', capabilities: ['import', 'write', 'sync'], state: 'connected', hasCredential: true }],
       listIntegrationAudit: async () => [],
@@ -54,7 +54,7 @@ async function installNotionConfirmationBridge(page: Page) {
       getWebhookStatus: async () => ({ running: false, hasSecret: false }),
       getConnectorSettings: async () => JSON.parse(JSON.stringify(settings)),
       saveConnectorSettings: async (_id: string, patch: Record<string, unknown>) => { settings = { ...settings, ...patch }; return JSON.parse(JSON.stringify(settings)); },
-      listIntegrationImportTargets: async () => [{ id: 'source-1', label: 'Hibi Tasks' }],
+      listIntegrationImportTargets: async () => [{ id: 'source-1', label: 'Pixano Tasks' }],
       // Uma tarefa que só existe no Notion: é ela que a aprovação precisa criar aqui, e é a ausência
       // dela no workspace que prova que a confirmação segurou a mudança.
       listIntegrationImportCandidates: async () => { if (readsBroken) throw new Error('Notion is unreachable.'); return [{ remoteId: 'page-remote-1', title: 'Tarefa só do Notion', kind: 'task', revision: remoteRevision }]; },
@@ -88,9 +88,9 @@ const DISMISSED = `hide:${CONFIRMATION_ID}`;
 const EXECUTED = `execute:${CONFIRMATION_ID}`;
 
 const card = (page: Page) => page.getByRole('alert').filter({ hasText: 'Confirm synchronization' });
-const calls = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.calls);
+const calls = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.calls);
 const notchAction = (page: Page, actionId: 'confirm' | 'cancel', requestId = CONFIRMATION_ID) =>
-  page.evaluate((input) => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.companionAction(input), { requestId, actionId });
+  page.evaluate((input) => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.companionAction(input), { requestId, actionId });
 // Sumir da tela não basta como prova de que nada foi aplicado: isto lê o workspace que o App
 // persiste a cada mudança de dados, que é o que sobrevive ao recarregar. A tarefa que só existe no
 // Notion aparece por `pull-create`; `remoteRef` aparece em qualquer tarefa local que tenha sido
@@ -101,7 +101,7 @@ async function openReview(page: Page) {
   await installNotionConfirmationBridge(page);
   await page.goto('/');
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Integrations', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Integrações/ }).click();
   await expect(page.getByRole('region', { name: 'Notion task synchronization' })).toBeVisible();
   await page.getByRole('button', { name: 'Sync now' }).click();
   await expect(page.getByRole('heading', { name: 'Review changes' })).toBeVisible();
@@ -222,7 +222,7 @@ test('uma mudança só local também espera a confirmação, e aprová-la não c
 test('uma página editada no Notion depois da prévia bloqueia a confirmação, sem aplicar nada', async ({ page }) => {
   await openReview(page);
   await askConfirmation(page);
-  await page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.editRemotePage());
+  await page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.editRemotePage());
 
   await card(page).getByRole('button', { name: 'Confirm', exact: true }).click();
 
@@ -238,7 +238,7 @@ test('uma página editada no Notion depois da prévia bloqueia a confirmação, 
 test('sem conseguir reler o Notion na confirmação, nada é aplicado', async ({ page }) => {
   await openReview(page);
   await askConfirmation(page);
-  await page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.breakReads());
+  await page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.breakReads());
 
   await card(page).getByRole('button', { name: 'Confirm', exact: true }).click();
 

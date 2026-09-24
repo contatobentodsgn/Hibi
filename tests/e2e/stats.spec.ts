@@ -44,7 +44,7 @@ test('/review continua abrindo a Revisão, não Estatísticas', async ({ page })
   await palette(page).getByRole('combobox').fill('/review');
   await page.keyboard.press('Enter');
   await expect(palette(page)).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: 'Review', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Revisão', level: 1 })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Estatísticas', level: 1 })).toHaveCount(0);
 });
 
@@ -99,8 +99,8 @@ const todayCells = (page: Page) => dailyTable(page).getByRole('row').nth(1).getB
 const completeTask = async (page: Page, title: string) => {
   await expect(dock(page)).toBeVisible();
   await dock(page).getByRole('button', { name: 'Tarefas', exact: true }).click();
-  await page.getByRole('button', { name: `Concluir ${title}`, exact: true }).click();
-  await expect(page.getByRole('button', { name: `Concluir ${title}`, exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: `Concluir tarefa ${title}`, exact: true }).click();
+  await expect(page.getByRole('button', { name: `Concluir tarefa ${title}`, exact: true })).toHaveCount(0);
 };
 
 const expectCompletedTaskToday = async (page: Page) => {
@@ -181,7 +181,7 @@ test('o CSV exporta só o período escolhido: Hoje traz a tarefa, um período se
 
 // Um dia que não é a data de referência do seed (07/09/2026) e cai em outra semana (segunda 14 a domingo 20/09).
 const realToday = () => new Date(2026, 8, 16, 10, 0, 0);
-const headingRange = (page: Page) => page.locator('.stats-view .view-heading p.muted');
+const headingRange = (page: Page) => page.locator('.stats-view .hibi-section-header__subtitle');
 // O rótulo é montado no próprio navegador com o formato da página (datas de calendário em UTC), sem depender do ICU do Node.
 const rangeLabel = (page: Page, start: string, end: string) =>
   page.evaluate(([from, to]) => new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
@@ -251,15 +251,15 @@ test('foco concluído e cancelado somam os minutos medidos, só o concluído con
 
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
-  await page.getByRole('button', { name: 'Start focus' }).click();
+  await page.getByRole('button', { name: 'Começar foco' }).click();
   await page.clock.runFor(25 * 60 * 1000 + 1000);
-  await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Começar foco' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Start focus' }).click();
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await page.getByRole('button', { name: 'Começar foco' }).click();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toBeVisible();
   await page.clock.runFor(7 * 60 * 1000);
   // Pausada e trocada pelo descanso, a sessão é abandonada: vira focus.cancelled com os 7 minutos medidos.
-  await page.getByRole('button', { name: 'Pause session' }).click();
+  await page.getByRole('button', { name: 'Pausar sessão' }).click();
   await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
   await expect(page.getByRole('button', { name: 'Começar pausa' })).toBeVisible();
   await openStats(page);

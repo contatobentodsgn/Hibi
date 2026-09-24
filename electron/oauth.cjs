@@ -56,7 +56,7 @@ function readTokenResponse(body) {
 function createLoopbackCallbackServer({ onCallback }) {
   let server;
   const reply = (response, status, message) => {
-    const body = Buffer.from(`<!doctype html><meta charset="utf-8"><title>Hibi</title><p>${message}</p>`, 'utf8');
+    const body = Buffer.from(`<!doctype html><meta charset="utf-8"><title>Pixano</title><p>${message}</p>`, 'utf8');
     response.writeHead(status, { 'content-type': 'text/html; charset=utf-8', 'content-length': body.length, 'cache-control': 'no-store' });
     response.end(body);
   };
@@ -69,7 +69,7 @@ function createLoopbackCallbackServer({ onCallback }) {
         if (request.method !== 'GET' || url.pathname !== CALLBACK_PATH) return reply(response, 404, 'Not found.');
         try {
           onCallback({ state: url.searchParams.get('state'), code: url.searchParams.get('code'), error: url.searchParams.get('error') });
-          reply(response, 200, 'Authorization received. You can close this tab and return to Hibi.');
+          reply(response, 200, 'Authorization received. You can close this tab and return to Pixano.');
         } catch (error) {
           reply(response, 400, error instanceof Error ? error.message : 'Authorization was rejected.');
         }

@@ -61,18 +61,18 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
 
   const showConfirmation = (next: Pending, text: string) => {
     setPending(next)
-    void window.hibiDesktop?.showNotch?.({ requestId: next.confirmationId, kind: 'confirmation', text, interaction: 'capture', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] })
+    void window.pixanoDesktop?.showNotch?.({ requestId: next.confirmationId, kind: 'confirmation', text, interaction: 'capture', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] })
   }
 
   const prepareSetup = async () => {
     if (!connected || !parentPageId.trim()) return
     setBusy(true)
     try {
-      const prepared = await window.hibiDesktop?.prepareIntegrationAction?.({ connectorId: 'notion', kind: 'notion.database.create', payload: { parentPageId: parentPageId.trim() } })
+      const prepared = await window.pixanoDesktop?.prepareIntegrationAction?.({ connectorId: 'notion', kind: 'notion.database.create', payload: { parentPageId: parentPageId.trim() } })
       if (!prepared) throw new Error('Setup is available in the desktop app.')
-      showConfirmation({ kind: 'setup', actionId: prepared.id, confirmationId: prepared.confirmationId }, 'Criar a base Hibi Tasks dentro de Kizuna?')
-      setNotice('Setup prepared. Confirm to create Hibi Tasks; no remote write has happened yet.')
-    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not prepare Hibi Tasks.') }
+      showConfirmation({ kind: 'setup', actionId: prepared.id, confirmationId: prepared.confirmationId }, 'Criar a base Pixano Tasks dentro de Kizuna?')
+      setNotice('Setup prepared. Confirm to create Pixano Tasks; no remote write has happened yet.')
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not prepare Pixano Tasks.') }
     finally { setBusy(false) }
   }
 
@@ -81,7 +81,7 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
     if (!current?.dataSourceId) return
     setBusy(true); setFailedKeys([])
     try {
-      const candidates = await window.hibiDesktop?.listIntegrationImportCandidates?.('notion')
+      const candidates = await window.pixanoDesktop?.listIntegrationImportCandidates?.('notion')
       if (!candidates) throw new Error('Notion sync is available in the desktop app.')
       const remote = candidates.map(remoteRecord).filter((item): item is NotionTaskRecord => Boolean(item))
       const next = buildNotionSyncPlan(localTasks, remote, current.checkpoints)
@@ -89,7 +89,7 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
       setDecisions(Object.fromEntries(next.items.map((item) => [item.key, defaultDecisionFor(item)])))
       setNotice(`${next.items.length} items reviewed. Resolve conflicts, then review changes.`)
       onEvent('notion-sync-preview', `${next.items.length} items`, 'pass')
-    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not read Hibi Tasks.'); onEvent('notion-sync-preview', 'read failed', 'fail') }
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not read the Notion task database.'); onEvent('notion-sync-preview', 'read failed', 'fail') }
     finally { setBusy(false) }
   }
 
@@ -103,12 +103,12 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
     setBusy(true)
     try {
       if (operations.length) {
-        const prepared = await window.hibiDesktop?.prepareIntegrationAction?.({ connectorId: 'notion', kind: 'notion.sync.batch', payload: { operations } })
+        const prepared = await window.pixanoDesktop?.prepareIntegrationAction?.({ connectorId: 'notion', kind: 'notion.sync.batch', payload: { operations } })
         if (!prepared) throw new Error('Notion writes are available in the desktop app.')
         showConfirmation({ kind: 'sync', actionId: prepared.id, confirmationId: prepared.confirmationId, plan: activePlan, decisions }, `Aplicar ${operations.length} alterações no Notion e as alterações locais selecionadas?`)
       } else {
         const synthetic: Pending = { kind: 'sync', actionId: '', confirmationId: `notion-local-${crypto.randomUUID()}`, plan: activePlan, decisions }
-        showConfirmation(synthetic, 'Aplicar as alterações selecionadas no Hibi?')
+        showConfirmation(synthetic, 'Aplicar as alterações selecionadas no Notion?')
       }
       setNotice('Changes prepared. Confirm or cancel; nothing has been applied yet.')
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not prepare synchronization.') }
@@ -117,7 +117,7 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
 
   const persistResult = async (currentPlan: NotionSyncPlan, currentDecisions: Readonly<Record<string, NotionDecision>>, execution: IntegrationExecutionResult) => {
     const notionState = notionRef.current
-    if (!notionState?.dataSourceId) throw new Error('Hibi Tasks is not configured on this Mac.')
+    if (!notionState?.dataSourceId) throw new Error('The Notion task database is not configured on this Mac.')
     const resultByKey = new Map((execution.items ?? []).map((item) => [item.key, item]))
     const mutations: NotionLocalMutation[] = []
     const completedRemoteIds = new Set<string>()
@@ -146,7 +146,7 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
     const failures = (execution.items ?? []).filter((item) => !item.ok)
     const conflicts = currentPlan.items.filter((item) => ['conflict', 'duplicate', 'remote-missing'].includes(item.state) && (currentDecisions[item.key] ?? 'skip') === 'skip').length
     const lastSummary = { imported, pushed, updated, skipped, failed: failures.length, conflicts }
-    await saveNotionSettings({ targets: [{ id: notionState.dataSourceId, label: 'Hibi Tasks' }], notion: { ...notionState, lastSyncAt: new Date().toISOString(), lastSummary, checkpoints: [...oldByLocal.values()] } })
+    await saveNotionSettings({ targets: [{ id: notionState.dataSourceId, label: 'Pixano Tasks' }], notion: { ...notionState, lastSyncAt: new Date().toISOString(), lastSummary, checkpoints: [...oldByLocal.values()] } })
     setFailedKeys(failures.map((item) => item.key))
     setNotice(failures.length ? `${failures.length} change(s) failed. Retry will include only pending items.` : `Sync complete: ${summaryText({ ...notionState, lastSummary })}.`)
     onEvent('notion-sync-apply', `${mutations.length} local · ${execution.items?.length ?? 0} remote`, failures.length ? 'partial-failure' : 'pass')
@@ -155,15 +155,15 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
   const resolvePending = async (approved: boolean) => {
     const current = pending
     if (!current) return
-    setPending(null); void window.hibiDesktop?.hideNotch?.(current.confirmationId)
+    setPending(null); void window.pixanoDesktop?.hideNotch?.(current.confirmationId)
     if (!approved) { setNotice('Synchronization cancelled. No selected change was applied.'); return }
     setBusy(true)
     try {
       // Antes de escrever, a base é lida de novo: uma prévia confirmada tarde enviava a versão antiga e
       // marcava como sincronizado o que mudou no meio do caminho, dos dois lados.
       if (current.kind === 'sync' && current.plan && current.decisions) {
-        const candidates = await window.hibiDesktop?.listIntegrationImportCandidates?.('notion')
-        if (!candidates) throw new Error('Could not read Hibi Tasks again. Nothing was applied.')
+        const candidates = await window.pixanoDesktop?.listIntegrationImportCandidates?.('notion')
+        if (!candidates) throw new Error('Could not read the Notion task database again. Nothing was applied.')
         const remoteNow = candidates.map(remoteRecord).filter((item): item is NotionTaskRecord => Boolean(item))
         const stale = staleNotionPlanKeys(current.plan, current.decisions, localTasksRef.current, remoteNow)
         if (stale.length) {
@@ -173,25 +173,25 @@ export function NotionSyncPanel({ connected, settings, localTasks, onSaveSetting
           return
         }
       }
-      const execution = current.actionId ? await window.hibiDesktop?.executeApprovedIntegrationAction?.({ actionId: current.actionId, confirmationId: current.confirmationId }) : { ok: true, items: [] }
+      const execution = current.actionId ? await window.pixanoDesktop?.executeApprovedIntegrationAction?.({ actionId: current.actionId, confirmationId: current.confirmationId }) : { ok: true, items: [] }
       if (!execution) throw new Error('Confirmation could not be executed.')
       if (current.kind === 'setup') {
-        if (!execution.ok || !execution.remoteId) throw new Error('Notion did not create Hibi Tasks.')
-        const source = await window.hibiDesktop?.discoverNotionDataSource?.(execution.remoteId)
-        if (!source) throw new Error('Could not discover the Hibi Tasks data source.')
-        await saveNotionSettings({ targets: [{ id: source.dataSourceId, label: 'Hibi Tasks' }], notion: { workspaceLabel: "Kizuna Std's Notion", parentPageId: parentPageId.trim(), databaseId: source.databaseId, dataSourceId: source.dataSourceId, lastSyncAt: '', lastSummary: EMPTY_SUMMARY, checkpoints: [] } })
-        setNotice('Hibi Tasks is ready inside Kizuna.')
+        if (!execution.ok || !execution.remoteId) throw new Error('Notion did not create the task database.')
+        const source = await window.pixanoDesktop?.discoverNotionDataSource?.(execution.remoteId)
+        if (!source) throw new Error('Could not discover the Notion task database.')
+        await saveNotionSettings({ targets: [{ id: source.dataSourceId, label: 'Pixano Tasks' }], notion: { workspaceLabel: "Kizuna Std's Notion", parentPageId: parentPageId.trim(), databaseId: source.databaseId, dataSourceId: source.dataSourceId, lastSyncAt: '', lastSummary: EMPTY_SUMMARY, checkpoints: [] } })
+        setNotice('Pixano Tasks is ready inside Kizuna.')
       } else if (current.plan && current.decisions) await persistResult(current.plan, current.decisions, execution)
     } catch (error) { setNotice(error instanceof Error ? error.message : 'Synchronization failed.'); onEvent('notion-sync-apply', 'execution failed', 'fail') }
     finally { setBusy(false) }
   }
 
-  useEffect(() => window.hibiDesktop?.onCompanionAction?.((action) => { if (action.requestId === pending?.confirmationId) void resolvePending(action.actionId === 'confirm') }) ?? (() => undefined), [pending])
+  useEffect(() => window.pixanoDesktop?.onCompanionAction?.((action) => { if (action.requestId === pending?.confirmationId) void resolvePending(action.actionId === 'confirm') }) ?? (() => undefined), [pending])
   const visibleItems = useMemo(() => plan?.items.filter((item) => item.state !== 'unchanged') ?? [], [plan])
 
-  if (!notion?.dataSourceId) return <section className="notion-sync-panel" aria-label="Notion sync setup"><h4>Hibi Tasks</h4><p className="muted">Create the dedicated task database inside Kizuna. This remote write requires confirmation.</p><label>Workspace<input value="Kizuna Std's Notion" readOnly /></label><label>Kizuna parent page ID<input aria-label="Kizuna parent page ID" value={parentPageId} onChange={(event) => setParentPageId(event.target.value)} /></label><button className="primary" disabled={!connected || busy} onClick={() => void prepareSetup()}>Prepare Hibi Tasks</button>{pending && <Confirmation onResolve={resolvePending} />}{!connected && <p className="muted">Connect Notion first.</p>}<p className="muted" aria-live="polite">{notice}</p></section>
+  if (!notion?.dataSourceId) return <section className="notion-sync-panel" aria-label="Notion sync setup"><h4>Pixano Tasks</h4><p className="muted">Create the dedicated task database inside Kizuna. This remote write requires confirmation.</p><label>Workspace<input value="Kizuna Std's Notion" readOnly /></label><label>Kizuna parent page ID<input aria-label="Kizuna parent page ID" value={parentPageId} onChange={(event) => setParentPageId(event.target.value)} /></label><button className="primary" disabled={!connected || busy} onClick={() => void prepareSetup()}>Prepare Pixano Tasks</button>{pending && <Confirmation onResolve={resolvePending} />}{!connected && <p className="muted">Connect Notion first.</p>}<p className="muted" aria-live="polite">{notice}</p></section>
 
-  return <section className="notion-sync-panel" aria-label="Notion task synchronization"><div className="notion-sync-heading"><div><h4>Hibi Tasks</h4><p className="muted">{notion.workspaceLabel || "Kizuna Std's Notion"} · manual two-way sync</p></div><button className="primary" disabled={!connected || busy} onClick={() => void readSync()}>{busy ? 'Working…' : 'Sync now'}</button></div><div className="notion-sync-meta"><span><b>Last sync</b> {notion.lastSyncAt ? new Date(notion.lastSyncAt).toLocaleString() : 'Never'}</span><span>{summaryText(notion)}</span></div>{visibleItems.length > 0 && <div className="notion-sync-preview" role="status"><h5>Review changes</h5>{visibleItems.map((item) => <div className="notion-sync-item" key={item.key}><div><strong>{item.local?.title ?? item.remote?.title ?? 'Untitled task'}</strong><span>{item.state.replace('-', ' ')}</span></div><select aria-label={`Sync decision for ${item.local?.title ?? item.remote?.title ?? item.key}`} value={decisions[item.key] ?? defaultDecisionFor(item)} onChange={(event) => setDecisions((current) => ({ ...current, [item.key]: event.target.value as NotionDecision }))}><option value="keep-local">Keep Hibi</option><option value="keep-remote">Keep Notion</option><option value="duplicate">Create copy</option><option value="skip">Skip</option></select></div>)}<button className="primary" disabled={busy} onClick={() => void prepareSync()}>{failedKeys.length ? `Retry ${failedKeys.length} pending` : 'Review selected changes'}</button></div>}{plan && visibleItems.length === 0 && <p className="muted">Everything is up to date.</p>}{pending && <Confirmation onResolve={resolvePending} />}<p className="muted" aria-live="polite">{notice}</p></section>
+  return <section className="notion-sync-panel" aria-label="Notion task synchronization"><div className="notion-sync-heading"><div><h4>Notion task database</h4><p className="muted">{notion.workspaceLabel || "Kizuna Std's Notion"} · manual two-way sync</p></div><button className="primary" disabled={!connected || busy} onClick={() => void readSync()}>{busy ? 'Working…' : 'Sync now'}</button></div><div className="notion-sync-meta"><span><b>Last sync</b> {notion.lastSyncAt ? new Date(notion.lastSyncAt).toLocaleString() : 'Never'}</span><span>{summaryText(notion)}</span></div>{visibleItems.length > 0 && <div className="notion-sync-preview" role="status"><h5>Review changes</h5>{visibleItems.map((item) => <div className="notion-sync-item" key={item.key}><div><strong>{item.local?.title ?? item.remote?.title ?? 'Untitled task'}</strong><span>{item.state.replace('-', ' ')}</span></div><select aria-label={`Sync decision for ${item.local?.title ?? item.remote?.title ?? item.key}`} value={decisions[item.key] ?? defaultDecisionFor(item)} onChange={(event) => setDecisions((current) => ({ ...current, [item.key]: event.target.value as NotionDecision }))}><option value="keep-local">Keep Pixano</option><option value="keep-remote">Keep Notion</option><option value="duplicate">Create copy</option><option value="skip">Skip</option></select></div>)}<button className="primary" disabled={busy} onClick={() => void prepareSync()}>{failedKeys.length ? `Retry ${failedKeys.length} pending` : 'Review selected changes'}</button></div>}{plan && visibleItems.length === 0 && <p className="muted">Everything is up to date.</p>}{pending && <Confirmation onResolve={resolvePending} />}<p className="muted" aria-live="polite">{notice}</p></section>
 }
 
 function Confirmation({ onResolve }: { onResolve: (approved: boolean) => Promise<void> }) {

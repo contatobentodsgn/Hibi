@@ -36,15 +36,15 @@ test('o .ics do Google (UTC) entra na hora local, e o evento de dia inteiro é c
   ]);
 
   await expect(page.getByRole('status').filter({ hasText: 'Eventos importados: 1.' })).toContainText('Ficaram de fora 1 de dia inteiro');
-  await expect(page.getByRole('button', { name: 'Delete Reunião UTC at 08:00 on 2026-09-08' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Excluir Reunião UTC às 08:00 em 2026-09-08' })).toBeVisible();
 });
 
 test('um bloco fora de 08h–22h aparece na grade da semana', async ({ page }) => {
   await agenda(page, 'Semana');
   await importIcs(page, [...event('Corrida cedo', ':20260908T060000', ':20260908T070000'), ...event('Leitura tarde', ':20260909T230000', ':20260909T233000')]);
 
-  await expect(page.getByRole('button', { name: 'Delete Corrida cedo at 06:00 on 2026-09-08' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Delete Leitura tarde at 23:00 on 2026-09-09' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Excluir Corrida cedo às 06:00 em 2026-09-08' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Excluir Leitura tarde às 23:00 em 2026-09-09' })).toBeVisible();
 });
 
 test('a semana mostra os compromissos que batem, e não as demandas que dividem o horário', async ({ page }) => {

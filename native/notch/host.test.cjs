@@ -27,7 +27,7 @@ const NO_ELECTRON = 'binário do Electron não instalado (ELECTRON_SKIP_BINARY_D
 // Os números do contrato passivo, afirmados aqui contra o frame real em vez de por regex no fonte.
 const HOST_WIDTH = 264;
 const PASSIVE_HEIGHT = 167;
-const IDLE_ANIMATION = path.resolve(__dirname, '../../public/companion-assets/animations/notch/idle_01_loop.mp4');
+const IDLE_ANIMATION = path.resolve(__dirname, '../../public/mascot/idle.mp4');
 // O painel nasce centralizado e colado no topo físico, cobrindo a faixa da câmera.
 const expectedFrame = (screen) => ({
   x: screen.frame.x + screen.frame.width / 2 - HOST_WIDTH / 2,
@@ -121,6 +121,23 @@ test('o host toca o loop ocioso original quando recebe um arquivo local de anima
   assert.equal(bridge.hostDiagnostics().animatingAsset, true);
   assert.equal(bridge.showHost(passive('fallback-sem-arquivo', 'Hibi', '/arquivo/que/nao/existe.mp4'), screens[0].displayId), true);
   assert.equal(bridge.hostDiagnostics().animatingAsset, false, 'um caminho inválido volta ao desenho seguro em vez de deixar o painel vazio');
+  reset();
+});
+
+test('o host toca a entrada sem a repetir e aceita o loop seguinte para o mesmo pedido', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  const screens = bridge.screenGeometry();
+  if (screens.length === 0) return t.skip(NO_SCREENS);
+  const entry = path.resolve(__dirname, '../../public/mascot/idle_curious.mp4');
+  const loop = path.resolve(__dirname, '../../public/mascot/listening.mp4');
+  assert.equal(fs.existsSync(entry), true);
+  assert.equal(fs.existsSync(loop), true);
+  reset();
+  assert.equal(bridge.showHost({ ...passive('sequencia'), entryAnimationPath: entry, loopAnimationPath: loop }, screens[0].displayId), true);
+  assert.equal(bridge.hostDiagnostics().animationPhase, 'entry');
+  assert.equal(bridge.showHost({ ...passive('sequencia'), loopAnimationPath: loop, idleAnimationPath: path.resolve(__dirname, '../../public/mascot/idle.mp4') }, screens[0].displayId), true);
+  assert.equal(bridge.hostDiagnostics().animationPhase, 'loop');
+  assert.equal(bridge.hostDiagnostics().requestId, 'sequencia');
   reset();
 });
 

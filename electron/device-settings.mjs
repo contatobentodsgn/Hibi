@@ -1,12 +1,12 @@
-// O pacote de ajustes destinado ao dispositivo físico Taby.
+// O pacote de ajustes destinado ao dispositivo físico Assistant.
 //
 // POR QUE UM CONTRATO, E NÃO UM CONTROLE QUE "FUNCIONA"
 // O timeout de tela é ajuste de hardware: no original ele só existe dentro do SDK do aparelho, que é
-// quem controla brilho e tela. Este Mac não tem tela do Taby para apagar. Fingir o comportamento seria
+// quem controla brilho e tela. Este Mac não tem tela do Assistant para apagar. Fingir o comportamento seria
 // repetir o defeito que a auditoria achou — controles que não governam nada. Então o valor é salvo,
-// entra no backup e sai daqui num pacote puro e versionado, que é exatamente o que o adaptador do Taby
+// entra no backup e sai daqui num pacote puro e versionado, que é exatamente o que o adaptador do Assistant
 // vai consumir quando existir. Até lá o adaptador `hardware` continua `unavailable`
-// (`src/domain/adapter-status.ts`), e a aba Foco diz que o ajuste só vale com o Taby conectado.
+// (`src/domain/adapter-status.ts`), e a aba Foco diz que o ajuste só vale com o Assistant conectado.
 //
 // O QUE ENTRA
 // Só o que é do aparelho: o timeout da tela e o loop que a tela dele toca durante o foco. Inatividade e

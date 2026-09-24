@@ -24,9 +24,9 @@ import {
   type ExternalCalendarEvent,
   type ReadonlyAgendaEvent,
 } from "../../external-calendar-events";
-import { HibiEmptyState } from "../components/HibiEmptyState";
-import { HibiTag } from "../components/HibiTag";
-import { HibiUiRoot } from "../components/HibiUiRoot";
+import { PixanoEmptyState } from "../components/PixanoEmptyState";
+import { PixanoTag } from "../components/PixanoTag";
+import { PixanoUiRoot } from "../components/PixanoUiRoot";
 import { SectionHeader } from "../components/SectionHeader";
 import { ExternalCalendarPanel } from "./ExternalCalendarPanel";
 import { useLocale, useT } from "../../../i18n/LocaleProvider";
@@ -205,14 +205,14 @@ export function AgendaScreen({
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = "hibi-calendar.ics";
+    link.download = "pixano-calendar.ics";
     link.click();
     URL.revokeObjectURL(url);
     onEvent("export", t("agenda.exported"), "pass");
   };
 
   const refreshExternalCalendar = async () => {
-    const bridge = window.hibiDesktop;
+    const bridge = window.pixanoDesktop;
     if (!bridge?.getCalendarSyncState) return;
     try {
       const snapshot = await bridge.getCalendarSyncState();
@@ -260,7 +260,7 @@ export function AgendaScreen({
     change: CalendarChanges["outgoing"][number],
   ) => {
     const block = data.blocks.find((item) => item.id === change.localId);
-    const bridge = window.hibiDesktop;
+    const bridge = window.pixanoDesktop;
     if (!block || !bridge?.prepareCalendarUpdate) return;
     try {
       queueCalendarAction(
@@ -283,7 +283,7 @@ export function AgendaScreen({
     change: CalendarChanges["incoming"][number],
   ) => {
     const block = data.blocks.find((item) => item.id === change.localId);
-    const bridge = window.hibiDesktop;
+    const bridge = window.pixanoDesktop;
     if (!block || !onMoveBlock || !bridge?.acknowledgeCalendarIncoming) return;
     if (!onMoveBlock(block.id, change.start, change.end)) {
       setCalendarNotice(t("agenda.invalidIncomingTime"));
@@ -302,7 +302,7 @@ export function AgendaScreen({
           },
         }),
       );
-      setCalendarNotice(`“${change.summary}” foi trazido para o Hibi.`);
+      setCalendarNotice(`“${change.summary}” foi trazido para o Pixano.`);
     } catch {
       setCalendarNotice(t("agenda.calendarUpdateFailed"));
     }
@@ -311,7 +311,7 @@ export function AgendaScreen({
     conflict: CalendarSyncState["conflicts"][number],
     choice: "keep-calendar" | "keep-hibi",
   ) => {
-    const bridge = window.hibiDesktop;
+    const bridge = window.pixanoDesktop;
     if (!bridge?.resolveCalendarConflict) return;
     try {
       const result = await bridge.resolveCalendarConflict({
@@ -328,7 +328,7 @@ export function AgendaScreen({
   };
   const confirmCalendarAction = async () => {
     const pending = pendingCalendarAction;
-    const bridge = window.hibiDesktop;
+    const bridge = window.pixanoDesktop;
     if (!pending || !bridge?.executeApprovedCalendarPublish) return;
     try {
       await bridge.executeApprovedCalendarPublish({
@@ -344,7 +344,7 @@ export function AgendaScreen({
   };
 
   return (
-    <HibiUiRoot className="agenda-screen">
+    <PixanoUiRoot className="agenda-screen">
       <SectionHeader
         title={t("agenda.title")}
         subtitle={periodLabel(mode, date, language)}
@@ -524,9 +524,9 @@ export function AgendaScreen({
                             {block.start.slice(11, 16)} ·{" "}
                             {durationMinutes(block)} min
                           </span>
-                          <HibiTag tone={categoryTone[block.category]}>
+                          <PixanoTag tone={categoryTone[block.category]}>
                             {categoryName(block.category)}
-                          </HibiTag>
+                          </PixanoTag>
                         </button>
                       ))}
                     </div>
@@ -536,7 +536,7 @@ export function AgendaScreen({
             ))}
           </div>
           {blocks.length === 0 && (
-            <HibiEmptyState
+            <PixanoEmptyState
               icon={CalendarDays}
               tone="lavender"
               title={t("agenda.emptyTitle")}
@@ -628,7 +628,7 @@ export function AgendaScreen({
           }
         />
       )}
-    </HibiUiRoot>
+    </PixanoUiRoot>
   );
 }
 
@@ -651,7 +651,7 @@ function BlockDetails({
   return (
     <Card>
       <div className="agenda-screen__detail-title">
-        <HibiTag tone={categoryTone[block.category]}>{t(categoryKey)}</HibiTag>
+        <PixanoTag tone={categoryTone[block.category]}>{t(categoryKey)}</PixanoTag>
         <Button
           isIconOnly
           variant="ghost"

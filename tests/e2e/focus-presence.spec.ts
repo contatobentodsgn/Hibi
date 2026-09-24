@@ -4,7 +4,7 @@ type PresenceEvent =
   | { type: 'away'; reason: 'idle' | 'power'; idleSeconds: number; atMs: number }
   | { type: 'returned'; reason: 'idle' | 'power'; awaySeconds: number; atMs: number };
 type CompanionAction = Readonly<{ requestId: string; actionId: 'confirm' | 'cancel' }>;
-type HibiE2E = {
+type PixanoE2E = {
   calls: string[];
   presence: (event: PresenceEvent) => void;
   companionAction: (action: CompanionAction) => void;
@@ -14,15 +14,15 @@ const SETTINGS_KEY = 'hibi-focus-settings';
 const dock = (page: Page) => page.getByRole('navigation', { name: 'Navegação principal' });
 const clockFace = (page: Page) => page.locator('.focus-ring span');
 const prompt = (page: Page, title: string) => page.getByRole('alert').filter({ hasText: title });
-const calls = (page: Page) => page.evaluate(() => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.calls);
+const calls = (page: Page) => page.evaluate(() => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.calls);
 // O carimbo sai do relógio da própria página, como o processo principal carimbaria no Mac.
 const away = (page: Page, idleSeconds: number, reason: 'idle' | 'power' = 'idle') =>
-  page.evaluate(({ idleSeconds, reason }) => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.presence({ type: 'away', reason, idleSeconds, atMs: Date.now() }), { idleSeconds, reason });
+  page.evaluate(({ idleSeconds, reason }) => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.presence({ type: 'away', reason, idleSeconds, atMs: Date.now() }), { idleSeconds, reason });
 const returned = (page: Page, awaySeconds: number) =>
-  page.evaluate((awaySeconds) => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.presence({ type: 'returned', reason: 'idle', awaySeconds, atMs: Date.now() }), awaySeconds);
+  page.evaluate((awaySeconds) => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.presence({ type: 'returned', reason: 'idle', awaySeconds, atMs: Date.now() }), awaySeconds);
 const companionAction = (page: Page, prefix: string, actionId: 'confirm' | 'cancel') =>
   page.evaluate(({ prefix, actionId }) => {
-    const e2e = (window as unknown as { hibiE2E: HibiE2E }).hibiE2E;
+    const e2e = (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E;
     const shown = e2e.calls.filter((call) => call.startsWith(`show:confirmation:${prefix}`)).at(-1);
     if (shown) e2e.companionAction({ requestId: shown.split(':')[2]!, actionId });
   }, { prefix, actionId });
@@ -30,7 +30,7 @@ const companionAction = (page: Page, prefix: string, actionId: 'confirm' | 'canc
 const recordedActions = (page: Page) => page.evaluate(() => (JSON.parse(window.localStorage.getItem('hibi-events') ?? '[]') as { action: string }[]).map((event) => event.action));
 const focusActivity = (page: Page) => page.evaluate(() => (JSON.parse(window.localStorage.getItem('hibi-study-data') ?? '{}').activity ?? []) as { type: string; durationMinutes?: number }[]);
 
-// O e2e roda no build web, sem `window.hibiDesktop`. O dublê faz o papel do processo principal: guarda
+// O e2e roda no build web, sem `window.pixanoDesktop`. O dublê faz o papel do processo principal: guarda
 // os pedidos de vigia e as apresentações do companion num log ordenado, e deixa o teste disparar
 // ausência, retorno e respostas dadas no notch pelos mesmos callbacks que o preload entregaria.
 async function installPresenceBridge(page: Page, settings?: Record<string, unknown>) {
@@ -47,12 +47,12 @@ async function installPresenceBridge(page: Page, settings?: Record<string, unkno
       listeners.push(callback);
       return () => { const index = listeners.indexOf(callback); if (index >= 0) listeners.splice(index, 1); };
     };
-    (window as unknown as { hibiE2E: unknown }).hibiE2E = {
+    (window as unknown as { pixanoE2E: unknown }).pixanoE2E = {
       calls,
       presence: (event: unknown) => presenceListeners.forEach((listener) => listener(event)),
       companionAction: (action: unknown) => actionListeners.forEach((listener) => listener(action)),
     };
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
       showNotch: async (presentation: { requestId: string; kind: string }) => { calls.push(`show:${presentation.kind}:${presentation.requestId}`); return { degraded: false, requestId: presentation.requestId }; },
       hideNotch: async (requestId: string) => { calls.push(`hide:${requestId}`); return true; },
@@ -73,19 +73,19 @@ async function startFocusSession(page: Page, settings?: Record<string, unknown>)
   await page.clock.pauseAt(new Date(2026, 8, 10, 10, 5, 0));
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
-  await page.getByRole('button', { name: 'Start focus' }).click();
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await page.getByRole('button', { name: 'Começar foco' }).click();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toBeVisible();
 }
 
 async function openFocusSettings(page: Page) {
   await dock(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
-  await page.getByRole('button', { name: 'Focus', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegação interna de ajustes' }).getByRole('button', { name: /^Foco/ }).click();
 }
 
 test('com "perguntar", a ausência durante o foco vira pergunta, e "Pausar" para o contador sem contar o tempo ausente', async ({ page }) => {
   await startFocusSession(page);
   await expect.poll(() => calls(page)).toContain('watch:true:5');
-  await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', /working_laptop_normal_loop\.mp4$/);
+  await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', '/mascot/focus.mp4');
 
   await page.clock.runFor(6 * 60_000);
   await expect(clockFace(page)).toHaveText('19:00');
@@ -102,7 +102,7 @@ test('com "perguntar", a ausência durante o foco vira pergunta, e "Pausar" para
 
   await question.getByRole('button', { name: 'Pausar' }).click();
   await expect(question).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Começar foco' })).toBeVisible();
   // 7 minutos de relógio, 6 deles ausentes (5 parados antes da pergunta e 1 esperando a resposta): conta 1.
   await expect(clockFace(page)).toHaveText('24:00');
   await expect(page.getByRole('status').filter({ hasText: 'O tempo ausente não contou como foco' })).toBeVisible();
@@ -123,13 +123,13 @@ test('com "perguntar", responder "Ainda estou aqui" pelo notch fecha a pergunta,
   await companionAction(page, 'focus-idle-', 'confirm');
 
   await expect(prompt(page, 'Você ainda está aí?')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toBeVisible();
   await page.clock.runFor(60_000);
   await expect(clockFace(page)).toHaveText('18:00');
 
   // Com a presença confirmada, a sessão chega ao zero inteira e conta como concluída, com a comemoração.
   await page.clock.runFor(18 * 60_000);
-  await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Começar foco' })).toBeVisible();
   await expect.poll(async () => (await calls(page)).some((call) => call.startsWith('show:result:focus-'))).toBe(true);
   await expect.poll(() => recordedActions(page)).toContain('focus-complete');
   await expect(page.getByRole('status').filter({ hasText: 'A sessão não contou como concluída' })).toHaveCount(0);
@@ -139,7 +139,7 @@ test('com "perguntar", responder "Ainda estou aqui" pelo notch fecha a pergunta,
 
 // Trocar de tela não encerra mais a sessão: pausada, a ida para o descanso a abandona.
 async function abandonSession(page: Page) {
-  await page.getByRole('button', { name: 'Pause session' }).click();
+  await page.getByRole('button', { name: 'Pausar sessão' }).click();
   await page.getByRole('button', { name: 'Fazer uma pausa' }).click();
   await expect(page.getByRole('button', { name: 'Começar pausa' })).toBeVisible();
 }
@@ -167,7 +167,7 @@ test('com "perguntar", a volta muda a pergunta, e "Descontar" tira o tempo ausen
   const question = prompt(page, 'Você ainda está aí?');
   await expect(question).toBeVisible();
   // Esperando a volta, o companion trabalha entediado.
-  await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', /working_laptop_bored_loop\.mp4$/);
+  await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', '/mascot/idle_curious.mp4');
 
   // 20 minutos de relógio sem resposta; a sessão segue contando até a volta.
   await page.clock.runFor(20 * 60_000);
@@ -180,7 +180,7 @@ test('com "perguntar", a volta muda a pergunta, e "Descontar" tira o tempo ausen
   await expect(review).toContainText('Você ficou 25 minutos sem mexer no Mac. Esse tempo foi foco?');
   await expect(question).toHaveCount(0);
   // A pessoa voltou: o companion deixa de esperar.
-  await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', /working_laptop_normal_loop\.mp4$/);
+  await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', '/mascot/focus.mp4');
   // No companion: a pergunta anterior é descartada e a nova aparece no lugar.
   await expect.poll(async () => (await calls(page)).some((call) => call.startsWith('hide:focus-idle-'))).toBe(true);
   await expect.poll(async () => (await calls(page)).some((call) => call.startsWith('show:confirmation:focus-returned-'))).toBe(true);
@@ -188,7 +188,7 @@ test('com "perguntar", a volta muda a pergunta, e "Descontar" tira o tempo ausen
   await review.getByRole('button', { name: 'Descontar' }).click();
   await expect(review).toHaveCount(0);
   // A sessão continua rodando, e o mostrador devolve os 25 minutos: só 1 minuto presente foi medido.
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toBeVisible();
   await expect(clockFace(page)).toHaveText('49:00');
   await page.clock.runFor(60_000);
   await expect(clockFace(page)).toHaveText('48:00');
@@ -212,7 +212,7 @@ test('com "perguntar", a pergunta sem resposta até o fim da sessão não conta 
 
   // Ninguém volta: o contador chega a zero com a pergunta aberta, 20 minutos de relógio depois dela.
   await page.clock.runFor(19 * 60_000);
-  await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Começar foco' })).toBeVisible();
   await expect(prompt(page, 'Você ainda está aí?')).toHaveCount(0);
 
   // A sessão não some calada: a tela diz por que ela não contou.
@@ -243,7 +243,7 @@ test('com "perguntar", "Contar" depois da volta mantém o tempo ausente como foc
   await companionAction(page, 'focus-returned-', 'confirm');
 
   await expect(review).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toBeVisible();
   await expect(clockFace(page)).toHaveText('40:00');
 });
 
@@ -255,7 +255,7 @@ test('com "pausar", a ausência pausa sozinha sem contar o tempo ausente, e a vo
   await away(page, 120);
 
   // Pausou sozinha: nenhuma pergunta, e os 2 minutos ausentes voltaram ao mostrador.
-  await expect(page.getByRole('button', { name: 'Start focus' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Começar foco' })).toBeVisible();
   await expect(prompt(page, 'Você ainda está aí?')).toHaveCount(0);
   await expect(clockFace(page)).toHaveText('21:00');
   await expect(page.getByRole('status').filter({ hasText: 'Sessão pausada porque você se afastou' })).toBeVisible();
@@ -272,7 +272,7 @@ test('com "pausar", a ausência pausa sozinha sem contar o tempo ausente, e a vo
 
   await offer.getByRole('button', { name: 'Retomar' }).click();
   await expect(offer).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Pause session' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pausar sessão' })).toBeVisible();
   await page.clock.runFor(60_000);
   await expect(clockFace(page)).toHaveText('20:00');
 
@@ -308,16 +308,16 @@ test('os ajustes de presença sobrevivem a recarregar, e o loop escolhido toca d
   await page.getByLabel('Quando você se afastar').selectOption('pause');
   await page.getByLabel('Tempo de inatividade').selectOption('10');
   await page.getByLabel('Animação durante o foco').selectOption('music');
-  await page.getByLabel('Timeout de tela do Taby').selectOption('300');
-  await expect(page.getByText('Só vale com o dispositivo Taby conectado.')).toBeVisible();
-  await expect(page.getByText('Taby não conectado')).toBeVisible();
+  await page.getByLabel('Tempo limite da tela do mascote').selectOption('300');
+  await expect(page.getByText('Esta opção se aplica ao mascote conectado.')).toBeVisible();
+  await expect(page.getByText('Mascote não conectado')).toBeVisible();
 
   await page.reload();
   await openFocusSettings(page);
   await expect(page.getByLabel('Quando você se afastar')).toHaveValue('pause');
   await expect(page.getByLabel('Tempo de inatividade')).toHaveValue('10');
   await expect(page.getByLabel('Animação durante o foco')).toHaveValue('music');
-  await expect(page.getByLabel('Timeout de tela do Taby')).toHaveValue('300');
+  await expect(page.getByLabel('Tempo limite da tela do mascote')).toHaveValue('300');
 
   // "Continuar contando" desliga o tempo de inatividade, que não governaria nada.
   await page.getByLabel('Quando você se afastar').selectOption('keep');
@@ -326,7 +326,7 @@ test('os ajustes de presença sobrevivem a recarregar, e o loop escolhido toca d
 
   await dock(page).getByRole('button', { name: 'Mais seções' }).click();
   await page.getByRole('menuitem', { name: 'Foco', exact: true }).click();
-  await page.getByRole('button', { name: 'Start focus' }).click();
-  await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', /listening_music_loop\.mp4$/);
+  await page.getByRole('button', { name: 'Começar foco' }).click();
+  await expect(page.locator('.companion-animation-video')).toHaveAttribute('src', '/mascot/listening.mp4');
   await expect.poll(() => calls(page)).toContain('watch:true:10');
 });

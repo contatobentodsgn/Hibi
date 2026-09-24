@@ -21,9 +21,9 @@ import {
   type TaskDeadlineState,
 } from "../../task-rhythm";
 import { ActionDialog } from "../components/ActionDialog";
-import { HibiEmptyState } from "../components/HibiEmptyState";
-import { HibiTag, type HibiTagTone } from "../components/HibiTag";
-import { HibiUiRoot } from "../components/HibiUiRoot";
+import { PixanoEmptyState } from "../components/PixanoEmptyState";
+import { PixanoTag, type PixanoTagTone } from "../components/PixanoTag";
+import { PixanoUiRoot } from "../components/PixanoUiRoot";
 import { SectionHeader } from "../components/SectionHeader";
 import { useT } from "../../../i18n/LocaleProvider";
 import { TaskDetailsPanel } from "./TaskDetailsPanel";
@@ -58,7 +58,7 @@ const deadlineCopy = (
   return t("tasks.deadline.scheduled").replace("{date}", date);
 };
 
-const deadlineTone = (state: TaskDeadlineState): HibiTagTone =>
+const deadlineTone = (state: TaskDeadlineState): PixanoTagTone =>
   state === "overdue" ? "peach" : state === "today" ? "lavender" : "neutral";
 
 const folderLabel = (
@@ -169,7 +169,7 @@ export function TasksScreen({
   };
 
   return (
-    <HibiUiRoot className="tasks-screen">
+    <PixanoUiRoot className="tasks-screen">
       <SectionHeader
         title={t("tasks.title")}
         subtitle={copy("tasks.subtitle", {
@@ -356,9 +356,9 @@ export function TasksScreen({
                                 {folderOf(task) || t("tasks.folder.none")}
                               </span>
                             </span>
-                            <HibiTag tone={deadlineTone(deadlineState)}>
+                            <PixanoTag tone={deadlineTone(deadlineState)}>
                               {deadlineCopy(deadlineState, task.deadline, t)}
-                            </HibiTag>
+                            </PixanoTag>
                           </Button>
                         }
                         isOpen={selectedId === task.id}
@@ -409,7 +409,7 @@ export function TasksScreen({
               </ul>
             ) : (
               <div className="tasks-screen__empty">
-                <HibiEmptyState
+                <PixanoEmptyState
                   icon={CheckCheck}
                   tone="mint"
                   title={
@@ -477,7 +477,7 @@ export function TasksScreen({
           )}
         </Card>
       </div>
-    </HibiUiRoot>
+    </PixanoUiRoot>
   );
 }
 

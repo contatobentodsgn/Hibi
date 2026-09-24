@@ -1,5 +1,5 @@
 // Presença durante o foco: os ajustes que o Mac consegue honrar (inatividade, ausência, loop visual),
-// o que o dispositivo Taby vai honrar (timeout de tela), e as decisões puras que os governam.
+// o que o dispositivo Assistant vai honrar (timeout de tela), e as decisões puras que os governam.
 //
 // POR QUE ESTE MÓDULO EXISTE
 // A auditoria do app original achou controles que não governavam comportamento. Estes quatro ajustes

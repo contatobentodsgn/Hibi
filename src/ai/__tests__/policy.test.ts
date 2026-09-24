@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { AiToolPolicy } from '../policy';
-import { ToolRegistry, type HibiTool, type ToolRisk } from '../tools';
+import { ToolRegistry, type PixanoTool, type ToolRisk } from '../tools';
 
-const tool = (name: string, risk: ToolRisk, options: Partial<Pick<HibiTool, 'bulk' | 'externallyVisible'>> = {}): HibiTool => ({
+const tool = (name: string, risk: ToolRisk, options: Partial<Pick<PixanoTool, 'bulk' | 'externallyVisible'>> = {}): PixanoTool => ({
   name, description: name, risk, inputSchema: { type: 'object' }, ...options,
   validate: (arguments_) => typeof arguments_.id === 'string',
   execute: () => ({ summary: 'done' }),

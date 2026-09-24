@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LocalRepository } from '../../data/local-repository'
 import { createSeedData } from '../../data/seed-data'
-import { createLocalHibiRuntime, createLocalToolRegistry } from '../local-runtime'
+import { createLocalAssistantRuntime, createLocalToolRegistry } from '../local-runtime'
 import { AiToolPolicy } from '../policy'
 
 const repository = () => new LocalRepository(createSeedData())
@@ -56,7 +56,7 @@ describe('integration.send', () => {
 
   it('propõe a ação remota a partir de um pedido explícito e só executa após confirmar', async () => {
     const desktop = bridge()
-    const runtime = createLocalHibiRuntime(repository(), { integrations: desktop })
+    const runtime = createLocalAssistantRuntime(repository(), { integrations: desktop })
     const turn = await runtime.runTurn({ message: 'envie no slack #geral: reunião às 10h', surface: 'desktop', requestId: 'req-1', now: new Date('2026-09-09T09:00:00-03:00') })
 
     expect(turn.confirmation).toBeTruthy()
@@ -70,7 +70,7 @@ describe('integration.send', () => {
 
   it('não envia nada quando a confirmação é cancelada', async () => {
     const desktop = bridge()
-    const runtime = createLocalHibiRuntime(repository(), { integrations: desktop })
+    const runtime = createLocalAssistantRuntime(repository(), { integrations: desktop })
     const turn = await runtime.runTurn({ message: 'envie no slack #geral: reunião às 10h', surface: 'desktop', requestId: 'req-2', now: new Date('2026-09-09T09:00:00-03:00') })
 
     expect(runtime.cancelConfirmation(turn.confirmation!)).toBe(true)

@@ -46,7 +46,7 @@ const databaseSchema = () => ({
 const failureFor = (response, fallback) => {
   const retryAfter = Number(response?.headers?.get?.('retry-after'));
   if (response?.status === 401) return new Error('Notion credential is invalid. Reconnect this integration.');
-  if (response?.status === 403) return new Error('Notion cannot access Hibi Tasks. Share the database with the Hibi integration.');
+      if (response?.status === 403) return new Error('Notion cannot access the task database. Share it with the Pixano integration.');
   if (response?.status === 429) return new Error(`Notion is temporarily rate limited. Try again after ${Number.isFinite(retryAfter) && retryAfter > 0 ? Math.ceil(retryAfter) : 30} seconds.`);
   return new Error(fallback);
 };
@@ -75,9 +75,9 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request,
       const statusName = properties.Status?.select?.name;
       const deadline = properties.Start?.date?.start;
       const duration = properties['Duration minutes']?.number;
-      const hibiId = textFrom(properties['Hibi ID'], 'rich_text');
+      const pixanoId = textFrom(properties['Hibi ID'], 'rich_text');
       const description = textFrom(properties.Description, 'rich_text');
-      return { remoteId: page.id, ...(boundedId(page.last_edited_time) ? { revision: page.last_edited_time } : {}), ...(hibiId ? { hibiId: hibiId.slice(0, 240) } : {}), title: titleFrom(properties), ...(statusFromNotion[statusName] ? { status: statusFromNotion[statusName] } : {}), ...(boundedId(deadline) ? { deadline } : {}), ...(Number.isFinite(duration) ? { durationMinutes: Math.max(0, Math.round(duration)) } : {}), ...(description ? { description: description.slice(0, 2_000) } : {}), kind: 'task' };
+      return { remoteId: page.id, ...(boundedId(page.last_edited_time) ? { revision: page.last_edited_time } : {}), ...(pixanoId ? { pixanoId: pixanoId.slice(0, 240) } : {}), title: titleFrom(properties), ...(statusFromNotion[statusName] ? { status: statusFromNotion[statusName] } : {}), ...(boundedId(deadline) ? { deadline } : {}), ...(Number.isFinite(duration) ? { durationMinutes: Math.max(0, Math.round(duration)) } : {}), ...(description ? { description: description.slice(0, 2_000) } : {}), kind: 'task' };
     },
     async testConnection({ credential, request: override }) {
       const response = await call('users/me', { method: 'GET', headers: headers(credential) }, override);
@@ -108,7 +108,7 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request,
       const body = await jsonOrEmpty(response);
       const source = Array.isArray(body?.data_sources) ? body.data_sources.find((entry) => boundedId(entry?.id)) : undefined;
       if (!source) throw new Error('Notion database has no accessible data source.');
-      return { databaseId: boundedId(body?.id) ? body.id : databaseId, dataSourceId: source.id, label: typeof source.name === 'string' && source.name.trim() ? source.name.trim().slice(0, 240) : 'Hibi Tasks' };
+      return { databaseId: boundedId(body?.id) ? body.id : databaseId, dataSourceId: source.id, label: typeof source.name === 'string' && source.name.trim() ? source.name.trim().slice(0, 240) : 'Pixano Tasks' };
     },
     async fetchImports({ credential, request: override, targets = [], limit = 50 }) {
       const pages = [];
@@ -172,7 +172,7 @@ function createNotionConnector({ baseUrl = 'https://api.notion.com/v1', request,
       let path = 'pages'; let method = 'POST'; let body;
       if (kind === 'notion.database.create') {
         path = 'databases';
-        body = { parent: { type: 'page_id', page_id: prepared.payload.parentPageId }, title: [{ type: 'text', text: { content: 'Hibi Tasks' } }], initial_data_source: { properties: databaseSchema() } };
+        body = { parent: { type: 'page_id', page_id: prepared.payload.parentPageId }, title: [{ type: 'text', text: { content: 'Pixano Tasks' } }], initial_data_source: { properties: databaseSchema() } };
       } else if (kind === 'notion.page.create') {
         body = { parent: { type: 'data_source_id', data_source_id: prepared.payload.dataSourceId }, properties: taskProperties(prepared.payload.task) };
       } else {

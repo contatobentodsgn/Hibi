@@ -39,15 +39,15 @@ test('Review is mounted on the redesigned canvas instead of the temporary legacy
   await expect(page.locator('.legacy-surface .review-screen')).toHaveCount(0);
 });
 
-test('Taby conversation history stays within its sidebar instead of overlapping the status panel', async ({ page }) => {
+test('assistant conversation history stays within its sidebar instead of overlapping the status panel', async ({ page }) => {
   const timestamp = '2026-09-23T12:00:00.000Z';
   await page.addInitScript(({ timestamp, title }) => {
     localStorage.setItem('hibi-conversations', JSON.stringify([{ id: 'long-history-title', title, createdAt: timestamp, updatedAt: timestamp, messages: [{ role: 'user', text: title, at: timestamp }] }]));
   }, { timestamp, title: 'Uma conversa com um título suficientemente longo para forçar a largura intrínseca da sidebar' });
   await page.goto('/');
-  await nav(page).getByRole('button', { name: 'Taby', exact: true }).click();
-  const history = page.locator('.taby-screen__history');
-  const heading = page.locator('.taby-screen__history-heading');
+  await nav(page).getByRole('button', { name: 'Assistente', exact: true }).click();
+  const history = page.locator('.assistant-screen__history');
+  const heading = page.locator('.assistant-screen__history-heading');
   await expect(heading).toBeVisible();
   const widths = await Promise.all([history.evaluate((element) => element.getBoundingClientRect().right), heading.evaluate((element) => element.getBoundingClientRect().right)]);
   expect(widths[1]).toBeLessThanOrEqual(widths[0]);

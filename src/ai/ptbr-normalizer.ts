@@ -1,9 +1,9 @@
 /**
- * O português falado, arrumado antes de o Taby ler o pedido.
+ * O português falado, arrumado antes de o Assistant ler o pedido.
  *
  * O reconhecedor escreve números por extenso ("mil duzentos e quarenta reais", "dia vinte e cinco") e às
  * vezes troca uma palavra por outra que soa parecido no começo da frase ("Bom dia minha reunião…" no lugar
- * de "Adia minha reunião…"). O resto do Taby entende dígitos e o verbo certo; aqui se faz a ponte, sem
+ * de "Adia minha reunião…"). O resto do Assistant entende dígitos e o verbo certo; aqui se faz a ponte, sem
  * mexer em nada que não seja um desses casos.
  */
 

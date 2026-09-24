@@ -26,96 +26,96 @@ const { PRESENCE_POLL_MS } = require("./focus-presence.mjs");
 // Os canais que o renderer pode chamar. A lista é mantida à mão de propósito:
 // remover um handler sem mexer aqui é uma quebra de contrato com o preload.
 const EXPECTED_CHANNELS = [
-  "hibi:info",
-  "hibi:login-item:get",
-  "hibi:login-item",
-  "hibi:notifications:sync",
-  "hibi:notifications:test",
-  "hibi:focus:watch-presence",
-  "hibi:ai:run",
-  "hibi:ai:cancel",
-  "hibi:ai-config:get",
-  "hibi:ai-config:save",
-  "hibi:ai-config:delete-key",
-  "hibi:integrations:list-status",
-  "hibi:integrations:connect",
-  "hibi:integrations:audit",
-  "hibi:integrations:revoke",
-  "hibi:integrations:prepare-action",
-  "hibi:integrations:execute-approved",
-  "hibi:integrations:test-connection",
-  "hibi:integrations:import-targets",
-  "hibi:integrations:import-candidates",
-  "hibi:notion:discover-data-source",
-  "hibi:integrations:get-settings",
-  "hibi:integrations:save-settings",
-  "hibi:oauth:supported",
-  "hibi:oauth:authorize",
-  "hibi:oauth:refresh",
-  "hibi:oauth:cancel",
-  "hibi:oauth:client-secret",
-  "hibi:oauth:save-client-secret",
-  "hibi:oauth:clear-client-secret",
-  "hibi:calendar-sync:state",
-  "hibi:calendar-sync:request-apple-access",
-  "hibi:calendar-sync:discover-google-calendars",
-  "hibi:calendar-sync:read-events",
-  "hibi:calendar-sync:save-calendar-mode",
-  "hibi:calendar-sync:prepare-publish",
-  "hibi:calendar-sync:execute-approved",
-  "hibi:calendar-sync:prepare-update",
-  "hibi:calendar-sync:resolve-conflict",
-  "hibi:calendar-sync:changes",
-  "hibi:calendar-sync:acknowledge-incoming",
-  "hibi:workspace:read",
-  "hibi:workspace:save",
-  "hibi:workspace:restore-points",
-  "hibi:workspace:restore",
-  "hibi:local-api:sync-workspace",
-  "hibi:local-api:start",
-  "hibi:local-api:stop",
-  "hibi:local-api:status",
-  "hibi:local-api:resolve-write",
-  "hibi:webhook:configure",
-  "hibi:webhook:start",
-  "hibi:webhook:stop",
-  "hibi:webhook:status",
-  "hibi:notch:show",
-  "hibi:notch:hide",
-  "hibi:notch:action",
-  "hibi:notch:current",
-  "hibi:notch:capabilities",
-  "hibi:notch:displays",
-  "hibi:notch:set-display",
-  "hibi:notch:window-placement",
-  "hibi:updates:state",
-  "hibi:updates:check",
-  "hibi:updates:download",
-  "hibi:updates:install",
-  "hibi:shortcut:get",
-  "hibi:shortcut:set",
-  "hibi:local-model:state",
-  "hibi:local-model:verify",
-  "hibi:local-model:download",
-  "hibi:local-model:cancel-download",
-  "hibi:local-model:run",
-  "hibi:local-model:cancel",
-  "hibi:local-model:shutdown",
-  "hibi:local-voice:state",
-  "hibi:local-voice:listen",
-  "hibi:local-voice:set-locale",
-  "hibi:local-voice:stop",
-  "hibi:local-voice:speak",
-  "hibi:voice-settings:get",
-  "hibi:voice-settings:set",
-  "hibi:bar:current",
-  "hibi:bar:action",
-  "hibi:bar:submit",
-  "hibi:bar:voice",
-  "hibi:bar:close",
-  "hibi:notch:size",
-  "hibi:notch:set-size",
-  "hibi:notch:test",
+  "pixano:info",
+  "pixano:login-item:get",
+  "pixano:login-item",
+  "pixano:notifications:sync",
+  "pixano:notifications:test",
+  "pixano:focus:watch-presence",
+  "pixano:ai:run",
+  "pixano:ai:cancel",
+  "pixano:ai-config:get",
+  "pixano:ai-config:save",
+  "pixano:ai-config:delete-key",
+  "pixano:integrations:list-status",
+  "pixano:integrations:connect",
+  "pixano:integrations:audit",
+  "pixano:integrations:revoke",
+  "pixano:integrations:prepare-action",
+  "pixano:integrations:execute-approved",
+  "pixano:integrations:test-connection",
+  "pixano:integrations:import-targets",
+  "pixano:integrations:import-candidates",
+  "pixano:notion:discover-data-source",
+  "pixano:integrations:get-settings",
+  "pixano:integrations:save-settings",
+  "pixano:oauth:supported",
+  "pixano:oauth:authorize",
+  "pixano:oauth:refresh",
+  "pixano:oauth:cancel",
+  "pixano:oauth:client-secret",
+  "pixano:oauth:save-client-secret",
+  "pixano:oauth:clear-client-secret",
+  "pixano:calendar-sync:state",
+  "pixano:calendar-sync:request-apple-access",
+  "pixano:calendar-sync:discover-google-calendars",
+  "pixano:calendar-sync:read-events",
+  "pixano:calendar-sync:save-calendar-mode",
+  "pixano:calendar-sync:prepare-publish",
+  "pixano:calendar-sync:execute-approved",
+  "pixano:calendar-sync:prepare-update",
+  "pixano:calendar-sync:resolve-conflict",
+  "pixano:calendar-sync:changes",
+  "pixano:calendar-sync:acknowledge-incoming",
+  "pixano:workspace:read",
+  "pixano:workspace:save",
+  "pixano:workspace:restore-points",
+  "pixano:workspace:restore",
+  "pixano:local-api:sync-workspace",
+  "pixano:local-api:start",
+  "pixano:local-api:stop",
+  "pixano:local-api:status",
+  "pixano:local-api:resolve-write",
+  "pixano:webhook:configure",
+  "pixano:webhook:start",
+  "pixano:webhook:stop",
+  "pixano:webhook:status",
+  "pixano:notch:show",
+  "pixano:notch:hide",
+  "pixano:notch:action",
+  "pixano:notch:current",
+  "pixano:notch:capabilities",
+  "pixano:notch:displays",
+  "pixano:notch:set-display",
+  "pixano:notch:window-placement",
+  "pixano:updates:state",
+  "pixano:updates:check",
+  "pixano:updates:download",
+  "pixano:updates:install",
+  "pixano:shortcut:get",
+  "pixano:shortcut:set",
+  "pixano:local-model:state",
+  "pixano:local-model:verify",
+  "pixano:local-model:download",
+  "pixano:local-model:cancel-download",
+  "pixano:local-model:run",
+  "pixano:local-model:cancel",
+  "pixano:local-model:shutdown",
+  "pixano:local-voice:state",
+  "pixano:local-voice:listen",
+  "pixano:local-voice:set-locale",
+  "pixano:local-voice:stop",
+  "pixano:local-voice:speak",
+  "pixano:voice-settings:get",
+  "pixano:voice-settings:set",
+  "pixano:bar:current",
+  "pixano:bar:action",
+  "pixano:bar:submit",
+  "pixano:bar:voice",
+  "pixano:bar:close",
+  "pixano:notch:size",
+  "pixano:notch:set-size",
+  "pixano:notch:test",
 ];
 
 const DISPLAYS = [
@@ -215,7 +215,7 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
     }
     isDestroyed() { return this.destroyed; }
     getBounds() { return this.bounds ?? { x: 0, y: 0, width: this.options?.width ?? 0, height: this.options?.height ?? 0 }; }
-    // A barra do Taby é outra janela: posição, camada e exibição sem foco.
+    // A barra do Assistant é outra janela: posição, camada e exibição sem foco.
     setBounds(bounds) { this.bounds = bounds; }
     setAlwaysOnTop(...args) { this.alwaysOnTop = args; }
     setVisibleOnAllWorkspaces() {}
@@ -256,7 +256,7 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
       quit: () => { captured.quitCalls = (captured.quitCalls ?? 0) + 1; },
       focus: () => { captured.appFocuses = (captured.appFocuses ?? 0) + 1; },
       requestSingleInstanceLock: () => singleInstance,
-      getName: () => 'Hibi',
+      getName: () => 'Pixano',
       dock: { hide: () => { captured.dockHidden = true; }, isVisible: () => captured.dockHidden !== true },
       whenReady: () => ({ then: (callback) => { readyPromise = Promise.resolve().then(callback); return readyPromise; } }),
     },
@@ -489,7 +489,7 @@ test("aponta a pasta de dados para o nome do app, movendo a antiga uma vez só",
   } });
   t.after(() => harness.cleanup());
 
-  const chosen = path.join(harness.appData, "Hibi");
+  const chosen = path.join(harness.appData, "Pixano");
   assert.equal(harness.paths.get("userData"), chosen, "o app precisa abrir a pasta com o nome dele");
   assert.equal(fs.readFileSync(path.join(chosen, "notch-settings.json"), "utf8"), '{"size":"normal"}', "os ajustes de quem já usava precisam vir junto");
   assert.equal(fs.existsSync(path.join(harness.appData, "hibi-study-replica")), false);
@@ -499,18 +499,18 @@ test("uma instalação nova abre a pasta do app sem nada para mover", async (t) 
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.equal(harness.paths.get("userData"), path.join(harness.appData, "Hibi"));
+  assert.equal(harness.paths.get("userData"), path.join(harness.appData, "Pixano"));
 });
 
-// O atalho abre a barra do Taby embaixo do notch, para digitar ou falar sem sair do app em que se está:
+// O atalho abre a barra do Assistant embaixo do notch, para digitar ou falar sem sair do app em que se está:
 // a janela do Hibi não vem para a frente.
-test("o atalho global abre a barra do Taby, com o teclado, sem trazer a janela", async (t) => {
+test("o atalho global abre a barra do Assistant, com o teclado, sem trazer a janela", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
   const janela = harness.mainWindow();
   janela.minimize();
 
-  assert.deepEqual(await harness.handlers.get("hibi:shortcut:get")(harness.event), { accelerator: "Command+Shift+Space", status: "active" });
+  assert.deepEqual(await harness.handlers.get("pixano:shortcut:get")(harness.event), { accelerator: "Command+Shift+Space", status: "active" });
   harness.shortcuts.get("Command+Shift+Space")();
 
   const barra = harness.windows.find((window) => window.options?.webPreferences?.preload?.endsWith("bar-preload.cjs"));
@@ -518,11 +518,11 @@ test("o atalho global abre a barra do Taby, com o teclado, sem trazer a janela",
   assert.equal(barra.focuses, 1, "a barra recebe o teclado para digitar");
   assert.equal(janela.isMinimized(), true, "a janela do Hibi fica onde estava");
   assert.equal(janela.shows ?? 0, 0);
-  assert.equal(barra.sent.at(-1)[0], "hibi:bar:content");
+  assert.equal(barra.sent.at(-1)[0], "pixano:bar:content");
   assert.equal(barra.sent.at(-1)[1].mode, "input");
 });
 // "Abrir e já ouvir": a janela aparece, e o pedido leva a escuta junto.
-test("com a voz no atalho, o atalho abre o Taby já ouvindo", async (t) => {
+test("com a voz no atalho, o atalho abre o Assistant já ouvindo", async (t) => {
   const harness = await loadMain({ seedUserData: (userData) => fs.writeFileSync(path.join(userData, "voice-settings.json"), JSON.stringify({ shortcutVoice: "window", spokenReplies: false })) });
   t.after(() => harness.cleanup());
   const janela = harness.mainWindow();
@@ -530,7 +530,7 @@ test("com a voz no atalho, o atalho abre o Taby já ouvindo", async (t) => {
   harness.shortcuts.get("Command+Shift+Space")();
 
   assert.equal(janela.shows, 1);
-  assert.deepEqual(janela.sent.filter(([channel]) => channel === "hibi:shortcut:taby"), [["hibi:shortcut:taby", { listen: true, background: false }]]);
+  assert.deepEqual(janela.sent.filter(([channel]) => channel === "pixano:shortcut:assistant"), [["pixano:shortcut:assistant", { listen: true, background: false }]]);
 });
 
 // "Só ouvir, no notch": nada de janela na frente de quem está em outro app.
@@ -543,49 +543,49 @@ test("com a voz no notch, o atalho ouve sem mostrar a janela, e a barra de menus
   harness.shortcuts.get("Command+Shift+Space")();
 
   assert.equal(janela.shows ?? 0, showsAntes);
-  assert.deepEqual(janela.sent.filter(([channel]) => channel === "hibi:shortcut:taby").at(-1), ["hibi:shortcut:taby", { listen: true, background: true }]);
+  assert.deepEqual(janela.sent.filter(([channel]) => channel === "pixano:shortcut:assistant").at(-1), ["pixano:shortcut:assistant", { listen: true, background: true }]);
 });
 
-test("com a voz no notch, o Taby da barra de menus continua só abrindo a janela", async (t) => {
+test("com a voz no notch, o Assistant da barra de menus continua só abrindo a janela", async (t) => {
   const harness = await loadMain({ seedUserData: (userData) => fs.writeFileSync(path.join(userData, "voice-settings.json"), JSON.stringify({ shortcutVoice: "notch", spokenReplies: false })) });
   t.after(() => harness.cleanup());
   const janela = harness.mainWindow();
   const showsAntes = janela.shows ?? 0;
 
-  harness.trayCalls.itens.find((item) => /Taby/.test(item.label ?? "")).click();
+  harness.trayCalls.itens.find((item) => /assistente/i.test(item.label ?? "")).click();
 
   assert.equal(janela.shows, showsAntes + 1);
-  assert.deepEqual(janela.sent.filter(([channel]) => channel === "hibi:shortcut:taby").at(-1), ["hibi:shortcut:taby"]);
+  assert.deepEqual(janela.sent.filter(([channel]) => channel === "pixano:shortcut:assistant").at(-1), ["pixano:shortcut:assistant"]);
 });
 
 test("a resposta só é lida em voz alta com o ajuste ligado, e o ajuste recusa valores inventados", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.equal((await harness.invoke("hibi:local-voice:speak", "Olá")).spoken, false);
+  assert.equal((await harness.invoke("pixano:local-voice:speak", "Olá")).spoken, false);
   assert.deepEqual(harness.voiceService.calls.filter(([name]) => name === "speak"), []);
 
-  assert.deepEqual(await harness.invoke("hibi:voice-settings:set", { spokenReplies: true }), { shortcutVoice: "off", spokenReplies: true });
-  assert.equal((await harness.invoke("hibi:local-voice:speak", "Olá")).spoken, true);
+  assert.deepEqual(await harness.invoke("pixano:voice-settings:set", { spokenReplies: true }), { shortcutVoice: "off", spokenReplies: true });
+  assert.equal((await harness.invoke("pixano:local-voice:speak", "Olá")).spoken, true);
   assert.deepEqual(harness.voiceService.calls.filter(([name]) => name === "speak"), [["speak", "Olá"]]);
 
-  assert.equal((await harness.invoke("hibi:voice-settings:set", { shortcutVoice: "sempre" })).error, "invalid");
-  assert.deepEqual(await harness.invoke("hibi:voice-settings:get"), { shortcutVoice: "off", spokenReplies: true });
+  assert.equal((await harness.invoke("pixano:voice-settings:set", { shortcutVoice: "sempre" })).error, "invalid");
+  assert.deepEqual(await harness.invoke("pixano:voice-settings:get"), { shortcutVoice: "off", spokenReplies: true });
 });
 
 test("a escuta pedida com autoStop chega assim ao serviço, e sem ele não", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
-  await harness.invoke("hibi:local-voice:listen", { autoStop: true });
+  await harness.invoke("pixano:local-voice:listen", { autoStop: true });
   assert.equal(harness.voiceService.lastListen.autoStop, true);
-  await harness.invoke("hibi:local-voice:listen", { autoStop: "sim" });
+  await harness.invoke("pixano:local-voice:listen", { autoStop: "sim" });
   assert.equal(harness.voiceService.lastListen.autoStop, false);
 });
 
 test("o vocabulário pedido pela tela chega ao serviço de voz", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
-  await harness.invoke("hibi:local-voice:listen", { autoStop: true, vocabulary: ["Kabrito", "Cristiane"] });
+  await harness.invoke("pixano:local-voice:listen", { autoStop: true, vocabulary: ["Kabrito", "Cristiane"] });
   assert.deepEqual(harness.voiceService.lastListen.vocabulary, ["Kabrito", "Cristiane"]);
 });
 
@@ -593,7 +593,7 @@ test("trocar o atalho solta a tecla anterior e guarda a escolha", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.deepEqual(await harness.handlers.get("hibi:shortcut:set")(harness.event, "Option+Space"), { accelerator: "Option+Space", status: "active" });
+  assert.deepEqual(await harness.handlers.get("pixano:shortcut:set")(harness.event, "Option+Space"), { accelerator: "Option+Space", status: "active" });
 
   assert.deepEqual([...harness.shortcuts.keys()], ["Option+Space"]);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(harness.userData, "shortcut-settings.json"), "utf8")), { accelerator: "Option+Space" });
@@ -603,7 +603,7 @@ test("um atalho inválido vira erro de validação e o que funcionava continua v
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.deepEqual(await harness.handlers.get("hibi:shortcut:set")(harness.event, "Space"), { accelerator: "Command+Shift+Space", status: "active", error: "invalid" });
+  assert.deepEqual(await harness.handlers.get("pixano:shortcut:set")(harness.event, "Space"), { accelerator: "Command+Shift+Space", status: "active", error: "invalid" });
   assert.deepEqual([...harness.shortcuts.keys()], ["Command+Shift+Space"]);
 });
 
@@ -611,10 +611,10 @@ test("desligar o atalho devolve a tecla ao sistema, e sair também", async (t) =
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.deepEqual(await harness.handlers.get("hibi:shortcut:set")(harness.event, null), { accelerator: null, status: "disabled" });
+  assert.deepEqual(await harness.handlers.get("pixano:shortcut:set")(harness.event, null), { accelerator: null, status: "disabled" });
   assert.deepEqual([...harness.shortcuts.keys()], []);
 
-  await harness.handlers.get("hibi:shortcut:set")(harness.event, "Option+Space");
+  await harness.handlers.get("pixano:shortcut:set")(harness.event, "Option+Space");
   harness.quit();
   assert.deepEqual([...harness.shortcuts.keys()], [], "o app não pode ficar com a tecla depois de fechado");
 });
@@ -625,9 +625,9 @@ test("um atualizador que não monta deixa o app abrir, com as atualizações des
 
   // O `electron-updater` exige app empacotado de verdade; aqui ele falha ao montar, e isso não pode
   // impedir a abertura nem derrubar os canais.
-  assert.deepEqual(await harness.handlers.get("hibi:updates:state")(harness.event), { status: "disabled", version: null, error: null });
-  assert.deepEqual(await harness.handlers.get("hibi:updates:check")(harness.event), { status: "disabled", version: null, error: null });
-  assert.deepEqual(await harness.handlers.get("hibi:updates:download")(harness.event), { status: "disabled", version: null, error: null });
+  assert.deepEqual(await harness.handlers.get("pixano:updates:state")(harness.event), { status: "disabled", version: null, error: null });
+  assert.deepEqual(await harness.handlers.get("pixano:updates:check")(harness.event), { status: "disabled", version: null, error: null });
+  assert.deepEqual(await harness.handlers.get("pixano:updates:download")(harness.event), { status: "disabled", version: null, error: null });
 });
 
 test("a segunda cópia encerra sem registrar nada, em vez de abrir um segundo Hibi", async (t) => {
@@ -665,7 +665,7 @@ test("o ícone da barra de menus traz a janela de volta depois de escondida", as
   t.after(() => harness.cleanup());
   const janela = harness.mainWindow();
   janela.close();
-  const abrir = harness.trayCalls.itens.find((item) => item.label === "Abrir Hibi");
+  const abrir = harness.trayCalls.itens.find((item) => item.label === "Abrir Pixano");
 
   abrir.click();
 
@@ -677,7 +677,7 @@ test("sair pelo ícone deixa a janela fechar de verdade e tira o ícone da barra
   const harness = await loadMain();
   const janela = harness.mainWindow();
 
-  harness.trayCalls.itens.find((item) => item.label === "Sair do Hibi").click();
+  harness.trayCalls.itens.find((item) => item.label === "Sair do Pixano").click();
   const evento = janela.close();
 
   assert.equal(evento.defaultPrevented, false);
@@ -724,21 +724,21 @@ test("nenhum cartão pedido pelo renderer cobre uma confirmação no ar", async 
   t.after(() => harness.cleanup());
   const confirmacao = { requestId: "confirmar", kind: "confirmation", text: "Criar a tarefa?", actions: [{ id: "confirm", label: "Confirmar" }, { id: "cancel", label: "Cancelar" }], interaction: "capture" };
 
-  await harness.invoke("hibi:notch:show", confirmacao);
-  const passivo = await harness.invoke("hibi:notch:show", { requestId: "notion", kind: "result", text: "Sincronizado", actions: [], interaction: "passthrough" });
-  const outra = await harness.invoke("hibi:notch:show", { ...confirmacao, requestId: "notion-confirmar" });
+  await harness.invoke("pixano:notch:show", confirmacao);
+  const passivo = await harness.invoke("pixano:notch:show", { requestId: "notion", kind: "result", text: "Sincronizado", actions: [], interaction: "passthrough" });
+  const outra = await harness.invoke("pixano:notch:show", { ...confirmacao, requestId: "notion-confirmar" });
 
   assert.deepEqual(passivo, { deferred: true, requestId: "confirmar" });
   assert.deepEqual(outra, { deferred: true, requestId: "confirmar" });
-  assert.equal((await harness.invoke("hibi:notch:current"))?.requestId, "confirmar");
+  assert.equal((await harness.invoke("pixano:notch:current"))?.requestId, "confirmar");
 });
 
 test("um cartão sem botões continua podendo ser trocado: só a confirmação espera", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
-  await harness.invoke("hibi:notch:show", { requestId: "resposta", kind: "result", text: "Use a técnica de 25 minutos.", actions: [], interaction: "passthrough", host: "electron" });
+  await harness.invoke("pixano:notch:show", { requestId: "resposta", kind: "result", text: "Use a técnica de 25 minutos.", actions: [], interaction: "passthrough", host: "electron" });
 
-  const seguinte = await harness.invoke("hibi:notch:show", { requestId: "lembrete", kind: "reminder", text: "Beber água", actions: [], interaction: "passthrough" });
+  const seguinte = await harness.invoke("pixano:notch:show", { requestId: "lembrete", kind: "reminder", text: "Beber água", actions: [], interaction: "passthrough" });
 
   assert.equal(seguinte.deferred, undefined);
   assert.equal(seguinte.requestId, "lembrete");
@@ -747,10 +747,10 @@ test("um cartão sem botões continua podendo ser trocado: só a confirmação e
 test("respondida a confirmação, o notch volta a aceitar cartões do renderer", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
-  await harness.invoke("hibi:notch:show", { requestId: "confirmar", kind: "confirmation", text: "Criar?", actions: [{ id: "confirm", label: "Confirmar" }], interaction: "capture" });
-  await harness.invoke("hibi:notch:hide", "confirmar");
+  await harness.invoke("pixano:notch:show", { requestId: "confirmar", kind: "confirmation", text: "Criar?", actions: [{ id: "confirm", label: "Confirmar" }], interaction: "capture" });
+  await harness.invoke("pixano:notch:hide", "confirmar");
 
-  const depois = await harness.invoke("hibi:notch:show", { requestId: "notion", kind: "result", text: "Sincronizado", actions: [], interaction: "passthrough" });
+  const depois = await harness.invoke("pixano:notch:show", { requestId: "notion", kind: "result", text: "Sincronizado", actions: [], interaction: "passthrough" });
 
   assert.equal(depois.deferred, undefined);
   assert.equal(depois.requestId, "notion");
@@ -768,7 +768,7 @@ test("todo canal invocado pelo preload tem handler no processo principal, e vice
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  // A janela principal e a barra do Taby têm preloads próprios; juntos cobrem todos os canais.
+  // A janela principal e a barra do Assistant têm preloads próprios; juntos cobrem todos os canais.
   const preload = fs.readFileSync(PRELOAD_PATH, "utf8") + fs.readFileSync(path.join(path.dirname(PRELOAD_PATH), "bar-preload.cjs"), "utf8");
   const invoked = new Set([...preload.matchAll(/ipcRenderer\.invoke\(\s*['"]([^'"]+)['"]/g)].map((match) => match[1]));
   assert.deepEqual([...invoked].sort(), [...harness.handlers.keys()].sort());
@@ -781,7 +781,7 @@ test("todo canal que o processo principal emite é escutado pelo preload", async
   const preload = fs.readFileSync(PRELOAD_PATH, "utf8");
   const listened = new Set([...preload.matchAll(/ipcRenderer\.on\(\s*['"]([^'"]+)['"]/g)].map((match) => match[1]));
   const emitted = new Set([MAIN_PATH, NOTCH_WINDOW_PATH]
-    .flatMap((file) => [...fs.readFileSync(file, "utf8").matchAll(/(?:sendToMainWindow|send)\(\s*['"](hibi:[^'"]+)['"]/g)].map((match) => match[1])));
+    .flatMap((file) => [...fs.readFileSync(file, "utf8").matchAll(/(?:sendToMainWindow|send)\(\s*['"](pixano:[^'"]+)['"]/g)].map((match) => match[1])));
   assert.deepEqual([...emitted].sort(), [...listened].sort());
 });
 
@@ -805,42 +805,42 @@ test("a janela principal nasce isolada do Node e com a política de navegação 
   assert.deepEqual(window.windowOpenHandler({ url: "file:///Applications/Hibi.app/index.html" }), { action: "allow" });
 });
 
-test("hibi:info devolve a versão do app e não vaza caminhos locais", async (t) => {
+test("pixano:info devolve a versão do app e não vaza caminhos locais", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.deepEqual(await harness.invoke("hibi:info"), { name: "Hibi Study Replica", version: "1.2.3-test", localOnly: true });
+  assert.deepEqual(await harness.invoke("pixano:info"), { name: "Pixano", version: "1.2.3-test", localOnly: true });
 });
 
-test("hibi:login-item converte qualquer payload do renderer em booleano", async (t) => {
+test("pixano:login-item converte qualquer payload do renderer em booleano", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.equal(await harness.invoke("hibi:login-item", "sim"), true);
-  assert.equal(await harness.invoke("hibi:login-item:get"), true);
-  assert.equal(await harness.invoke("hibi:login-item", 0), false);
-  assert.equal(await harness.invoke("hibi:login-item", { openAtLogin: true }), true);
+  assert.equal(await harness.invoke("pixano:login-item", "sim"), true);
+  assert.equal(await harness.invoke("pixano:login-item:get"), true);
+  assert.equal(await harness.invoke("pixano:login-item", 0), false);
+  assert.equal(await harness.invoke("pixano:login-item", { openAtLogin: true }), true);
 });
 
-test("hibi:notifications:sync descarta entradas inválidas em vez de falhar", async (t) => {
+test("pixano:notifications:sync descarta entradas inválidas em vez de falhar", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await harness.invoke("hibi:notifications:sync", "não é uma lista");
-  await harness.invoke("hibi:notifications:sync", [{ id: "", title: "", body: "", kind: "outro", at: "ontem" }, null, 42]);
+  await harness.invoke("pixano:notifications:sync", "não é uma lista");
+  await harness.invoke("pixano:notifications:sync", [{ id: "", title: "", body: "", kind: "outro", at: "ontem" }, null, 42]);
   assert.equal(harness.captured.shown ?? 0, 0);
 });
 
-test("hibi:notifications:test respeita o suporte do sistema", async (t) => {
+test("pixano:notifications:test respeita o suporte do sistema", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
   harness.setNotificationSupported(false);
-  assert.equal(await harness.invoke("hibi:notifications:test"), false);
+  assert.equal(await harness.invoke("pixano:notifications:test"), false);
   assert.equal(harness.captured.shown ?? 0, 0);
 
   harness.setNotificationSupported(true);
-  assert.equal(await harness.invoke("hibi:notifications:test"), true);
+  assert.equal(await harness.invoke("pixano:notifications:test"), true);
   assert.equal(harness.captured.shown, 1);
 });
 
@@ -853,26 +853,26 @@ test("uma notificação disparada não derruba o processo principal com a janela
   assert.doesNotThrow(() => harness.captured.scheduler.onTrigger(entry));
 });
 
-test("hibi:ai:run recusa um correlationId fora do formato", async (t) => {
+test("pixano:ai:run recusa um correlationId fora do formato", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
   const request = { message: "oi", surface: "desktop" };
   for (const correlationId of [undefined, "", 42, "com espaço", "x".repeat(129), "com/barra"]) {
-    await assert.rejects(async () => harness.invoke("hibi:ai:run", { correlationId, request }), /Invalid AI correlation id/);
+    await assert.rejects(async () => harness.invoke("pixano:ai:run", { correlationId, request }), /Invalid AI correlation id/);
   }
 });
 
-test("hibi:ai:run devolve o turno correlacionado e transmite só eventos saneados", async (t) => {
+test("pixano:ai:run devolve o turno correlacionado e transmite só eventos saneados", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  const result = await harness.invoke("hibi:ai:run", { correlationId: "renderer-1", request: { message: "  oi  ", surface: "desktop" } });
+  const result = await harness.invoke("pixano:ai:run", { correlationId: "renderer-1", request: { message: "  oi  ", surface: "desktop" } });
   assert.equal(result.correlationId, "renderer-1");
   assert.match(result.requestId, /^ai-[A-Za-z0-9-]+$/);
   assert.equal(JSON.parse(result.content).reply.length > 0, true);
 
-  const streamed = harness.event.sender.sent.filter(([channel]) => channel === "hibi:ai:stream");
+  const streamed = harness.event.sender.sent.filter(([channel]) => channel === "pixano:ai:stream");
   assert.equal(streamed.length > 0, true);
   for (const [, streamEvent] of streamed) {
     assert.equal(streamEvent.correlationId, "renderer-1");
@@ -881,42 +881,42 @@ test("hibi:ai:run devolve o turno correlacionado e transmite só eventos saneado
   }
 });
 
-test("hibi:ai:run não escreve num renderer já destruído", async (t) => {
+test("pixano:ai:run não escreve num renderer já destruído", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
   harness.event.sender.destroyed = true;
-  await harness.invoke("hibi:ai:run", { correlationId: "renderer-2", request: { message: "oi", surface: "desktop" } });
+  await harness.invoke("pixano:ai:run", { correlationId: "renderer-2", request: { message: "oi", surface: "desktop" } });
   assert.deepEqual(harness.event.sender.sent, []);
 });
 
-test("hibi:ai:run recusa um turno malformado antes de chegar ao provedor", async (t) => {
+test("pixano:ai:run recusa um turno malformado antes de chegar ao provedor", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await assert.rejects(async () => harness.invoke("hibi:ai:run", { correlationId: "renderer-3", request: { message: "oi", surface: "browser" } }), /Invalid AI surface/);
-  await assert.rejects(async () => harness.invoke("hibi:ai:run", { correlationId: "renderer-3", request: { message: "   ", surface: "desktop" } }), /Invalid AI message/);
+  await assert.rejects(async () => harness.invoke("pixano:ai:run", { correlationId: "renderer-3", request: { message: "oi", surface: "browser" } }), /Invalid AI surface/);
+  await assert.rejects(async () => harness.invoke("pixano:ai:run", { correlationId: "renderer-3", request: { message: "   ", surface: "desktop" } }), /Invalid AI message/);
 });
 
-test("hibi:ai:cancel ignora um payload vazio em vez de cancelar o turno de outra pessoa", async (t) => {
+test("pixano:ai:cancel ignora um payload vazio em vez de cancelar o turno de outra pessoa", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.equal(await harness.invoke("hibi:ai:cancel", undefined), false);
-  assert.equal(await harness.invoke("hibi:ai:cancel", {}), false);
-  assert.equal(await harness.invoke("hibi:ai:cancel", { requestId: "ai-inexistente" }), false);
+  assert.equal(await harness.invoke("pixano:ai:cancel", undefined), false);
+  assert.equal(await harness.invoke("pixano:ai:cancel", {}), false);
+  assert.equal(await harness.invoke("pixano:ai:cancel", { requestId: "ai-inexistente" }), false);
 });
 
-test("hibi:ai-config:save recusa uma configuração inválida e mantém o runtime anterior", async (t) => {
+test("pixano:ai-config:save recusa uma configuração inválida e mantém o runtime anterior", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await assert.rejects(async () => harness.invoke("hibi:ai-config:save", { provider: "qualquer" }), /Invalid AI provider/);
-  await assert.rejects(async () => harness.invoke("hibi:ai-config:save", { provider: "openai-compatible", endpoint: "http://provedor.example/v1", model: "m" }), /HTTPS or local loopback/);
-  assert.deepEqual(await harness.invoke("hibi:ai-config:get"), { provider: "local", endpoint: "", model: "local-tool-provider", hasApiKey: false });
+  await assert.rejects(async () => harness.invoke("pixano:ai-config:save", { provider: "qualquer" }), /Invalid AI provider/);
+  await assert.rejects(async () => harness.invoke("pixano:ai-config:save", { provider: "openai-compatible", endpoint: "http://provedor.example/v1", model: "m" }), /HTTPS or local loopback/);
+  assert.deepEqual(await harness.invoke("pixano:ai-config:get"), { provider: "local", endpoint: "", model: "local-tool-provider", hasApiKey: false });
 
   // O turno segue funcionando: a configuração recusada não trocou o runtime ativo.
-  const result = await harness.invoke("hibi:ai:run", { correlationId: "renderer-4", request: { message: "oi", surface: "desktop" } });
+  const result = await harness.invoke("pixano:ai:run", { correlationId: "renderer-4", request: { message: "oi", surface: "desktop" } });
   assert.equal(result.correlationId, "renderer-4");
 });
 
@@ -924,20 +924,20 @@ test("trocar o endpoint de um conector preserva a auditoria e descarta as açõe
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await harness.invoke("hibi:integrations:connect", "remote-notifications", "secret-integration-token");
-  const prepared = await harness.invoke("hibi:integrations:prepare-action", { connectorId: "remote-notifications", kind: "notification.send", payload: { title: "Estudar", body: "Bloco de estudo" } });
+  await harness.invoke("pixano:integrations:connect", "remote-notifications", "secret-integration-token");
+  const prepared = await harness.invoke("pixano:integrations:prepare-action", { connectorId: "remote-notifications", kind: "notification.send", payload: { title: "Estudar", body: "Bloco de estudo" } });
   assert.equal(prepared.requiresConfirmation, true);
 
-  await harness.invoke("hibi:integrations:save-settings", "remote-notifications", { endpoint: "https://notifications.example.test/v2" });
+  await harness.invoke("pixano:integrations:save-settings", "remote-notifications", { endpoint: "https://notifications.example.test/v2" });
 
   // A auditoria atravessa a reconstrução do gerenciador; trocar `withConnectors`
   // por um `createIntegrationManager` novo apagaria estas entradas.
-  const audit = await harness.invoke("hibi:integrations:audit");
+  const audit = await harness.invoke("pixano:integrations:audit");
   assert.deepEqual(audit.map((entry) => entry.action), ["prepare", "connect"]);
 
   // A ação preparada contra o endpoint anterior não pode ser executada contra o novo.
   await assert.rejects(
-    async () => harness.invoke("hibi:integrations:execute-approved", { actionId: prepared.id, confirmationId: prepared.confirmationId }),
+    async () => harness.invoke("pixano:integrations:execute-approved", { actionId: prepared.id, confirmationId: prepared.confirmationId }),
     /matching confirmation is required/,
   );
 });
@@ -946,34 +946,34 @@ test("salvar ajustes sem endpoint mantém o gerenciador e a ação preparada", a
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await harness.invoke("hibi:integrations:connect", "remote-notifications", "secret-integration-token");
-  const prepared = await harness.invoke("hibi:integrations:prepare-action", { connectorId: "remote-notifications", kind: "notification.send", payload: { title: "Estudar", body: "Bloco de estudo" } });
-  await harness.invoke("hibi:integrations:save-settings", "remote-notifications", { clientId: "cliente-1" });
-  await harness.invoke("hibi:integrations:revoke", "remote-notifications");
+  await harness.invoke("pixano:integrations:connect", "remote-notifications", "secret-integration-token");
+  const prepared = await harness.invoke("pixano:integrations:prepare-action", { connectorId: "remote-notifications", kind: "notification.send", payload: { title: "Estudar", body: "Bloco de estudo" } });
+  await harness.invoke("pixano:integrations:save-settings", "remote-notifications", { clientId: "cliente-1" });
+  await harness.invoke("pixano:integrations:revoke", "remote-notifications");
 
   // A credencial some antes de qualquer chamada remota: a recusa por credencial
   // ausente prova que a ação preparada continuou registrada no mesmo gerenciador.
   await assert.rejects(
-    async () => harness.invoke("hibi:integrations:execute-approved", { actionId: prepared.id, confirmationId: prepared.confirmationId }),
+    async () => harness.invoke("pixano:integrations:execute-approved", { actionId: prepared.id, confirmationId: prepared.confirmationId }),
     /No API key is stored for this provider/,
   );
 });
 
-test("hibi:integrations:save-settings recusa um endpoint inseguro", async (t) => {
+test("pixano:integrations:save-settings recusa um endpoint inseguro", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await assert.rejects(async () => harness.invoke("hibi:integrations:save-settings", "notion", { endpoint: "http://notion.example.test" }), /must use HTTPS/);
-  await assert.rejects(async () => harness.invoke("hibi:integrations:save-settings", "notion", { endpoint: "https://user:pass@notion.example.test" }), /must not embed credentials/);
-  await assert.rejects(async () => harness.invoke("hibi:integrations:get-settings", "../etc"), /Unknown integration connector/);
+  await assert.rejects(async () => harness.invoke("pixano:integrations:save-settings", "notion", { endpoint: "http://notion.example.test" }), /must use HTTPS/);
+  await assert.rejects(async () => harness.invoke("pixano:integrations:save-settings", "notion", { endpoint: "https://user:pass@notion.example.test" }), /must not embed credentials/);
+  await assert.rejects(async () => harness.invoke("pixano:integrations:get-settings", "../etc"), /Unknown integration connector/);
 });
 
-test("hibi:integrations:connect recusa uma credencial vazia e não grava nada no Keychain", async (t) => {
+test("pixano:integrations:connect recusa uma credencial vazia e não grava nada no Keychain", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await assert.rejects(async () => harness.invoke("hibi:integrations:connect", "notion", ""), /credential is required/);
-  await assert.rejects(async () => harness.invoke("hibi:integrations:connect", "inexistente", "token-valido"), /Unknown integration connector/);
+  await assert.rejects(async () => harness.invoke("pixano:integrations:connect", "notion", ""), /credential is required/);
+  await assert.rejects(async () => harness.invoke("pixano:integrations:connect", "inexistente", "token-valido"), /Unknown integration connector/);
   assert.equal(harness.keychain.entries.size, 0);
 });
 
@@ -981,10 +981,10 @@ test("os handlers de OAuth levam o clientId configurado do conector", async (t) 
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await harness.invoke("hibi:integrations:save-settings", "notion", { clientId: "cliente-1" });
-  assert.equal(await harness.invoke("hibi:oauth:supported", "notion"), true);
-  await harness.invoke("hibi:oauth:authorize", "notion");
-  await harness.invoke("hibi:oauth:refresh", "notion");
+  await harness.invoke("pixano:integrations:save-settings", "notion", { clientId: "cliente-1" });
+  assert.equal(await harness.invoke("pixano:oauth:supported", "notion"), true);
+  await harness.invoke("pixano:oauth:authorize", "notion");
+  await harness.invoke("pixano:oauth:refresh", "notion");
 
   assert.deepEqual(harness.oauthService.calls, [
     ["supports", "notion"],
@@ -993,17 +993,17 @@ test("os handlers de OAuth levam o clientId configurado do conector", async (t) 
   ]);
 });
 
-test("hibi:local-api:sync-workspace normaliza e limita o que o renderer envia", async (t) => {
+test("pixano:local-api:sync-workspace normaliza e limita o que o renderer envia", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await harness.invoke("hibi:local-api:sync-workspace", null);
+  await harness.invoke("pixano:local-api:sync-workspace", null);
   assert.deepEqual(harness.captured.localApi.workspace(), { tasks: [], reminders: [], blocks: [] });
 
-  await harness.invoke("hibi:local-api:sync-workspace", { tasks: "muitas", reminders: [{ id: "r" }], blocks: null });
+  await harness.invoke("pixano:local-api:sync-workspace", { tasks: "muitas", reminders: [{ id: "r" }], blocks: null });
   assert.deepEqual(harness.captured.localApi.workspace(), { tasks: [], reminders: [{ id: "r" }], blocks: [] });
 
-  await harness.invoke("hibi:local-api:sync-workspace", { tasks: Array.from({ length: 6_000 }, (_, index) => index) });
+  await harness.invoke("pixano:local-api:sync-workspace", { tasks: Array.from({ length: 6_000 }, (_, index) => index) });
   assert.equal(harness.captured.localApi.workspace().tasks.length, 5_000);
 });
 
@@ -1014,10 +1014,10 @@ test("uma escrita da API local só pode ser resolvida uma vez", async (t) => {
   const prepared = await harness.captured.localApi.prepareWrite({ kind: "task.create", payload: { title: "Estudar" } });
   assert.equal(prepared.requiresConfirmation, true);
   assert.match(prepared.confirmationId, /^local-api-[0-9a-f-]{36}$/);
-  assert.deepEqual(harness.mainWindow().sent.at(-1), ["hibi:local-api:confirmation", { confirmationId: prepared.confirmationId, kind: "task.create", payload: { title: "Estudar" } }]);
+  assert.deepEqual(harness.mainWindow().sent.at(-1), ["pixano:local-api:confirmation", { confirmationId: prepared.confirmationId, kind: "task.create", payload: { title: "Estudar" } }]);
 
-  assert.deepEqual(await harness.invoke("hibi:local-api:resolve-write", { confirmationId: prepared.confirmationId, approved: true }), { resolved: true, approved: true });
-  assert.deepEqual(await harness.invoke("hibi:local-api:resolve-write", { confirmationId: prepared.confirmationId, approved: true }), { resolved: false });
+  assert.deepEqual(await harness.invoke("pixano:local-api:resolve-write", { confirmationId: prepared.confirmationId, approved: true }), { resolved: true, approved: true });
+  assert.deepEqual(await harness.invoke("pixano:local-api:resolve-write", { confirmationId: prepared.confirmationId, approved: true }), { resolved: false });
 });
 
 // O cartão some em 60 s, e antes o pedido continuava aprovável para sempre.
@@ -1032,21 +1032,21 @@ test("uma escrita da API local expira junto com o cartão de confirmação", asy
   const expiring = await harness.captured.localApi.prepareWrite({ kind: "task.create", payload: { title: "Tarde demais" } });
   const inTime = await harness.captured.localApi.prepareWrite({ kind: "task.create", payload: { title: "A tempo" } });
   clock += 59_000;
-  assert.deepEqual(await harness.invoke("hibi:local-api:resolve-write", { confirmationId: inTime.confirmationId, approved: true }), { resolved: true, approved: true });
+  assert.deepEqual(await harness.invoke("pixano:local-api:resolve-write", { confirmationId: inTime.confirmationId, approved: true }), { resolved: true, approved: true });
   clock += 2_000;
-  assert.deepEqual(await harness.invoke("hibi:local-api:resolve-write", { confirmationId: expiring.confirmationId, approved: true }), { resolved: false, expired: true });
+  assert.deepEqual(await harness.invoke("pixano:local-api:resolve-write", { confirmationId: expiring.confirmationId, approved: true }), { resolved: false, expired: true });
 });
 
-test("hibi:local-api:resolve-write ignora confirmações desconhecidas ou malformadas", async (t) => {
+test("pixano:local-api:resolve-write ignora confirmações desconhecidas ou malformadas", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
   const prepared = await harness.captured.localApi.prepareWrite({ kind: "task.create", payload: { title: "Estudar" } });
-  assert.deepEqual(await harness.invoke("hibi:local-api:resolve-write", { confirmationId: "local-api-inventado" }), { resolved: false });
-  assert.deepEqual(await harness.invoke("hibi:local-api:resolve-write", { confirmationId: 42 }), { resolved: false });
-  assert.deepEqual(await harness.invoke("hibi:local-api:resolve-write", undefined), { resolved: false });
+  assert.deepEqual(await harness.invoke("pixano:local-api:resolve-write", { confirmationId: "local-api-inventado" }), { resolved: false });
+  assert.deepEqual(await harness.invoke("pixano:local-api:resolve-write", { confirmationId: 42 }), { resolved: false });
+  assert.deepEqual(await harness.invoke("pixano:local-api:resolve-write", undefined), { resolved: false });
   // Só a confirmação legítima resolve, e sem aprovação implícita.
-  assert.deepEqual(await harness.invoke("hibi:local-api:resolve-write", { confirmationId: prepared.confirmationId }), { resolved: true, approved: false });
+  assert.deepEqual(await harness.invoke("pixano:local-api:resolve-write", { confirmationId: prepared.confirmationId }), { resolved: true, approved: false });
 });
 
 test("uma escrita da API local não derruba o processo principal com a janela já destruída", async (t) => {
@@ -1062,24 +1062,24 @@ test("os handlers da API local e do webhook devolvem só o resumo, sem o token",
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.deepEqual(await harness.invoke("hibi:local-api:start"), { origin: "http://127.0.0.1:41234" });
-  assert.deepEqual(await harness.invoke("hibi:local-api:status"), { running: true });
-  assert.deepEqual(await harness.invoke("hibi:local-api:stop"), { running: false });
-  assert.deepEqual(await harness.invoke("hibi:webhook:configure", "segredo"), { running: true, configured: true });
+  assert.deepEqual(await harness.invoke("pixano:local-api:start"), { origin: "http://127.0.0.1:41234" });
+  assert.deepEqual(await harness.invoke("pixano:local-api:status"), { running: true });
+  assert.deepEqual(await harness.invoke("pixano:local-api:stop"), { running: false });
+  assert.deepEqual(await harness.invoke("pixano:webhook:configure", "segredo"), { running: true, configured: true });
   assert.deepEqual(harness.webhookService.calls.at(-1), ["configure", "segredo"]);
 });
 
-test("hibi:notch:show recusa apresentações inválidas e as do prefixo reservado ao teste", async (t) => {
+test("pixano:notch:show recusa apresentações inválidas e as do prefixo reservado ao teste", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await assert.rejects(async () => harness.invoke("hibi:notch:show", null), /Invalid companion presentation/);
-  await assert.rejects(async () => harness.invoke("hibi:notch:show", { requestId: "c-1", kind: "confirmation", text: "Ok?", actions: [1, 2, 3, 4, 5] }), /Invalid companion presentation/);
-  await assert.rejects(async () => harness.invoke("hibi:notch:show", { requestId: `${realNotchTest.NOTCH_TEST_PREFIX}confirm-1`, kind: "confirmation", text: "Ok?", actions: [] }), /Invalid companion presentation/);
+  await assert.rejects(async () => harness.invoke("pixano:notch:show", null), /Invalid companion presentation/);
+  await assert.rejects(async () => harness.invoke("pixano:notch:show", { requestId: "c-1", kind: "confirmation", text: "Ok?", actions: [1, 2, 3, 4, 5] }), /Invalid companion presentation/);
+  await assert.rejects(async () => harness.invoke("pixano:notch:show", { requestId: `${realNotchTest.NOTCH_TEST_PREFIX}confirm-1`, kind: "confirmation", text: "Ok?", actions: [] }), /Invalid companion presentation/);
   assert.deepEqual(semInicializacao(harness.notchManager.calls), []);
 
   const presentation = { requestId: "c-1", kind: "confirmation", text: "Ok?", actions: [{ id: "confirm", label: "Ok" }] };
-  assert.deepEqual(await harness.invoke("hibi:notch:show", presentation), { degraded: true, requestId: "c-1", host: "electron" });
+  assert.deepEqual(await harness.invoke("pixano:notch:show", presentation), { degraded: true, requestId: "c-1", host: "electron" });
 });
 
 // Regra do produto: no notch só o mascote. O texto e os botões de uma apresentação vão para a barra.
@@ -1087,24 +1087,72 @@ test("uma apresentação com texto vira mascote no notch e texto na barra", asyn
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await harness.invoke("hibi:notch:show", { requestId: "r-1", kind: "result", text: "Tarefa criada: revisar contrato", actions: [] });
+  await harness.invoke("pixano:notch:show", { requestId: "r-1", kind: "result", text: "Tarefa criada: revisar contrato", actions: [] });
 
   const [, noNotch] = harness.notchManager.calls.at(-1);
   assert.equal(noNotch.text, null);
   assert.deepEqual(noNotch.actions, []);
   assert.equal(noNotch.host, "native");
   assert.match(noNotch.animationPath, /mascot\/happy_[1-4]\.mp4$/);
+  assert.match(noNotch.entryAnimationPath, /mascot\/happy_[1-4]\.mp4$/);
+  assert.match(noNotch.loopAnimationPath, /mascot\/idle\.mp4$/);
+  assert.equal(noNotch.entryAnimationUrl, `/mascot/${require('node:path').basename(noNotch.entryAnimationPath)}`);
   const barra = harness.windows.find((window) => window.options?.webPreferences?.preload?.endsWith("bar-preload.cjs"));
-  assert.deepEqual(barra.sent.at(-1), ["hibi:bar:content", { requestId: "r-1", mode: "reply", kind: "result", text: "Tarefa criada: revisar contrato", actions: [] }]);
+  assert.deepEqual(barra.sent.at(-1), ["pixano:bar:content", { requestId: "r-1", mode: "reply", kind: "result", text: "Tarefa criada: revisar contrato", actions: [] }]);
 });
 
 test("uma resposta que é pergunta deixa o gato curioso, não feliz", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
-  await harness.invoke("hibi:notch:show", { requestId: "q-1", kind: "result", text: "Para que horário?", actions: [] });
-  assert.match(harness.notchManager.calls.at(-1)[1].animationPath, /mascot\/idle_curious\.mp4$/);
-  await harness.invoke("hibi:notch:show", { requestId: "q-2", kind: "result", text: "Reunião marcada.", actions: [] });
+  await harness.invoke("pixano:notch:show", { requestId: "q-1", kind: "result", text: "Para que horário?", actions: [], animation: { entry: "task_completed", loop: null, reducedMotion: false } });
+  assert.match(harness.notchManager.calls.at(-1)[1].loopAnimationPath, /mascot\/idle_curious\.mp4$/);
+  assert.equal(harness.notchManager.calls.at(-1)[1].entryAnimationPath, undefined);
+  await harness.invoke("pixano:notch:show", { requestId: "q-2", kind: "result", text: "Reunião marcada.", actions: [] });
   assert.match(harness.notchManager.calls.at(-1)[1].animationPath, /mascot\/happy_[1-4]\.mp4$/);
+});
+
+test("o pedido do notch toca a entrada do mascote uma vez e depois mostra o loop até dispensar", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("pixano:notch:show", { requestId: "animacao-turno", kind: "listening", text: null, actions: [] });
+  const first = harness.notchManager.calls.filter(([action]) => action === "show").at(-1)[1];
+  assert.match(first.entryAnimationPath, /mascot\/idle_curious\.mp4$/);
+  assert.match(first.loopAnimationPath, /mascot\/listening\.mp4$/);
+  await new Promise((resolve) => setTimeout(resolve, 4_200));
+  const shows = harness.notchManager.calls.filter(([action, value]) => action === "show" && value?.requestId === "animacao-turno");
+  assert.equal(shows.length, 2, "o loop substitui a entrada sem criar outro pedido");
+  assert.equal(shows[1][1].entryAnimationPath, null);
+  assert.match(shows[1][1].animationPath, /mascot\/listening\.mp4$/);
+  await harness.invoke("pixano:notch:hide", "animacao-turno");
+});
+
+test("o plano semântico do companion chega aos clipes do mascote sem ser reduzido ao kind", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  await harness.invoke("pixano:notch:show", {
+    requestId: "semantic-animation", kind: "result", text: "Resposta", actions: [],
+    animation: { entry: "listening_in", loop: "listening_loop", reducedMotion: false },
+  });
+
+  const mascot = harness.notchManager.calls.at(-1)[1];
+  assert.match(mascot.entryAnimationPath, /mascot\/idle_curious\.mp4$/);
+  assert.match(mascot.loopAnimationPath, /mascot\/listening\.mp4$/);
+});
+
+test("movimento reduzido impede o host de iniciar clipes animados", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  await harness.invoke("pixano:notch:show", {
+    requestId: "reduced-motion", kind: "listening", text: null, actions: [],
+    animation: { entry: null, loop: null, staticFrame: "listening_loop", reducedMotion: true },
+  });
+
+  const mascot = harness.notchManager.calls.at(-1)[1];
+  assert.equal(mascot.entryAnimationPath, undefined);
+  assert.equal(mascot.loopAnimationPath, undefined);
+  assert.equal(mascot.animationPath, undefined);
 });
 
 test("os canais da barra só ouvem a janela dela, e o texto dela vira pedido na janela principal", async (t) => {
@@ -1115,34 +1163,34 @@ test("os canais da barra só ouvem a janela dela, e o texto dela vira pedido na 
   const daBarra = { sender: barra.webContents };
   const outro = { sender: harness.mainWindow().webContents };
 
-  assert.equal(await harness.handlers.get("hibi:bar:submit")(outro, "apague tudo"), false);
-  assert.equal(await harness.handlers.get("hibi:bar:voice")(outro, "start"), false);
-  assert.equal(await harness.handlers.get("hibi:bar:submit")(daBarra, "   "), false);
-  assert.equal(await harness.handlers.get("hibi:bar:voice")(daBarra, "gravar"), false);
-  assert.deepEqual(harness.mainWindow().sent.filter(([channel]) => channel.startsWith("hibi:bar:")), []);
+  assert.equal(await harness.handlers.get("pixano:bar:submit")(outro, "apague tudo"), false);
+  assert.equal(await harness.handlers.get("pixano:bar:voice")(outro, "start"), false);
+  assert.equal(await harness.handlers.get("pixano:bar:submit")(daBarra, "   "), false);
+  assert.equal(await harness.handlers.get("pixano:bar:voice")(daBarra, "gravar"), false);
+  assert.deepEqual(harness.mainWindow().sent.filter(([channel]) => channel.startsWith("pixano:bar:")), []);
 
-  assert.equal(await harness.handlers.get("hibi:bar:submit")(daBarra, "  crie uma tarefa revisar contrato "), true);
-  assert.equal(await harness.handlers.get("hibi:bar:voice")(daBarra, "start"), true);
-  assert.equal(await harness.handlers.get("hibi:bar:close")(daBarra), true);
-  assert.deepEqual(harness.mainWindow().sent.filter(([channel]) => channel.startsWith("hibi:bar:")), [["hibi:bar:submit", "crie uma tarefa revisar contrato"], ["hibi:bar:voice", "start"], ["hibi:bar:closed", "taby-bar-input"]]);
+  assert.equal(await harness.handlers.get("pixano:bar:submit")(daBarra, "  crie uma tarefa revisar contrato "), true);
+  assert.equal(await harness.handlers.get("pixano:bar:voice")(daBarra, "start"), true);
+  assert.equal(await harness.handlers.get("pixano:bar:close")(daBarra), true);
+  assert.deepEqual(harness.mainWindow().sent.filter(([channel]) => channel.startsWith("pixano:bar:")), [["pixano:bar:submit", "crie uma tarefa revisar contrato"], ["pixano:bar:voice", "start"], ["pixano:bar:closed", "assistant-bar-input"]]);
 });
 
-test("hibi:notch:action e hibi:notch:hide só aceitam identificadores limitados", async (t) => {
+test("pixano:notch:action e pixano:notch:hide só aceitam identificadores limitados", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.equal(await harness.invoke("hibi:notch:action", "c-1", "apagar"), false);
-  assert.equal(await harness.invoke("hibi:notch:action", "", "confirm"), false);
-  assert.equal(await harness.invoke("hibi:notch:action", "x".repeat(129), "confirm"), false);
+  assert.equal(await harness.invoke("pixano:notch:action", "c-1", "apagar"), false);
+  assert.equal(await harness.invoke("pixano:notch:action", "", "confirm"), false);
+  assert.equal(await harness.invoke("pixano:notch:action", "x".repeat(129), "confirm"), false);
   assert.deepEqual(semInicializacao(harness.notchManager.calls), []);
 
   // Sem a confirmação na barra, nem um identificador válido resolve nada.
-  assert.equal(await harness.invoke("hibi:notch:action", "c-1", "confirm"), false);
-  await harness.invoke("hibi:notch:show", { requestId: "c-1", kind: "confirmation", text: "Ok?", actions: [{ id: "confirm", label: "Ok" }] });
-  assert.equal(await harness.invoke("hibi:notch:action", "c-1", "confirm"), true);
-  assert.deepEqual(harness.mainWindow().sent.at(-1), ["hibi:companion:action", { requestId: "c-1", actionId: "confirm" }]);
+  assert.equal(await harness.invoke("pixano:notch:action", "c-1", "confirm"), false);
+  await harness.invoke("pixano:notch:show", { requestId: "c-1", kind: "confirmation", text: "Ok?", actions: [{ id: "confirm", label: "Ok" }] });
+  assert.equal(await harness.invoke("pixano:notch:action", "c-1", "confirm"), true);
+  assert.deepEqual(harness.mainWindow().sent.at(-1), ["pixano:companion:action", { requestId: "c-1", actionId: "confirm" }]);
 
-  await harness.invoke("hibi:notch:hide", { requestId: "c-1" });
+  await harness.invoke("pixano:notch:hide", { requestId: "c-1" });
   assert.deepEqual(harness.notchManager.calls.at(-1), ["hide", ""]);
 });
 
@@ -1154,29 +1202,29 @@ test("as respostas do teste do notch não chegam ao renderer", async (t) => {
   assert.deepEqual(harness.mainWindow().sent, []);
 
   harness.captured.notchWindow.onAction({ requestId: "c-1", actionId: "cancel" });
-  assert.deepEqual(harness.mainWindow().sent, [["hibi:companion:action", { requestId: "c-1", actionId: "cancel" }]]);
+  assert.deepEqual(harness.mainWindow().sent, [["pixano:companion:action", { requestId: "c-1", actionId: "cancel" }]]);
 });
 
-test("hibi:notch:test aceita apenas os idiomas conhecidos", async (t) => {
+test("pixano:notch:test aceita apenas os idiomas conhecidos", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await harness.invoke("hibi:notch:test", "en");
-  await harness.invoke("hibi:notch:test", "pt");
-  await harness.invoke("hibi:notch:test", "es");
-  await harness.invoke("hibi:notch:test", undefined);
+  await harness.invoke("pixano:notch:test", "en");
+  await harness.invoke("pixano:notch:test", "pt");
+  await harness.invoke("pixano:notch:test", "es");
+  await harness.invoke("pixano:notch:test", undefined);
   assert.deepEqual(harness.notchTest.locales, ["en", "pt", "pt", "pt"]);
 });
 
-test("hibi:notch:set-display recusa um monitor inexistente e persiste o escolhido", async (t) => {
+test("pixano:notch:set-display recusa um monitor inexistente e persiste o escolhido", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await assert.rejects(async () => harness.invoke("hibi:notch:set-display", 99), /Invalid notch display/);
-  await assert.rejects(async () => harness.invoke("hibi:notch:set-display", "7"), /Invalid notch display/);
+  await assert.rejects(async () => harness.invoke("pixano:notch:set-display", 99), /Invalid notch display/);
+  await assert.rejects(async () => harness.invoke("pixano:notch:set-display", "7"), /Invalid notch display/);
   assert.equal(harness.notchManager.preferredDisplay, undefined);
 
-  const state = await harness.invoke("hibi:notch:set-display", 7);
+  const state = await harness.invoke("pixano:notch:set-display", 7);
   assert.deepEqual(state.preference, { displayId: 7, displayLabel: "Studio Display", size: "normal" });
   assert.equal(harness.notchManager.preferredDisplay, 7);
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(harness.userData, "notch-settings.json"), "utf8")), { displayId: 7, displayLabel: "Studio Display", size: "normal" });
@@ -1189,11 +1237,11 @@ test("a preferência de monitor salva chega ao gerenciador na inicialização", 
   assert.equal(harness.captured.notchWindow.preferredDisplayId, 7);
 });
 
-test("hibi:notch:capabilities reúne o adaptador e o diagnóstico do host", async (t) => {
+test("pixano:notch:capabilities reúne o adaptador e o diagnóstico do host", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.deepEqual(await harness.invoke("hibi:notch:capabilities"), {
+  assert.deepEqual(await harness.invoke("pixano:notch:capabilities"), {
     adapter: "public",
     experimental: false,
     reason: null,
@@ -1203,7 +1251,7 @@ test("hibi:notch:capabilities reúne o adaptador e o diagnóstico do host", asyn
     screens: [{ displayId: 1, hasCameraHousing: true }],
     host: { available: true, visible: false, displayId: 1, host: "electron" },
   });
-  assert.equal(await harness.invoke("hibi:notch:current"), null);
+  assert.equal(await harness.invoke("pixano:notch:current"), null);
 });
 
 test("uma mudança de monitores reposiciona a companion e avisa a janela principal", async (t) => {
@@ -1214,11 +1262,11 @@ test("uma mudança de monitores reposiciona a companion e avisa a janela princip
   listener();
 
   assert.deepEqual(harness.notchManager.calls.at(-1), ["reposition"]);
-  assert.deepEqual(harness.mainWindow().sent.at(-1), ["hibi:notch:displays-changed"]);
+  assert.deepEqual(harness.mainWindow().sent.at(-1), ["pixano:notch:displays-changed"]);
 });
 
 // U04b: a barra de navegação desce quando o mascote do notch está na mesma tela que a janela principal.
-const PLACEMENT_CHANGED = "hibi:notch:window-placement-changed";
+const PLACEMENT_CHANGED = "pixano:notch:window-placement-changed";
 const placementSent = (window) => window.sent.filter(([channel]) => channel === PLACEMENT_CHANGED).map(([, state]) => state);
 
 test("diz à janela se o mascote está na mesma tela que ela, e avisa quando isso muda", async (t) => {
@@ -1227,7 +1275,7 @@ test("diz à janela se o mascote está na mesma tela que ela, e avisa quando iss
   const janela = harness.mainWindow();
 
   // O mascote de abertura está no ar, no monitor 1, e a janela também.
-  assert.deepEqual(await harness.invoke("hibi:notch:window-placement"), { sharesDisplay: true });
+  assert.deepEqual(await harness.invoke("pixano:notch:window-placement"), { sharesDisplay: true });
 
   // A janela vai para outro monitor: a barra pode voltar para cima.
   harness.setWindowDisplay(7);
@@ -1235,7 +1283,7 @@ test("diz à janela se o mascote está na mesma tela que ela, e avisa quando iss
   assert.deepEqual(placementSent(janela).at(-1), { sharesDisplay: false });
 
   // O mascote passa para o monitor da janela: a barra desce de novo.
-  await harness.invoke("hibi:notch:set-display", 7);
+  await harness.invoke("pixano:notch:set-display", 7);
   assert.deepEqual(placementSent(janela).at(-1), { sharesDisplay: true });
   const avisos = placementSent(janela).length;
   // Nada mudou: nenhum aviso a mais.
@@ -1247,14 +1295,14 @@ test("sem o mascote no ar, a janela ouve que ele não está na tela dela", async
   const harness = await loadMain();
   t.after(() => harness.cleanup());
   harness.notchManager.shown = null;
-  assert.deepEqual(await harness.invoke("hibi:notch:window-placement"), { sharesDisplay: false });
+  assert.deepEqual(await harness.invoke("pixano:notch:window-placement"), { sharesDisplay: false });
 });
 
 test("before-quit encerra serviços, solta os listeners e destrói a companion", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await harness.invoke("hibi:local-api:start");
+  await harness.invoke("pixano:local-api:start");
   harness.quit();
 
   assert.deepEqual(harness.localApi.calls, ["start", "stop"]);
@@ -1269,12 +1317,12 @@ test("before-quit encerra serviços, solta os listeners e destrói a companion",
 // atravessarem a ponte inteira: renderer -> preload -> handler -> agendador. Os testes do agendador o
 // chamam direto, entao sem estes dois uma ponte que voltasse a repassar so as entradas desligaria o
 // silencio no app real com a suite inteira verde.
-test("hibi:notifications:sync entrega ao agendador os ajustes e a janela de foco do renderer", async (t) => {
+test("pixano:notifications:sync entrega ao agendador os ajustes e a janela de foco do renderer", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
   const context = { settings: { sessionMinutes: 25, activeStart: "08:00", activeEnd: "18:00", nudgePreset: "work" }, focusUntilMs: 1_900_000_000_000 };
-  await harness.invoke("hibi:notifications:sync", [], context);
+  await harness.invoke("pixano:notifications:sync", [], context);
   assert.deepEqual(harness.captured.syncCalls.at(-1)?.context, context);
 });
 
@@ -1301,37 +1349,37 @@ function loadPreload() {
   };
   try { require(PRELOAD_PATH); } finally { Module._load = originalLoad; delete require.cache[PRELOAD_PATH]; }
   const deliver = (channel, ...args) => { for (const listener of listeners.get(channel) ?? []) listener({ sender: null }, ...args); };
-  return { api: exposed.hibiDesktop, invoked, listeners, deliver };
+  return { api: exposed.pixanoDesktop, invoked, listeners, deliver };
 }
 
 test("preload pergunta e ouve se o mascote divide a tela com a janela, só com sim ou não", () => {
   const { api, invoked, listeners, deliver } = loadPreload();
   void api.getNotchWindowPlacement();
-  assert.deepEqual(invoked.at(-1), ["hibi:notch:window-placement"]);
+  assert.deepEqual(invoked.at(-1), ["pixano:notch:window-placement"]);
   const received = [];
   const stop = api.onNotchWindowPlacementChanged((state) => received.push(state));
-  deliver("hibi:notch:window-placement-changed", { sharesDisplay: true, extra: "ignorado" });
-  deliver("hibi:notch:window-placement-changed", { sharesDisplay: "sim" });
-  deliver("hibi:notch:window-placement-changed", null);
+  deliver("pixano:notch:window-placement-changed", { sharesDisplay: true, extra: "ignorado" });
+  deliver("pixano:notch:window-placement-changed", { sharesDisplay: "sim" });
+  deliver("pixano:notch:window-placement-changed", null);
   assert.deepEqual(received, [{ sharesDisplay: true }, { sharesDisplay: false }, { sharesDisplay: false }]);
   stop();
-  assert.equal(listeners.get("hibi:notch:window-placement-changed").length, 0);
+  assert.equal(listeners.get("pixano:notch:window-placement-changed").length, 0);
   assert.throws(() => api.onNotchWindowPlacementChanged("não é função"), TypeError);
 });
 
 test("preload repassa os ajustes e a janela de foco junto das entradas", () => {
   const { api, invoked } = loadPreload();
-  const exposed = { hibiDesktop: api };
+  const exposed = { pixanoDesktop: api };
 
   const entries = [{ id: "reminder:1" }];
   const context = { settings: { sessionMinutes: 25, activeStart: "09:00", activeEnd: "17:00", nudgePreset: "work" }, focusUntilMs: 123 };
-  exposed.hibiDesktop.syncNotifications(entries, context);
-  assert.deepEqual(invoked.at(-1), ["hibi:notifications:sync", entries, context]);
+  exposed.pixanoDesktop.syncNotifications(entries, context);
+  assert.deepEqual(invoked.at(-1), ["pixano:notifications:sync", entries, context]);
 });
 
 // Presença durante o foco. O relógio e o intervalo são dublados com `t.mock.timers` ANTES de carregar o
 // processo principal: é o `setInterval` global que o monitor arma, e o `Date.now()` que ele carimba.
-const PRESENCE_CHANNEL = "hibi:focus:presence";
+const PRESENCE_CHANNEL = "pixano:focus:presence";
 const PRESENCE_START_MS = 1_800_000_000_000;
 const presenceSent = (harness) => harness.mainWindow().sent.filter(([channel]) => channel === PRESENCE_CHANNEL).map(([, event]) => event);
 const POWER_PRESENCE_EVENTS = ["lock-screen", "suspend", "unlock-screen", "resume"];
@@ -1349,18 +1397,18 @@ test("presença: sem sessão de foco não há polling nem ouvinte de bloqueio e 
   assert.deepEqual(presenceSent(harness), []);
 
   // Um pedido malformado não liga nada.
-  await harness.invoke("hibi:focus:watch-presence", "sim");
-  await harness.invoke("hibi:focus:watch-presence", { watching: "true", idleMinutes: 5 });
+  await harness.invoke("pixano:focus:watch-presence", "sim");
+  await harness.invoke("pixano:focus:watch-presence", { watching: "true", idleMinutes: 5 });
   t.mock.timers.tick(PRESENCE_POLL_MS * 3);
   assert.equal(harness.idleQueries(), 0);
 
   // A sessão começa, com a pessoa ali: consulta a cada intervalo. A sessão acaba: para de consultar e
   // solta os ouvintes — e a hora de teclado parado que vem depois não vira evento.
   harness.setSystemIdleSeconds(0);
-  assert.deepEqual(await harness.invoke("hibi:focus:watch-presence", { watching: true, idleMinutes: 5 }), { watching: true });
+  assert.deepEqual(await harness.invoke("pixano:focus:watch-presence", { watching: true, idleMinutes: 5 }), { watching: true });
   t.mock.timers.tick(PRESENCE_POLL_MS * 2);
   assert.equal(harness.idleQueries(), 2);
-  assert.deepEqual(await harness.invoke("hibi:focus:watch-presence", { watching: false, idleMinutes: 5 }), { watching: false });
+  assert.deepEqual(await harness.invoke("pixano:focus:watch-presence", { watching: false, idleMinutes: 5 }), { watching: false });
   harness.setSystemIdleSeconds(3_600);
   t.mock.timers.tick(PRESENCE_POLL_MS * 30);
   assert.equal(harness.idleQueries(), 2);
@@ -1374,7 +1422,7 @@ test("presença: inatividade acima do limiar durante a sessão emite ausência, 
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await harness.invoke("hibi:focus:watch-presence", { watching: true, idleMinutes: 5 });
+  await harness.invoke("pixano:focus:watch-presence", { watching: true, idleMinutes: 5 });
   harness.setSystemIdleSeconds(299);
   t.mock.timers.tick(PRESENCE_POLL_MS);
   assert.deepEqual(presenceSent(harness), [], "abaixo do limiar não há ausência");
@@ -1403,7 +1451,7 @@ test("presença: bloquear a tela e dormir contam como ausência por energia, e a
   harness.firePower("lock-screen");
   assert.deepEqual(presenceSent(harness), []);
 
-  await harness.invoke("hibi:focus:watch-presence", { watching: true, idleMinutes: 5 });
+  await harness.invoke("pixano:focus:watch-presence", { watching: true, idleMinutes: 5 });
   harness.setSystemIdleSeconds(40);
   harness.firePower("lock-screen");
   assert.deepEqual(presenceSent(harness), [{ type: "away", reason: "power", idleSeconds: 40, atMs: PRESENCE_START_MS }]);
@@ -1422,7 +1470,7 @@ test("before-quit desliga a vigia de presença junto dos outros serviços", asyn
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  await harness.invoke("hibi:focus:watch-presence", { watching: true, idleMinutes: 1 });
+  await harness.invoke("pixano:focus:watch-presence", { watching: true, idleMinutes: 1 });
   harness.quit();
   harness.setSystemIdleSeconds(600);
   t.mock.timers.tick(PRESENCE_POLL_MS * 10);
@@ -1445,7 +1493,7 @@ test("o evento de presença atravessa a ponte: processo principal → preload �
   // Renderer pede vigia pela ponte; o pedido chega ao handler do processo principal.
   preload.api.watchFocusPresence({ watching: true, idleMinutes: 1 });
   const [channel, request] = preload.invoked.at(-1);
-  assert.equal(channel, "hibi:focus:watch-presence");
+  assert.equal(channel, "pixano:focus:watch-presence");
   assert.deepEqual(await harness.invoke(channel, request), { watching: true });
 
   harness.setSystemIdleSeconds(60);
@@ -1468,12 +1516,12 @@ test("os canais de sincronização de calendário respondem a entrada malformada
   const harness = await loadMain();
   t.after(() => harness.cleanup());
   const channels = [
-    "hibi:calendar-sync:save-calendar-mode",
-    "hibi:calendar-sync:prepare-publish",
-    "hibi:calendar-sync:execute-approved",
-    "hibi:calendar-sync:prepare-update",
-    "hibi:calendar-sync:resolve-conflict",
-    "hibi:calendar-sync:acknowledge-incoming",
+    "pixano:calendar-sync:save-calendar-mode",
+    "pixano:calendar-sync:prepare-publish",
+    "pixano:calendar-sync:execute-approved",
+    "pixano:calendar-sync:prepare-update",
+    "pixano:calendar-sync:resolve-conflict",
+    "pixano:calendar-sync:acknowledge-incoming",
   ];
   const inputs = [
     undefined,
@@ -1504,18 +1552,18 @@ test("a sincronização de calendário não vê workspace até o renderer mandar
   t.after(() => harness.cleanup());
 
   assert.equal(harness.captured.calendarSync.workspace(), null);
-  await harness.invoke("hibi:local-api:sync-workspace", { tasks: [], reminders: [], blocks: [{ id: "block-1" }] });
+  await harness.invoke("pixano:local-api:sync-workspace", { tasks: [], reminders: [], blocks: [{ id: "block-1" }] });
   assert.deepEqual(harness.captured.calendarSync.workspace().blocks, [{ id: "block-1" }]);
 });
 
 test("revogar uma integração com OAuth apaga também o refresh token guardado", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
-  await harness.invoke("hibi:integrations:connect", "notion", "token-de-teste");
-  await harness.invoke("hibi:integrations:connect", "slack", "token-de-teste");
+  await harness.invoke("pixano:integrations:connect", "notion", "token-de-teste");
+  await harness.invoke("pixano:integrations:connect", "slack", "token-de-teste");
 
-  const notion = await harness.invoke("hibi:integrations:revoke", "notion");
-  const slack = await harness.invoke("hibi:integrations:revoke", "slack");
+  const notion = await harness.invoke("pixano:integrations:revoke", "notion");
+  const slack = await harness.invoke("pixano:integrations:revoke", "slack");
 
   assert.equal(notion.state, "disconnected");
   assert.equal(slack.state, "disconnected");
@@ -1528,9 +1576,9 @@ test("a credencial de cliente do OAuth passa pelo processo principal sem voltar 
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  const saved = await harness.invoke("hibi:oauth:save-client-secret", "notion", "segredo-do-cliente");
-  const has = await harness.invoke("hibi:oauth:client-secret", "notion");
-  const cleared = await harness.invoke("hibi:oauth:clear-client-secret", "notion");
+  const saved = await harness.invoke("pixano:oauth:save-client-secret", "notion", "segredo-do-cliente");
+  const has = await harness.invoke("pixano:oauth:client-secret", "notion");
+  const cleared = await harness.invoke("pixano:oauth:clear-client-secret", "notion");
 
   assert.deepEqual(saved, { connectorId: "notion", hasClientSecret: true });
   assert.equal(has, true);
@@ -1548,17 +1596,17 @@ test("os canais do workspace guardam, listam e restauram pelo banco de verdade",
   t.after(() => harness.cleanup());
   const workspace = (title) => JSON.stringify({ tasks: [{ id: "1", title }] });
 
-  assert.equal(await harness.invoke("hibi:workspace:read"), null);
-  await harness.invoke("hibi:workspace:save", { payload: workspace("primeiro") });
-  await harness.invoke("hibi:workspace:save", { payload: workspace("segundo"), restorePoint: "lote" });
+  assert.equal(await harness.invoke("pixano:workspace:read"), null);
+  await harness.invoke("pixano:workspace:save", { payload: workspace("primeiro") });
+  await harness.invoke("pixano:workspace:save", { payload: workspace("segundo"), restorePoint: "lote" });
 
-  assert.equal((await harness.invoke("hibi:workspace:read")).payload, workspace("segundo"));
-  const points = await harness.invoke("hibi:workspace:restore-points");
+  assert.equal((await harness.invoke("pixano:workspace:read")).payload, workspace("segundo"));
+  const points = await harness.invoke("pixano:workspace:restore-points");
   assert.deepEqual(points.map((point) => point.label), ["lote"]);
   // O ponto guarda o estado anterior ao lote: é isso que desfaz a operação.
-  const restored = await harness.invoke("hibi:workspace:restore", { id: points[0].id });
+  const restored = await harness.invoke("pixano:workspace:restore", { id: points[0].id });
   assert.equal(restored.payload, workspace("primeiro"));
-  assert.equal((await harness.invoke("hibi:workspace:read")).payload, workspace("primeiro"));
+  assert.equal((await harness.invoke("pixano:workspace:read")).payload, workspace("primeiro"));
   assert.equal(fs.existsSync(path.join(harness.userData, "workspace.db")), true);
 });
 
@@ -1568,16 +1616,16 @@ test("entrada malformada nos canais do workspace vira erro de validação, nunca
 
   for (const input of [undefined, null, "texto", 42, [], {}, { payload: 42 }, { payload: "não é json" }, { payload: "[]" }])
     await assert.rejects(
-      () => harness.invoke("hibi:workspace:save", input),
+      () => harness.invoke("pixano:workspace:save", input),
       (error) => { assert.ok(!(error instanceof TypeError)); assert.match(error.message, /payload is invalid/); return true; },
     );
-  await assert.rejects(() => harness.invoke("hibi:workspace:save", { payload: JSON.stringify({ tasks: [] }), restorePoint: "x".repeat(200) }), /label is invalid/);
+  await assert.rejects(() => harness.invoke("pixano:workspace:save", { payload: JSON.stringify({ tasks: [] }), restorePoint: "x".repeat(200) }), /label is invalid/);
   for (const input of [undefined, null, {}, { id: "1" }, { id: 0 }])
     await assert.rejects(
-      () => harness.invoke("hibi:workspace:restore", input),
+      () => harness.invoke("pixano:workspace:restore", input),
       (error) => { assert.ok(!(error instanceof TypeError)); assert.match(error.message, /restore point is invalid/); return true; },
     );
-  assert.equal(await harness.invoke("hibi:workspace:read"), null);
+  assert.equal(await harness.invoke("pixano:workspace:read"), null);
 });
 
 test("um banco que não abre não impede o app de abrir: os canais respondem com erro controlado", async (t) => {
@@ -1586,9 +1634,9 @@ test("um banco que não abre não impede o app de abrir: os canais respondem com
 
   // A janela subiu e todos os canais foram registrados, apesar do banco indisponível.
   assert.equal(harness.windows.length > 0, true);
-  for (const channel of ["hibi:workspace:read", "hibi:workspace:restore-points"])
+  for (const channel of ["pixano:workspace:read", "pixano:workspace:restore-points"])
     await assert.rejects(() => harness.invoke(channel), /workspace database is unavailable/);
-  await assert.rejects(() => harness.invoke("hibi:workspace:save", { payload: JSON.stringify({ tasks: [] }) }), /workspace database is unavailable/);
+  await assert.rejects(() => harness.invoke("pixano:workspace:save", { payload: JSON.stringify({ tasks: [] }) }), /workspace database is unavailable/);
 });
 
 test("a renovação da credencial passa pelo serviço de OAuth, com o client id configurado", async (t) => {
@@ -1599,10 +1647,10 @@ test("a renovação da credencial passa pelo serviço de OAuth, com o client id 
   // Sem client id configurado não há o que renovar, e o gerenciador recebe `false` em vez de exceção.
   assert.equal(await refreshCredential("notion"), false);
   // Um conector com client id salvo mas sem fluxo de OAuth também não tenta renovar.
-  await harness.invoke("hibi:integrations:save-settings", "google-calendar", { clientId: "client-google" });
+  await harness.invoke("pixano:integrations:save-settings", "google-calendar", { clientId: "client-google" });
   assert.equal(await refreshCredential("google-calendar"), false);
 
-  await harness.invoke("hibi:integrations:save-settings", "notion", { clientId: "client-123" });
+  await harness.invoke("pixano:integrations:save-settings", "notion", { clientId: "client-123" });
   assert.equal(await refreshCredential("notion"), true);
 
   assert.deepEqual(
@@ -1618,13 +1666,13 @@ const connectorSettingsOf = (harness) => JSON.parse(require("node:fs").readFileS
 test("uma renovação que falha marca a integração como precisando reconectar", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
-  await harness.invoke("hibi:integrations:save-settings", "notion", { clientId: "client-123" });
+  await harness.invoke("pixano:integrations:save-settings", "notion", { clientId: "client-123" });
   harness.oauthService.refresh = async () => { throw new Error("invalid_grant"); };
 
   assert.equal(await harness.captured.integrations.refreshCredential("notion"), false);
 
   assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, true);
-  const status = await harness.invoke("hibi:integrations:list-status");
+  const status = await harness.invoke("pixano:integrations:list-status");
   const notion = status.find((entry) => entry.id === "notion");
   // A credencial não existe neste harness, então o estado segue "disconnected"; o que se prova aqui
   // é que o pedido de reconexão ficou gravado e sobrevive a reabrir o app.
@@ -1635,7 +1683,7 @@ test("uma renovação que falha marca a integração como precisando reconectar"
 test("uma renovação bem-sucedida apaga o pedido de reconexão", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
-  await harness.invoke("hibi:integrations:save-settings", "notion", { clientId: "client-123" });
+  await harness.invoke("pixano:integrations:save-settings", "notion", { clientId: "client-123" });
   harness.oauthService.refresh = async () => { throw new Error("invalid_grant"); };
   await harness.captured.integrations.refreshCredential("notion");
   assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, true);
@@ -1649,27 +1697,27 @@ test("uma renovação bem-sucedida apaga o pedido de reconexão", async (t) => {
 test("autorizar de novo, ou salvar uma credencial, encerra o pedido de reconexão", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
-  await harness.invoke("hibi:integrations:save-settings", "notion", { clientId: "client-123" });
+  await harness.invoke("pixano:integrations:save-settings", "notion", { clientId: "client-123" });
   harness.oauthService.refresh = async () => { throw new Error("invalid_grant"); };
   await harness.captured.integrations.refreshCredential("notion");
 
-  await harness.invoke("hibi:oauth:authorize", "notion");
+  await harness.invoke("pixano:oauth:authorize", "notion");
 
   assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, false);
 
   await harness.captured.integrations.refreshCredential("notion");
   assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, true);
-  await harness.invoke("hibi:integrations:connect", "notion", "token-colado-a-mao");
+  await harness.invoke("pixano:integrations:connect", "notion", "token-colado-a-mao");
   assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, false);
 });
 
 test("a renovação pedida pela tela também marca a reconexão quando falha", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
-  await harness.invoke("hibi:integrations:save-settings", "notion", { clientId: "client-123" });
+  await harness.invoke("pixano:integrations:save-settings", "notion", { clientId: "client-123" });
   harness.oauthService.refresh = async () => { throw new Error("invalid_grant"); };
 
-  await assert.rejects(() => harness.invoke("hibi:oauth:refresh", "notion"), /invalid_grant/);
+  await assert.rejects(() => harness.invoke("pixano:oauth:refresh", "notion"), /invalid_grant/);
 
   assert.equal(connectorSettingsOf(harness).notion.reconnectRequired, true);
 });
@@ -1696,21 +1744,21 @@ test("o companion de inicialização nasce com o app, passivo e com o loop a toc
   assert.deepEqual(ocioso, presentation);
 });
 
-test("hibi:notch:set-size normaliza, persiste e move a superfície", async (t) => {
+test("pixano:notch:set-size normaliza, persiste e move a superfície", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.deepEqual(await harness.invoke("hibi:notch:size"), { size: "normal" });
+  assert.deepEqual(await harness.invoke("pixano:notch:size"), { size: "normal" });
 
-  assert.deepEqual(await harness.invoke("hibi:notch:set-size", "compact"), { size: "compact" });
+  assert.deepEqual(await harness.invoke("pixano:notch:set-size", "compact"), { size: "compact" });
   assert.deepEqual(harness.notchManager.calls.at(-1), ["setSize", "compact"]);
   // Vale entre aberturas: fica no mesmo arquivo do monitor preferido.
   assert.equal(JSON.parse(fs.readFileSync(path.join(harness.userData, "notch-settings.json"), "utf8")).size, "compact");
-  assert.deepEqual(await harness.invoke("hibi:notch:size"), { size: "compact" });
+  assert.deepEqual(await harness.invoke("pixano:notch:size"), { size: "compact" });
 
   // Qualquer outra coisa vinda do renderer vira o tamanho normal, em vez de gravar lixo.
-  assert.deepEqual(await harness.invoke("hibi:notch:set-size", "gigante"), { size: "normal" });
-  assert.deepEqual(await harness.invoke("hibi:notch:set-size", { size: "compact" }), { size: "normal" });
+  assert.deepEqual(await harness.invoke("pixano:notch:set-size", "gigante"), { size: "normal" });
+  assert.deepEqual(await harness.invoke("pixano:notch:set-size", { size: "compact" }), { size: "normal" });
   assert.equal(JSON.parse(fs.readFileSync(path.join(harness.userData, "notch-settings.json"), "utf8")).size, "normal");
 });
 
@@ -1726,17 +1774,17 @@ test("a escuta repassa ao renderer o texto reconhecido, e o idioma é normalizad
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  assert.deepEqual(await harness.invoke("hibi:local-voice:state"), { status: "ready", locale: "pt-BR", error: null });
+  assert.deepEqual(await harness.invoke("pixano:local-voice:state"), { status: "ready", locale: "pt-BR", error: null });
 
-  const escutando = await harness.invoke("hibi:local-voice:listen");
+  const escutando = await harness.invoke("pixano:local-voice:listen");
   assert.equal(escutando.status, "listening");
   // O texto reconhecido chega pelo evento, não pela resposta da chamada: ele vem em pedaços.
-  assert.deepEqual(harness.mainWindow().sent.at(-1), ["hibi:local-voice:text", "agendar reunião"]);
+  assert.deepEqual(harness.mainWindow().sent.at(-1), ["pixano:local-voice:text", "agendar reunião"]);
 
-  assert.equal((await harness.invoke("hibi:local-voice:set-locale", "en-US")).locale, "en-US");
+  assert.equal((await harness.invoke("pixano:local-voice:set-locale", "en-US")).locale, "en-US");
   // Qualquer outra coisa vinda do renderer volta ao padrão, em vez de virar argumento do helper.
-  assert.equal((await harness.invoke("hibi:local-voice:set-locale", "klingon")).locale, "pt-BR");
-  assert.equal((await harness.invoke("hibi:local-voice:stop")).status, "ready");
+  assert.equal((await harness.invoke("pixano:local-voice:set-locale", "klingon")).locale, "pt-BR");
+  assert.equal((await harness.invoke("pixano:local-voice:stop")).status, "ready");
   assert.deepEqual(harness.voiceService.calls, [["listen"], ["setLocale", "en-US"], ["setLocale", "klingon"], ["stop"]]);
 });
 
@@ -1745,7 +1793,7 @@ test("o microfone recusado vira estado, e a escuta nem começa", { skip: process
   t.after(() => harness.cleanup());
   harness.setMicrophoneAllowed(false);
 
-  const recusado = await harness.invoke("hibi:local-voice:listen");
+  const recusado = await harness.invoke("pixano:local-voice:listen");
 
   assert.equal(recusado.status, "error");
   assert.match(recusado.error, /Microphone access was denied/);
@@ -1763,7 +1811,7 @@ test("o estado do modelo local diz o que falta, sem nunca ler o arquivo inteiro"
   t.after(() => harness.cleanup());
 
   // Sem o arquivo, o app diz que falta baixar — e não que o cérebro está pronto.
-  assert.deepEqual(await harness.invoke("hibi:local-model:state"), { status: "missing", modelId: "tiny-q4", sizeBytes: 12, error: null });
+  assert.deepEqual(await harness.invoke("pixano:local-model:state"), { status: "missing", modelId: "tiny-q4", sizeBytes: 12, error: null });
 });
 
 test("um modelo que não bate com o manifesto nunca é dado como pronto", async (t) => {
@@ -1781,10 +1829,10 @@ test("um modelo que não bate com o manifesto nunca é dado como pronto", async 
   });
   t.after(() => harness.cleanup());
 
-  const estado = await harness.invoke("hibi:local-model:state");
+  const estado = await harness.invoke("pixano:local-model:state");
   assert.equal(estado.status, "unverified");
 
-  const conferido = await harness.invoke("hibi:local-model:verify");
+  const conferido = await harness.invoke("pixano:local-model:verify");
   assert.equal(conferido.verified, false);
   assert.match(conferido.error, /checksum the manifest declares/);
 });
@@ -1793,7 +1841,7 @@ test("sem modelo verificado, perguntar ao cérebro offline responde indisponíve
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  const resposta = await harness.invoke("hibi:local-model:run", { requestId: "r-1", prompt: "Resuma meu dia" });
+  const resposta = await harness.invoke("pixano:local-model:run", { requestId: "r-1", prompt: "Resuma meu dia" });
 
   // Nada de motor, nada de llama.cpp: sem arquivo que bata com o manifesto, não há o que carregar.
   assert.deepEqual(resposta, { requestId: "r-1", status: "unavailable", text: "" });
@@ -1803,7 +1851,7 @@ test("um requestId inválido não vira pergunta ao modelo", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
 
-  const resposta = await harness.invoke("hibi:local-model:run", { requestId: 42, prompt: "x" });
+  const resposta = await harness.invoke("pixano:local-model:run", { requestId: 42, prompt: "x" });
 
   assert.deepEqual(resposta, { requestId: null, status: "unavailable", text: "" });
 });

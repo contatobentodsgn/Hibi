@@ -2,13 +2,13 @@ import { test, expect, type Page } from '@playwright/test';
 
 type LocalApiIntent = Readonly<{ confirmationId: string; kind: string; payload: Record<string, unknown> }>;
 type CompanionAction = Readonly<{ requestId: string; actionId: 'confirm' | 'cancel' }>;
-type HibiE2E = {
+type PixanoE2E = {
   calls: string[];
   requestConfirmation: (intent: LocalApiIntent) => void;
   companionAction: (input: CompanionAction) => void;
 };
 
-// O e2e roda no build web, onde `window.hibiDesktop` não existe: sem dublê o App nunca recebe a
+// O e2e roda no build web, onde `window.pixanoDesktop` não existe: sem dublê o App nunca recebe a
 // confirmação e o cartão nunca aparece. Mesma ponte mínima de assistant-integration-action.spec.ts,
 // reduzida ao notch e ao par confirmação/resolução da API local.
 //
@@ -28,13 +28,13 @@ async function installLocalApiBridge(page: Page) {
       listeners.push(callback);
       return () => { const index = listeners.indexOf(callback); if (index >= 0) listeners.splice(index, 1); };
     };
-    const e2e: HibiE2E = {
+    const e2e: PixanoE2E = {
       calls,
       requestConfirmation: (intent) => confirmationListeners.forEach((listener) => listener(intent)),
       companionAction: (input) => companionActionListeners.forEach((listener) => listener(input)),
     };
-    (window as unknown as { hibiE2E: HibiE2E }).hibiE2E = e2e;
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E = e2e;
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       info: async () => ({ name: 'Hibi', version: '0.1.0', localOnly: true }),
       showNotch: async (presentation: { requestId: string }) => { calls.push(`show:${presentation.requestId}`); return { degraded: false, requestId: presentation.requestId }; },
       hideNotch: async (requestId: string) => { calls.push(`hide:${requestId}`); return true; },
@@ -42,8 +42,8 @@ async function installLocalApiBridge(page: Page) {
       onCompanionAction: (callback: (action: CompanionAction) => void) => subscribe(companionActionListeners, callback),
       resolveLocalApiWrite: async (input: { confirmationId: string; approved: boolean }) => {
         calls.push(`resolve:${input.confirmationId}:${input.approved}`);
-        // O processo principal recusa o pedido que passou do prazo (hibi:local-api:resolve-write).
-        if ((window as unknown as { hibiE2EExpired?: boolean }).hibiE2EExpired) return { resolved: false, expired: true };
+        // O processo principal recusa o pedido que passou do prazo (pixano:local-api:resolve-write).
+        if ((window as unknown as { pixanoE2EExpired?: boolean }).pixanoE2EExpired) return { resolved: false, expired: true };
         return { resolved: true, approved: input.approved };
       },
     };
@@ -59,13 +59,13 @@ const DISMISSED = `hide:${CONFIRMATION_ID}`;
 const card = (page: Page) => page.getByRole('alert').filter({ hasText: 'Confirmação da API local' });
 // A tarefa criada só existe na lista com o botão de concluir; o cartão não tem nenhum botão assim,
 // então este seletor nunca confunde a pergunta com a resposta.
-const taskRow = (page: Page) => page.getByRole('button', { name: `Concluir ${TITLE}` });
+const taskRow = (page: Page) => page.getByRole('button', { name: `Concluir tarefa ${TITLE}` });
 // Só o que esta confirmação provocou: outra apresentação do companion no meio do caminho não muda
 // o que está sendo verificado aqui.
-const callsForIntent = (page: Page) => page.evaluate((id) => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.calls.filter((call) => call.includes(id)), CONFIRMATION_ID);
-const requestWrite = (page: Page) => page.evaluate((intent) => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.requestConfirmation(intent), INTENT);
+const callsForIntent = (page: Page) => page.evaluate((id) => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.calls.filter((call) => call.includes(id)), CONFIRMATION_ID);
+const requestWrite = (page: Page) => page.evaluate((intent) => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.requestConfirmation(intent), INTENT);
 const notchAction = (page: Page, actionId: 'confirm' | 'cancel', requestId = CONFIRMATION_ID) =>
-  page.evaluate((input) => (window as unknown as { hibiE2E: HibiE2E }).hibiE2E.companionAction(input), { requestId, actionId });
+  page.evaluate((input) => (window as unknown as { pixanoE2E: PixanoE2E }).pixanoE2E.companionAction(input), { requestId, actionId });
 // Sumir da lista não basta como prova de que nada foi aplicado: isto lê o workspace que o App
 // persiste a cada mudança de dados, que é o que sobrevive ao recarregar.
 const workspaceMentionsTask = (page: Page) => page.evaluate((title) => (window.localStorage.getItem('hibi-study-data') ?? '').includes(title), TITLE);
@@ -149,7 +149,7 @@ test('cancelar pelo notch recusa a escrita sem criar a tarefa', async ({ page })
 test('aprovar um pedido que o processo principal já deu como expirado não cria nada', async ({ page }) => {
   await openTasks(page);
   await requestWrite(page);
-  await page.evaluate(() => { (window as unknown as { hibiE2EExpired?: boolean }).hibiE2EExpired = true; });
+  await page.evaluate(() => { (window as unknown as { pixanoE2EExpired?: boolean }).pixanoE2EExpired = true; });
 
   await card(page).getByRole('button', { name: 'Confirmar' }).click();
 

@@ -26,12 +26,12 @@ type Options = Readonly<{
 const LISTENING_EXPIRES_MS = 20_000;
 
 /**
- * A voz do Taby, do começo ao fim de um pedido, compartilhada pelo botão Falar, pelo atalho e pelo notch.
+ * A voz do Assistant, do começo ao fim de um pedido, compartilhada pelo botão Falar, pelo atalho e pelo notch.
  *
  * - A escuta termina sozinha quando a fala para, e o que foi ouvido é enviado — antes era preciso
  *   apertar Parar e depois Enviar. Parar pelo botão continua deixando o texto no campo, para editar.
  * - Com `notch`, o notch mostra "Ouvindo…" e o que vai sendo reconhecido; a resposta chega lá como
- *   qualquer outra resposta do Taby. É o caminho do atalho quando a janela nem aparece.
+ *   qualquer outra resposta do Assistant. É o caminho do atalho quando a janela nem aparece.
  * - A resposta de um pedido feito por voz é lida em voz alta, se o ajuste estiver ligado. Quem decide é o
  *   processo principal, que recusa quando o ajuste está desligado.
  */
@@ -53,9 +53,9 @@ export function useVoiceTurn({ ask, turnState, onCompanionEvent, vocabulary }: O
     if (requestId) latest.current.onCompanionEvent({ type: 'ai.stage', stage: 'listening', requestId, text, nowMs: Date.now(), expiresInMs: LISTENING_EXPIRES_MS });
   };
 
-  // Os nomes do Hibi são corrigidos aqui, no que aparece na barra e no que vai para o Taby: o reconhecedor
+  // Os nomes do Hibi são corrigidos aqui, no que aparece na barra e no que vai para o Assistant: o reconhecedor
   // ainda escreve "cabrito" às vezes, mesmo com o vocabulário.
-  useEffect(() => window.hibiDesktop?.onLocalVoiceText?.((heard) => {
+  useEffect(() => window.pixanoDesktop?.onLocalVoiceText?.((heard) => {
     const text = correctToVocabulary(heard, vocabularyRef.current);
     transcriptRef.current = text;
     setTranscript(text);
@@ -64,8 +64,8 @@ export function useVoiceTurn({ ask, turnState, onCompanionEvent, vocabulary }: O
 
   const start = async ({ notch = false }: VoiceStart = {}) => {
     if (listeningRef.current) return;
-    const listen = window.hibiDesktop?.listenLocalVoice;
-    if (!listen) { setNotice(latest.current.t('taby.voice.unavailable')); return; }
+    const listen = window.pixanoDesktop?.listenLocalVoice;
+    if (!listen) { setNotice(latest.current.t('assistant.voice.unavailable')); return; }
     listeningRef.current = true;
     transcriptRef.current = '';
     setTranscript('');
@@ -99,12 +99,12 @@ export function useVoiceTurn({ ask, turnState, onCompanionEvent, vocabulary }: O
   };
 
   const stop = async () => {
-    await window.hibiDesktop?.stopLocalVoice?.();
+    await window.pixanoDesktop?.stopLocalVoice?.();
   };
 
   useEffect(() => {
     if (!awaitingReply.current) return;
-    const speak = (text: string) => { if (text.trim()) void window.hibiDesktop?.speakLocalVoice?.(text).catch(() => undefined); };
+    const speak = (text: string) => { if (text.trim()) void window.pixanoDesktop?.speakLocalVoice?.(text).catch(() => undefined); };
     if (turnState.status === 'replied') { awaitingReply.current = false; speak(turnState.text); }
     else if (turnState.status === 'confirmation') speak(turnState.text);
     else if (turnState.status === 'executed') { awaitingReply.current = false; speak(turnState.summary); }

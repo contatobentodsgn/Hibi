@@ -24,8 +24,8 @@ const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('.
 const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
 const { showStartupNotch, idleCompanionPresentation } = require('./notch-startup.cjs');
 const { createMascotPlacement } = require('./mascot-placement.cjs');
-const { createIdleEscalation, createMascot } = require('./mascot.cjs');
-const { cleanInput, createTabyBar } = require('./taby-bar.cjs');
+const { createIdleEscalation, createMascot, createMascotAnimationSequencer } = require('./mascot.cjs');
+const { cleanInput, createAssistantBar } = require('./assistant-bar.cjs');
 const { createLocalVoiceService } = require('./local-voice.cjs');
 const { createLocalModelStore } = require('./local-model-store.cjs');
 const { createLocalModelDownload } = require('./local-model-download.cjs');
@@ -34,18 +34,21 @@ const { createElectronUpdateService } = require('./updates.cjs');
 const { createAppTray } = require('./tray.cjs');
 const { buildAppMenuTemplate, hideFromDock } = require('./app-menu.cjs');
 const { createShortcutSettings } = require('./shortcut-settings.cjs');
-const { createTabyShortcut } = require('./taby-shortcut.cjs');
+const { createAssistantShortcut } = require('./assistant-shortcut.cjs');
 const { createVoiceSettings } = require('./voice-settings.cjs');
 const { createMacVoiceAdapter } = require('./local-voice-macos.cjs');
 const nativeNotchBridge = require("../native/notch/index.cjs");
 const { resolveUserDataPath } = require('./user-data-path.cjs');
+const isDev = !app.isPackaged && process.env.PIXANO_PRODUCTION !== '1';
 
-// O Electron nomeia a pasta de dados pelo `name` do pacote (`hibi-study-replica`), e o app se chama
-// Hibi. Quem já usou uma versão anterior tem os dados na pasta antiga: ela é movida uma vez, e nada
+// Pixano usa uma pasta de dados própria; perfis Hibi antigos são migrados sem descartar cópias.
+// Quem já usou uma versão anterior tem os dados na pasta antiga: ela é movida uma vez, e nada
 // é apagado — se houver duas, a que ficou para trás é renomeada ao lado.
 app.setPath('userData', resolveUserDataPath({
   appData: app.getPath('appData'),
-  onNotice: (notice) => console.log(`[hibi] pasta de dados (${notice.kind}): ${notice.path}${notice.error ? ` — ${notice.error}` : ''}`),
+  // Native validation can use a throwaway profile without migrating or opening real user data.
+  override: isDev ? process.env.PIXANO_DEV_USER_DATA_DIR : undefined,
+  onNotice: (notice) => console.log(`[pixano] pasta de dados (${notice.kind}): ${notice.path}${notice.error ? ` — ${notice.error}` : ''}`),
 }));
 
 // Duas cópias do app abertas ao mesmo tempo desenham dois notches, cada um obedecendo aos próprios
@@ -102,26 +105,26 @@ let notchWindow;
 // Se o mascote do notch está na mesma tela que a janela principal: a barra de navegação desce para ele não
 // cobrir o meio dela (U04b).
 let mascotPlacement = null;
-let tabyBar;
+let assistantBar;
 let idleEscalation;
 // O pedido que está no notch agora; `null` quando o mascote está em repouso.
 let notchBusyRequestId = null;
+let mascotAnimationSequencer;
 let notchSettings;
 let notchTest;
 let detachNotchLifecycle = () => {};
-let tabyShortcut;
+let assistantShortcut;
 let voiceSettings;
 let updateService;
 let appTray;
 let quitting = false;
-const isDev = !app.isPackaged && process.env.HIBI_PRODUCTION !== '1';
 const MAX_AI_STREAM_DELTA = 8000;
 const MAX_AI_STREAM_DELAY = 60_000;
 const MAX_AI_STREAM_TEXT = 240;
 const notchAdapter = nativeNotchBridge.createNotchAdapter({
-  mode: process.env.HIBI_NOTCH_ADAPTER,
+  mode: process.env.PIXANO_NOTCH_ADAPTER,
   isPackaged: app.isPackaged,
-  allowExperimental: process.env.HIBI_ALLOW_EXPERIMENTAL_NOTCH === '1',
+  allowExperimental: process.env.PIXANO_ALLOW_EXPERIMENTAL_NOTCH === '1',
   platform: process.platform,
 });
 
@@ -143,7 +146,7 @@ function isValidNotchAction(requestId, actionId) {
 // O teste do notch espera as próprias respostas aqui; repassá-las entregaria ao renderer respostas de confirmações que ele não abriu.
 function routeNotchAction(action, { notchTest, send }) {
   if (notchTest?.handleAction(action)) return 'test';
-  send('hibi:companion:action', action);
+  send('pixano:companion:action', action);
   return 'renderer';
 }
 
@@ -224,8 +227,8 @@ function attachNotchLifecycle({ displayService, powerService, manager, onDisplay
 // `en`, e receber um aviso em português no momento em que algo quebrou não ajuda quem usa em inglês.
 function rendererRecoveryPrompt(locale) {
   return typeof locale === 'string' && locale.toLowerCase().startsWith('pt')
-    ? { title: 'Hibi', message: 'O Hibi encontrou um problema ao carregar a interface.', detail: 'Você pode tentar de novo ou encerrar o app. Seus dados continuam salvos.', buttons: ['Tentar de novo', 'Encerrar'] }
-    : { title: 'Hibi', message: 'Hibi ran into a problem loading its interface.', detail: 'You can try again or quit the app. Your data is still saved.', buttons: ['Try again', 'Quit'] };
+    ? { title: 'Pixano', message: 'O Pixano encontrou um problema ao carregar a interface.', detail: 'Você pode tentar de novo ou encerrar o app. Seus dados continuam salvos.', buttons: ['Tentar de novo', 'Encerrar'] }
+    : { title: 'Pixano', message: 'Pixano ran into a problem loading its interface.', detail: 'You can try again or quit the app. Your data is still saved.', buttons: ['Try again', 'Quit'] };
 }
 
 // Uma falha do renderer é recuperada automaticamente uma vez. Se ela se repetir antes de a janela
@@ -285,20 +288,20 @@ function summonWindow() {
   app.focus?.({ steal: true });
 }
 
-// Pela barra de menus o Taby só abre. Pelo atalho, conforme o ajuste de voz: abrir e já ouvir, ou ouvir
+// Pela barra de menus o Assistant só abre. Pelo atalho, conforme o ajuste de voz: abrir e já ouvir, ou ouvir
 // sem abrir a janela, com o que foi ouvido e a resposta no notch.
-function openTaby() {
+function openAssistant() {
   summonWindow();
-  sendToMainWindow('hibi:shortcut:taby');
+  sendToMainWindow('pixano:shortcut:assistant');
 }
 
-// O atalho abre a barra do Taby embaixo do notch, para digitar ou falar sem sair do app em que se está.
+// O atalho abre a barra do Assistant embaixo do notch, para digitar ou falar sem sair do app em que se está.
 // `notch` já começa a ouvir; `window` é o caminho antigo, pela janela do Hibi.
-function summonTaby() {
+function summonAssistant() {
   const mode = voiceSettings?.get().shortcutVoice ?? 'off';
-  if (mode === 'window') { summonWindow(); sendToMainWindow('hibi:shortcut:taby', { listen: true, background: false }); return; }
-  tabyBar?.openInput();
-  if (mode === 'notch') sendToMainWindow('hibi:shortcut:taby', { listen: true, background: true });
+  if (mode === 'window') { summonWindow(); sendToMainWindow('pixano:shortcut:assistant', { listen: true, background: false }); return; }
+  assistantBar?.openInput();
+  if (mode === 'notch') sendToMainWindow('pixano:shortcut:assistant', { listen: true, background: true });
 }
 
 // O notch recebe só o mascote: o estado vira um vídeo, sem texto nem botão.
@@ -306,7 +309,14 @@ function mascotPresentation(presentation) {
   // Uma resposta que é pergunta ("Para que horário?") deixa o gato curioso, não feliz: nada foi concluído.
   const asks = presentation.kind === 'result' && typeof presentation.text === 'string' && presentation.text.trim().endsWith('?');
   const state = asks ? 'curious' : mascot.stateFor(presentation.kind);
-  return { requestId: presentation.requestId, kind: presentation.kind, text: null, actions: [], interaction: 'passthrough', host: 'native', animationPath: mascot.animationPath(state) };
+  const animation = asks && presentation.animation
+    ? { entry: null, loop: 'searching_loop', reducedMotion: presentation.animation.reducedMotion === true }
+    : presentation.animation;
+  const sequence = animation
+    ? mascot.sequenceForAnimation(animation)
+    : mascot.sequenceForKind(asks ? 'thinking' : presentation.kind);
+  const reducedMotion = animation?.reducedMotion === true;
+  return { requestId: presentation.requestId, kind: presentation.kind, text: null, actions: [], interaction: 'passthrough', host: 'native', ...(!reducedMotion ? { animationPath: mascot.animationPath(state) } : {}), ...sequence };
 }
 
 // O repouso escala com o tempo parado (curioso, dando uma volta, dormindo), só com o notch livre.
@@ -323,14 +333,14 @@ function replaceAiRuntime(runtime) {
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280, height: 820, minWidth: 960, minHeight: 620,
-    title: "Hibi", backgroundColor: "#f3f2ef",
+    title: "Pixano", backgroundColor: "#f3f2ef",
     // Os botões do macOS (14 px) ficam dentro da superfície arredondada, a 12 px da moldura de 8 px, e no
     // eixo dos itens da barra de navegação do topo (8 px de moldura + metade dos 36 px do item = 26).
     titleBarStyle: "hiddenInset", trafficLightPosition: { x: 20, y: 19 },
     webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   mascotPlacement?.dispose();
-  mascotPlacement = createMascotPlacement({ window: mainWindow, screen, notch: () => notchWindow, send: (state) => sendToMainWindow('hibi:notch:window-placement-changed', state) });
+  mascotPlacement = createMascotPlacement({ window: mainWindow, screen, notch: () => notchWindow, send: (state) => sendToMainWindow('pixano:notch:window-placement-changed', state) });
   mainWindow.webContents.on("will-navigate", (event, url) => {
     if (!isAllowedNavigation(url)) event.preventDefault();
   });
@@ -343,21 +353,21 @@ function createWindow() {
     mainWindow.hide();
   });
   attachRendererRecovery(mainWindow);
-  if (isDev) { const candidate = process.env.HIBI_DEV_SERVER || "http://127.0.0.1:5173"; const url = new URL(candidate); if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(url.hostname)) throw new Error('HIBI_DEV_SERVER must target loopback HTTP'); mainWindow.loadURL(url.toString()); }
+  if (isDev) { const candidate = process.env.PIXANO_DEV_SERVER || "http://127.0.0.1:5173"; const url = new URL(candidate); if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(url.hostname)) throw new Error('PIXANO_DEV_SERVER must target loopback HTTP'); mainWindow.loadURL(url.toString()); }
   else mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 }
 
 app.whenReady().then(async () => {
   if (!isFirstInstance) return;
-  notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => sendToMainWindow('hibi:notification:triggered', entry) });
+  notificationScheduler = createNotificationScheduler({ NotificationClass: Notification, onTrigger: (entry) => sendToMainWindow('pixano:notification:triggered', entry) });
   aiConfiguration = createAiConfiguration({ filePath: path.join(app.getPath('userData'), 'ai-configuration.json') });
   const secureKeychain = createMacKeychain();
   connectorSettings = createConnectorSettings({ filePath: path.join(app.getPath('userData'), 'connector-settings.json') });
   calendarSyncSettings = createCalendarSyncSettings({ filePath: path.join(app.getPath('userData'), 'calendar-sync.json') });
   // O feed vem do empacotamento; num app de desenvolvimento o serviço nasce desligado.
-  updateService = createElectronUpdateService({ app, autoUpdater: loadAutoUpdater(), onEvent: (state) => sendToMainWindow('hibi:updates:state', state) });
+  updateService = createElectronUpdateService({ app, autoUpdater: loadAutoUpdater(), onEvent: (state) => sendToMainWindow('pixano:updates:state', state) });
   voiceSettings = createVoiceSettings({ filePath: path.join(app.getPath('userData'), 'voice-settings.json') });
-  tabyShortcut = createTabyShortcut({ globalShortcut, settings: createShortcutSettings({ filePath: path.join(app.getPath('userData'), 'shortcut-settings.json') }), onTrigger: summonTaby });
+  assistantShortcut = createAssistantShortcut({ globalShortcut, settings: createShortcutSettings({ filePath: path.join(app.getPath('userData'), 'shortcut-settings.json') }), onTrigger: summonAssistant });
   // Um banco que não abre não pode impedir o app de abrir: os canais respondem com erro controlado e o
   // renderer segue no armazenamento local.
   try { workspaceDatabase = createWorkspaceDatabase({ filePath: path.join(app.getPath('userData'), 'workspace.db') }); }
@@ -385,7 +395,7 @@ app.whenReady().then(async () => {
     const confirmationId = `local-api-${crypto.randomUUID()}`;
     pendingLocalApiWrites.set(confirmationId, { intent, expiresAt: Date.now() + LOCAL_API_WRITE_TTL_MS });
     prunePendingLocalApiWrites();
-    sendToMainWindow('hibi:local-api:confirmation', { confirmationId, kind: intent.kind, payload: intent.payload });
+    sendToMainWindow('pixano:local-api:confirmation', { confirmationId, kind: intent.kind, payload: intent.payload });
     return { confirmationId, requiresConfirmation: true };
   } });
   webhookService = createWebhookService({ keychain: secureKeychain });
@@ -396,7 +406,7 @@ app.whenReady().then(async () => {
   // Em desenvolvimento o modelo mora no repositório; no app empacotado, na pasta de dados da pessoa.
   localModelStore = createLocalModelStore({ dataRoot: app.isPackaged ? app.getPath('userData') : path.join(__dirname, '..'), manifestFile: bundledModelManifest() });
   // O download é sempre pedido: quase dois gigabytes não descem sozinhos.
-  localModelDownload = createLocalModelDownload({ store: localModelStore, onProgress: (state) => sendToMainWindow('hibi:local-model:download-progress', state) });
+  localModelDownload = createLocalModelDownload({ store: localModelStore, onProgress: (state) => sendToMainWindow('pixano:local-model:download-progress', state) });
   // O motor é carregado na primeira pergunta, e só se houver modelo verificado: importar o llama.cpp
   // na abertura custaria memória para quem nunca vai usar o cérebro offline.
   localModelService = createLocalModelService({
@@ -406,66 +416,70 @@ app.whenReady().then(async () => {
       return createLlamaEngine({ modelPath: file });
     },
   });
-  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, size: notchSettings.get().size, idlePresentation: () => idleCompanionPresentation(startupNotchAnimationPath()), load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
-  tabyBar = createTabyBar({ BrowserWindowClass: BrowserWindow, preloadPath: path.join(__dirname, 'bar-preload.cjs'), displayFor: () => notchWindow.currentDisplay(), sizeFor: () => notchWindow.currentSize(), load: (window) => isDev ? window.loadURL(`${new URL(process.env.HIBI_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=bar`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'bar' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
+  notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, size: notchSettings.get().size, idlePresentation: () => idleCompanionPresentation(startupNotchAnimationPath()), load: (window) => isDev ? window.loadURL(`${new URL(process.env.PIXANO_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
+  mascotAnimationSequencer = createMascotAnimationSequencer({ onLoop: (presentation) => {
+    if (notchBusyRequestId !== presentation.requestId) return;
+    try { notchWindow?.show(presentation); } catch { /* o pedido já não tem superfície */ }
+  } });
+  assistantBar = createAssistantBar({ BrowserWindowClass: BrowserWindow, preloadPath: path.join(__dirname, 'bar-preload.cjs'), displayFor: () => notchWindow.currentDisplay(), sizeFor: () => notchWindow.currentSize(), load: (window) => isDev ? window.loadURL(`${new URL(process.env.PIXANO_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=bar`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'bar' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
   idleEscalation = createIdleEscalation({ onState: showIdleMascot });
   notchTest = createNotchTest({ manager: notchWindow });
-  detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('hibi:notch:displays-changed') });
-  ipcMain.handle("hibi:info", () => ({ name: "Hibi Study Replica", version: app.getVersion(), localOnly: true }));
-  ipcMain.handle("hibi:login-item:get", () => app.getLoginItemSettings().openAtLogin);
-  ipcMain.handle("hibi:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });
+  detachNotchLifecycle = attachNotchLifecycle({ displayService: screen, powerService: powerMonitor, manager: notchWindow, onDisplaysChanged: () => sendToMainWindow('pixano:notch:displays-changed') });
+  ipcMain.handle("pixano:info", () => ({ name: "Pixano", version: app.getVersion(), localOnly: true }));
+  ipcMain.handle("pixano:login-item:get", () => app.getLoginItemSettings().openAtLogin);
+  ipcMain.handle("pixano:login-item", (_event, enabled) => { app.setLoginItemSettings({ openAtLogin: Boolean(enabled) }); return app.getLoginItemSettings().openAtLogin; });
   // O contexto de foco (janela da sessão em andamento e ajustes) chega junto das entradas: o portão
   // que decide o que fica quieto mora no agendador, e o renderer é quem conhece o estado da sessão.
-  ipcMain.handle("hibi:notifications:sync", (_event, entries, context) => { notificationScheduler.sync(sanitizeEntries(entries), context); });
+  ipcMain.handle("pixano:notifications:sync", (_event, entries, context) => { notificationScheduler.sync(sanitizeEntries(entries), context); });
   // Presença durante o foco. O renderer pede vigia só com uma sessão rodando (ou pausada por ausência,
   // esperando a volta); sem pedido não há intervalo nem ouvinte de bloqueio e sono. Ausência e retorno
   // voltam por um canal só deles: é a tela de Foco que decide perguntar, pausar ou seguir contando.
-  presenceMonitor = createPresenceMonitor({ powerMonitor, onChange: (event) => sendToMainWindow('hibi:focus:presence', event) });
-  ipcMain.handle("hibi:focus:watch-presence", (_event, request) => presenceMonitor.watch(request));
-  ipcMain.handle("hibi:notifications:test", () => {
+  presenceMonitor = createPresenceMonitor({ powerMonitor, onChange: (event) => sendToMainWindow('pixano:focus:presence', event) });
+  ipcMain.handle("pixano:focus:watch-presence", (_event, request) => presenceMonitor.watch(request));
+  ipcMain.handle("pixano:notifications:test", () => {
     if (!Notification.isSupported()) return false;
-    const notification = new Notification({ title: "Hibi", body: "Native notifications are working." });
+    const notification = new Notification({ title: "Pixano", body: "Native notifications are working." });
     notification.show();
     return true;
   });
-  ipcMain.handle('hibi:ai:run', (event, turn) => {
+  ipcMain.handle('pixano:ai:run', (event, turn) => {
     const correlationId = typeof turn?.correlationId === 'string' && turn.correlationId.length > 0 && turn.correlationId.length <= 128 && /^[A-Za-z0-9_-]+$/.test(turn.correlationId) ? turn.correlationId : null;
     if (!correlationId) throw new Error('Invalid AI correlation id.');
     return aiRequestCoordinator.run(event.sender, turn?.request, correlationId, (streamEvent) => {
     const safeEvent = safeAiStreamEvent(streamEvent);
-    if (safeEvent && !event.sender.isDestroyed()) event.sender.send('hibi:ai:stream', safeEvent);
+    if (safeEvent && !event.sender.isDestroyed()) event.sender.send('pixano:ai:stream', safeEvent);
     });
   });
-  ipcMain.handle('hibi:ai:cancel', (event, value) => aiRequestCoordinator.cancel(event.sender, value?.requestId, value?.correlationId));
-  ipcMain.handle('hibi:ai-config:get', () => aiConfiguration.getStatus());
-  ipcMain.handle('hibi:ai-config:save', async (_event, value) => {
+  ipcMain.handle('pixano:ai:cancel', (event, value) => aiRequestCoordinator.cancel(event.sender, value?.requestId, value?.correlationId));
+  ipcMain.handle('pixano:ai-config:get', () => aiConfiguration.getStatus());
+  ipcMain.handle('pixano:ai-config:save', async (_event, value) => {
     const status = await verifyAndSaveAiConfiguration({ configuration: aiConfiguration, value, verifyCandidate: async (config) => createMainAiRuntime({ config }).testConnection() });
     replaceAiRuntime(createMainAiRuntime({ config: await aiConfiguration.getRuntimeConfig().catch(() => ({})) }));
     return status;
   });
-  ipcMain.handle('hibi:ai-config:delete-key', async () => {
+  ipcMain.handle('pixano:ai-config:delete-key', async () => {
     const status = await aiConfiguration.deleteKey();
     replaceAiRuntime(createMainAiRuntime());
     return status;
   });
-  ipcMain.handle('hibi:integrations:list-status', () => integrationManager.listStatus());
+  ipcMain.handle('pixano:integrations:list-status', () => integrationManager.listStatus());
   // Uma credencial nova, seja colada à mão ou vinda do OAuth, encerra o pedido de reconexão.
-  ipcMain.handle('hibi:integrations:connect', async (_event, connectorId, credential) => { const status = await integrationManager.connect(connectorId, { credential }); markReconnect(connectorId, false); return { ...status, state: 'connected', needsReconnect: false }; });
-  ipcMain.handle('hibi:integrations:audit', () => integrationManager.audit());
-  ipcMain.handle('hibi:integrations:revoke', async (_event, connectorId) => {
+  ipcMain.handle('pixano:integrations:connect', async (_event, connectorId, credential) => { const status = await integrationManager.connect(connectorId, { credential }); markReconnect(connectorId, false); return { ...status, state: 'connected', needsReconnect: false }; });
+  ipcMain.handle('pixano:integrations:audit', () => integrationManager.audit());
+  ipcMain.handle('pixano:integrations:revoke', async (_event, connectorId) => {
     // Revogar pela tela precisa apagar também o refresh token do OAuth. Sem isso ele continua no
     // Keychain depois de a pessoa achar que desconectou a integração.
     if (oauthService.supports(connectorId)) await oauthService.revoke(connectorId);
     return integrationManager.revoke(connectorId);
   });
-  ipcMain.handle('hibi:integrations:prepare-action', (_event, input) => integrationManager.prepareAction(input));
-  ipcMain.handle('hibi:integrations:execute-approved', (_event, input) => integrationManager.executeApproved(input));
-  ipcMain.handle('hibi:integrations:test-connection', (_event, connectorId) => integrationManager.testConnection(connectorId));
-  ipcMain.handle('hibi:integrations:import-targets', (_event, connectorId) => integrationManager.listImportTargets(connectorId));
-  ipcMain.handle('hibi:integrations:import-candidates', (_event, connectorId) => integrationManager.listImportCandidates(connectorId, { targets: connectorSettings.get(connectorId).targets }));
-  ipcMain.handle('hibi:notion:discover-data-source', (_event, databaseId) => integrationManager.discoverDataSource('notion', databaseId));
-  ipcMain.handle('hibi:integrations:get-settings', (_event, connectorId) => connectorSettings.get(connectorId));
-  ipcMain.handle('hibi:integrations:save-settings', (_event, connectorId, patch) => {
+  ipcMain.handle('pixano:integrations:prepare-action', (_event, input) => integrationManager.prepareAction(input));
+  ipcMain.handle('pixano:integrations:execute-approved', (_event, input) => integrationManager.executeApproved(input));
+  ipcMain.handle('pixano:integrations:test-connection', (_event, connectorId) => integrationManager.testConnection(connectorId));
+  ipcMain.handle('pixano:integrations:import-targets', (_event, connectorId) => integrationManager.listImportTargets(connectorId));
+  ipcMain.handle('pixano:integrations:import-candidates', (_event, connectorId) => integrationManager.listImportCandidates(connectorId, { targets: connectorSettings.get(connectorId).targets }));
+  ipcMain.handle('pixano:notion:discover-data-source', (_event, databaseId) => integrationManager.discoverDataSource('notion', databaseId));
+  ipcMain.handle('pixano:integrations:get-settings', (_event, connectorId) => connectorSettings.get(connectorId));
+  ipcMain.handle('pixano:integrations:save-settings', (_event, connectorId, patch) => {
     const saved = connectorSettings.save(connectorId, patch);
     // O endpoint entra na construção do conector, então o gerenciador é refeito.
     // Isso descarta ações já preparadas de propósito: uma ação preparada contra o
@@ -474,50 +488,50 @@ app.whenReady().then(async () => {
     if (patch?.endpoint !== undefined) integrationManager = integrationManager.withConnectors(buildConnectors(connectorSettings));
     return saved;
   });
-  ipcMain.handle('hibi:oauth:supported', (_event, connectorId) => oauthService.supports(connectorId));
-  ipcMain.handle('hibi:oauth:authorize', async (_event, connectorId) => { const result = await oauthService.authorize(connectorId, { clientId: connectorSettings.get(connectorId).clientId }); markReconnect(connectorId, false); return result; });
-  ipcMain.handle('hibi:oauth:refresh', async (_event, connectorId) => {
+  ipcMain.handle('pixano:oauth:supported', (_event, connectorId) => oauthService.supports(connectorId));
+  ipcMain.handle('pixano:oauth:authorize', async (_event, connectorId) => { const result = await oauthService.authorize(connectorId, { clientId: connectorSettings.get(connectorId).clientId }); markReconnect(connectorId, false); return result; });
+  ipcMain.handle('pixano:oauth:refresh', async (_event, connectorId) => {
     try { const result = await oauthService.refresh(connectorId, { clientId: connectorSettings.get(connectorId).clientId }); markReconnect(connectorId, false); return result; }
     catch (error) { markReconnect(connectorId, true); throw error; }
   });
-  ipcMain.handle('hibi:oauth:cancel', () => oauthService.cancel());
-  ipcMain.handle('hibi:oauth:client-secret', (_event, connectorId) => oauthService.hasClientSecret(connectorId));
-  ipcMain.handle('hibi:oauth:save-client-secret', (_event, connectorId, secret) => oauthService.saveClientSecret(connectorId, secret));
-  ipcMain.handle('hibi:oauth:clear-client-secret', (_event, connectorId) => oauthService.clearClientSecret(connectorId));
-  ipcMain.handle('hibi:calendar-sync:state', () => calendarSyncService.getState());
-  ipcMain.handle('hibi:calendar-sync:request-apple-access', () => calendarSyncService.requestAppleAccess());
-  ipcMain.handle('hibi:calendar-sync:discover-google-calendars', () => calendarSyncService.discoverGoogleCalendars());
-  ipcMain.handle('hibi:calendar-sync:read-events', (_event, input) => calendarSyncService.readEvents(input));
-  ipcMain.handle('hibi:calendar-sync:save-calendar-mode', (_event, input) => calendarSyncService.saveCalendarMode(input));
-  ipcMain.handle('hibi:calendar-sync:prepare-publish', (_event, input) => calendarSyncService.preparePublish(input));
-  ipcMain.handle('hibi:calendar-sync:execute-approved', (_event, input) => calendarSyncService.executeApproved(input));
-  ipcMain.handle('hibi:calendar-sync:prepare-update', (_event, input) => calendarSyncService.prepareUpdate(input));
-  ipcMain.handle('hibi:calendar-sync:resolve-conflict', (_event, input) => calendarSyncService.resolveConflict(input));
-  ipcMain.handle('hibi:calendar-sync:changes', () => calendarSyncService.listChanges());
-  ipcMain.handle('hibi:calendar-sync:acknowledge-incoming', (_event, input) => calendarSyncService.acknowledgeIncoming(input));
+  ipcMain.handle('pixano:oauth:cancel', () => oauthService.cancel());
+  ipcMain.handle('pixano:oauth:client-secret', (_event, connectorId) => oauthService.hasClientSecret(connectorId));
+  ipcMain.handle('pixano:oauth:save-client-secret', (_event, connectorId, secret) => oauthService.saveClientSecret(connectorId, secret));
+  ipcMain.handle('pixano:oauth:clear-client-secret', (_event, connectorId) => oauthService.clearClientSecret(connectorId));
+  ipcMain.handle('pixano:calendar-sync:state', () => calendarSyncService.getState());
+  ipcMain.handle('pixano:calendar-sync:request-apple-access', () => calendarSyncService.requestAppleAccess());
+  ipcMain.handle('pixano:calendar-sync:discover-google-calendars', () => calendarSyncService.discoverGoogleCalendars());
+  ipcMain.handle('pixano:calendar-sync:read-events', (_event, input) => calendarSyncService.readEvents(input));
+  ipcMain.handle('pixano:calendar-sync:save-calendar-mode', (_event, input) => calendarSyncService.saveCalendarMode(input));
+  ipcMain.handle('pixano:calendar-sync:prepare-publish', (_event, input) => calendarSyncService.preparePublish(input));
+  ipcMain.handle('pixano:calendar-sync:execute-approved', (_event, input) => calendarSyncService.executeApproved(input));
+  ipcMain.handle('pixano:calendar-sync:prepare-update', (_event, input) => calendarSyncService.prepareUpdate(input));
+  ipcMain.handle('pixano:calendar-sync:resolve-conflict', (_event, input) => calendarSyncService.resolveConflict(input));
+  ipcMain.handle('pixano:calendar-sync:changes', () => calendarSyncService.listChanges());
+  ipcMain.handle('pixano:calendar-sync:acknowledge-incoming', (_event, input) => calendarSyncService.acknowledgeIncoming(input));
   const workspaceStore = () => { if (!workspaceDatabase) throw new Error('The workspace database is unavailable.'); return workspaceDatabase; };
   // A entrada vem do renderer: texto fora do formato vira erro de validação, e não exceção de tipo.
   const workspaceInput = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
-  ipcMain.handle('hibi:workspace:read', () => workspaceStore().read());
-  ipcMain.handle('hibi:workspace:save', (_event, input) => {
+  ipcMain.handle('pixano:workspace:read', () => workspaceStore().read());
+  ipcMain.handle('pixano:workspace:save', (_event, input) => {
     const safe = workspaceInput(input);
     const restorePoint = typeof safe.restorePoint === 'string' ? safe.restorePoint : undefined;
     return workspaceStore().save(safe.payload, restorePoint === undefined ? {} : { restorePoint });
   });
-  ipcMain.handle('hibi:workspace:restore-points', () => workspaceStore().listRestorePoints());
-  ipcMain.handle('hibi:workspace:restore', (_event, input) => workspaceStore().restore(workspaceInput(input).id));
-  ipcMain.handle('hibi:local-api:sync-workspace', (_event, value) => {
+  ipcMain.handle('pixano:workspace:restore-points', () => workspaceStore().listRestorePoints());
+  ipcMain.handle('pixano:workspace:restore', (_event, input) => workspaceStore().restore(workspaceInput(input).id));
+  ipcMain.handle('pixano:local-api:sync-workspace', (_event, value) => {
     const safe = value && typeof value === 'object' ? value : {};
     localApiWorkspace = { tasks: Array.isArray(safe.tasks) ? safe.tasks.slice(0, 5_000) : [], reminders: Array.isArray(safe.reminders) ? safe.reminders.slice(0, 5_000) : [], blocks: Array.isArray(safe.blocks) ? safe.blocks.slice(0, 5_000) : [] };
     localApiWorkspaceSynced = true;
   });
-  ipcMain.handle('hibi:local-api:start', async () => {
+  ipcMain.handle('pixano:local-api:start', async () => {
     const started = await localApi.start();
     return { origin: started.origin };
   });
-  ipcMain.handle('hibi:local-api:stop', async () => { await localApi.stop(); return { running: false }; });
-  ipcMain.handle('hibi:local-api:status', () => ({ running: localApi.isRunning() }));
-  ipcMain.handle('hibi:local-api:resolve-write', (_event, input) => {
+  ipcMain.handle('pixano:local-api:stop', async () => { await localApi.stop(); return { running: false }; });
+  ipcMain.handle('pixano:local-api:status', () => ({ running: localApi.isRunning() }));
+  ipcMain.handle('pixano:local-api:resolve-write', (_event, input) => {
     const confirmationId = typeof input?.confirmationId === 'string' ? input.confirmationId : '';
     const entry = pendingLocalApiWrites.get(confirmationId);
     if (!entry) return { resolved: false };
@@ -525,110 +539,114 @@ app.whenReady().then(async () => {
     if (entry.expiresAt <= Date.now()) return { resolved: false, expired: true };
     return { resolved: true, approved: input?.approved === true };
   });
-  ipcMain.handle('hibi:webhook:configure', async (_event, secret) => { await webhookService.configure(secret); return webhookService.status(); });
-  ipcMain.handle('hibi:webhook:start', async () => { await webhookService.start(); return webhookService.status(); });
-  ipcMain.handle('hibi:webhook:stop', async () => { await webhookService.stop(); return webhookService.status(); });
-  ipcMain.handle('hibi:webhook:status', () => webhookService.status());
-  ipcMain.handle('hibi:notch:show', (_event, presentation) => {
+  ipcMain.handle('pixano:webhook:configure', async (_event, secret) => { await webhookService.configure(secret); return webhookService.status(); });
+  ipcMain.handle('pixano:webhook:start', async () => { await webhookService.start(); return webhookService.status(); });
+  ipcMain.handle('pixano:webhook:stop', async () => { await webhookService.stop(); return webhookService.status(); });
+  ipcMain.handle('pixano:webhook:status', () => webhookService.status());
+  ipcMain.handle('pixano:notch:show', (_event, presentation) => {
     if (!isRendererPresentationAllowed(presentation)) throw new Error('Invalid companion presentation.');
     // Uma confirmação no ar espera um clique. Nenhum outro cartão pedido pelo renderer a cobre —
     // inclusive de quem fala com o notch por fora do controlador do companion, como a sincronização
     // do Notion. Senão a confirmação sumia e o pedido ficava pendente sem cartão.
-    const active = tabyBar.current();
+    const active = assistantBar.current();
     if (active && active.actions.length > 0 && active.requestId !== presentation.requestId) return { deferred: true, requestId: active.requestId };
     // Regra do produto: no notch só o mascote. Texto e botões vão para a barra embaixo dele.
     notchBusyRequestId = presentation.requestId;
+    mascotAnimationSequencer?.cancel();
     idleEscalation.stop();
-    const shown = notchWindow.show(mascotPresentation(presentation));
-    tabyBar.show(presentation);
+    const mascot = mascotPresentation(presentation);
+    const shown = notchWindow.show(mascot);
+    mascotAnimationSequencer?.start({ presentation: mascot });
+    assistantBar.show(presentation);
     return shown;
   });
-  ipcMain.handle('hibi:notch:hide', (_event, requestId) => {
+  ipcMain.handle('pixano:notch:hide', (_event, requestId) => {
     const id = typeof requestId === 'string' ? requestId : '';
-    tabyBar.hide(id);
+    mascotAnimationSequencer?.cancel(id);
+    assistantBar.hide(id);
     const hidden = notchWindow.hide(id);
     if (hidden && notchBusyRequestId === id) { notchBusyRequestId = null; idleEscalation.reset(); }
     return hidden;
   });
-  ipcMain.handle('hibi:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && tabyBar.resolveAction(requestId, actionId));
-  ipcMain.handle('hibi:notch:current', () => tabyBar.current());
-  // A barra do Taby fala só por estes canais, e só a janela dela é ouvida.
-  const fromBar = (event) => tabyBar.isSender(event?.sender);
-  ipcMain.handle('hibi:bar:current', (event) => (fromBar(event) ? tabyBar.current() : null));
-  ipcMain.handle('hibi:bar:action', (event, requestId, actionId) => fromBar(event) && isValidNotchAction(requestId, actionId) && tabyBar.resolveAction(requestId, actionId));
-  ipcMain.handle('hibi:bar:submit', (event, text) => {
+  ipcMain.handle('pixano:notch:action', (_event, requestId, actionId) => isValidNotchAction(requestId, actionId) && assistantBar.resolveAction(requestId, actionId));
+  ipcMain.handle('pixano:notch:current', () => assistantBar.current());
+  // A barra do Assistant fala só por estes canais, e só a janela dela é ouvida.
+  const fromBar = (event) => assistantBar.isSender(event?.sender);
+  ipcMain.handle('pixano:bar:current', (event) => (fromBar(event) ? assistantBar.current() : null));
+  ipcMain.handle('pixano:bar:action', (event, requestId, actionId) => fromBar(event) && isValidNotchAction(requestId, actionId) && assistantBar.resolveAction(requestId, actionId));
+  ipcMain.handle('pixano:bar:submit', (event, text) => {
     const message = fromBar(event) ? cleanInput(text) : null;
     if (!message) return false;
-    sendToMainWindow('hibi:bar:submit', message);
+    sendToMainWindow('pixano:bar:submit', message);
     return true;
   });
-  ipcMain.handle('hibi:bar:voice', (event, command) => {
+  ipcMain.handle('pixano:bar:voice', (event, command) => {
     if (!fromBar(event) || (command !== 'start' && command !== 'stop')) return false;
-    sendToMainWindow('hibi:bar:voice', command);
+    sendToMainWindow('pixano:bar:voice', command);
     return true;
   });
-  ipcMain.handle('hibi:bar:close', (event) => {
+  ipcMain.handle('pixano:bar:close', (event) => {
     if (!fromBar(event)) return false;
-    const closing = tabyBar.current();
-    tabyBar.hide();
-    if (closing) sendToMainWindow('hibi:bar:closed', closing.requestId);
+    const closing = assistantBar.current();
+    assistantBar.hide();
+    if (closing) sendToMainWindow('pixano:bar:closed', closing.requestId);
     return true;
   });
-  ipcMain.handle('hibi:notch:capabilities', () => notchCapabilities(notchAdapter, notchWindow));
-  ipcMain.handle('hibi:notch:displays', () => notchDisplayState(notchSettings, notchWindow));
-  ipcMain.handle('hibi:notch:set-display', (_event, displayId) => {
+  ipcMain.handle('pixano:notch:capabilities', () => notchCapabilities(notchAdapter, notchWindow));
+  ipcMain.handle('pixano:notch:displays', () => notchDisplayState(notchSettings, notchWindow));
+  ipcMain.handle('pixano:notch:set-display', (_event, displayId) => {
     const state = applyNotchDisplay(notchSettings, notchWindow, displayId);
     // O mascote pode ter ido para a tela da janela, ou saído dela.
     mascotPlacement?.refresh();
     return state;
   });
-  ipcMain.handle('hibi:notch:window-placement', () => mascotPlacement?.current() ?? { sharesDisplay: false });
-  ipcMain.handle('hibi:notch:test', (_event, locale) => notchTest.run(locale === 'en' ? 'en' : 'pt'));
+  ipcMain.handle('pixano:notch:window-placement', () => mascotPlacement?.current() ?? { sharesDisplay: false });
+  ipcMain.handle('pixano:notch:test', (_event, locale) => notchTest.run(locale === 'en' ? 'en' : 'pt'));
   // O tamanho do companion é ajuste da pessoa e vale entre aberturas: fica no mesmo arquivo do monitor
   // preferido, e a superfície — painel nativo ou janela — é reposicionada na hora.
   // O estado diz se a tecla está valendo: `taken` é outro app com ela, e a tela precisa mostrar qual
   // atalho está escolhido mesmo assim.
   // Nada é baixado nem instalado sem pedido da tela.
-  ipcMain.handle('hibi:updates:state', () => updateService.state());
-  ipcMain.handle('hibi:updates:check', () => updateService.check());
-  ipcMain.handle('hibi:updates:download', () => updateService.download());
-  ipcMain.handle('hibi:updates:install', () => updateService.install());
-  ipcMain.handle('hibi:shortcut:get', () => tabyShortcut.describe());
-  ipcMain.handle('hibi:shortcut:set', (_event, accelerator) => {
-    try { return tabyShortcut.set(accelerator === null ? null : String(accelerator)); }
-    catch { return { ...tabyShortcut.describe(), error: 'invalid' }; }
+  ipcMain.handle('pixano:updates:state', () => updateService.state());
+  ipcMain.handle('pixano:updates:check', () => updateService.check());
+  ipcMain.handle('pixano:updates:download', () => updateService.download());
+  ipcMain.handle('pixano:updates:install', () => updateService.install());
+  ipcMain.handle('pixano:shortcut:get', () => assistantShortcut.describe());
+  ipcMain.handle('pixano:shortcut:set', (_event, accelerator) => {
+    try { return assistantShortcut.set(accelerator === null ? null : String(accelerator)); }
+    catch { return { ...assistantShortcut.describe(), error: 'invalid' }; }
   });
-  ipcMain.handle('hibi:local-model:state', () => localModelStore.describe());
+  ipcMain.handle('pixano:local-model:state', () => localModelStore.describe());
   // A conferência completa lê o arquivo inteiro e leva segundos: é pedida, nunca automática.
-  ipcMain.handle('hibi:local-model:verify', () => localModelStore.verify());
-  ipcMain.handle('hibi:local-model:download', () => localModelDownload.start());
-  ipcMain.handle('hibi:local-model:cancel-download', () => localModelDownload.cancel());
-  ipcMain.handle('hibi:local-model:run', (_event, input) => runWithVerifiedModel({ service: localModelService, store: localModelStore, input }));
-  ipcMain.handle('hibi:local-model:cancel', (_event, requestId) => { localModelService.cancel(requestId); return true; });
-  ipcMain.handle('hibi:local-model:shutdown', () => localModelService.shutdown());
-  ipcMain.handle('hibi:local-voice:state', () => localVoiceService.state());
-  ipcMain.handle('hibi:local-voice:listen', async (_event, options) => {
+  ipcMain.handle('pixano:local-model:verify', () => localModelStore.verify());
+  ipcMain.handle('pixano:local-model:download', () => localModelDownload.start());
+  ipcMain.handle('pixano:local-model:cancel-download', () => localModelDownload.cancel());
+  ipcMain.handle('pixano:local-model:run', (_event, input) => runWithVerifiedModel({ service: localModelService, store: localModelStore, input }));
+  ipcMain.handle('pixano:local-model:cancel', (_event, requestId) => { localModelService.cancel(requestId); return true; });
+  ipcMain.handle('pixano:local-model:shutdown', () => localModelService.shutdown());
+  ipcMain.handle('pixano:local-voice:state', () => localVoiceService.state());
+  ipcMain.handle('pixano:local-voice:listen', async (_event, options) => {
     // A permissão é pedida antes de abrir o microfone, e uma recusa vira estado, não exceção.
     if (process.platform === 'darwin' && systemPreferences?.askForMediaAccess) {
       const allowed = await systemPreferences.askForMediaAccess('microphone').catch(() => false);
       if (!allowed) return { ...localVoiceService.state(), status: 'error', error: 'Microphone access was denied in macOS settings.' };
     }
-    return localVoiceService.listen({ autoStop: options?.autoStop === true, vocabulary: options?.vocabulary, onText: (text) => sendToMainWindow('hibi:local-voice:text', text) });
+    return localVoiceService.listen({ autoStop: options?.autoStop === true, vocabulary: options?.vocabulary, onText: (text) => sendToMainWindow('pixano:local-voice:text', text) });
   });
-  ipcMain.handle('hibi:local-voice:set-locale', (_event, locale) => localVoiceService.setLocale(locale));
-  ipcMain.handle('hibi:local-voice:stop', () => localVoiceService.stop());
+  ipcMain.handle('pixano:local-voice:set-locale', (_event, locale) => localVoiceService.setLocale(locale));
+  ipcMain.handle('pixano:local-voice:stop', () => localVoiceService.stop());
   // Ler a resposta em voz alta só com o ajuste ligado: o processo principal confere, não só a tela.
-  ipcMain.handle('hibi:local-voice:speak', async (_event, text) => {
+  ipcMain.handle('pixano:local-voice:speak', async (_event, text) => {
     if (!voiceSettings.get().spokenReplies) return { ...localVoiceService.state(), spoken: false };
     if (typeof text !== 'string' || !text.trim()) return { ...localVoiceService.state(), spoken: false };
     return { ...await localVoiceService.speak(text.trim().slice(0, 1_200)), spoken: true };
   });
-  ipcMain.handle('hibi:voice-settings:get', () => voiceSettings.get());
-  ipcMain.handle('hibi:voice-settings:set', (_event, patch) => {
+  ipcMain.handle('pixano:voice-settings:get', () => voiceSettings.get());
+  ipcMain.handle('pixano:voice-settings:set', (_event, patch) => {
     try { return voiceSettings.save(patch); } catch { return { ...voiceSettings.get(), error: 'invalid' }; }
   });
-  ipcMain.handle('hibi:notch:size', () => ({ size: notchSettings.get().size }));
-  ipcMain.handle('hibi:notch:set-size', (_event, nextSize) => {
+  ipcMain.handle('pixano:notch:size', () => ({ size: notchSettings.get().size }));
+  ipcMain.handle('pixano:notch:set-size', (_event, nextSize) => {
     const size = nextSize === 'compact' ? 'compact' : 'normal';
     notchSettings.save({ ...notchSettings.get(), size });
     notchWindow.setSize(size);
@@ -639,16 +657,16 @@ app.whenReady().then(async () => {
   // inicialização é a prova visual de que o notch físico está coberto, e nasce na tela com câmera.
   // Só barra de menus: sem ícone no Dock e sem ⌘Tab. O menu do app continua montado porque é ele
   // que carrega ⌘C, ⌘V, ⌘Z e ⌘A dentro dos campos.
-  Menu.setApplicationMenu(Menu.buildFromTemplate(buildAppMenuTemplate({ appName: app.getName?.() ?? 'Hibi' })));
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildAppMenuTemplate({ appName: app.getName?.() ?? 'Pixano' })));
   hideFromDock({ app });
-  appTray = createAppTray({ Tray, Menu, nativeImage, onOpen: summonWindow, onTaby: openTaby, onHide: () => mainWindow?.hide(), onQuit: () => { quitting = true; app.quit(); } });
-  tabyShortcut.apply();
+  appTray = createAppTray({ Tray, Menu, nativeImage, onOpen: summonWindow, onAssistant: openAssistant, onHide: () => mainWindow?.hide(), onQuit: () => { quitting = true; app.quit(); } });
+  assistantShortcut.apply();
   showStartupNotch(notchWindow, startupNotchAnimationPath());
   mascotPlacement?.refresh();
   idleEscalation.reset();
   app.on("activate", () => summonWindow());
 });
-app.on("before-quit", () => { quitting = true; mascotPlacement?.dispose(); localVoiceService?.stop(); appTray?.destroy(); tabyShortcut?.dispose(); detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
+app.on("before-quit", () => { quitting = true; mascotAnimationSequencer?.cancel(); mascotPlacement?.dispose(); localVoiceService?.stop(); appTray?.destroy(); assistantShortcut?.dispose(); detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
 // O helper de voz é outro processo: sem este `stop`, uma escuta aberta sobrevivia ao app, com o
 // microfone ligado e ninguém para desligá-lo. Ver o `localVoiceService?.stop()` no before-quit.
 //

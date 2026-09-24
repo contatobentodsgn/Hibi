@@ -128,8 +128,8 @@ describe('loop visual do foco', () => {
   });
 
   it('o id resolvido vira o vídeo que já existe no registro de assets, e respeita o movimento reduzido', () => {
-    expect(companionAnimationForState(resolveFocusLoopAnimationId('music'))).toMatchObject({ kind: 'video', url: '/companion-assets/animations/notch/listening_music_loop.mp4' });
-    expect(companionAnimationForState(resolveFocusLoopAnimationId('focus'))).toMatchObject({ kind: 'video', url: '/companion-assets/animations/notch/working_laptop_normal_loop.mp4' });
+    expect(companionAnimationForState(resolveFocusLoopAnimationId('music'))).toMatchObject({ kind: 'video', url: '/mascot/listening.mp4' });
+    expect(companionAnimationForState(resolveFocusLoopAnimationId('focus'))).toMatchObject({ kind: 'video', url: '/mascot/focus.mp4' });
     expect(companionAnimationForState(resolveFocusLoopAnimationId('music'), true)).toEqual({ kind: 'fallback', symbol: '♪' });
   });
 });

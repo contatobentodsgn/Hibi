@@ -45,7 +45,7 @@ test('o painel de detalhes fica à direita, dentro da moldura, com os dados do i
   await openGallery(page);
   const trigger = section(page).getByRole('button', { name: 'Detalhes da tarefa' });
   await trigger.click();
-  const panel = page.getByRole('dialog', { name: 'Refinar a identidade do Hibi' });
+  const panel = page.getByRole('dialog', { name: 'Refinar a identidade do Pixano' });
   await expect(panel).toBeVisible();
   // Parada (a folha entra deslizando), presa à direita, a 8 px da moldura em volta.
   await expect.poll(async () => (await panel.boundingBox())!.x).toBe(1440 - 8 - 400);
@@ -64,13 +64,13 @@ test('o painel de detalhes fica à direita, dentro da moldura, com os dados do i
   await trigger.click();
   await panel.getByRole('button', { name: 'Concluir' }).click();
   await expect(panel).toHaveCount(0);
-  await expect(status(page)).toHaveText('Concluída: Refinar a identidade do Hibi');
+  await expect(status(page)).toHaveText('Concluída: Refinar a identidade do Pixano');
 });
 
 test('em janela estreita, o painel de detalhes sobe de baixo, na largura toda', async ({ page }) => {
   await openGallery(page, 390, 844);
   await section(page).getByRole('button', { name: 'Detalhes da tarefa' }).click();
-  const panel = page.getByRole('dialog', { name: 'Refinar a identidade do Hibi' });
+  const panel = page.getByRole('dialog', { name: 'Refinar a identidade do Pixano' });
   await expect(panel).toBeVisible();
   await expect.poll(async () => { const box = (await panel.boundingBox())!; return Math.round(box.y + box.height); }).toBe(844 - 8);
   expect(await panel.boundingBox()).toMatchObject({ x: 8, width: 390 - 16 });

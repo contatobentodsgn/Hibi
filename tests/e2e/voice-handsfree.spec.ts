@@ -17,14 +17,14 @@ async function installVoice(page: Page, settings = { shortcutVoice: 'off', spoke
       shortcut: (request) => shortcutListeners.forEach((listener) => listener(request)),
     };
     (window as unknown as { voiceE2E: Log }).voiceE2E = log;
-    (window as unknown as { hibiDesktop: Record<string, unknown> }).hibiDesktop = {
+    (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       listenLocalVoice: (options: { autoStop?: boolean; vocabulary?: string[] }) => { calls.push(`listen:${options?.autoStop === true}`); calls.push(`vocabulary:${JSON.stringify(options?.vocabulary ?? [])}`); return new Promise((resolve) => { finishListen = resolve; }); },
       stopLocalVoice: async () => { calls.push('stop'); log.finish('stopped'); return { status: 'ready' }; },
       onLocalVoiceText: (callback: (text: string) => void) => { textListeners.push(callback); return () => textListeners.splice(textListeners.indexOf(callback), 1); },
       speakLocalVoice: async (text: string) => { calls.push(`speak:${text}`); return { status: 'ready', spoken: true }; },
-      onTabyShortcut: (callback: (request: { listen: boolean; background: boolean }) => void) => { shortcutListeners.push(callback); return () => shortcutListeners.splice(shortcutListeners.indexOf(callback), 1); },
-      getTabyShortcut: async () => ({ accelerator: 'Command+Shift+Space', status: 'active' }),
-      setTabyShortcut: async (accelerator: string | null) => ({ accelerator, status: 'active' }),
+      onAssistantShortcut: (callback: (request: { listen: boolean; background: boolean }) => void) => { shortcutListeners.push(callback); return () => shortcutListeners.splice(shortcutListeners.indexOf(callback), 1); },
+      getAssistantShortcut: async () => ({ accelerator: 'Command+Shift+Space', status: 'active' }),
+      setAssistantShortcut: async (accelerator: string | null) => ({ accelerator, status: 'active' }),
       getVoiceSettings: async () => ({ ...voiceSettings }),
       setVoiceSettings: async (patch: Record<string, unknown>) => { calls.push(`settings:${JSON.stringify(patch)}`); voiceSettings = { ...voiceSettings, ...patch }; return { ...voiceSettings }; },
       showNotch: async (presentation: { requestId: string; kind: string; text: string | null }) => { calls.push(`notch:${presentation.kind}:${presentation.text ?? ''}`); return { degraded: false, requestId: presentation.requestId }; },
@@ -39,11 +39,11 @@ const voice = (page: Page) => ({
   shortcut: (request: { listen: boolean; background: boolean }) => page.evaluate((value) => (window as unknown as { voiceE2E: Log }).voiceE2E.shortcut(value), request),
 });
 const campo = (page: Page) => page.getByRole('textbox', { name: 'Pergunte ou peça uma ação' });
-const openTaby = async (page: Page) => { await page.goto('/'); await page.getByRole('button', { name: 'Taby', exact: true }).click(); };
+const openAssistant = async (page: Page) => { await page.goto('/'); await page.getByRole('button', { name: 'Assistente', exact: true }).click(); };
 
 test('falar e parar de falar envia o pedido sozinho, sem apertar Enviar', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await page.getByRole('button', { name: 'Falar' }).click();
   expect(await voice(page).calls()).toContain('listen:true');
 
@@ -58,7 +58,7 @@ test('falar e parar de falar envia o pedido sozinho, sem apertar Enviar', async 
 
 test('a escuta leva ao reconhecedor os nomes que já estão no Hibi', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await page.getByRole('button', { name: 'Falar' }).click();
 
   const pedido = (await voice(page).calls()).find((call) => call.startsWith('vocabulary:')) ?? 'vocabulary:[]';
@@ -70,7 +70,7 @@ test('a escuta leva ao reconhecedor os nomes que já estão no Hibi', async ({ p
 
 test('o que soa como um nome do Hibi chega escrito como no Hibi', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await page.getByRole('button', { name: 'Falar' }).click();
 
   // O reconhecedor às vezes escreve "cabrito"; os dados de exemplo têm "Kabrito Post 01".
@@ -80,7 +80,7 @@ test('o que soa como um nome do Hibi chega escrito como no Hibi', async ({ page 
 
 test('parar pelo botão deixa o texto no campo para editar, sem enviar', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await page.getByRole('button', { name: 'Falar' }).click();
   await voice(page).say('crie uma tarefa rascunho');
   await page.getByRole('button', { name: 'Parar voz' }).click();
@@ -92,7 +92,7 @@ test('parar pelo botão deixa o texto no campo para editar, sem enviar', async (
 
 test('sem nenhuma palavra, a tela diz que não ouviu nada', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await page.getByRole('button', { name: 'Falar' }).click();
   await voice(page).finish('no-speech');
   await expect(page.getByText('Não ouvi nada. Aperte Falar e diga o pedido.')).toBeVisible();
@@ -100,10 +100,10 @@ test('sem nenhuma palavra, a tela diz que não ouviu nada', async ({ page }) => 
 
 test('a resposta de um pedido falado é lida em voz alta; a de um pedido digitado, não', async ({ page }) => {
   await installVoice(page);
-  await openTaby(page);
+  await openAssistant(page);
   await campo(page).fill('quais são minhas tarefas?');
-  await page.getByRole('button', { name: 'Send' }).click();
-  await expect(page.getByRole('button', { name: 'Send' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await expect(page.getByRole('button', { name: 'Enviar' })).toBeEnabled();
   await page.waitForTimeout(300);
   expect((await voice(page).calls()).filter((call) => call.startsWith('speak:'))).toEqual([]);
 
@@ -131,7 +131,7 @@ test('pelo atalho no modo notch, o notch mostra o que é ouvido, sem trocar de t
   expect(await page.getByRole('heading', { level: 1 }).first().textContent()).toBe(telaAntes);
 });
 
-test('pelo atalho no modo janela, o Taby abre já ouvindo', async ({ page }) => {
+test('pelo atalho no modo janela, o Assistant abre já ouvindo', async ({ page }) => {
   await installVoice(page, { shortcutVoice: 'window', spokenReplies: false });
   await page.goto('/');
   await voice(page).shortcut({ listen: true, background: false });

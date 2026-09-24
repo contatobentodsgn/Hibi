@@ -10,9 +10,9 @@ export type VoiceResult = Readonly<{ status: string; error: string | null; reaso
  * explicava o motivo (permissão, idioma sem modelo no Mac, sem microfone), a tela o descartava.
  */
 export function voiceNotice(result: VoiceResult, t: (key: DictionaryKey) => string): string {
-  if (!result) return t('taby.voice.unavailable');
+  if (!result) return t('assistant.voice.unavailable');
   if (result.status === 'ready' || result.status === 'listening') return '';
-  if (result.status === 'unavailable') return t('taby.voice.unavailable');
+  if (result.status === 'unavailable') return t('assistant.voice.unavailable');
   if (result.reason === 'permission') return t('voice.error.permission');
   if (result.reason === 'no-on-device') return t('voice.error.noOnDevice');
   if (result.reason === 'no-microphone') return t('voice.error.noMicrophone');

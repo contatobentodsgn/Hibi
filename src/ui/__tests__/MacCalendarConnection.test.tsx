@@ -12,6 +12,7 @@ describe("MacCalendarConnection", () => {
     expect(markup).toContain("Calendário do Mac");
     expect(markup).toContain("Permitir Calendário");
     expect(markup).toContain("nunca é solicitado silenciosamente");
+    expect(markup).not.toMatch(/Hibi|Assistant/);
   });
 
   it("offers an explicit publish flow for local schedule blocks", () => {

@@ -38,7 +38,7 @@ describe('assistantTurnReducer', () => {
   })
 
   it('monta o rótulo de proveniência sem partes vazias', () => {
-    expect(provenanceLabel({ provider: 'Hibi local tools', model: 'local-tool-provider' })).toBe('Hibi local tools · local-tool-provider')
+    expect(provenanceLabel({ provider: 'Pixano local tools', model: 'local-tool-provider' })).toBe('Pixano local tools · local-tool-provider')
     expect(provenanceLabel({ provider: 'OpenAI-compatible', model: 'gpt-test', totalTokens: 17, fallback: true })).toBe('OpenAI-compatible · gpt-test · 17 tokens · local fallback')
     expect(provenanceLabel({})).toBe('')
   })

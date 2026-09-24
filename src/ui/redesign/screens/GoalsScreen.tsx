@@ -2,9 +2,9 @@ import { useState, type FormEvent } from "react";
 import { Check, Pencil, Plus, Target, Trash2 } from "lucide-react";
 import type { Goal, StudyData } from "../../../domain/models";
 import { deriveGoalsDirection } from "../../progress-rhythm";
-import { HibiEmptyState } from "../components/HibiEmptyState";
+import { PixanoEmptyState } from "../components/PixanoEmptyState";
 import { ActionDialog } from "../components/ActionDialog";
-import { HibiUiRoot } from "../components/HibiUiRoot";
+import { PixanoUiRoot } from "../components/PixanoUiRoot";
 import { SectionHeader } from "../components/SectionHeader";
 import { useT } from "../../../i18n/LocaleProvider";
 import "./rhythm-screens.css";
@@ -58,7 +58,7 @@ export function GoalsScreen({
     }
   };
   return (
-    <HibiUiRoot className="rhythm-screen goals-screen">
+    <PixanoUiRoot className="rhythm-screen goals-screen">
       <SectionHeader
         title={t("goals.title")}
         subtitle={t("goals.subtitle").replace(
@@ -155,7 +155,7 @@ export function GoalsScreen({
           <Target size={21} aria-hidden="true" />
         </header>
         {data.goals.length === 0 ? (
-          <HibiEmptyState
+          <PixanoEmptyState
             icon={Target}
             tone="lavender"
             title={t("goals.empty")}
@@ -384,6 +384,6 @@ export function GoalsScreen({
           </div>
         </ActionDialog>
       )}
-    </HibiUiRoot>
+    </PixanoUiRoot>
   );
 }

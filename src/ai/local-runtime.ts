@@ -9,7 +9,7 @@ import { AiToolPolicy } from './policy';
 import type { AiFallbackPolicy, AiProvider, AiProviderProposal, AiProviderRequest, AiToolCall } from './contracts';
 import { HeuristicAiProvider } from './heuristic-provider';
 import { AiTurnRuntime, type AiRuntimeUsageEvent } from './runtime';
-import { ToolRegistry, type HibiTool } from './tools';
+import { ToolRegistry, type PixanoTool } from './tools';
 import type { AiAuditEvent } from './history';
 
 // Uma ação remota só é registrada como ferramenta quando a ponte do app desktop
@@ -37,7 +37,7 @@ const isConnectorId = (value: unknown): value is string => typeof value === 'str
 const entityStatus = (value: unknown) => value === undefined || ['open', 'completed', 'paused'].includes(String(value));
 
 export function createLocalToolRegistry(repository: LocalRepository, hooks: Hooks = {}): ToolRegistry {
-  const register = (tool: HibiTool) => registry.register(tool);
+  const register = (tool: PixanoTool) => registry.register(tool);
   const registry = new ToolRegistry();
   register({ name: 'search.schedule', description: 'Read local schedule blocks.', risk: 'read', inputSchema: { type: 'object' }, validate: () => true, execute: () => ({ summary: `${repository.listBlocks().length} blocos na agenda`, data: { count: repository.listBlocks().length } }) });
   register({ name: 'search.tasks', description: 'Read local tasks.', risk: 'read', inputSchema: { type: 'object' }, validate: () => true, execute: () => ({ summary: `${repository.listTasks().filter((task) => task.status !== 'completed').length} tarefas abertas` }) });
@@ -51,7 +51,7 @@ export function createLocalToolRegistry(repository: LocalRepository, hooks: Hook
   register({ name: 'reminder.update', description: 'Update a local reminder title, date/time, or status.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)) && (args.title === undefined || isText(args.title)) && (args.at === undefined || isIsoDateTime(args.at)) && entityStatus(args.status), execute: (args) => { const reminder = repository.updateReminder(id(args), { ...(args.title === undefined ? {} : { title: title(args) }), ...(args.at === undefined ? {} : { schedule: { at: wallClock(args.at) } }), ...(args.status === undefined ? {} : { status: args.status as 'open' | 'completed' | 'paused' }) }); hooks.onDataChanged?.(); return { summary: `Lembrete atualizado: ${reminder.title}`, data: { id: reminder.id } }; } });
   register({ name: 'reminder.delete', description: 'Permanently delete a local reminder.', risk: 'destructive', inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)), execute: (args) => { const reminder = repository.listReminders().find((item) => item.id === id(args)); if (!reminder) throw new Error(`Reminder not found: ${id(args)}`); repository.deleteReminder(reminder.id); hooks.onDataChanged?.(); return { summary: `Lembrete excluído: ${reminder.title}`, data: { id: reminder.id } }; } });
   register({ name: 'block.create', description: 'Create a local schedule block.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['title', 'start', 'end', 'category'] }, validate: (args) => isText(args.title) && isIsoDateTime(args.start) && isIsoDateTime(args.end) && wallClock(args.start) < wallClock(args.end) && category(args.category), execute: (args) => { const input = { title: title(args), start: wallClock(args.start), end: wallClock(args.end), category: args.category as Category } satisfies Omit<ScheduleBlock, 'id'>; const validation = validateScheduleBlock({ ...input, id: 'assistant-preview' }, repository.listBlocks()); if (!validation.valid) throw new Error(validation.errors.join(' ')); const block = repository.createBlock(input); hooks.onDataChanged?.(); hooks.onBlockCreated?.(block); return { summary: `Bloco criado: ${block.title}`, data: { id: block.id } }; } });
-  // Uma reunião pedida ao Taby vai para os três lugares onde a pessoa a procura: a agenda do Hibi, as
+  // Uma reunião pedida ao assistente vai para os três lugares onde a pessoa a procura: a agenda do Pixano, as
   // tarefas do dia (com prazo no horário) e o calendário conectado. É uma ação só, com uma confirmação.
   register({ name: 'meeting.create', description: 'Create a meeting: schedule block, task due at its start and an event in the connected calendar.', risk: 'external', externallyVisible: true, inputSchema: { type: 'object', required: ['title', 'start', 'end'] }, validate: (args) => isText(args.title) && isIsoDateTime(args.start) && isIsoDateTime(args.end) && wallClock(args.start) < wallClock(args.end), execute: async (args) => {
     // Uma reunião é compromisso fixo: é contra outros compromissos que um horário repetido merece atenção.
@@ -70,7 +70,7 @@ export function createLocalToolRegistry(repository: LocalRepository, hooks: Hook
     return { summary: `Reunião marcada: ${input.title}, ${when}, ${where}.`, data: { blockId: block.id, taskId: task.id, calendar } };
   } });
   register({ name: 'block.update', description: 'Update a local schedule block.', risk: 'reversible', externallyVisible: true, inputSchema: { type: 'object', required: ['id'] }, validate: (args) => Boolean(id(args)) && (args.title === undefined || isText(args.title)) && (args.start === undefined || isIsoDateTime(args.start)) && (args.end === undefined || isIsoDateTime(args.end)) && (args.category === undefined || category(args.category)), execute: async (args) => { const current = repository.listBlocks().find((item) => item.id === id(args)); if (!current) throw new Error(`Block not found: ${id(args)}`); const next = { ...current, ...(args.title === undefined ? {} : { title: title(args) }), ...(args.start === undefined ? {} : { start: wallClock(args.start) }), ...(args.end === undefined ? {} : { end: wallClock(args.end) }), ...(args.category === undefined ? {} : { category: args.category as Category }) }; if (next.start >= next.end) throw new Error('Block start must be before end.'); const validation = validateScheduleBlock(next, repository.listBlocks().filter((item) => item.id !== next.id)); if (!validation.valid) throw new Error(validation.errors.join(' ')); const block = repository.updateBlock(next.id, next); hooks.onDataChanged?.();
-    // Um bloco que já está no calendário conectado muda lá também: a confirmação do Taby é a aprovação.
+    // Um bloco que já está no calendário conectado muda lá também: a confirmação no assistente é a aprovação.
     let calendar: string | null = null; let calendarFailed = false;
     if (args.start !== undefined || args.end !== undefined || args.title !== undefined) { try { calendar = (await hooks.calendar?.update?.(block)) ?? null; } catch { calendarFailed = true; } }
     const when = `${block.start.slice(8, 10)}/${block.start.slice(5, 7)} às ${block.start.slice(11, 16)}`;
@@ -243,12 +243,12 @@ function subjectOf(toolCalls: readonly AiToolCall[]): Subject | null {
 }
 
 /**
- * As ferramentas locais do Taby. Guardam o assunto da conversa — o que foi criado ou mexido por último —
+ * As ferramentas locais do assistente. Guardam o assunto da conversa — o que foi criado ou mexido por último —
  * para "deixa isso pra amanhã" saber do que se fala.
  */
 export class LocalToolProvider implements AiProvider {
   readonly id = 'local-tools';
-  readonly label = 'Hibi local tools';
+  readonly label = 'Pixano local tools';
   private subject: Subject | null = null;
   constructor(private readonly repository: LocalRepository) {}
   fromIntent(intent: SpokenIntent, request: AiProviderRequest): AiProviderProposal | null {
@@ -274,7 +274,7 @@ function subjectFromCalls(repository: LocalRepository, toolCalls: readonly AiToo
   return entity ? { kind, id: idValue, title: entity.title } : null;
 }
 
-export function createLocalHibiRuntime(repository: LocalRepository, hooks: Hooks = {}, provider: AiProvider = new LocalToolProvider(repository), fallbackProvider: AiProvider = new HeuristicAiProvider(), fallbackPolicy: AiFallbackPolicy | (() => AiFallbackPolicy) = 'automatic'): AiTurnRuntime {
+export function createLocalAssistantRuntime(repository: LocalRepository, hooks: Hooks = {}, provider: AiProvider = new LocalToolProvider(repository), fallbackProvider: AiProvider = new HeuristicAiProvider(), fallbackPolicy: AiFallbackPolicy | (() => AiFallbackPolicy) = 'automatic'): AiTurnRuntime {
   const registry = createLocalToolRegistry(repository, hooks);
   return new AiTurnRuntime({ registry, policy: new AiToolPolicy(registry), provider, fallbackProvider, fallbackPolicy, onAudit: hooks.onAudit, onUsage: hooks.onUsage, context: { get tasks() { return repository.listTasks().map((task) => ({ id: task.id, title: task.title, dueAt: task.deadline })); }, get reminders() { return repository.listReminders().map((reminder) => ({ id: reminder.id, title: reminder.title, nextAt: reminder.schedule.at })); }, get schedule() { return repository.listBlocks(); }, get notes() { return repository.listNotes().map((note) => ({ id: note.id, title: note.title })); } } });
 }

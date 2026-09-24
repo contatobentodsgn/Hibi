@@ -21,7 +21,7 @@ const browserStorage = (): PreferenceStorage | null => {
   try { return window.localStorage } catch { return null }
 }
 
-const placementBridge = () => (typeof window === 'undefined' ? undefined : window.hibiDesktop)
+const placementBridge = () => (typeof window === 'undefined' ? undefined : window.pixanoDesktop)
 
 /**
  * A posição da barra, compartilhada entre o shell e os Ajustes. Trocar a posição só re-renderiza a barra: a
