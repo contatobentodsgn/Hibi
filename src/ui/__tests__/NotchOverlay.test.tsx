@@ -22,6 +22,23 @@ describe('NotchOverlay', () => {
     expect(markup).toContain('Cancelar');
   });
 
+  it('starts the semantic entry clip once and carries explicit loop and idle fallbacks', () => {
+    const markup = renderToStaticMarkup(<NotchOverlay initialPresentation={{
+      requestId: 'animation-1', kind: 'listening', text: null, interaction: 'passthrough', actions: [],
+      entryAnimationUrl: '/mascot/idle_curious.mp4', loopAnimationUrl: '/mascot/listening.mp4', idleAnimationUrl: '/mascot/idle.mp4',
+    }} />);
+    expect(markup).toContain('src="/mascot/idle_curious.mp4"');
+    expect(markup).not.toContain(' loop=""');
+  });
+
+  it('does not render an animated clip when the companion requests reduced motion', () => {
+    const markup = renderToStaticMarkup(<NotchOverlay initialPresentation={{
+      requestId: 'reduced-1', kind: 'listening', text: null, interaction: 'passthrough', actions: [],
+      reducedMotion: true, entryAnimationUrl: '/mascot/idle_curious.mp4', loopAnimationUrl: '/mascot/listening.mp4',
+    }} />);
+    expect(markup).not.toContain('<video');
+  });
+
   it('keeps a non-motion, high-contrast path for macOS accessibility preferences', () => {
     const css = readFileSync(new URL('../notch-overlay.css', import.meta.url), 'utf8');
     expect(css).toContain('prefers-reduced-motion:reduce');

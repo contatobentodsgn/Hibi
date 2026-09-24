@@ -8,6 +8,28 @@ describe('CompanionController', () => {
     expect(show).toHaveBeenCalledWith(expect.objectContaining({ requestId: 'task-1', kind: 'result', interaction: 'passthrough', text: 'Tarefa concluída: roteiro' }));
   });
 
+  it('preserves the reducer animation plan in the notch presentation', () => {
+    const show = vi.fn();
+    const controller = new CompanionController({ show, hide: vi.fn() });
+
+    controller.dispatch({ type: 'ai.stage', requestId: 'listen-1', stage: 'listening', nowMs: 1 });
+
+    expect(show).toHaveBeenCalledWith(expect.objectContaining({
+      animation: { entry: 'listening_in', loop: 'listening_loop', reducedMotion: false },
+    }));
+  });
+
+  it('preserves static-frame instructions when reduced motion is enabled', () => {
+    const show = vi.fn();
+    const controller = new CompanionController({ show, hide: vi.fn() });
+
+    controller.dispatch({ type: 'ai.stage', requestId: 'listen-2', stage: 'listening', nowMs: 1, reducedMotion: true });
+
+    expect(show).toHaveBeenCalledWith(expect.objectContaining({
+      animation: { entry: null, loop: null, staticFrame: 'listening_loop', reducedMotion: true },
+    }));
+  });
+
   it('emits a reminder and dismisses it after its expiry', () => {
     const show = vi.fn(); const hide = vi.fn(); const controller = new CompanionController({ show, hide });
     controller.dispatch({ type: 'reminder.triggered', requestId: 'reminder-1', text: 'Horizontes', nowMs: 10, expiresInMs: 100 });

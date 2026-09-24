@@ -1,5 +1,8 @@
 export type MascotAnimationState =
   | 'idle'
+  | 'idle-curious'
+  | 'idle-wander'
+  | 'idle-sleep'
   | 'listening'
   | 'thinking'
   | 'working'
@@ -17,6 +20,9 @@ type MascotAnimation = Readonly<{ kind: 'video'; url: string }>;
 
 const mascotVideos: Readonly<Record<MascotAnimationState, MascotAnimation>> = {
   idle: { kind: 'video', url: '/mascot/idle.mp4' },
+  'idle-curious': { kind: 'video', url: '/mascot/idle_curious.mp4' },
+  'idle-wander': { kind: 'video', url: '/mascot/idle_wander.mp4' },
+  'idle-sleep': { kind: 'video', url: '/mascot/sleep.mp4' },
   listening: { kind: 'video', url: '/mascot/listening.mp4' },
   thinking: { kind: 'video', url: '/mascot/idle_curious.mp4' },
   working: { kind: 'video', url: '/mascot/focus.mp4' },

@@ -24,7 +24,7 @@ const { createNotchSettings, notchDisplayState, applyNotchDisplay } = require('.
 const { createNotchTest, NOTCH_TEST_PREFIX } = require('./notch-test.cjs');
 const { showStartupNotch, idleCompanionPresentation } = require('./notch-startup.cjs');
 const { createMascotPlacement } = require('./mascot-placement.cjs');
-const { createIdleEscalation, createMascot } = require('./mascot.cjs');
+const { createIdleEscalation, createMascot, createMascotAnimationSequencer } = require('./mascot.cjs');
 const { cleanInput, createAssistantBar } = require('./assistant-bar.cjs');
 const { createLocalVoiceService } = require('./local-voice.cjs');
 const { createLocalModelStore } = require('./local-model-store.cjs');
@@ -109,6 +109,7 @@ let assistantBar;
 let idleEscalation;
 // O pedido que está no notch agora; `null` quando o mascote está em repouso.
 let notchBusyRequestId = null;
+let mascotAnimationSequencer;
 let notchSettings;
 let notchTest;
 let detachNotchLifecycle = () => {};
@@ -308,7 +309,14 @@ function mascotPresentation(presentation) {
   // Uma resposta que é pergunta ("Para que horário?") deixa o gato curioso, não feliz: nada foi concluído.
   const asks = presentation.kind === 'result' && typeof presentation.text === 'string' && presentation.text.trim().endsWith('?');
   const state = asks ? 'curious' : mascot.stateFor(presentation.kind);
-  return { requestId: presentation.requestId, kind: presentation.kind, text: null, actions: [], interaction: 'passthrough', host: 'native', animationPath: mascot.animationPath(state) };
+  const animation = asks && presentation.animation
+    ? { entry: null, loop: 'searching_loop', reducedMotion: presentation.animation.reducedMotion === true }
+    : presentation.animation;
+  const sequence = animation
+    ? mascot.sequenceForAnimation(animation)
+    : mascot.sequenceForKind(asks ? 'thinking' : presentation.kind);
+  const reducedMotion = animation?.reducedMotion === true;
+  return { requestId: presentation.requestId, kind: presentation.kind, text: null, actions: [], interaction: 'passthrough', host: 'native', ...(!reducedMotion ? { animationPath: mascot.animationPath(state) } : {}), ...sequence };
 }
 
 // O repouso escala com o tempo parado (curioso, dando uma volta, dormindo), só com o notch livre.
@@ -409,6 +417,10 @@ app.whenReady().then(async () => {
     },
   });
   notchWindow = createNotchWindowManager({ BrowserWindowClass: BrowserWindow, screen, preloadPath: path.join(__dirname, 'notch-preload.cjs'), nativeBridge: notchAdapter, preferredDisplayId: notchSettings.get().displayId, size: notchSettings.get().size, idlePresentation: () => idleCompanionPresentation(startupNotchAnimationPath()), load: (window) => isDev ? window.loadURL(`${new URL(process.env.PIXANO_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=notch`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'notch' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
+  mascotAnimationSequencer = createMascotAnimationSequencer({ onLoop: (presentation) => {
+    if (notchBusyRequestId !== presentation.requestId) return;
+    try { notchWindow?.show(presentation); } catch { /* o pedido já não tem superfície */ }
+  } });
   assistantBar = createAssistantBar({ BrowserWindowClass: BrowserWindow, preloadPath: path.join(__dirname, 'bar-preload.cjs'), displayFor: () => notchWindow.currentDisplay(), sizeFor: () => notchWindow.currentSize(), load: (window) => isDev ? window.loadURL(`${new URL(process.env.PIXANO_DEV_SERVER || 'http://127.0.0.1:5173')}?overlay=bar`) : window.loadFile(path.join(__dirname, '../dist/index.html'), { query: { overlay: 'bar' } }), onAction: (action) => { routeNotchAction(action, { notchTest, send: sendToMainWindow }); } });
   idleEscalation = createIdleEscalation({ onState: showIdleMascot });
   notchTest = createNotchTest({ manager: notchWindow });
@@ -540,13 +552,17 @@ app.whenReady().then(async () => {
     if (active && active.actions.length > 0 && active.requestId !== presentation.requestId) return { deferred: true, requestId: active.requestId };
     // Regra do produto: no notch só o mascote. Texto e botões vão para a barra embaixo dele.
     notchBusyRequestId = presentation.requestId;
+    mascotAnimationSequencer?.cancel();
     idleEscalation.stop();
-    const shown = notchWindow.show(mascotPresentation(presentation));
+    const mascot = mascotPresentation(presentation);
+    const shown = notchWindow.show(mascot);
+    mascotAnimationSequencer?.start({ presentation: mascot });
     assistantBar.show(presentation);
     return shown;
   });
   ipcMain.handle('pixano:notch:hide', (_event, requestId) => {
     const id = typeof requestId === 'string' ? requestId : '';
+    mascotAnimationSequencer?.cancel(id);
     assistantBar.hide(id);
     const hidden = notchWindow.hide(id);
     if (hidden && notchBusyRequestId === id) { notchBusyRequestId = null; idleEscalation.reset(); }
@@ -650,7 +666,7 @@ app.whenReady().then(async () => {
   idleEscalation.reset();
   app.on("activate", () => summonWindow());
 });
-app.on("before-quit", () => { quitting = true; mascotPlacement?.dispose(); localVoiceService?.stop(); appTray?.destroy(); assistantShortcut?.dispose(); detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
+app.on("before-quit", () => { quitting = true; mascotAnimationSequencer?.cancel(); mascotPlacement?.dispose(); localVoiceService?.stop(); appTray?.destroy(); assistantShortcut?.dispose(); detachNotchLifecycle(); void oauthService?.cancel(); notificationScheduler?.clear(); presenceMonitor?.stop(); void localApi?.stop(); void webhookService?.stop(); notchWindow?.destroy(); });
 // O helper de voz é outro processo: sem este `stop`, uma escuta aberta sobrevivia ao app, com o
 // microfone ligado e ninguém para desligá-lo. Ver o `localVoiceService?.stop()` no before-quit.
 //

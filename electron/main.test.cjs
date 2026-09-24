@@ -1094,6 +1094,9 @@ test("uma apresentação com texto vira mascote no notch e texto na barra", asyn
   assert.deepEqual(noNotch.actions, []);
   assert.equal(noNotch.host, "native");
   assert.match(noNotch.animationPath, /mascot\/happy_[1-4]\.mp4$/);
+  assert.match(noNotch.entryAnimationPath, /mascot\/happy_[1-4]\.mp4$/);
+  assert.match(noNotch.loopAnimationPath, /mascot\/idle\.mp4$/);
+  assert.equal(noNotch.entryAnimationUrl, `/mascot/${require('node:path').basename(noNotch.entryAnimationPath)}`);
   const barra = harness.windows.find((window) => window.options?.webPreferences?.preload?.endsWith("bar-preload.cjs"));
   assert.deepEqual(barra.sent.at(-1), ["pixano:bar:content", { requestId: "r-1", mode: "reply", kind: "result", text: "Tarefa criada: revisar contrato", actions: [] }]);
 });
@@ -1101,10 +1104,55 @@ test("uma apresentação com texto vira mascote no notch e texto na barra", asyn
 test("uma resposta que é pergunta deixa o gato curioso, não feliz", async (t) => {
   const harness = await loadMain();
   t.after(() => harness.cleanup());
-  await harness.invoke("pixano:notch:show", { requestId: "q-1", kind: "result", text: "Para que horário?", actions: [] });
-  assert.match(harness.notchManager.calls.at(-1)[1].animationPath, /mascot\/idle_curious\.mp4$/);
+  await harness.invoke("pixano:notch:show", { requestId: "q-1", kind: "result", text: "Para que horário?", actions: [], animation: { entry: "task_completed", loop: null, reducedMotion: false } });
+  assert.match(harness.notchManager.calls.at(-1)[1].loopAnimationPath, /mascot\/idle_curious\.mp4$/);
+  assert.equal(harness.notchManager.calls.at(-1)[1].entryAnimationPath, undefined);
   await harness.invoke("pixano:notch:show", { requestId: "q-2", kind: "result", text: "Reunião marcada.", actions: [] });
   assert.match(harness.notchManager.calls.at(-1)[1].animationPath, /mascot\/happy_[1-4]\.mp4$/);
+});
+
+test("o pedido do notch toca a entrada do mascote uma vez e depois mostra o loop até dispensar", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  await harness.invoke("pixano:notch:show", { requestId: "animacao-turno", kind: "listening", text: null, actions: [] });
+  const first = harness.notchManager.calls.filter(([action]) => action === "show").at(-1)[1];
+  assert.match(first.entryAnimationPath, /mascot\/idle_curious\.mp4$/);
+  assert.match(first.loopAnimationPath, /mascot\/listening\.mp4$/);
+  await new Promise((resolve) => setTimeout(resolve, 4_200));
+  const shows = harness.notchManager.calls.filter(([action, value]) => action === "show" && value?.requestId === "animacao-turno");
+  assert.equal(shows.length, 2, "o loop substitui a entrada sem criar outro pedido");
+  assert.equal(shows[1][1].entryAnimationPath, null);
+  assert.match(shows[1][1].animationPath, /mascot\/listening\.mp4$/);
+  await harness.invoke("pixano:notch:hide", "animacao-turno");
+});
+
+test("o plano semântico do companion chega aos clipes do mascote sem ser reduzido ao kind", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  await harness.invoke("pixano:notch:show", {
+    requestId: "semantic-animation", kind: "result", text: "Resposta", actions: [],
+    animation: { entry: "listening_in", loop: "listening_loop", reducedMotion: false },
+  });
+
+  const mascot = harness.notchManager.calls.at(-1)[1];
+  assert.match(mascot.entryAnimationPath, /mascot\/idle_curious\.mp4$/);
+  assert.match(mascot.loopAnimationPath, /mascot\/listening\.mp4$/);
+});
+
+test("movimento reduzido impede o host de iniciar clipes animados", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+
+  await harness.invoke("pixano:notch:show", {
+    requestId: "reduced-motion", kind: "listening", text: null, actions: [],
+    animation: { entry: null, loop: null, staticFrame: "listening_loop", reducedMotion: true },
+  });
+
+  const mascot = harness.notchManager.calls.at(-1)[1];
+  assert.equal(mascot.entryAnimationPath, undefined);
+  assert.equal(mascot.loopAnimationPath, undefined);
+  assert.equal(mascot.animationPath, undefined);
 });
 
 test("os canais da barra só ouvem a janela dela, e o texto dela vira pedido na janela principal", async (t) => {

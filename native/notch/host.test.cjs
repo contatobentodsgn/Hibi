@@ -124,6 +124,23 @@ test('o host toca o loop ocioso original quando recebe um arquivo local de anima
   reset();
 });
 
+test('o host toca a entrada sem a repetir e aceita o loop seguinte para o mesmo pedido', (t) => {
+  if (!addonBuilt) return t.skip(NO_ADDON);
+  const screens = bridge.screenGeometry();
+  if (screens.length === 0) return t.skip(NO_SCREENS);
+  const entry = path.resolve(__dirname, '../../public/mascot/idle_curious.mp4');
+  const loop = path.resolve(__dirname, '../../public/mascot/listening.mp4');
+  assert.equal(fs.existsSync(entry), true);
+  assert.equal(fs.existsSync(loop), true);
+  reset();
+  assert.equal(bridge.showHost({ ...passive('sequencia'), entryAnimationPath: entry, loopAnimationPath: loop }, screens[0].displayId), true);
+  assert.equal(bridge.hostDiagnostics().animationPhase, 'entry');
+  assert.equal(bridge.showHost({ ...passive('sequencia'), loopAnimationPath: loop, idleAnimationPath: path.resolve(__dirname, '../../public/mascot/idle.mp4') }, screens[0].displayId), true);
+  assert.equal(bridge.hostDiagnostics().animationPhase, 'loop');
+  assert.equal(bridge.hostDiagnostics().requestId, 'sequencia');
+  reset();
+});
+
 test('o painel nasce abaixo da câmera: altura e posição saem da geometria real de cada tela', (t) => {
   if (!addonBuilt) return t.skip(NO_ADDON);
   const screens = bridge.screenGeometry();

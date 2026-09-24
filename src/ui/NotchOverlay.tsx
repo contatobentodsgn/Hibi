@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { mascotAnimationFor } from './mascot-animation';
 import './notch-overlay.css';
 
-export type OverlayPresentation = { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture' };
+export type OverlayPresentation = { requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture'; animationSequenceKey?: string; entryAnimationUrl?: string; loopAnimationUrl?: string; idleAnimationUrl?: string; reducedMotion?: boolean };
 export const notchMediaFor = (kind: string) => ({
   idle: mascotAnimationFor('idle'),
   listening: mascotAnimationFor('listening'),
@@ -16,6 +16,7 @@ export const notchMediaFor = (kind: string) => ({
 
 export function NotchOverlay({ initialPresentation = null }: { initialPresentation?: OverlayPresentation | null }) {
   const [presentation, setPresentation] = useState<OverlayPresentation | null>(initialPresentation);
+  const [completedEntryKey, setCompletedEntryKey] = useState<string | null>(null);
   useEffect(() => {
     const unsubscribe = window.pixanoDesktop?.onCompanionPresentation?.(setPresentation) ?? (() => undefined);
     // A primeira apresentação é enviada enquanto esta janela ainda carrega e se perde. Buscar a
@@ -26,9 +27,13 @@ export function NotchOverlay({ initialPresentation = null }: { initialPresentati
   useEffect(() => { if (!presentation) return; const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape' && presentation.actions.length === 0) void window.pixanoDesktop?.hideNotch?.(presentation.requestId); }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, [presentation]);
   if (!presentation) return <main className="notch-overlay" aria-live="polite" />;
   const media = notchMediaFor(presentation.kind);
+  const entryUrl = presentation.entryAnimationUrl;
+  const sequenceKey = `${presentation.animationSequenceKey ?? presentation.requestId}:${entryUrl ?? ''}:${presentation.loopAnimationUrl ?? ''}`;
+  const playingEntry = Boolean(entryUrl && completedEntryKey !== sequenceKey);
+  const animationUrl = playingEntry ? entryUrl : presentation.loopAnimationUrl ?? presentation.idleAnimationUrl ?? media.url;
   const interactive = presentation.actions.length > 0;
   return <main className="notch-overlay" role={interactive ? 'dialog' : 'status'} aria-modal={interactive || undefined} aria-live={interactive ? undefined : 'polite'} aria-label={interactive ? 'Pixano confirmation' : `Pixano ${presentation.kind}`} data-interaction={presentation.interaction}>
-    <video src={media.url} autoPlay muted loop playsInline aria-hidden="true" />
+    {!presentation.reducedMotion && <video key={sequenceKey} src={animationUrl} autoPlay muted loop={!playingEntry} playsInline aria-hidden="true" onEnded={playingEntry ? () => setCompletedEntryKey(sequenceKey) : undefined} />}
     {presentation.text && <p>{presentation.text}</p>}
     {presentation.actions.length > 0 && <div className="notch-overlay-actions">
       {presentation.actions.map((action, index) => <button type="button" autoFocus={index === 0} key={action.id} onClick={() => { if (action.id === 'confirm' || action.id === 'cancel') void window.pixanoDesktop?.resolveNotchAction?.(presentation.requestId, action.id); }}>{action.label}</button>)}

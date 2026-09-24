@@ -1,7 +1,7 @@
 import type { CompanionEvent, CompanionPresentation } from './contracts';
 import { initialCompanionState, reduceCompanion } from './reducer';
 
-export type NotchCompanionPresentation = Readonly<{ requestId: string; kind: string; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture'; host?: 'electron' }>;
+export type NotchCompanionPresentation = Readonly<{ requestId: string; kind: string; animation: CompanionPresentation['animation']; text: string | null; actions: readonly { id: string; label: string }[]; interaction: 'passthrough' | 'capture'; host?: 'electron' }>;
 type Callbacks = Readonly<{ show: (presentation: NotchCompanionPresentation) => void; hide: (requestId: string) => void }>;
 
 /**
@@ -9,7 +9,7 @@ type Callbacks = Readonly<{ show: (presentation: NotchCompanionPresentation) => 
  * carinha e nada mais. Cartão com texto vai para a overlay, que sabe desenhá-lo — e é ela que
  * também aceita Esc para dispensar.
  */
-const toNotchPresentation = (state: CompanionPresentation): NotchCompanionPresentation | null => state.requestId === null ? null : { requestId: state.requestId, kind: state.kind, text: state.text, actions: state.actions, interaction: state.interaction, ...(state.text ? { host: 'electron' as const } : {}) };
+const toNotchPresentation = (state: CompanionPresentation): NotchCompanionPresentation | null => state.requestId === null ? null : { requestId: state.requestId, kind: state.kind, animation: state.animation, text: state.text, actions: state.actions, interaction: state.interaction, ...(state.text ? { host: 'electron' as const } : {}) };
 
 export class CompanionController {
   private state: CompanionPresentation = initialCompanionState;
