@@ -4,6 +4,7 @@ import { FileText, Folder, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import type { Note, StudyData } from '../../../domain/models';
 import { folderOf, FOLDER_NAME_MAX, listFolders, NO_FOLDER } from '../../../domain/folders';
 import { ActionDialog } from '../components/ActionDialog';
+import { ContextualGuidance } from '../components/ContextualGuidance';
 import { PixanoEmptyState } from '../components/PixanoEmptyState';
 import { PixanoUiRoot } from '../components/PixanoUiRoot';
 import { SectionHeader } from '../components/SectionHeader';
@@ -41,6 +42,7 @@ export function NotesScreen({ data, onCreate, onUpdate, onDelete, initialFolder 
     return matchesFolder && haystack.includes(query.toLocaleLowerCase());
   }), [data.notes, folder, query]);
   const suggestions = folders.map((entry) => entry.name).filter((name) => name !== NO_FOLDER);
+  const latestNote = useMemo(() => [...notes].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ?? null, [notes]);
 
   const submitCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -58,6 +60,7 @@ export function NotesScreen({ data, onCreate, onUpdate, onDelete, initialFolder 
 
   return <PixanoUiRoot className="notes-screen">
     <SectionHeader title={t('notes.title')} subtitle={`${data.notes.length} nota${data.notes.length === 1 ? '' : 's'} loca${data.notes.length === 1 ? 'l' : 'is'} · sem perder o fio`} actions={<Button variant="primary" onPress={() => { setDraft(emptyDraft(folder && folder !== NO_FOLDER ? folder : 'Bento')); setCreateOpen(true); }}><Plus size={17} aria-hidden="true" />Nova nota</Button>} />
+    {latestNote && <ContextualGuidance id="notes.resume" title={t('contextual.notes.resume.title')} description={t('contextual.notes.resume.detail')} actionLabel={t('contextual.notes.resume.action')} onAction={() => { setDraft({ title: latestNote.title, content: latestNote.content, folder: folderOf(latestNote) }); setEditing(latestNote); }} />}
     <div className="notes-screen__toolbar">
       <label className="notes-screen__search"><Search size={16} aria-hidden="true" /><span className="sr-only">Pesquisar notas</span><input aria-label="Pesquisar notas" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Pesquisar notas" /></label>
       <div className="notes-screen__filters" aria-label="Pastas de notas">

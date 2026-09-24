@@ -1,0 +1,7 @@
+@layer components {
+  .contextual-guidance { display:flex; align-items:center; gap:12px; min-width:0; margin:0 0 16px; padding:12px 14px; border:1px solid var(--hibi-line); border-radius:var(--hibi-radius-card); background:var(--hibi-surface); color:var(--hibi-ink); }
+  .contextual-guidance__copy { flex:1; min-width:0; }
+  .contextual-guidance__copy strong { display:block; font-size:13px; }
+  .contextual-guidance__copy p { margin:3px 0 0; color:var(--hibi-ink-muted); font-size:12px; line-height:1.45; }
+  @media(max-width:560px) { .contextual-guidance { align-items:flex-start; flex-wrap:wrap; } .contextual-guidance__copy { flex-basis:calc(100% - 32px); } .contextual-guidance>button:nth-of-type(1) { margin-left:auto; } }
+}

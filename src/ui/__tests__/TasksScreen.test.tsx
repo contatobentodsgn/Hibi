@@ -47,6 +47,17 @@ describe('TasksScreen', () => {
     expect(markup).toContain('Concluir tarefa Entregar a proposta longa');
   });
 
+  it('offers one dismissible next step when open tasks are overdue', () => {
+    const markup = renderToStaticMarkup(
+      <TasksScreen data={tasksData} today="2026-09-17" onEvent={noop} onTaskStatusChange={noop} onCreateTask={noop} />,
+    );
+
+    expect(markup).toContain('data-contextual-guidance="tasks.overdue"');
+    expect(markup).toContain('Alguns prazos passaram.');
+    expect(markup).toContain('Revisar prazos');
+    expect(markup).toContain('aria-label="Dispensar sugestão"');
+  });
+
   it('shows an honest empty state for a selected folder without tasks', () => {
     const markup = renderToStaticMarkup(
       <TasksScreen
