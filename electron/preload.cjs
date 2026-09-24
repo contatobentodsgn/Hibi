@@ -70,6 +70,7 @@ contextBridge.exposeInMainWorld("pixanoDesktop", {
   ,cancelLocalModel: (requestId) => ipcRenderer.invoke('pixano:local-model:cancel', requestId)
   ,shutdownLocalModel: () => ipcRenderer.invoke('pixano:local-model:shutdown')
   ,getLocalVoiceState: () => ipcRenderer.invoke('pixano:local-voice:state')
+  ,getMicrophonePermission: () => ipcRenderer.invoke('pixano:diagnostics:microphone-permission')
   ,listenLocalVoice: (options) => ipcRenderer.invoke('pixano:local-voice:listen', { autoStop: options?.autoStop === true, vocabulary: Array.isArray(options?.vocabulary) ? options.vocabulary.filter((term) => typeof term === 'string') : [] })
   ,speakLocalVoice: (text) => ipcRenderer.invoke('pixano:local-voice:speak', text)
   ,getVoiceSettings: () => ipcRenderer.invoke('pixano:voice-settings:get')

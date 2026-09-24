@@ -9,6 +9,7 @@ import type { AiFallbackPolicy, AiModelPresetId } from "../ai/contracts";
 import { recommendedModelPresets } from "../ai/production";
 import { IntegrationsWorkspace } from "./IntegrationsView";
 import { NotchDisplaySettings } from "./NotchDisplaySettings";
+import { SupportDiagnostics } from "./SupportDiagnostics";
 import type { AiUsageRecord } from "../ai/usage";
 import { useLocale, useT } from "../i18n/LocaleProvider";
 import type { DictionaryKey } from "../i18n/dictionary";
@@ -688,26 +689,6 @@ export function SettingsWorkspace({
     const shown = (await onTestNotification?.()) ?? false;
     onEvent("test", "Native notifications", shown ? "pass" : "unsupported");
   };
-  const exportBundle = () => {
-    const url = URL.createObjectURL(
-      new Blob(
-        [
-          JSON.stringify(
-            { exportedAt: new Date().toISOString(), app: "Pixano", data },
-            null,
-            2,
-          ),
-        ],
-        { type: "application/json" },
-      ),
-    );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "pixano-support-bundle.json";
-    link.click();
-    URL.revokeObjectURL(url);
-    onEvent("export", "Exported support bundle", "pass");
-  };
   const focus = focusSettings ?? DEFAULT_FOCUS_SETTINGS;
   const workspacePreferences = (): WorkspacePreferences => ({
     language,
@@ -1060,14 +1041,7 @@ export function SettingsWorkspace({
                   )}
                 </div>
               </Setting>
-              <Setting
-                title="Support bundle"
-                detail="Export a local diagnostic snapshot for review"
-              >
-                <button className="outline" onClick={exportBundle}>
-                  Export JSON
-                </button>
-              </Setting>
+              <SupportDiagnostics onEvent={onEvent} />
               <Setting
                 title="Study data"
                 detail={`Restore the local seed dataset · ${data.blocks.length} schedule blocks`}
