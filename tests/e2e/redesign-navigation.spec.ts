@@ -256,8 +256,12 @@ for (const position of ['top', 'bottom'] as const) {
     await page.addInitScript((p) => localStorage.setItem('hibi.ui.navigation-position.v1', p), position);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
+    const today = nav(page).getByRole('button', { name: 'Hoje', exact: true });
+    // page.goto aguarda o documento, mas não garante que a árvore React já montou a navegação.
+    // Esperar a primeira ação estar disponível evita enviar Tab antes do primeiro destino existir.
+    await expect(today).toBeVisible();
     await page.keyboard.press('Tab');
-    await expect(nav(page).getByRole('button', { name: 'Hoje', exact: true })).toBeFocused();
+    await expect(today).toBeFocused();
   });
 }
 
