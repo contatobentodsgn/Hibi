@@ -15,6 +15,8 @@ declare global {
       voice: (command: 'start' | 'stop') => Promise<boolean>;
       action: (requestId: string, actionId: string) => Promise<boolean>;
       close: () => Promise<boolean>;
+      reopen: () => Promise<boolean>;
+      openAssistant: () => Promise<boolean>;
       onContent: (callback: (content: AssistantBarContent | null) => void) => () => void;
     };
     pixanoDesktop?: {

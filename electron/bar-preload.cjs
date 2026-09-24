@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('pixanoBar', {
   voice: (command) => ipcRenderer.invoke('pixano:bar:voice', command),
   action: (requestId, actionId) => ipcRenderer.invoke('pixano:bar:action', requestId, actionId),
   close: () => ipcRenderer.invoke('pixano:bar:close'),
+  reopen: () => ipcRenderer.invoke('pixano:bar:reopen'),
+  openAssistant: () => ipcRenderer.invoke('pixano:bar:open-assistant'),
   onContent: (callback) => {
     const listener = (_event, content) => callback(content);
     ipcRenderer.on('pixano:bar:content', listener);

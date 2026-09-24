@@ -113,6 +113,8 @@ const EXPECTED_CHANNELS = [
   "pixano:bar:submit",
   "pixano:bar:voice",
   "pixano:bar:close",
+  "pixano:bar:reopen",
+  "pixano:bar:open-assistant",
   "pixano:notch:size",
   "pixano:notch:set-size",
   "pixano:notch:test",
@@ -1165,12 +1167,18 @@ test("os canais da barra só ouvem a janela dela, e o texto dela vira pedido na 
 
   assert.equal(await harness.handlers.get("pixano:bar:submit")(outro, "apague tudo"), false);
   assert.equal(await harness.handlers.get("pixano:bar:voice")(outro, "start"), false);
+  assert.equal(await harness.handlers.get("pixano:bar:reopen")(outro), false);
+  assert.equal(await harness.handlers.get("pixano:bar:open-assistant")(outro), false);
   assert.equal(await harness.handlers.get("pixano:bar:submit")(daBarra, "   "), false);
   assert.equal(await harness.handlers.get("pixano:bar:voice")(daBarra, "gravar"), false);
   assert.deepEqual(harness.mainWindow().sent.filter(([channel]) => channel.startsWith("pixano:bar:")), []);
 
   assert.equal(await harness.handlers.get("pixano:bar:submit")(daBarra, "  crie uma tarefa revisar contrato "), true);
   assert.equal(await harness.handlers.get("pixano:bar:voice")(daBarra, "start"), true);
+  assert.equal(await harness.handlers.get("pixano:bar:reopen")(daBarra), true);
+  assert.equal(barra.sent.at(-1)[1].mode, "input");
+  assert.equal(await harness.handlers.get("pixano:bar:open-assistant")(daBarra), true);
+  assert.deepEqual(harness.mainWindow().sent.filter(([channel]) => channel === "pixano:shortcut:assistant").at(-1), ["pixano:shortcut:assistant", { listen: false, background: false }]);
   assert.equal(await harness.handlers.get("pixano:bar:close")(daBarra), true);
   assert.deepEqual(harness.mainWindow().sent.filter(([channel]) => channel.startsWith("pixano:bar:")), [["pixano:bar:submit", "crie uma tarefa revisar contrato"], ["pixano:bar:voice", "start"], ["pixano:bar:closed", "assistant-bar-input"]]);
 });
