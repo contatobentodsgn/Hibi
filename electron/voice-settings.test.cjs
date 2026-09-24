@@ -8,7 +8,7 @@ const { createVoiceSettings } = require('./voice-settings.cjs');
 const fileIn = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hibi-voice-settings-')), 'voice-settings.json');
 
 test('sem arquivo, o atalho só abre o Assistant e nada é lido em voz alta', () => {
-  assert.deepEqual(createVoiceSettings({ filePath: fileIn() }).get(), { shortcutVoice: 'off', spokenReplies: false });
+  assert.deepEqual(createVoiceSettings({ filePath: fileIn() }).get(), { shortcutVoice: 'off', spokenReplies: false, voiceSendMode: 'pause' });
 });
 
 test('grava uma escolha sem apagar a outra, e ela sobrevive ao reinício', () => {
@@ -16,19 +16,26 @@ test('grava uma escolha sem apagar a outra, e ela sobrevive ao reinício', () =>
   createVoiceSettings({ filePath }).save({ shortcutVoice: 'notch' });
   createVoiceSettings({ filePath }).save({ spokenReplies: true });
 
-  assert.deepEqual(createVoiceSettings({ filePath }).get(), { shortcutVoice: 'notch', spokenReplies: true });
+  assert.deepEqual(createVoiceSettings({ filePath }).get(), { shortcutVoice: 'notch', spokenReplies: true, voiceSendMode: 'pause' });
   assert.equal(fs.statSync(filePath).mode & 0o777, 0o600);
 });
 
 test('recusa valores que não existem e não grava nada', () => {
   const filePath = fileIn();
   const settings = createVoiceSettings({ filePath });
-  for (const patch of [{ shortcutVoice: 'sempre' }, { spokenReplies: 'sim' }, { shortcutVoice: null }]) assert.throws(() => settings.save(patch), /Invalid voice settings/);
+  for (const patch of [{ shortcutVoice: 'sempre' }, { spokenReplies: 'sim' }, { shortcutVoice: null }, { voiceSendMode: 'automatico' }]) assert.throws(() => settings.save(patch), /Invalid voice settings/);
   assert.equal(fs.existsSync(filePath), false);
 });
 
 test('um arquivo corrompido volta ao padrão', () => {
   const filePath = fileIn();
   fs.writeFileSync(filePath, '{ quebrado');
-  assert.deepEqual(createVoiceSettings({ filePath }).get(), { shortcutVoice: 'off', spokenReplies: false });
+  assert.deepEqual(createVoiceSettings({ filePath }).get(), { shortcutVoice: 'off', spokenReplies: false, voiceSendMode: 'pause' });
+});
+
+test('persists the explicit voice send mode alongside other voice preferences', () => {
+  const filePath = fileIn();
+  const settings = createVoiceSettings({ filePath });
+  assert.deepEqual(settings.save({ voiceSendMode: 'manual' }), { shortcutVoice: 'off', spokenReplies: false, voiceSendMode: 'manual' });
+  assert.deepEqual(settings.save({ spokenReplies: true }), { shortcutVoice: 'off', spokenReplies: true, voiceSendMode: 'manual' });
 });

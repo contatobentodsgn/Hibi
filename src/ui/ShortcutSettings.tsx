@@ -4,7 +4,8 @@ import { SHORTCUT_CHOICES, shortcutLabel, shortcutStatusKey, type ShortcutStatus
 
 type ShortcutState = { accelerator: string | null; status: ShortcutStatus; error?: 'invalid' };
 type VoiceMode = 'off' | 'window' | 'notch';
-type VoiceState = { shortcutVoice: VoiceMode; spokenReplies: boolean };
+type VoiceSendMode = 'pause' | 'manual';
+type VoiceState = { shortcutVoice: VoiceMode; spokenReplies: boolean; voiceSendMode: VoiceSendMode };
 const VOICE_MODES: readonly VoiceMode[] = ['off', 'window', 'notch'];
 
 /**
@@ -42,7 +43,8 @@ export function ShortcutSettings({ onEvent }: { onEvent: (action: string, detail
   const salvarVoz = async (patch: Partial<VoiceState>) => {
     const next = await bridge.setVoiceSettings?.(patch).catch(() => null);
     if (!next || next.error) return;
-    setVoice({ shortcutVoice: next.shortcutVoice, spokenReplies: next.spokenReplies });
+    setVoice({ shortcutVoice: next.shortcutVoice, spokenReplies: next.spokenReplies, voiceSendMode: next.voiceSendMode });
+    window.dispatchEvent(new CustomEvent('pixano:voice-settings-changed', { detail: next }));
     onEvent('edit', t('shortcut.voice.title'), 'pass');
   };
 
@@ -63,9 +65,14 @@ export function ShortcutSettings({ onEvent }: { onEvent: (action: string, detail
       <strong>{t('shortcut.voice.title')}</strong>
       <span>{t('shortcut.voice.detail')}</span>
       <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}><input type="checkbox" checked={voice.spokenReplies} onChange={(event) => void salvarVoz({ spokenReplies: event.target.checked })} />{t('shortcut.voice.replies')}</label>
+      <label htmlFor="voice-send-mode" style={{ display: 'block', marginTop: 10 }}>{t('voice.sendMode.label')}</label>
     </div>
     <select aria-label={t('shortcut.voice.title')} value={voice.shortcutVoice} onChange={(event) => void salvarVoz({ shortcutVoice: event.target.value as VoiceMode })}>
       {VOICE_MODES.map((mode) => <option key={mode} value={mode}>{t(`shortcut.voice.${mode}`)}</option>)}
+    </select>
+    <select id="voice-send-mode" aria-label={t('voice.sendMode.label')} value={voice.voiceSendMode} onChange={(event) => void salvarVoz({ voiceSendMode: event.target.value as VoiceSendMode })}>
+      <option value="pause">{t('voice.sendMode.pause')}</option>
+      <option value="manual">{t('voice.sendMode.manual')}</option>
     </select>
   </div>}</>;
 }

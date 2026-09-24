@@ -298,8 +298,12 @@ function openAssistant() {
 // O atalho abre a barra do Assistant embaixo do notch, para digitar ou falar sem sair do app em que se está.
 // `notch` já começa a ouvir; `window` é o caminho antigo, pela janela do Hibi.
 function summonAssistant() {
-  const mode = voiceSettings?.get().shortcutVoice ?? 'off';
+  const settings = voiceSettings?.get();
+  const mode = settings?.shortcutVoice ?? 'off';
   if (mode === 'window') { summonWindow(); sendToMainWindow('pixano:shortcut:assistant', { listen: true, background: false }); return; }
+  // A transcrição manual precisa de uma janela visível para ser revisada; manter o atalho no notch
+  // nesse modo deixaria o texto capturado sem um caminho para confirmar o envio.
+  if (mode === 'notch' && settings?.voiceSendMode === 'manual') { summonWindow(); sendToMainWindow('pixano:shortcut:assistant', { listen: true, background: false }); return; }
   assistantBar?.openInput();
   if (mode === 'notch') sendToMainWindow('pixano:shortcut:assistant', { listen: true, background: true });
 }

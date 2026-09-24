@@ -13,15 +13,18 @@ const path = require('node:path');
  * armazenamento da janela.
  */
 const SHORTCUT_VOICE_MODES = new Set(['off', 'window', 'notch']);
-const DEFAULTS = Object.freeze({ shortcutVoice: 'off', spokenReplies: false });
+const SEND_MODES = new Set(['pause', 'manual']);
+const DEFAULTS = Object.freeze({ shortcutVoice: 'off', spokenReplies: false, voiceSendMode: 'pause' });
 
 function normalizeVoiceSettings(value, base = DEFAULTS) {
   const input = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const shortcutVoice = 'shortcutVoice' in input ? input.shortcutVoice : base.shortcutVoice;
   const spokenReplies = 'spokenReplies' in input ? input.spokenReplies : base.spokenReplies;
+  const voiceSendMode = 'voiceSendMode' in input ? input.voiceSendMode : base.voiceSendMode;
   if (!SHORTCUT_VOICE_MODES.has(shortcutVoice)) throw new Error('Invalid voice settings.');
   if (typeof spokenReplies !== 'boolean') throw new Error('Invalid voice settings.');
-  return { shortcutVoice, spokenReplies };
+  if (!SEND_MODES.has(voiceSendMode)) throw new Error('Invalid voice settings.');
+  return { shortcutVoice, spokenReplies, voiceSendMode };
 }
 
 function createVoiceSettings({ filePath } = {}) {
@@ -42,4 +45,4 @@ function createVoiceSettings({ filePath } = {}) {
   };
 }
 
-module.exports = { createVoiceSettings, normalizeVoiceSettings, SHORTCUT_VOICE_MODES };
+module.exports = { createVoiceSettings, normalizeVoiceSettings, SHORTCUT_VOICE_MODES, SEND_MODES };

@@ -9,6 +9,7 @@ async function installVoice(page: Page, settings = { shortcutVoice: 'off', spoke
     const textListeners: ((text: string) => void)[] = [];
     const shortcutListeners: ((request: { listen: boolean; background: boolean }) => void)[] = [];
     let finishListen: ((result: unknown) => void) | null = null;
+    let finishSpeech: (() => void) | null = null;
     let voiceSettings = { ...initial };
     const log: Log = {
       calls,
@@ -19,9 +20,9 @@ async function installVoice(page: Page, settings = { shortcutVoice: 'off', spoke
     (window as unknown as { voiceE2E: Log }).voiceE2E = log;
     (window as unknown as { pixanoDesktop: Record<string, unknown> }).pixanoDesktop = {
       listenLocalVoice: (options: { autoStop?: boolean; vocabulary?: string[] }) => { calls.push(`listen:${options?.autoStop === true}`); calls.push(`vocabulary:${JSON.stringify(options?.vocabulary ?? [])}`); return new Promise((resolve) => { finishListen = resolve; }); },
-      stopLocalVoice: async () => { calls.push('stop'); log.finish('stopped'); return { status: 'ready' }; },
+      stopLocalVoice: async () => { calls.push('stop'); log.finish('stopped'); finishSpeech?.(); finishSpeech = null; return { status: 'ready' }; },
       onLocalVoiceText: (callback: (text: string) => void) => { textListeners.push(callback); return () => textListeners.splice(textListeners.indexOf(callback), 1); },
-      speakLocalVoice: async (text: string) => { calls.push(`speak:${text}`); return { status: 'ready', spoken: true }; },
+      speakLocalVoice: (text: string) => { calls.push(`speak:${text}`); return new Promise((resolve) => { finishSpeech = () => resolve({ status: 'ready', spoken: true }); }); },
       onAssistantShortcut: (callback: (request: { listen: boolean; background: boolean }) => void) => { shortcutListeners.push(callback); return () => shortcutListeners.splice(shortcutListeners.indexOf(callback), 1); },
       getAssistantShortcut: async () => ({ accelerator: 'Command+Shift+Space', status: 'active' }),
       setAssistantShortcut: async (accelerator: string | null) => ({ accelerator, status: 'active' }),
@@ -90,6 +91,30 @@ test('parar pelo botão deixa o texto no campo para editar, sem enviar', async (
   await expect(page.getByRole('alert').filter({ hasText: 'Confirme' })).toHaveCount(0);
 });
 
+test('no modo manual, a pausa finaliza a transcrição sem enviar; a pessoa revisa e envia', async ({ page }) => {
+  await installVoice(page, { shortcutVoice: 'off', spokenReplies: false, voiceSendMode: 'manual' });
+  await openAssistant(page);
+  await page.getByRole('button', { name: 'Falar' }).click();
+  await voice(page).say('exclua tarefa: Kabrito Post 01');
+  await voice(page).finish('silence');
+
+  await expect(campo(page)).toHaveValue('exclua tarefa: Kabrito Post 01');
+  await expect(page.getByRole('status').filter({ hasText: 'Revise o texto' })).toBeVisible();
+  await expect(page.getByRole('alert').filter({ hasText: 'Confirme' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await expect(page.getByRole('alert').filter({ hasText: 'Confirme para continuar' })).toBeVisible();
+});
+
+test('a tela anuncia os estados de escuta e transcrição', async ({ page }) => {
+  await installVoice(page);
+  await openAssistant(page);
+  await page.getByRole('button', { name: 'Falar' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Ouvindo' })).toBeVisible();
+  await voice(page).say('revisar o relatório');
+  await expect(page.getByRole('status').filter({ hasText: 'revisar o relatório' })).toBeVisible();
+  await page.getByRole('button', { name: 'Parar voz' }).click();
+});
+
 test('sem nenhuma palavra, a tela diz que não ouviu nada', async ({ page }) => {
   await installVoice(page);
   await openAssistant(page);
@@ -111,6 +136,19 @@ test('a resposta de um pedido falado é lida em voz alta; a de um pedido digitad
   await voice(page).say('quais são minhas tarefas?');
   await voice(page).finish('silence');
   await expect.poll(async () => (await voice(page).calls()).filter((call) => call.startsWith('speak:')).length).toBe(1);
+});
+
+test('a leitura falada pode ser interrompida pelo controle visível', async ({ page }) => {
+  await installVoice(page);
+  await openAssistant(page);
+  await page.getByRole('button', { name: 'Falar' }).click();
+  await voice(page).say('quais são minhas tarefas?');
+  await voice(page).finish('silence');
+  await expect.poll(async () => (await voice(page).calls()).some((call) => call.startsWith('speak:'))).toBe(true);
+  await page.getByRole('button', { name: 'Parar leitura' }).click();
+  expect(await voice(page).calls()).toContain('stop');
+  expect((await voice(page).calls()).filter((call) => call.startsWith('speak:'))).toHaveLength(1);
+  await expect(page.getByRole('button', { name: 'Falar' })).toBeVisible();
 });
 
 test('pelo atalho no modo notch, o notch mostra o que é ouvido, sem trocar de tela', async ({ page }) => {
@@ -145,7 +183,8 @@ test('os ajustes de voz ficam em Configurações, junto do atalho', async ({ pag
   await page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('button', { name: 'Ajustes', exact: true }).click();
 
   await page.getByLabel('Voz pelo atalho').selectOption('notch');
+  await page.getByLabel('Modo de envio por voz').selectOption('manual');
   await page.getByLabel('Ler em voz alta as respostas de pedidos feitos por voz').check();
 
-  expect(await voice(page).calls()).toEqual(expect.arrayContaining(['settings:{"shortcutVoice":"notch"}', 'settings:{"spokenReplies":true}']));
+  expect(await voice(page).calls()).toEqual(expect.arrayContaining(['settings:{"shortcutVoice":"notch"}', 'settings:{"voiceSendMode":"manual"}', 'settings:{"spokenReplies":true}']));
 });
