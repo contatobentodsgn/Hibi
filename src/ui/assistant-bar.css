@@ -6,8 +6,12 @@ html:has(.assistant-bar) #root { margin: 0; padding: 0; width: 100vw; height: 10
 .assistant-bar-field { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font: inherit; }
 .assistant-bar-field::placeholder, .assistant-bar-hint { color: var(--hibi-ink-muted); }
 .assistant-bar-text { flex: 1; min-width: 0; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.assistant-bar-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.assistant-bar-context { margin: 0; color: var(--hibi-ink-muted); font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; }
+.assistant-bar-context span { margin-right: 5px; font-weight: 700; }
 .assistant-bar-reply { white-space: pre-wrap; overflow-y: auto; max-height: calc(100vh - 24px); overflow-wrap: anywhere; }
 .assistant-bar-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.assistant-bar[data-mode=reply] .assistant-bar-actions, .assistant-bar[data-mode=notice] .assistant-bar-actions { flex-wrap: wrap; justify-content: flex-end; }
 .assistant-bar-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 999px; background: var(--hibi-action); color: var(--hibi-action-ink); cursor: pointer; }
 .assistant-bar-pill { border: 0; border-radius: 999px; padding: 7px 14px; background: color-mix(in srgb, var(--hibi-ink) 10%, transparent); color: var(--hibi-ink); font: 600 13px var(--hibi-font); cursor: pointer; }
 .assistant-bar-pill.is-primary { background: var(--hibi-action); color: var(--hibi-action-ink); }

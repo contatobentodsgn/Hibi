@@ -15,6 +15,12 @@ async function openBar(page: Page, initial: Content | null) {
       submit: async (text: string) => { calls.push(`submit:${text}`); return true; },
       voice: async (command: string) => { calls.push(`voice:${command}`); return true; },
       action: async (requestId: string, actionId: string) => { calls.push(`action:${requestId}:${actionId}`); return true; },
+      reopen: async () => {
+        calls.push('reopen');
+        listeners.forEach((listener) => listener({ requestId: 'assistant-bar-input', mode: 'input', kind: 'input', text: null, actions: [] }));
+        return true;
+      },
+      openAssistant: async () => { calls.push('open-assistant'); return true; },
       close: async () => { calls.push('close'); return true; },
       onContent: (callback: (content: unknown) => void) => { listeners.push(callback); return () => listeners.splice(listeners.indexOf(callback), 1); },
     };
@@ -37,6 +43,7 @@ test('aberta pelo atalho, a barra recebe o texto; o botão troca de falar para e
   await campo.press('Enter');
 
   expect(await calls(page)).toEqual(['submit:crie uma tarefa revisar contrato']);
+  await expect(campo).toHaveValue('');
 });
 
 test('falar pela barra: o ditado aparece nela, e parar vai para a voz', async ({ page }) => {
@@ -80,6 +87,33 @@ test('uma confirmação fica na barra com os botões dela, e Esc cancela em vez 
 
   await dialogo.getByRole('button', { name: 'Confirmar' }).click();
   expect(await calls(page)).toEqual(['action:c-1:cancel', 'action:c-1:confirm']);
+});
+
+test('cancelar uma ação mantém o pedido acessível para editar e tentar de novo', async ({ page }) => {
+  await openBar(page, input);
+  const prompt = 'apague o lembrete de teste';
+  const field = page.getByRole('textbox', { name: 'Pergunte ao assistente ou peça uma ação' });
+  await field.fill(prompt);
+  await field.press('Enter');
+  await push(page, { requestId: 'turn-edit', mode: 'thinking', kind: 'thinking', text: prompt, actions: [] });
+  await push(page, { requestId: 'confirm-edit', mode: 'confirmation', kind: 'confirmation', text: 'Apagar o lembrete “teste”?', actions: [{ id: 'confirm', label: 'Confirmar' }, { id: 'cancel', label: 'Cancelar' }] });
+  await expect(page.locator('.assistant-bar')).toContainText(prompt);
+  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await push(page, { requestId: 'cancelled-edit', mode: 'reply', kind: 'result', text: 'Ação cancelada.', actions: [] });
+
+  await expect(bar(page)).toContainText(prompt);
+  await bar(page).getByRole('button', { name: 'Editar pedido' }).click();
+  await expect(field).toHaveValue(prompt);
+  expect(await calls(page)).toContain('reopen');
+});
+
+test('uma resposta oferece continuar no Assistente da janela principal', async ({ page }) => {
+  await openBar(page, input);
+  await page.getByRole('textbox', { name: 'Pergunte ao assistente ou peça uma ação' }).fill('quais são meus próximos compromissos?');
+  await page.keyboard.press('Enter');
+  await push(page, { requestId: 'turn-open', mode: 'reply', kind: 'result', text: 'Você tem um compromisso amanhã.', actions: [] });
+  await page.getByRole('button', { name: 'Abrir Assistente' }).click();
+  expect(await calls(page)).toContain('open-assistant');
 });
 
 test('um Esc no instante em que a confirmação aparece cancela, não fecha', async ({ page }) => {

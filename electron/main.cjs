@@ -592,6 +592,16 @@ app.whenReady().then(async () => {
     if (closing) sendToMainWindow('pixano:bar:closed', closing.requestId);
     return true;
   });
+  ipcMain.handle('pixano:bar:reopen', (event) => {
+    if (!fromBar(event)) return false;
+    return assistantBar.openInput();
+  });
+  ipcMain.handle('pixano:bar:open-assistant', (event) => {
+    if (!fromBar(event)) return false;
+    summonWindow();
+    sendToMainWindow('pixano:shortcut:assistant', { listen: false, background: false });
+    return true;
+  });
   ipcMain.handle('pixano:notch:capabilities', () => notchCapabilities(notchAdapter, notchWindow));
   ipcMain.handle('pixano:notch:displays', () => notchDisplayState(notchSettings, notchWindow));
   ipcMain.handle('pixano:notch:set-display', (_event, displayId) => {

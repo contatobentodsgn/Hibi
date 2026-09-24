@@ -38,7 +38,7 @@ export function AssistantBar({ bridge = typeof window === 'undefined' ? undefine
     return bridge.onContent(setContent);
   }, [bridge]);
   useEffect(() => {
-    if (content?.mode === 'input') { setDraft(''); field.current?.focus(); }
+    if (content?.mode === 'input') { setDraft(lastPrompt); field.current?.focus(); }
     if (content?.mode === 'listening' && content.text) setLastPrompt(content.text);
   }, [content?.mode, content?.requestId, content?.text]);
 
@@ -84,11 +84,21 @@ export function AssistantBar({ bridge = typeof window === 'undefined' ? undefine
       <div className="assistant-bar-actions"><span className="assistant-bar-dots" aria-label={t('bar.thinking')}><i /><i /><i /></span></div>
     </>}
     {(content.mode === 'reply' || content.mode === 'notice') && <>
-      <p className="assistant-bar-text assistant-bar-reply" aria-live="polite">{content.text}</p>
-      <div className="assistant-bar-actions">{button(t('bar.close'), 'close', close)}</div>
+      <div className="assistant-bar-copy">
+        {lastPrompt && <p className="assistant-bar-context"><span>{t('bar.lastPrompt')}</span>{lastPrompt}</p>}
+        <p className="assistant-bar-text assistant-bar-reply" aria-live="polite">{content.text}</p>
+      </div>
+      <div className="assistant-bar-actions">
+        {lastPrompt && <button type="button" className="assistant-bar-pill" onClick={() => { void bridge?.reopen(); }}>{t('bar.editRequest')}</button>}
+        {lastPrompt && <button type="button" className="assistant-bar-pill" onClick={() => { void bridge?.openAssistant(); }}>{t('bar.openAssistant')}</button>}
+        {button(t('bar.close'), 'close', close)}
+      </div>
     </>}
     {content.mode === 'confirmation' && <>
-      <p className="assistant-bar-text assistant-bar-reply">{content.text}</p>
+      <div className="assistant-bar-copy">
+        {lastPrompt && <p className="assistant-bar-context"><span>{t('bar.lastPrompt')}</span>{lastPrompt}</p>}
+        <p className="assistant-bar-text assistant-bar-reply">{content.text}</p>
+      </div>
       <div className="assistant-bar-actions">{content.actions.map((action, index) => <button type="button" key={action.id} autoFocus={index === 0} className={`assistant-bar-pill ${action.id === 'confirm' ? 'is-primary' : ''}`} onClick={() => { void bridge?.action(content.requestId, action.id); }}>{action.label}</button>)}</div>
     </>}
   </main>;
