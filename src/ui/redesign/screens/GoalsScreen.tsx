@@ -3,6 +3,7 @@ import { Check, Pencil, Plus, Target, Trash2 } from "lucide-react";
 import type { Goal, StudyData } from "../../../domain/models";
 import { deriveGoalsDirection } from "../../progress-rhythm";
 import { PixanoEmptyState } from "../components/PixanoEmptyState";
+import { ContextualGuidance } from "../components/ContextualGuidance";
 import { ActionDialog } from "../components/ActionDialog";
 import { PixanoUiRoot } from "../components/PixanoUiRoot";
 import { SectionHeader } from "../components/SectionHeader";
@@ -75,6 +76,7 @@ export function GoalsScreen({
           </button>
         }
       />
+      {direction.next && <ContextualGuidance id="goals.progress-next" title={t("contextual.goals.progress.title")} description={t("contextual.goals.progress.detail").replace("{title}", direction.next.title)} actionLabel={t("contextual.goals.progress.action")} onAction={() => { setProgressId(direction.next!.id); setProgress(String(direction.next!.current)); }} />}
       <div className="rhythm-stats">
         <div className="rhythm-stat--wide">
           <span>{t("goals.nextMilestone")}</span>

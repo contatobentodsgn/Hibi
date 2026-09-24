@@ -25,6 +25,7 @@ import {
   type ReadonlyAgendaEvent,
 } from "../../external-calendar-events";
 import { PixanoEmptyState } from "../components/PixanoEmptyState";
+import { ContextualGuidance } from "../components/ContextualGuidance";
 import { PixanoTag } from "../components/PixanoTag";
 import { PixanoUiRoot } from "../components/PixanoUiRoot";
 import { SectionHeader } from "../components/SectionHeader";
@@ -460,6 +461,13 @@ export function AgendaScreen({
           {importNotice}
         </p>
       )}
+      {periodBlocks.length > 0 && !periodBlocks.some((block) => block.category === "break" || block.category === "wellbeing") && <ContextualGuidance
+        id="agenda.plan-break"
+        title={t("contextual.agenda.break.title")}
+        description={t("contextual.agenda.break.detail")}
+        actionLabel={t("contextual.agenda.break.action")}
+        onAction={() => { setLayer("wellbeing"); setShowAllHours(true); onEvent("filter", "Agenda · Bem-estar"); }}
+      />}
       <AgendaAvailability blocks={periodBlocks} days={visibleDays} />
       <div className="agenda-screen__body">
         <Card className="agenda-screen__grid-card">

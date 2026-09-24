@@ -21,6 +21,7 @@ import {
   type TaskDeadlineState,
 } from "../../task-rhythm";
 import { ActionDialog } from "../components/ActionDialog";
+import { ContextualGuidance } from "../components/ContextualGuidance";
 import { PixanoEmptyState } from "../components/PixanoEmptyState";
 import { PixanoTag, type PixanoTagTone } from "../components/PixanoTag";
 import { PixanoUiRoot } from "../components/PixanoUiRoot";
@@ -218,6 +219,14 @@ export function TasksScreen({
           </ActionDialog>
         }
       />
+
+      {rhythm.overdue > 0 && <ContextualGuidance
+        id="tasks.overdue"
+        title={t("contextual.tasks.overdue.title")}
+        description={t("contextual.tasks.overdue.detail")}
+        actionLabel={t("contextual.tasks.overdue.action")}
+        onAction={() => { setScope("open"); setFolder(null); setSortByDeadline(true); onEvent("sort", t("tasks.byDeadline")); }}
+      />}
 
       <div className="tasks-screen__layout">
         <aside

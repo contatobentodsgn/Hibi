@@ -26,11 +26,11 @@ export function PixanoEmptyState({ icon: Icon, tone, title, description, action,
           <Icon size={20} />
         </span>
       )}
-      <div>
+      <div className="hibi-empty-state__content">
         <Heading className="hibi-empty-state__title">{title}</Heading>
         {description && <p className="hibi-empty-state__description">{description}</p>}
+        {action}
       </div>
-      {action}
     </div>
   );
 }

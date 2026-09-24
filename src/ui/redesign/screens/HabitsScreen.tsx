@@ -4,6 +4,7 @@ import type { Habit, StudyData } from "../../../domain/models";
 import { todayKey } from "../../../domain/date-context";
 import { progressFor, streakFor } from "../../progress-rhythm";
 import { PixanoEmptyState } from "../components/PixanoEmptyState";
+import { ContextualGuidance } from "../components/ContextualGuidance";
 import { ActionDialog } from "../components/ActionDialog";
 import { PixanoUiRoot } from "../components/PixanoUiRoot";
 import { SectionHeader } from "../components/SectionHeader";
@@ -66,6 +67,10 @@ export function HabitsScreen({
   const completed = data.habits.filter((habit) =>
     habit.completedDates.includes(today),
   ).length;
+  const nextHabit = data.habits.find((habit) => {
+    const progress = progressFor(habit, today);
+    return !habit.completedDates.includes(today) && progress.completed < progress.target;
+  }) ?? null;
   const streak = Math.max(
     0,
     ...data.habits.map((habit) => streakFor(habit, today)),
@@ -89,6 +94,7 @@ export function HabitsScreen({
           </button>
         }
       />
+      {nextHabit && <ContextualGuidance id="habits.check-next" title={t("contextual.habits.check.title")} description={t("contextual.habits.check.detail").replace("{title}", nextHabit.title)} actionLabel={t("contextual.habits.check.action")} onAction={() => onToggleCompletion(nextHabit.id, today, true)} />}
       <div className="rhythm-stats">
         <div>
           <span>{t("habits.today")}</span>
@@ -170,6 +176,7 @@ export function HabitsScreen({
             tone="mint"
             title={t("habits.empty")}
             description={t("habits.emptyDescription")}
+            action={<button className="rhythm-button" type="button" onClick={() => document.getElementById("new-habit-title")?.focus()}>{t("habits.new")}</button>}
           />
         ) : (
           <div className="rhythm-items">
