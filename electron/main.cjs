@@ -639,6 +639,11 @@ app.whenReady().then(async () => {
   ipcMain.handle('pixano:local-model:cancel', (_event, requestId) => { localModelService.cancel(requestId); return true; });
   ipcMain.handle('pixano:local-model:shutdown', () => localModelService.shutdown());
   ipcMain.handle('pixano:local-voice:state', () => localVoiceService.state());
+  ipcMain.handle('pixano:diagnostics:microphone-permission', () => {
+    if (process.platform !== 'darwin' || typeof systemPreferences?.getMediaAccessStatus !== 'function') return 'unavailable';
+    const status = systemPreferences.getMediaAccessStatus('microphone');
+    return ['not-determined', 'granted', 'denied', 'restricted'].includes(status) ? status : 'unknown';
+  });
   ipcMain.handle('pixano:local-voice:listen', async (_event, options) => {
     // A permissão é pedida antes de abrir o microfone, e uma recusa vira estado, não exceção.
     if (process.platform === 'darwin' && systemPreferences?.askForMediaAccess) {

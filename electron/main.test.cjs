@@ -102,6 +102,7 @@ const EXPECTED_CHANNELS = [
   "pixano:local-model:cancel",
   "pixano:local-model:shutdown",
   "pixano:local-voice:state",
+  "pixano:diagnostics:microphone-permission",
   "pixano:local-voice:listen",
   "pixano:local-voice:set-locale",
   "pixano:local-voice:stop",
@@ -291,7 +292,7 @@ async function loadMain({ seedUserData, seedAppData, seedResources, breakWorkspa
     },
     shell: { openExternal: () => Promise.resolve() },
     // A permissão de microfone é pedida ao sistema antes de abrir a escuta; o teste controla a resposta.
-    systemPreferences: { askForMediaAccess: async (tipo) => { captured.mediaAccess = [...(captured.mediaAccess ?? []), tipo]; return microphoneAllowed; } },
+    systemPreferences: { askForMediaAccess: async (tipo) => { captured.mediaAccess = [...(captured.mediaAccess ?? []), tipo]; return microphoneAllowed; }, getMediaAccessStatus: () => microphoneAllowed ? 'granted' : 'denied' },
     powerMonitor: {
       on: (event, listener) => { powerEvents.push([event, listener]); },
       removeListener: (event, listener) => { removedEvents.push([event, listener]); },
@@ -1805,6 +1806,18 @@ test("a escuta repassa ao renderer o texto reconhecido, e o idioma é normalizad
   assert.equal((await harness.invoke("pixano:local-voice:set-locale", "klingon")).locale, "pt-BR");
   assert.equal((await harness.invoke("pixano:local-voice:stop")).status, "ready");
   assert.deepEqual(harness.voiceService.calls, [["listen"], ["setLocale", "en-US"], ["setLocale", "klingon"], ["stop"]]);
+});
+
+test("o diagnóstico informa somente o estado permitido da permissão do microfone", async (t) => {
+  const harness = await loadMain();
+  t.after(() => harness.cleanup());
+  if (process.platform !== 'darwin') {
+    assert.equal(await harness.invoke("pixano:diagnostics:microphone-permission"), "unavailable");
+    return;
+  }
+  assert.equal(await harness.invoke("pixano:diagnostics:microphone-permission"), "granted");
+  harness.setMicrophoneAllowed(false);
+  assert.equal(await harness.invoke("pixano:diagnostics:microphone-permission"), "denied");
 });
 
 test("o microfone recusado vira estado, e a escuta nem começa", { skip: process.platform !== "darwin" ? "só no macOS" : false }, async (t) => {

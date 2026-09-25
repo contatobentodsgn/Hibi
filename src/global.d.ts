@@ -90,6 +90,7 @@ declare global {
       cancelLocalModel?: (requestId: string) => Promise<boolean>;
       shutdownLocalModel?: () => Promise<{ status: string; modelId: string | null; error: string | null }>;
       getLocalVoiceState?: () => Promise<{ status: string; locale: string; error: string | null; reason?: string | null }>;
+      getMicrophonePermission?: () => Promise<'not-determined' | 'granted' | 'denied' | 'restricted' | 'unavailable' | 'unknown'>;
       listenLocalVoice?: (options?: { autoStop?: boolean; vocabulary?: readonly string[] }) => Promise<{ status: string; locale: string; error: string | null; reason?: string | null; ended?: 'silence' | 'no-speech' | 'stopped' | 'done' | null }>;
       setLocalVoiceLocale?: (locale: string) => Promise<{ status: string; locale: string; error: string | null }>;
       stopLocalVoice?: () => Promise<{ status: string; locale: string; error: string | null; reason?: string | null }>;
